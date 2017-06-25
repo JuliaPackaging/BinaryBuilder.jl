@@ -6,9 +6,9 @@
 
 # Philosophy
 
-Building binary packages is a pain.  `BinDeps2` is here to make your life easier.  We follow a philosophy here that is similar to that of building [Julia](https://julialang.org) itself; when you want something done right, you do it yourself.
+Building binary packages is a pain.  `BinDeps2` is here to make your life easier.  `BinDeps2` follows a philosophy that is similar to that of building [Julia](https://julialang.org) itself; when you want something done right, you do it yourself.
 
-To that end, `BinDeps2` is designed from the ground up to facillitate the building of packages within an easily reproducible environment, ensuring that the built libraries and executables are deployable to every computer that Julia itself will run on.  Packages are built using a sequence of shell commands, packaged up inside tarballs, then hosted and package installation is merely downloading, verifying and extracting that tarball.
+To that end, `BinDeps2` is designed from the ground up to facillitate the building of packages within an easily reproducible and reliable environment, ensuring that the built libraries and executables are deployable to every computer that Julia itself will run on.  Packages are built using a sequence of shell commands, packaged up inside tarballs, and hosted online for all to enjoy.  Package installation is merely downloading, verifying and extracting that tarball on the user's computer.  No more compiling on user's machines.  No more struggling with system package managers.  No more needing `sudo` access to install that little mathematical optimization library.
 
 We do not use system package managers.
 
