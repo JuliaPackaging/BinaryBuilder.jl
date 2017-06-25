@@ -1,0 +1,6 @@
+libfoo.dylib*
+libfoo.so*
+libfoo.dll*
+fooifier
+fooifier.exe
+fooifier.dSYM*
