@@ -12,7 +12,7 @@ SHLIB_EXT ?= dylib
 RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
 else
 SHLIB_EXT ?= so
-RPATH ?= -Wl,-rpath,'\$$ORIGIN/../lib' -Wl,-rpath,'\$$ORIGIN'
+RPATH ?= -Wl,-rpath,'$$ORIGIN/../lib' -Wl,-rpath,'$$ORIGIN'
 endif
 
 $(bindir):
