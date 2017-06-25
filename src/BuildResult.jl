@@ -1,11 +1,11 @@
 # Results are but an idea
-abstract type BuildResult end
+abstract BuildResult
 
 # A Library Dependency is a special kind of Dependency that not only needs to
 # exist, but needs to have a special set of audit rules applied to it to show
 # that the library can be loaded, that it does not have dependencies that live
 # outside of its prefix/the base Julia distribution, etc...
-struct LibraryResult <: BuildResult
+immutable LibraryResult <: BuildResult
     path::String
 
     function LibraryResult(path::AbstractString)
@@ -39,7 +39,7 @@ end
 
 
 
-struct FileResult <: BuildResult
+immutable FileResult <: BuildResult
     path::AbstractString
 end
 

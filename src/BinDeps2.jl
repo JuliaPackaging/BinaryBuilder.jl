@@ -24,6 +24,11 @@ function __init__()
     # Initialize our global_prefix
     global_prefix = Prefix(joinpath(dirname(@__FILE__), "../", "global_prefix"))
     activate(global_prefix)
+
+    # If we're on a julia that's too old, then fixup the color mappings
+    if !haskey(Base.text_colors, :default)
+        Base.text_colors[:default] = Base.color_normal
+    end
 end
 
 

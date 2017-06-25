@@ -1,6 +1,6 @@
 import Base: wait
 
-struct LineStream
+immutable LineStream
     pipe::Pipe
     lines::Vector{Tuple{Float64,String}}
     task::Task
@@ -23,7 +23,7 @@ function LineStream(pipe::Pipe, event::Condition)
         # Read lines in until we can't anymore
         while !eof(pipe)
             # Push this line onto our lines, then notify() the event
-            line = readline(pipe)
+            line = chomp(readline(pipe))
             push!(lines, (time(), line))
             notify(event)
         end
@@ -52,7 +52,7 @@ end
 
 
 
-struct OutputCollector
+immutable OutputCollector
     cmd::Base.AbstractCmd
     P::Base.AbstractPipe
     stdout_linestream::LineStream
@@ -214,7 +214,6 @@ function tail(collector::OutputCollector; len::Int = 10, colored::Bool = false)
     return out[idx+1:end]
 end
 
-
 """
 `tee(c::OutputCollector; colored::Bool = false)`
 
@@ -233,7 +232,7 @@ function tee(c::OutputCollector; colored::Bool = Base.have_color)
             timestr = Libc.strftime("[%T] ", time())
             # We know we have data, so figure out if it's for stdout or stderr
             if length(out_lines) >= out_idx
-                print_with_color(:default, timestr; bold=true)
+                print_color(:default, timestr; bold=true)
                 if length(err_lines) >= err_idx
                     # If we've got input waiting from both lines, then output
                     # the one with the lowest capture time
@@ -243,7 +242,7 @@ function tee(c::OutputCollector; colored::Bool = Base.have_color)
                         out_idx += 1
                     else
                         # Print the err line as it's older
-                        print_with_color(:red, err_lines[err_idx][2])
+                        print_color(:red, err_lines[err_idx][2])
                         println()
                         err_idx += 1
                     end
@@ -254,8 +253,8 @@ function tee(c::OutputCollector; colored::Bool = Base.have_color)
                 end
             else length(err_lines) > err_idx
                 # Print the err line that is the only one waiting
-                print_with_color(:default, timestr; bold=true)
-                print_with_color(:red, err_lines[err_idx][2])
+                print_color(:default, timestr; bold=true)
+                print_color(:red, err_lines[err_idx][2])
                 println()
                 err_idx += 1
             end
@@ -286,4 +285,32 @@ function tee(c::OutputCollector; colored::Bool = Base.have_color)
     push!(c.extra_tasks, tee_task)
 
     return tee_task
+end
+
+"""
+`print_color(color::Symbol, msg::AbstractString; bold::Bool = false)`
+
+Functionally identical to `Base.print_with_color` except that this works
+identically across Julia 0.5 and 0.6.
+"""
+function print_color(color::Symbol, msg::AbstractString; bold::Bool=false)
+    buf = IOBuffer()
+
+    # Engage the color, and optionally the boldness
+    print(buf, Base.text_colors[color])
+    if bold
+        print(buf, "\e[1m")
+    end
+
+    # Print the message
+    print(buf, msg)
+
+    # Disengage the color, and optionally the boldness
+    if bold
+        print(buf, "\e[22m")
+    end
+    print(buf, Base.text_colors[:normal])
+    
+    # Finally, print this out to stdout
+    print(buf)
 end

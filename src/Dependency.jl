@@ -1,7 +1,7 @@
 # A dependency is something that must be satisfied before a
 # package can be run.  These dependencies can be Libraries,
 # basic files, etc...
-struct Dependency
+immutable Dependency
     # The "name" of this dependency (e.g. "cairo")
     name::AbstractString
 
@@ -25,11 +25,11 @@ end
 
 Defines a new dependency that can be 
 """
-function Dependency(name::AbstractString,
+function Dependency{R <: BuildResult}(name::AbstractString,
                     results::Vector{R},
                     cmds::Vector{Cmd},
                     prefix::Prefix = global_prefix,
-                    dependencies::Vector{Dependency} = Dependency[]) where {R <: BuildResult}
+                    dependencies::Vector{Dependency} = Dependency[])
     name_idxs = Dict{String,Int64}()
 
     function build_step(prefix, cmd)

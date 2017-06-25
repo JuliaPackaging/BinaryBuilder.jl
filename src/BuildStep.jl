@@ -1,4 +1,4 @@
-struct BuildStep
+immutable BuildStep
     name::String
     cmd::Cmd
     prefix::Prefix
@@ -41,7 +41,7 @@ function build(step::BuildStep; verbose::Bool = false)
             println(tail(oc; colored=Base.have_color))
         end
         msg = "Build step $(step.name) did not complete successfully\n"
-        print_with_color(:red, msg; bold=true)
+        print_color(:red, msg; bold=true)
     end
 
     return did_succeed

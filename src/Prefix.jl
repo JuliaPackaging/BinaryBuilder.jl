@@ -143,7 +143,7 @@ function package(prefix::Prefix, out_path::AbstractString;
             println(tail(oc; colored=Base.have_color))
         end
         msg = "Packaging of $(prefix.path) did not complete successfully"
-        Base.print_with_color(:red, msg; bold = true)
+        print_color(:red, msg; bold = true)
         println()
     end
 
@@ -291,7 +291,7 @@ function manifest_for_file(prefix::Prefix, path::AbstractString)
     manidir = joinpath(prefix, "manifests")
     for fname in [f for f in readdir(manidir) if endswith(f, ".list")]
         manifest_path = joinpath(manidir, fname)
-        if search_path in readlines(manifest_path; chomp=true)
+        if search_path in [chomp(l) for l in readlines(manifest_path)]
             return manifest_path
         end
     end
