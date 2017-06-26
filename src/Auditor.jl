@@ -8,13 +8,10 @@ function audit(prefix::Prefix)
     # Search _every_ file for the prefix path to find hardcoded paths
     all_files = collect_files(prefix, f -> !startswith(f, joinpath(prefix, "logs")))
 
-    # Eventually, we'll want to filter out MachO binaries, ELF binaries, etc...
-    # and inspect those more thoroughly in order to provide more interesting
-    # feedback.   
-    #binaries = filter(f -> filemode(f) & 0o100, all_files)
-
+    # If this is false then it's bedtime for bonzo boy
     all_ok = true
 
+    # First, check for absolute paths in files
     for f in all_files
         file_contents = readstring(f)
         if contains(file_contents, prefix.path)
@@ -23,9 +20,32 @@ function audit(prefix::Prefix)
         end
     end
 
+    # Next ensure that we can `dlopen()` all library files
+    shlib_regex = Regex(".*\.$(Libdl.dlext)[\.0-9]*\$")
+    shlib_files = filter(f -> ismatch(shlib_regex, f), all_files)
+    for f in shlib_files
+        if Libdl.dlopen_e(f) == C_NULL
+            # TODO: Use the relevant ObjFileBase packages to inspect why this
+            # file is being nasty to us.
+            warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+            all_ok = false
+        end
+    end
+
+    # Eventually, we'll want to filter out MachO binaries, ELF binaries, etc...
+    # and inspect those more thoroughly in order to provide more interesting
+    # feedback.
+    #binaries = filter(f -> filemode(f) & 0o100, all_files)
+    
     return all_ok
 end
 
+"""
+`collect_files(prefix::Prefix, predicate::Function)`
+
+Find all files that satisfy `predicate()` when the full path to that file is
+passed in, returning the list of file paths.
+"""
 function collect_files(prefix::Prefix, predicate::Function)
     collected = String[]
     for (root, dirs, files) in walkdir(prefix.path)

@@ -294,23 +294,18 @@ Functionally identical to `Base.print_with_color` except that this works
 identically across Julia 0.5 and 0.6.
 """
 function print_color(color::Symbol, msg::AbstractString; bold::Bool=false)
-    buf = IOBuffer()
-
     # Engage the color, and optionally the boldness
-    print(buf, Base.text_colors[color])
+    print(Base.text_colors[color])
     if bold
-        print(buf, "\e[1m")
+        print("\e[1m")
     end
 
     # Print the message
-    print(buf, msg)
+    print(msg)
 
     # Disengage the color, and optionally the boldness
     if bold
-        print(buf, "\e[22m")
+        print("\e[22m")
     end
-    print(buf, Base.text_colors[:normal])
-    
-    # Finally, print this out to stdout
-    print(buf)
+    print(Base.text_colors[:normal])
 end

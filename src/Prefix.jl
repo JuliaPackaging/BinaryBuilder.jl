@@ -27,6 +27,39 @@ joinpath(s::AbstractString, prefix::Prefix, args...) = joinpath(s, prefix.path, 
 convert(::Type{AbstractString}, prefix::Prefix) = prefix.path
 show(io::IO, prefix::Prefix) = show(io, "Prefix($(prefix.path))")
 
+"""
+`temp_prefix(func::Function, path::AbstractString = tempdir())`
+
+Create a temporary prefix, passing the prefix into the user-defined function so
+that build/packaging operations can occur within the temporary prefix, which is
+then cleaned up after all operations are finished.  If the path provided exists
+already, it will be deleted.
+
+Usage example:
+
+    out_path = abspath("./libfoo")
+    temp_prefix() do p
+        # <insert build steps here>
+
+        # tarball up the built package
+        package(p, out_path)
+    end
+"""
+function temp_prefix(func::Function)
+    mktempdir() do path
+        prefix = Prefix(path)
+        
+        # Run the user function
+        func(prefix)
+    end
+end
+
+"""
+`split_PATH(PATH::AbstractString = ENV["PATH"])`
+
+Splits a string such as the  `PATH` environment variable into a list of strings
+according to the path separation rules for the current platform.
+"""
 function split_PATH(PATH::AbstractString = ENV["PATH"])
     @static if is_windows()
         return split(PATH, ";")
@@ -35,6 +68,12 @@ function split_PATH(PATH::AbstractString = ENV["PATH"])
     end
 end
 
+"""
+`join_PATH(PATH::Vector{AbstractString})`
+
+Given a list of strings, return a joined string suitable for the `PATH`
+environment variable appropriate for the current platform.
+"""
 function join_PATH{S<:AbstractString}(paths::Vector{S})
     @static if is_windows()
         return join(paths, ";")
@@ -43,10 +82,21 @@ function join_PATH{S<:AbstractString}(paths::Vector{S})
     end
 end
 
+"""
+`bindir(prefix::Prefix)`
+
+Returns the binary directory for the given `prefix`.
+"""
 function bindir(prefix::Prefix)
     return joinpath(prefix, "bin")
 end
 
+"""
+`libdir(prefix::Prefix)`
+
+Returns the library directory for the given `prefix` (not ethat this differs
+between unix systems and windows systems).
+"""
 function libdir(prefix::Prefix)
     @static if is_windows()
         return joinpath(prefix, "bin")
@@ -55,6 +105,11 @@ function libdir(prefix::Prefix)
     end
 end
 
+"""
+`logdir(prefix::Prefix)`
+
+Returns the logs directory for the given `prefix`.
+"""
 function logdir(prefix::Prefix)
     return joinpath(prefix, "logs")
 end
@@ -66,9 +121,8 @@ Prepends paths to environment variables so that binaries and libraries are
 available to Julia.
 """
 function activate(prefix::Prefix = global_prefix)
-    paths = split_PATH()
-
     # Add to PATH
+    paths = split_PATH()
     if !(bindir(prefix) in paths)
         prepend!(paths, [bindir(prefix)])
     end
@@ -98,12 +152,11 @@ function deactivate(prefix::Prefix = global_prefix)
 end
 
 """
-`package(prefix::Prefix, out_path::AbstractString;
-         force::Bool = false, verbose::Bool = false)`
+`package(prefix::Prefix; force::Bool = false, verbose::Bool = false)`
 
-Build a tarball of the `prefix` and store it at `out_path`.  Runs an `audit()`
-on the `prefix`, to ensure that libraries can be `dlopen()`'ed, that all
-dependencies are located within the prefix, etc...
+Build a tarball of the `prefix`.  Runs an `audit()` on the `prefix`, to ensure
+that libraries can be `dlopen()`'ed, that all dependencies are located within
+the prefix, etc...
 """
 function package(prefix::Prefix, out_path::AbstractString;
                  ignore_audit_errors::Bool = false, verbose::Bool = false)
