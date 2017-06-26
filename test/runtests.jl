@@ -92,7 +92,7 @@ end
         oc = BinDeps2.OutputCollector(`./kill.sh`)
 
         @test !BinDeps2.wait(oc)
-        @test BinDeps2.merge(oc) == "1\n2\n3\n"
+        @test BinDeps2.merge(oc) == "1\n2\n"
     end
 
     # Next, test reading the output of a pipeline()
