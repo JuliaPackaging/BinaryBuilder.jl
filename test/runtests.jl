@@ -9,7 +9,8 @@ const long_out = join(["$(idx)\n" for idx in 1:100], "")
 
 # We are going to build libfoo a lot, so here's our function to make sure the
 # library is working properly
-function check_foo(fooifier_path, libfoo_path)
+function check_foo(fooifier_path = "fooifier",
+                   libfoo_path = "libfoo.$(Libdl.dlext)")
     # We know that foo(a, b) returns 2*a^2 - b
     result = 2*2.2^2 - 1.1
 
@@ -192,6 +193,11 @@ end
             # Test the binaries
             check_foo(fooifier.path, libfoo.path)
 
+            # Also test the binaries through `activate()`
+            BinDeps2.activate(prefix)
+            check_foo()
+            BinDeps2.deactivate(prefix)
+
             # Test that `collect_files()` works:
             all_files = BinDeps2.collect_files(prefix)
             @test libfoo.path in all_files
@@ -265,7 +271,7 @@ end
     # Install it within a new Prefix
     BinDeps2.temp_prefix() do prefix
         # Install the thing
-        BinDeps2.install(prefix, tarball_path, libfoo_hash; verbose=true)
+        @test BinDeps2.install(tarball_path, libfoo_hash; prefix=prefix, verbose=true)
 
         # Ensure we can use it
         fooifier_path = joinpath(BinDeps2.bindir(prefix), "fooifier")
@@ -273,55 +279,69 @@ end
         check_foo(fooifier_path, libfoo_path)
 
         # Ask for the manifest that contains these files to ensure it works
-        manifest_path = BinDeps2.manifest_for_file(prefix, fooifier_path)
+        manifest_path = BinDeps2.manifest_for_file(fooifier_path; prefix=prefix)
         @test isfile(manifest_path)
-        manifest_path = BinDeps2.manifest_for_file(prefix, libfoo_path)
+        manifest_path = BinDeps2.manifest_for_file(libfoo_path; prefix=prefix)
         @test isfile(manifest_path)
 
         # Ensure that manifest_for_file doesn't work on nonexistant files
-        @test_throws ErrorException BinDeps2.manifest_for_file(prefix, "nonexistant")
+        @test_throws ErrorException BinDeps2.manifest_for_file("nonexistant"; prefix=prefix)
 
         # Ensure that manifest_for_file doesn't work on orphan files
         orphan_path = joinpath(BinDeps2.bindir(prefix), "orphan_file")
         touch(orphan_path)
         @test isfile(orphan_path)
-        @test_throws ErrorException BinDeps2.manifest_for_file(prefix, orphan_path)
+        @test_throws ErrorException BinDeps2.manifest_for_file(orphan_path; prefix=prefix)
 
         # Ensure that trying to install again over our existing files is an error
-        @test_throws ErrorException BinDeps2.install(prefix, tarball_path, libfoo_hash)
+        @test_throws ErrorException BinDeps2.install(tarball_path, libfoo_hash; prefix=prefix)
 
         # Ensure we can uninstall libfoo
-        @test BinDeps2.uninstall(prefix, manifest_path; verbose=true)
+        @test BinDeps2.uninstall(manifest_path; verbose=true)
         @test !isfile(fooifier_path)
         @test !isfile(libfoo_path)
         @test !isfile(manifest_path)
 
         # Ensure that we don't want to install tarballs from other platforms
         cp(tarball_path, "./libfoo_juliaos64.tar.gz")
-        @test_throws ErrorException BinDeps2.install(prefix, "./libfoo_juliaos64.tar.gz", libfoo_hash)
+        @test_throws ErrorException BinDeps2.install("./libfoo_juliaos64.tar.gz", libfoo_hash; prefix=prefix)
         rm("./libfoo_juliaos64.tar.gz"; force=true)
 
         # Ensure that hash mismatches throw errors
         fake_hash = reverse(libfoo_hash)
-        @test_throws ErrorException BinDeps2.install(prefix, tarball_path, fake_hash)
+        @test_throws ErrorException BinDeps2.install(tarball_path, fake_hash; prefix=prefix)
     end
 
     rm(tarball_path; force=true)
 end
 
-if is_apple()
-    # This is osx-
-    libfoo_url = "https://github.com/staticfloat/small_bin/raw/c64ea75ed544a3c6112811064e614a7699ce2a74/libfoo-mac64.tar.gz"
+# Use ./build_libfoo_tarball.jl to generate more of these
+small_bin_prefix = "https://github.com/staticfloat/small_bin/raw/197e9dd9031fd9bd51958f9f9f7e74a38db9513e/"
+libfoo_downloads = Dict(
+    "mac64" => ("$small_bin_prefix/libfoo_mac64.tar.gz",
+                "dd4654ee7f53af6f5c47bcfb516e7a60814613ecb17634c292692aa89a740828"),
+    "linux64" => ("$small_bin_prefix/libfoo_linux64.tar.gz",
+                  "57212a9a7891c4d39aea47181e77b12c701ac02d7d0e909dc6f03eb534409fa9"),
+)
 
+platfix = BinDeps2.platform_suffix()
+if !haskey(libfoo_downloads, platfix)
+    warn("Platform $platfix does not have a libfoo download, skipping download tests")
+else
     @testset "Downloading" begin
         BinDeps2.temp_prefix() do prefix
-            BinDeps2.install(prefix, libfoo_url)
+            url, hash = libfoo_downloads[platfix]
+            @test BinDeps2.install(url, hash; prefix=prefix, verbose=true)
+
+            BinDeps2.activate(prefix) do
+                check_foo()
+            end
         end
     end
 end
 
 
+
 # TODO
-# Test downloading
 # More auditing
 # Ensure auditing fails properly

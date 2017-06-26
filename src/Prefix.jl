@@ -120,7 +120,7 @@ end
 Prepends paths to environment variables so that binaries and libraries are
 available to Julia.
 """
-function activate(prefix::Prefix = global_prefix)
+function activate(prefix::Prefix)
     # Add to PATH
     paths = split_PATH()
     if !(bindir(prefix) in paths)
@@ -136,11 +136,24 @@ function activate(prefix::Prefix = global_prefix)
 end
 
 """
+`activate(func::Function, prefix::Prefix)`
+
+Prepends paths to environment variables so that binaries and libraries are
+available to Julia, calls the user function `func`, then `deactivate()`'s
+the `prefix`` again.
+"""
+function activate(func::Function, prefix::Prefix)
+    activate(prefix)
+    func()
+    deactivate(prefix)
+end
+
+"""
 `deactivate(prefix::Prefix)`
 
 Removes paths added to environment variables by `activate()`
 """
-function deactivate(prefix::Prefix = global_prefix)
+function deactivate(prefix::Prefix)
     # Remove from PATH
     paths = split_PATH()
     filter!(p -> p != bindir(prefix), paths)
@@ -276,9 +289,9 @@ Given a `prefix`, a `tarball_url` and a `hash, download that tarball into the
 prefix, verify its integrity with the `hash`, and install it into the `prefix`.
 Also save a manifest of the files into the prefix for uninstallation later.
 """
-function install(prefix::Prefix,
-                 tarball_url::AbstractString,
+function install(tarball_url::AbstractString,
                  hash::AbstractString;
+                 prefix::Prefix = global_prefix,
                  force::Bool = false,
                  ignore_platform::Bool = false,
                  verbose::Bool = false)
@@ -301,6 +314,10 @@ function install(prefix::Prefix,
                 info("Downloading $(tarball_url) to $(tarball_path)")
             end
             
+            # Create the downloads directory if it does not already exist
+            mkpath(dirname(tarball_path))
+
+            # Then download the tarball
             if !download(tarball_url, tarball_path; verbose=verbose)
                 error("Could not download $(tarball_url) to $(tarball_path)")
             end
@@ -355,22 +372,26 @@ function install(prefix::Prefix,
     open(manifest_path, "w") do f
         write(f, join(file_list, "\n"))
     end
+
+    return true
 end
 
 """
-`uninstall(prefix::Prefix, manifest::AbstractString; verbose::Bool = false)`
+`uninstall(manifest::AbstractString; verbose::Bool = false)`
 
-Uninstall a package from `prefix` by providing the `manifest_path` that was
+Uninstall a package from a prefix by providing the `manifest_path` that was
 generated during `install()`.  To find the `manifest_file` for a particular
-installed file, use `manifest_for_file(prefix, file_path)`.
+installed file, use `manifest_for_file(file_path; prefix=prefix)`.
 """
-function uninstall(prefix::Prefix, manifest::AbstractString; verbose::Bool = false)
+function uninstall(manifest::AbstractString;
+                   verbose::Bool = false)
     # Load in the manifest path
     if !isfile(manifest)
         error("Manifest path $(manifest) does not exist")
     end
 
-    relmanipath = relpath(manifest, prefix.path)
+    prefix_path = dirname(dirname(manifest))
+    relmanipath = relpath(manifest, prefix_path)
 
     if verbose
         info("Removing files installed by $(relmanipath)")
@@ -378,14 +399,14 @@ function uninstall(prefix::Prefix, manifest::AbstractString; verbose::Bool = fal
 
     files_to_remove = [chomp(l) for l in readlines(manifest)]
     for path in files_to_remove
-        delpath = joinpath(prefix, path)
+        delpath = joinpath(prefix_path, path)
         if !isfile(delpath)
             if verbose
                 info("  $delpath does not exist, but ignoring")
             end
         else
             if verbose
-                delrelpath = relpath(delpath, prefix.path)
+                delrelpath = relpath(delpath, prefix_path)
                 info("  $delrelpath removed")
             end
             rm(delpath; force=true)
@@ -399,7 +420,14 @@ function uninstall(prefix::Prefix, manifest::AbstractString; verbose::Bool = fal
     return true
 end
 
-function manifest_for_file(prefix::Prefix, path::AbstractString)
+"""
+`manifest_for_file(path::AbstractString; prefix::Prefix = global_prefix)`
+
+Returns the manifest file containing the installation receipt for the given
+`path`, throws an error if it cannot find a matching manifest.
+"""
+function manifest_for_file(path::AbstractString;
+                           prefix::Prefix = global_prefix)
     if !isfile(path)
         error("File $(path) does not exist")
     end

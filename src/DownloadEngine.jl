@@ -111,7 +111,8 @@ function probe_download_engine(;verbose::Bool = false)
                 if verbose
                     info("$(basename(path)): downloading $url to $filename")
                 end
-                return success(`$path $(dl_func(url, filename))`)
+                oc = OutputCollector(`$path $(dl_func(url, filename))`; verbose=verbose)
+                return wait(oc)
             end
         end
     end
