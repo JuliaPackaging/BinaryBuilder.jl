@@ -1,6 +1,7 @@
 using BinDeps2
 using Base.Test
 using SHA
+using Compat
 
 # Output of a few scripts we are going to run
 const simple_out = "1\n2\n3\n4\n"
@@ -142,18 +143,18 @@ end
         cd("output_tests") do
             bs = BinDeps2.BuildStep("simple", `./simple.sh`, prefix)
             @test BinDeps2.build(bs)
-            @test readstring(BinDeps2.logpath(bs)) == "1\n2\n3\n4\n"
+            @test readstring(BinDeps2.logpath(bs)) == "`./simple.sh`\n1\n2\n3\n4\n"
 
             bs = BinDeps2.BuildStep("long", `./long.sh`, prefix)
             @test BinDeps2.build(bs)
-            @test readstring(BinDeps2.logpath(bs)) == long_out
+            @test readstring(BinDeps2.logpath(bs)) == "`./long.sh`\n$(long_out)"
             
             # Show what it looks like for something to fail/get killed
             info("Expecting the following two BuildSteps to fail...")
             bs = BinDeps2.BuildStep("fail", `./fail.sh`, prefix)
-            @test !BinDeps2.build(bs)
+            @test_throws ErrorException BinDeps2.build(bs)
             bs = BinDeps2.BuildStep("kill", `./kill.sh`, prefix)
-            @test !BinDeps2.build(bs)
+            @test_throws ErrorException BinDeps2.build(bs)
         end
     end
 end
@@ -190,6 +191,11 @@ end
 
             # Test the binaries
             check_foo(fooifier.path, libfoo.path)
+
+            # Test that `collect_files()` works:
+            all_files = BinDeps2.collect_files(prefix)
+            @test libfoo.path in all_files
+            @test fooifier.path in all_files
         end
     end
 
@@ -220,75 +226,102 @@ end
 
 @testset "Packaging" begin
     # Clear out previous build products
-    rm("./libfoo.tar.gz"; force=true)
-
+    for f in readdir(".")
+        if !endswith(f, ".tar.gz")
+            continue
+        end
+        rm(f; force=true)
+    end
+    
     # Gotta set this guy up beforehand
-    libfoo_hash = nothing
+    tarball_path = nothing
 
-    BinDeps2.temp_prefix() do build_prefix
+    BinDeps2.temp_prefix() do prefix
         cd("build_tests/libfoo") do
             # First, build libfoo
-            libfoo = BinDeps2.LibraryResult(joinpath(BinDeps2.libdir(build_prefix), "libfoo"))
-            fooifier = BinDeps2.FileResult(joinpath(BinDeps2.bindir(build_prefix), "fooifier"))
-            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], [`make install`], build_prefix)
+            libfoo = BinDeps2.LibraryResult(joinpath(BinDeps2.libdir(prefix), "libfoo"))
+            fooifier = BinDeps2.FileResult(joinpath(BinDeps2.bindir(prefix), "fooifier"))
+            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], [`make install`], prefix)
 
             @test BinDeps2.build(dep)
         end    
         
         # Next, package it up as a .tar.gz file
-        BinDeps2.package(build_prefix, "./libfoo.tar.gz"; verbose=true)
-        @test isfile("./libfoo.tar.gz")
-        libfoo_hash = open("./libfoo.tar.gz", "r") do f
-            bytes2hex(sha256(f))
-        end
+        tarball_path = BinDeps2.package(prefix, "./libfoo"; verbose=true)
+        @test isfile(tarball_path)
 
         # Test that packaging into a file that already exists fails
-        @test_throws ErrorException BinDeps2.package(build_prefix, "./libfoo.tar.gz")
+        @test_throws ErrorException BinDeps2.package(prefix, "./libfoo")
+    end
+
+    libfoo_hash = open(tarball_path, "r") do f
+        bytes2hex(sha256(f))
     end
 
     # Test that we can inspect the contents of the tarball
-    contents = BinDeps2.list_tarball_files("./libfoo.tar.gz")
+    contents = BinDeps2.list_tarball_files(tarball_path)
     @test "bin/fooifier" in contents
 
     # Install it within a new Prefix
-    rm("./libfoo_install_prefix"; force=true, recursive=true)
-    install_prefix = BinDeps2.Prefix("./libfoo_install_prefix")
-    BinDeps2.install(install_prefix, "./libfoo.tar.gz", libfoo_hash; verbose=true)
+    BinDeps2.temp_prefix() do prefix
+        # Install the thing
+        BinDeps2.install(prefix, tarball_path, libfoo_hash; verbose=true)
 
-    # Ensure we can use it
-    fooifier_path = joinpath(BinDeps2.bindir(install_prefix), "fooifier")
-    libfoo_path = joinpath(BinDeps2.libdir(install_prefix), "libfoo.$(Libdl.dlext)")
-    check_foo(fooifier_path, libfoo_path)
+        # Ensure we can use it
+        fooifier_path = joinpath(BinDeps2.bindir(prefix), "fooifier")
+        libfoo_path = joinpath(BinDeps2.libdir(prefix), "libfoo.$(Libdl.dlext)")
+        check_foo(fooifier_path, libfoo_path)
 
-    # Ask for the manifest that contains these files to ensure it works
-    manifest_path = BinDeps2.manifest_for_file(install_prefix, fooifier_path)
-    @test isfile(manifest_path)
-    manifest_path = BinDeps2.manifest_for_file(install_prefix, libfoo_path)
-    @test isfile(manifest_path)
+        # Ask for the manifest that contains these files to ensure it works
+        manifest_path = BinDeps2.manifest_for_file(prefix, fooifier_path)
+        @test isfile(manifest_path)
+        manifest_path = BinDeps2.manifest_for_file(prefix, libfoo_path)
+        @test isfile(manifest_path)
 
-    # Ensure that manifest_for_file doesn't work on nonexistant files
-    @test_throws ErrorException BinDeps2.manifest_for_file(install_prefix, "nonexistant")
+        # Ensure that manifest_for_file doesn't work on nonexistant files
+        @test_throws ErrorException BinDeps2.manifest_for_file(prefix, "nonexistant")
 
-    # Ensure that manifest_for_file doesn't work on orphan files
-    orphan_path = joinpath(BinDeps2.bindir(install_prefix), "orphan_file")
-    touch(orphan_path)
-    @test isfile(orphan_path)
-    @test_throws ErrorException BinDeps2.manifest_for_file(install_prefix, orphan_path)
+        # Ensure that manifest_for_file doesn't work on orphan files
+        orphan_path = joinpath(BinDeps2.bindir(prefix), "orphan_file")
+        touch(orphan_path)
+        @test isfile(orphan_path)
+        @test_throws ErrorException BinDeps2.manifest_for_file(prefix, orphan_path)
 
-    # Ensure we can uninstall libfoo
-    @test BinDeps2.uninstall(install_prefix, manifest_path; verbose=true)
-    @test !isfile(fooifier_path)
-    @test !isfile(libfoo_path)
-    @test !isfile(manifest_path)
+        # Ensure that trying to install again over our existing files is an error
+        @test_throws ErrorException BinDeps2.install(prefix, tarball_path, libfoo_hash)
 
-    rm("./libfoo_install_prefix"; force=true, recursive=true)
-    rm("./libfoo.tar.gz"; force=true)
+        # Ensure we can uninstall libfoo
+        @test BinDeps2.uninstall(prefix, manifest_path; verbose=true)
+        @test !isfile(fooifier_path)
+        @test !isfile(libfoo_path)
+        @test !isfile(manifest_path)
+
+        # Ensure that we don't want to install tarballs from other platforms
+        cp(tarball_path, "./libfoo_juliaos64.tar.gz")
+        @test_throws ErrorException BinDeps2.install(prefix, "./libfoo_juliaos64.tar.gz", libfoo_hash)
+        rm("./libfoo_juliaos64.tar.gz"; force=true)
+
+        # Ensure that hash mismatches throw errors
+        fake_hash = reverse(libfoo_hash)
+        @test_throws ErrorException BinDeps2.install(prefix, tarball_path, fake_hash)
+    end
+
+    rm(tarball_path; force=true)
+end
+
+if is_apple()
+    # This is osx-
+    libfoo_url = "https://github.com/staticfloat/small_bin/raw/c64ea75ed544a3c6112811064e614a7699ce2a74/libfoo-mac64.tar.gz"
+
+    @testset "Downloading" begin
+        BinDeps2.temp_prefix() do prefix
+            BinDeps2.install(prefix, libfoo_url)
+        end
+    end
 end
 
 
 # TODO
 # Test downloading
-# Test overwriting when installing
-# Ensure hashing fails properly
 # More auditing
-# Ensure auditing fails
+# Ensure auditing fails properly

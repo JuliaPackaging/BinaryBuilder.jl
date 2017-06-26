@@ -2,6 +2,7 @@
 # __precompile__()
 
 module BinDeps2
+using Compat
 
 # Building packages from source, installing them into a prefix,
 # auditing them to ensure they were built correctly, and 

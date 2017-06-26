@@ -11,8 +11,8 @@ end
 """
 `build(step::BuildStep; verbose::Bool = false)`
 
-Run the build step, storing output into the build prefix and optionally
-printing the result if `verbose` is set to `true`.
+Run the build step, storing output into the build prefix's `logs` directory and
+optionally printing the result if `verbose` is set to `true`.
 """
 function build(step::BuildStep; verbose::Bool = false)
     if verbose
@@ -32,7 +32,11 @@ function build(step::BuildStep; verbose::Bool = false)
 
         # Write out the logfile
         open(logpath(step), "w") do f
-            write(f, merge(oc))
+            # First write out the actual command
+            println(f, step.cmd)
+
+            # Then write out the actual output
+            print(f, merge(oc))
         end
     end
 
@@ -42,6 +46,7 @@ function build(step::BuildStep; verbose::Bool = false)
         end
         msg = "Build step $(step.name) did not complete successfully\n"
         print_color(:red, msg; bold=true)
+        error()
     end
 
     return did_succeed

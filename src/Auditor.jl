@@ -5,8 +5,10 @@
 #using ObjFileBase
 
 function audit(prefix::Prefix)
-    # Search _every_ file for the prefix path to find hardcoded paths
-    all_files = collect_files(prefix, f -> !startswith(f, joinpath(prefix, "logs")))
+    # Search _every_ file in the prefix path to find hardcoded paths
+    predicate = f -> !startswith(f, joinpath(prefix, "logs")) &&
+                     !startswith(f, joinpath(prefix, "manifests"))
+    all_files = collect_files(prefix, predicate)
 
     # If this is false then it's bedtime for bonzo boy
     all_ok = true
@@ -41,12 +43,12 @@ function audit(prefix::Prefix)
 end
 
 """
-`collect_files(prefix::Prefix, predicate::Function)`
+`collect_files(prefix::Prefix, predicate::Function = f -> true)`
 
 Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
 """
-function collect_files(prefix::Prefix, predicate::Function)
+function collect_files(prefix::Prefix, predicate::Function = f -> true)
     collected = String[]
     for (root, dirs, files) in walkdir(prefix.path)
         for f in files

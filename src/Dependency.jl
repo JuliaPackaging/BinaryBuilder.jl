@@ -85,9 +85,7 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false)
         # Apply the build environment (set `prefix`, `CC`, etc...)
         withenv(default_env(dep.prefix)...) do
             for step in dep.steps
-                if !build(step; verbose=verbose)
-                    return false
-                end
+                build(step; verbose=verbose)
             end
         end
     elseif !should_build && verbose

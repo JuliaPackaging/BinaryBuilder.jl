@@ -152,14 +152,73 @@ function deactivate(prefix::Prefix = global_prefix)
 end
 
 """
-`package(prefix::Prefix; force::Bool = false, verbose::Bool = false)`
+`platform_suffix(kernel::Symbol = Sys.KERNEL, arch::Symbol = Sys.ARCH)`
 
-Build a tarball of the `prefix`.  Runs an `audit()` on the `prefix`, to ensure
-that libraries can be `dlopen()`'ed, that all dependencies are located within
-the prefix, etc...
+Returns the platform-dependent suffix of a packaging tarball for the current
+platform, or any other though the use of the `kernel` and `arch` parameters.
 """
-function package(prefix::Prefix, out_path::AbstractString;
+function platform_suffix(kernel::Symbol = Sys.KERNEL, arch::Symbol = Sys.ARCH)
+    const kern_dict = Dict(
+        :Darwin => "mac",
+        :Apple => "mac",
+        :Linux => "linux",
+        :FreeBSD => "bsd",
+        :OpenBSD => "bsd",
+        :NetBSD => "bsd",
+        :DragonFly => "bsd",
+        :Windows => "win",
+        :NT => "win",
+    )
+
+    const arch_dict = Dict(
+        :x86_64 => "64",
+        :i686 => "32",
+        :powerpc64le => "ppc64le",
+        :ppc64le => "ppc64le",
+        :arm => "arm",
+        :aarch64 => "arm64",
+    )    
+    return "$(kern_dict[kernel])$(arch_dict[arch])"
+end
+
+"""
+`extract_platform_suffix(path::AbstractString)`
+
+Given the path to a tarball, return the platform suffix of that tarball.
+If none can be found, prints a warning and return the current platform
+suffix.
+"""
+function extract_platform_suffix(path::AbstractString)
+    idx = rsearch(path, '_')
+    if idx == 0
+        warn("Could not extract the platform suffix of $(path); continuing...")
+        return platform_suffix()
+    end
+    if endswith(path, ".tar.gz")
+        return path[idx+1:end-7]
+    else
+        return path[idx+1:end]
+    end
+end
+
+"""
+`package(prefix::Prefix, tarball_base::AbstractString,
+         ignore_audit_errors::Bool = false, verbose::Bool = false)`
+
+Build a tarball of the `prefix`, storing the tarball at `tarball_base` plus a
+platform-dependent suffix and a file extension.  Runs an `audit()` on the
+`prefix`, to ensure that libraries can be `dlopen()`'ed, that all dependencies
+are located within the prefix, etc... See the `audit()` documentation for a
+full list of the audit steps.
+
+Returns the full path to the generated tarball.
+"""
+function package(prefix::Prefix, tarball_base::AbstractString;
                  ignore_audit_errors::Bool = false, verbose::Bool = false)
+    # First calculate the output path given our tarball_base
+    platfix = platform_suffix()
+    out_path = "$(tarball_base)_$(platfix).tar.gz"
+    
     if isfile(out_path)
         error("$(out_path) already exists, refusing to package into it")
     end
@@ -195,9 +254,7 @@ function package(prefix::Prefix, out_path::AbstractString;
         if !verbose
             println(tail(oc; colored=Base.have_color))
         end
-        msg = "Packaging of $(prefix.path) did not complete successfully"
-        print_color(:red, msg; bold = true)
-        println()
+        error("Packaging of $(prefix.path) did not complete successfully")
     end
 
     # Also spit out the hash of the archive file
@@ -208,7 +265,7 @@ function package(prefix::Prefix, out_path::AbstractString;
         info("SHA256 of $(basename(out_path)): $(hash)")
     end
 
-    return did_succeed
+    return out_path
 end
 
 """
@@ -223,7 +280,18 @@ function install(prefix::Prefix,
                  tarball_url::AbstractString,
                  hash::AbstractString;
                  force::Bool = false,
+                 ignore_platform::Bool = false,
                  verbose::Bool = false)
+
+    # Get the platform suffix from the tarball and complain if it doesn't match
+    platfix = extract_platform_suffix(tarball_url)
+    if !ignore_platform && platform_suffix() != platfix
+        msg  = "Will not install a tarball of platform $(platfix) on a system "
+        msg *= "of platform $(platform_suffix()) unless `ignore_platform` is "
+        msg *= "explicitly set to `true`."
+        error(msg)
+    end
+    
     tarball_path = joinpath(prefix, "downloads", basename(tarball_url))
     if !isfile(tarball_path)
         if isfile(tarball_url)
@@ -308,7 +376,7 @@ function uninstall(prefix::Prefix, manifest::AbstractString; verbose::Bool = fal
         info("Removing files installed by $(relmanipath)")
     end
 
-    files_to_remove = readlines(manifest)
+    files_to_remove = [chomp(l) for l in readlines(manifest)]
     for path in files_to_remove
         delpath = joinpath(prefix, path)
         if !isfile(delpath)
