@@ -325,11 +325,12 @@ libfoo_downloads = Dict(
 )
 
 platfix = BinDeps2.platform_suffix()
-if !haskey(libfoo_downloads, platfix)
-    warn("Platform $platfix does not have a libfoo download, skipping download tests")
-else
-    @testset "Downloading" begin
-        BinDeps2.temp_prefix() do prefix
+@testset "Downloading" begin
+    BinDeps2.temp_prefix() do prefix
+        if !haskey(libfoo_downloads, platfix)
+            warn("Platform $platfix does not have a libfoo download, skipping download tests")
+        else
+            # Test a good download works
             url, hash = libfoo_downloads[platfix]
             @test BinDeps2.install(url, hash; prefix=prefix, verbose=true)
 
@@ -337,6 +338,10 @@ else
                 check_foo()
             end
         end
+
+        # Test a bad download fails properly
+        bad_url = "http://localhost:1/this_is_not_a_file_linux64.tar.gz"
+        @test_throws ErrorException BinDeps2.install(bad_url, hash; prefix=prefix, verbose=true)
     end
 end
 
