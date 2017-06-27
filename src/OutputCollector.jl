@@ -52,14 +52,20 @@ end
 
 
 
-immutable OutputCollector
+type OutputCollector
     cmd::Base.AbstractCmd
     P::Base.AbstractPipe
     stdout_linestream::LineStream
     stderr_linestream::LineStream
     event::Condition
+    verbose::Bool
+    done::Bool
 
     extra_tasks::Vector{Task}
+
+    function OutputCollector(cmd, P, out_ls, err_ls, event, verbose)
+        return new(cmd, P, out_ls, err_ls, event, verbose, false, Task[])
+    end
 end
 
 """
@@ -82,13 +88,14 @@ function OutputCollector(cmd::Base.AbstractCmd; verbose::Bool=false)
 
     # Next, start siphoning off the first couple lines of output and error
     event = Condition()
-    stdout_ls = LineStream(out_pipe, event)
-    stderr_ls = LineStream(err_pipe, event)
+    out_ls = LineStream(out_pipe, event)
+    err_ls = LineStream(err_pipe, event)
 
     # Finally, wrap this up in an object so that we can merge stdout and stderr
     # back together again at the end
-    self = OutputCollector(cmd, P, stdout_ls, stderr_ls, event, Task[])
+    self = OutputCollector(cmd, P, out_ls, err_ls, event, verbose)
 
+    # If we're set as verbose, then start reading ourselves out to stdout
     if verbose
         tee(self)
     end
@@ -100,10 +107,16 @@ end
 `wait(collector::OutputCollector)`
 
 Wait for the command and all line streams within an `OutputCollector` to finish
-their respective tasks and be ready for full merging.  Return the success of the
-underlying process.
+their respective tasks and be ready for full merging.  Return the success of
+the underlying process.  Prints out the last 10 lines of the process if it does
+not complete successfully unless the OutputCollector was created as `verbose`.
 """
 function wait(collector::OutputCollector)
+    # If we've already done this song and dance before, then don't do it again
+    if collector.done
+        return success(collector.P)
+    end
+
     wait(collector.P)
     wait(collector.stdout_linestream.task)
     wait(collector.stderr_linestream.task)
@@ -112,6 +125,17 @@ function wait(collector::OutputCollector)
     for t in collector.extra_tasks
         wait(t)
     end
+
+    # From this point on, we are actually done!
+    collector.done = true
+
+    # If we failed, then tail the output, unless we've been tee()'ing it out
+    # this whole time
+    if !success(collector.P) && !collector.verbose
+        print(tail(collector; colored=Base.have_color))
+    end
+    
+    # Shout to the world how we've done
     return success(collector.P)
 end
 

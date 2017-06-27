@@ -4,27 +4,23 @@
 module BinDeps2
 using Compat
 
-# Building packages from source, installing them into a prefix,
-# auditing them to ensure they were built correctly, and 
-# Build from source into a prefix
-
-
 include("Prefix.jl")
 include("OutputCollector.jl")
 include("Auditor.jl")
-include("DownloadEngine.jl")
+include("PlatformEngines.jl")
 include("BuildResult.jl")
 include("BuildStep.jl")
 include("Dependency.jl")
 
 function __init__()
-    # Find the right download engine for this platform
-    global download, global_prefix
-    download = probe_download_engine()
+    global global_prefix
 
     # Initialize our global_prefix
     global_prefix = Prefix(joinpath(dirname(@__FILE__), "../", "global_prefix"))
     activate(global_prefix)
+
+    # Find the right download/compression engines for this platform
+    probe_platform_engines!()
 
     # If we're on a julia that's too old, then fixup the color mappings
     if !haskey(Base.text_colors, :default)
@@ -32,12 +28,4 @@ function __init__()
     end
 end
 
-
-
 end # module
-
-
-# much test lol
-using BinDeps2
-
-#BinDeps2.Dependency(BinDeps2.global_prefix, )

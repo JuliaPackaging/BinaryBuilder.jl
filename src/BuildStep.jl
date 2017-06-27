@@ -40,10 +40,8 @@ function build(step::BuildStep; verbose::Bool = false)
         end
     end
 
+    # Remember, the `oc` will automagically spit out any failing output.
     if !did_succeed
-        if !verbose
-            println(tail(oc; colored=Base.have_color))
-        end
         msg = "Build step $(step.name) did not complete successfully\n"
         print_color(:red, msg; bold=true)
         error()

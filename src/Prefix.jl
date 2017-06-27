@@ -243,33 +243,23 @@ function package(prefix::Prefix, tarball_base::AbstractString;
         msg *= "To override this check, set `ignore_audit_errors = true`."
         error(msg)
     end
-
-    tar_cmd = @static if is_windows()
-        pipeline(`7z a -ttar -so a.tar "$(joinpath(".", prefix, "*"))"`,
-                 `7z a -si $(out_path)`)
-    else
-        `tar -czvf $out_path -C $(prefix.path) .`
-    end
-
-    oc = nothing
-    did_succeed = false
+    
     withenv("GZIP" => "-9") do
-        oc = OutputCollector(tar_cmd; verbose=verbose)
+        package_cmd = gen_package_cmd(prefix.path, out_path)
+        oc = OutputCollector(package_cmd; verbose=verbose)
 
         # Actually run the `tar` command
         try
-            did_succeed = wait(oc)
+            if !wait(oc)
+                error()
+            end
+        catch
+            # If we made a boo-boo, fess up.  Remember that the `oc` will auto-
+            # `tail()` failing commands.
+            error("Packaging of $(prefix.path) did not complete successfully")
         end
     end
     
-    # If we made a boo-boo, fess up
-    if !did_succeed
-        if !verbose
-            println(tail(oc; colored=Base.have_color))
-        end
-        error("Packaging of $(prefix.path) did not complete successfully")
-    end
-
     # Also spit out the hash of the archive file
     if verbose
         hash = open(out_path, "r") do f
@@ -318,7 +308,13 @@ function install(tarball_url::AbstractString,
             mkpath(dirname(tarball_path))
 
             # Then download the tarball
-            if !download(tarball_url, tarball_path; verbose=verbose)
+            download_cmd = gen_download_cmd(tarball_url, tarball_path)
+            oc = OutputCollector(download_cmd; verbose=verbose)
+            try
+                if !wait(oc)
+                    error()
+                end
+            catch
                 error("Could not download $(tarball_url) to $(tarball_path)")
             end
         end
@@ -354,16 +350,15 @@ function install(tarball_url::AbstractString,
     end
 
     # Get our unpacking command
-    cmd = @static if is_windows()
-        pipeline(`7z x $(tarball_path) -y -so`, `7z x -si -y -ttar -o$(prefix.path)`)
-    else
-        `tar xzf $(tarball_path) --directory=$(prefix.path)`
-    end
-
+    unpack_cmd = gen_unpack_cmd(tarball_path, prefix.path)
     # Run the unpacking
-    oc = OutputCollector(cmd; verbose=verbose)
-    try
-        wait(oc)
+    oc = OutputCollector(unpack_cmd; verbose=verbose)
+    try 
+        if !wait(oc)
+            error()
+        end
+    catch
+        error("Could not unpack $(tarball_path) into $(prefix.path)")
     end
 
     # Save installation manifest
@@ -449,54 +444,25 @@ function manifest_for_file(path::AbstractString;
 end
 
 """
-`parse_7z_list(output::AbstractString)`
-
-Given the output of `7z l`, parse out the listed filenames.  This funciton used
-by  `list_tarball_files`.
-"""
-function parse_7z_list(output::AbstractString)
-    lines = split(output, "\n")
-    # Remove extraneous "\r" for windows platforms
-    for idx in 1:length(lines)
-        if endswith(lines[idx], '\r')
-            lines[idx] = lines[idx][1:end-1]
-        end
-    end
-
-    # Find index of " Name". (can't use `findfirst(generator)` until this is
-    # closed: https://github.com/JuliaLang/julia/issues/16884
-    header_row = find(contains(l, " Name") && contains(l, " Attr") for l in lines)[1]
-    name_idx = search(lines[header_row], "Name")[1]
-    attr_idx = search(lines[header_row], "Attr")[1] - 1
-
-    # Filter out only the names of files, ignoring directories
-    lines = [l[name_idx:end] for l in lines if length(l) > name_idx && l[attr_idx] != 'D']
-    if isempty(lines)
-        return []
-    end
-
-    # Extract within the bounding lines of ------------
-    bounds = [i for i in 1:length(lines) if all([c for c in lines[i]] .== '-')]
-    lines = lines[bounds[1]+1:bounds[2]-1]
-
-    return lines
-end
-
-"""
-`list_tarball_files(path::AbstractString)`
+`list_tarball_files(path::AbstractString; verbose::Bool = false)`
 
 Given a `.tar.gz` filepath, list the compressed contents.
 """
-function list_tarball_files(path::AbstractString)
+function list_tarball_files(path::AbstractString; verbose::Bool = false)
     if !isfile(path)
         error("Tarball path $(path) does not exist")
     end
 
-    lines = @static if is_windows()
-        parse_7z_list(readchomp(pipeline(`7z x $path -so`, `7z l -ttar -y -si`)))
-    else
-        [f for f in split(readchomp(`tar tzf $path`), "\n") if !endswith(f, '/')]
+    # Run the listing command, then parse the output
+    oc = OutputCollector(gen_list_tarball_cmd(path); verbose=verbose)
+    try
+        if !wait(oc)
+            error()
+        end
+    catch
+        error("Could not list contents of tarball $(path)")
     end
+    lines = parse_tarball_listing(stdout(oc))
 
     # If there are `./` prefixes on our files, remove them
     for idx in 1:length(lines)
@@ -506,4 +472,32 @@ function list_tarball_files(path::AbstractString)
     end
 
     return lines
+end
+
+"""
+`verify(path::String, hash::String; verbose::Bool)`
+
+Given a file `path` and a `hash`, calculate the SHA256 of the file and compare
+it to `hash`.  If an error occurs, `verify()` will throw an error.
+"""
+function verify(path::AbstractString, hash::AbstractString; verbose::Bool = false)
+    if length(hash) != 64
+        msg  = "Hash must be 256 bits (64 characters) long, "
+        msg *= "given hash is $(length(hash)) characters long"
+        error(msg)
+    end
+    
+    open(path) do file
+        calc_hash = bytes2hex(sha256(file))
+        if verbose
+            info("Calculated hash $calc_hash for file $path")
+        end
+
+        if calc_hash != hash
+            msg  = "Hash Mismatch!\n"
+            msg *= "  Expected sha256:   $hash\n"
+            msg *= "  Calculated sha256: $calc_hash"
+            error(msg)
+        end
+    end
 end

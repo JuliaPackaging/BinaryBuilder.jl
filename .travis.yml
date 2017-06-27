@@ -12,24 +12,28 @@ notifications:
 git:
   depth: 99999999
 
-## uncomment the following lines to allow failures on nightly julia
-## (tests will run but not make your overall status red)
+env:
+  matrix:
+    - BINDEPS2_DOWNLOAD_ENGINE="curl"
+    - BINDEPS2_DOWNLOAD_ENGINE="fetch"
+    - BINDEPS2_DOWNLOAD_ENGINE="wget"
+    - BINDEPS2_COMPRESSION_ENGINE="7z"
+    - BINDEPS2_COMPRESSION_ENGINE="tar"
 matrix:
   allow_failures:
     - julia: nightly
 
-
-## uncomment and modify the following lines to manually install system packages
-#addons:
-#  apt: # apt-get for linux
-#    packages:
-#    - gfortran
-#before_script: # homebrew for mac
-#  - if [ $TRAVIS_OS_NAME = osx ]; then brew install gcc; fi
-## ^^ Ironic.  He could build binaries for others but not himself...
+# Ironic.  He could provide binaries for others but not himself...
+addons:
+  apt:
+    packages:
+      - curl
+      - wget
+      - fetch
+      - p7zip-full
+      - tar
+      - gzip
 
 after_success:
-  # push coverage results to Coveralls
-  - julia -e 'cd(Pkg.dir("BinDeps2")); Pkg.add("Coverage"); using Coverage; Coveralls.submit(Coveralls.process_folder())'
   # push coverage results to Codecov
   - julia -e 'cd(Pkg.dir("BinDeps2")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
