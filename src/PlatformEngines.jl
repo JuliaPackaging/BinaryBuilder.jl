@@ -178,9 +178,9 @@ function probe_platform_engines!(;verbose::Bool = false)
     # Allow environment override
     if haskey(ENV, "BINDEPS2_DOWNLOAD_ENGINE")
         engine = ENV["BINDEPS2_DOWNLOAD_ENGINE"]
-        dl_ngs = filter(e -> e[1] == engine, download_engines)
+        dl_ngs = filter(e -> e[1].exec[1] == engine, download_engines)
         if isempty(dl_ngs)
-            all_engines = join([d[1] for d in download_engines], ", ")
+            all_engines = join([d[1].exec[1] for d in download_engines], ", ")
             warn_msg  = "Ignoring BINDEPS2_DOWNLOAD_ENGINE as its value of "
             warn_msg *= "`$(engine)` does not match any known valid engines. "
             warn_msg *= "Try one of `$(all_engines)`."
@@ -194,9 +194,9 @@ function probe_platform_engines!(;verbose::Bool = false)
 
     if haskey(ENV, "BINDEPS2_COMPRESSION_ENGINE")
         engine = ENV["BINDEPS2_COMPRESSION_ENGINE"]
-        comp_ngs = filter(e -> e[1] == engine, compression_engines)
+        comp_ngs = filter(e -> e[1].exec[1] == engine, compression_engines)
         if isempty(comp_ngs)
-            all_engines = join([d[1] for d in compression_engines], ", ")
+            all_engines = join([c[1].exec[1] for c in compression_engines], ", ")
             warn_msg  = "Ignoring BINDEPS2_COMPRESSION_ENGINE as its value of "
             warn_msg *= "`$(engine)` does not match any known valid engines. "
             warn_msg *= "Try one of `$(all_engines)`."
