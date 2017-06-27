@@ -15,7 +15,6 @@ git:
 env:
   matrix:
     - BINDEPS2_DOWNLOAD_ENGINE="curl"
-    - BINDEPS2_DOWNLOAD_ENGINE="fetch"
     - BINDEPS2_DOWNLOAD_ENGINE="wget"
     - BINDEPS2_COMPRESSION_ENGINE="7z"
     - BINDEPS2_COMPRESSION_ENGINE="tar"
@@ -29,7 +28,6 @@ addons:
     packages:
       - curl
       - wget
-      - fetch
       - p7zip-full
       - tar
       - gzip
