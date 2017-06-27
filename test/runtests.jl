@@ -144,11 +144,11 @@ end
         cd("output_tests") do
             bs = BinDeps2.BuildStep("simple", `./simple.sh`, prefix)
             @test BinDeps2.build(bs)
-            @test readstring(BinDeps2.logpath(bs)) == "`./simple.sh`\n1\n2\n3\n4\n"
+            @test readstring(BinDeps2.logpath(bs)) == "$(`./simple.sh`)\n1\n2\n3\n4\n"
 
             bs = BinDeps2.BuildStep("long", `./long.sh`, prefix)
             @test BinDeps2.build(bs)
-            @test readstring(BinDeps2.logpath(bs)) == "`./long.sh`\n$(long_out)"
+            @test readstring(BinDeps2.logpath(bs)) == "$(`./long.sh`)\n$(long_out)"
             
             # Show what it looks like for something to fail/get killed
             info("Expecting the following two BuildSteps to fail...")
