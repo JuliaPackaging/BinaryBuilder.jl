@@ -2,7 +2,6 @@
 #  on disk.  Things like the name of where downloads are stored, and what
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show
-
 using SHA
 
 # This is the default prefix that things get saved to, it is initialized within
@@ -11,6 +10,15 @@ global_prefix = nothing
 immutable Prefix
     path::String
 
+    """
+    `Prefix(path::AbstractString)`
+    
+    A `Prefix` represents a binary installation location.  There is a default
+    global `Prefix` (available at `BinDeps2.global_prefix`) that packages are
+    installed into by default, however custom prefixes can be created trivially
+    by simply constructing a `Prefix` with a given `path` to install binaries
+    into, likely including folders such as `bin`, `lib`, etc...
+    """
     function Prefix(path::AbstractString)
         # Canonicalize immediately, create the overall prefix, then return
         path = abspath(path)
