@@ -2,8 +2,6 @@
 # `gen_package_cmd()` functions by providing methods to probe the environment
 # and determine the most appropriate platform binaries to call.
 
-using SHA
-
 """
 `gen_download_cmd(url::AbstractString, out_path::AbstractString)`
 
