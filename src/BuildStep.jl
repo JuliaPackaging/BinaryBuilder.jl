@@ -2,7 +2,13 @@ immutable BuildStep
     name::String
     cmd::Cmd
     prefix::Prefix
+    dr::DockerRunner
 end
+
+function BuildStep(name::String, cmd::Cmd, prefix::Prefix)
+    return BuildStep(name, cmd, prefix, DockerRunner(prefix))
+end
+
 
 function logpath(step::BuildStep)
     return joinpath(logdir(step.prefix), "$(step.name).log")
@@ -19,33 +25,7 @@ function build(step::BuildStep; verbose::Bool = false)
         info("[BuildStep $(step.name)]")
         info("  $(step.cmd)")
     end
-    
-    oc = OutputCollector(step.cmd; verbose=verbose)
-    
-    did_succeed = false
-    try
-        # Wait for the command to finish
-        did_succeed = wait(oc)
-    finally
-        # Make the path, if we need to
-        mkpath(dirname(logpath(step)))
 
-        # Write out the logfile
-        open(logpath(step), "w") do f
-            # First write out the actual command
-            println(f, step.cmd)
-
-            # Then write out the actual output
-            print(f, merge(oc))
-        end
-    end
-
-    # Remember, the `oc` will automagically spit out any failing output.
-    if !did_succeed
-        msg = "Build step $(step.name) did not complete successfully\n"
-        print_color(:red, msg; bold=true)
-        error()
-    end
-
-    return did_succeed
+    # Run the buildstep with whatever runner we're using
+    return run(step.dr, step.cmd, logpath(step); verbose=verbose)
 end

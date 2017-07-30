@@ -35,8 +35,19 @@ joinpath(s::AbstractString, prefix::Prefix, args...) = joinpath(s, prefix.path, 
 convert(::Type{AbstractString}, prefix::Prefix) = prefix.path
 show(io::IO, prefix::Prefix) = show(io, "Prefix($(prefix.path))")
 
+function _tempdir()
+    @static if is_apple()
+        # Docker, on OSX at least, can only mount from certain locations by
+        # default, so we ensure all our temporary directories live within
+        # those locations so that they are accessible by Docker.
+        return "/tmp"
+    else
+        return tempdir()
+    end
+end
+
 """
-`temp_prefix(func::Function, path::AbstractString = tempdir())`
+`temp_prefix(func::Function)`
 
 Create a temporary prefix, passing the prefix into the user-defined function so
 that build/packaging operations can occur within the temporary prefix, which is
@@ -54,7 +65,7 @@ Usage example:
     end
 """
 function temp_prefix(func::Function)
-    mktempdir() do path
+    mktempdir(_tempdir()) do path
         prefix = Prefix(path)
         
         # Run the user function

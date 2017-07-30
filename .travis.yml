@@ -11,12 +11,17 @@ notifications:
   email: false
 git:
   depth: 99999999
+sudo: required
+services:
+  - docker
 
 env:
   matrix:
     - BINDEPS2_DOWNLOAD_ENGINE="curl"
     - BINDEPS2_DOWNLOAD_ENGINE="wget"
-    - BINDEPS2_COMPRESSION_ENGINE="7z"
+
+    # Not doing this for now, since 7z doesn't save file permissions. :(
+    #- BINDEPS2_COMPRESSION_ENGINE="7z"
     - BINDEPS2_COMPRESSION_ENGINE="tar"
 matrix:
   allow_failures:

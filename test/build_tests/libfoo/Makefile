@@ -1,9 +1,10 @@
 all: install
 
 # We provide sane defaults, but BinDeps2 may override most of these values.
-prefix ?= libfoo-prefix
+DESTDIR ?= /usr/local
+prefix ?= $(DESTDIR)
 bindir ?= $(prefix)/bin
-libdir ?= $(prefix)/libdir
+libdir ?= $(prefix)/lib
 CC ?= gcc
 
 ifeq ($(shell uname),Darwin)
@@ -33,6 +34,8 @@ libfoo.$(SHLIB_EXT): libfoo.c Makefile
 	$(CC) libfoo.c -g -o $@ $(INSTALL_NAME) -shared
 libfoo: libfoo.$(SHLIB_EXT)
 install-libfoo: $(libdir) libfoo.$(SHLIB_EXT)
+	uname
+	echo ${target}
 	cp libfoo.$(SHLIB_EXT) $(libdir)/
 
 install: install-fooifier install-libfoo

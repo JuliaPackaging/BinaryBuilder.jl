@@ -9,6 +9,7 @@ include("OutputCollector.jl")
 include("Auditor.jl")
 include("PlatformEngines.jl")
 include("BuildResult.jl")
+include("DockerRunner.jl")
 include("BuildStep.jl")
 include("Dependency.jl")
 

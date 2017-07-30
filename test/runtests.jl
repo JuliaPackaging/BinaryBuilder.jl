@@ -30,7 +30,6 @@ end
 
 
 
-
 @testset "OutputCollector" begin
     cd("output_tests") do
         # Collect the output of `simple.sh``
@@ -184,7 +183,8 @@ end
         cd("build_tests/libfoo") do
             libfoo = BinDeps2.LibraryResult(joinpath(BinDeps2.libdir(prefix), "libfoo"))
             fooifier = BinDeps2.FileResult(joinpath(BinDeps2.bindir(prefix), "fooifier"))
-            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], [`make install`], prefix)
+            steps = [`make clean`, `make install`]
+            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], steps, prefix)
 
             # Build it
             @test BinDeps2.build(dep; verbose=true)
