@@ -2,7 +2,8 @@
 language: julia
 os:
   - linux
-  - osx
+# As long as we require docker, don't run on OSX
+#  - osx
 julia:
   - 0.5
   - 0.6
