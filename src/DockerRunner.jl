@@ -126,7 +126,7 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
         if verbose
             info("chown()'ing prefix to $(getuid()):$(getgid())")
         end
-        chown_cmd = `$(dr.cmd_prefix) chown $(getuid()):$(getgid()) -R /usr/local`
+        chown_cmd = `$(dr.cmd_prefix) -v $(d):$(d) $BUILD_IMAGE chown $(getuid()):$(getgid()) -R $(d)`
         if !wait(OutputCollector(chown_cmd))
             error("Chowning prefix to $(getuid()):$(getgid()) failed!\n")
         end
