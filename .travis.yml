@@ -37,6 +37,9 @@ addons:
       - tar
       - gzip
 
+before_install:
+  - docker pull staticfloat/julia_workerbase:crossbuild-x64
+
 after_success:
   # push coverage results to Codecov
   - julia -e 'cd(Pkg.dir("BinDeps2")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
