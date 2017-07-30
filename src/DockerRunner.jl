@@ -91,6 +91,9 @@ function DockerRunner(prefix::Prefix = global_prefix, volume_mapping::Vector = [
         cmd_prefix = `$cmd_prefix -e $(v[1])=$(v[2])`
     end
 
+    # Set our user id and group id to match the outside world
+    cmd_prefix = `$cmd_prefix --user=$(getuid()):$(getgid())`
+
     # Manually set DESTDIR environment variable
     cmd_prefix = `$cmd_prefix -e DESTDIR=$(prefix.path)`
 
@@ -122,15 +125,15 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
     # like that.  We do this whether the above command is successful or not, so
     # that users don't get files owned by root sitting around inside their
     # prefix directories.
-    @static if is_linux()
-        if verbose
-            info("chown()'ing prefix to $(getuid()):$(getgid())")
-        end
-        chown_cmd = `$(dr.cmd_prefix) -v $(d):$(d) $BUILD_IMAGE chown $(getuid()):$(getgid()) -R $(d)`
-        if !wait(OutputCollector(chown_cmd))
-            error("Chowning prefix to $(getuid()):$(getgid()) failed!\n")
-        end
-    end
+    # @static if is_linux()
+    #     if verbose
+    #         info("chown()'ing prefix to $(getuid()):$(getgid())")
+    #     end
+    #     chown_cmd = `$(dr.cmd_prefix) -v $(d):$(d) $BUILD_IMAGE chown $(getuid()):$(getgid()) -R $(d)`
+    #     if !wait(OutputCollector(chown_cmd))
+    #         error("Chowning prefix to $(getuid()):$(getgid()) failed!\n")
+    #     end
+    # end
 
     # If we were not successful, fess up
     if !did_succeed
