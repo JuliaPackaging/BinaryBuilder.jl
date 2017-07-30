@@ -23,7 +23,7 @@ function audit(prefix::Prefix)
     end
 
     # Inspect all relevant shared library files
-    shlib_regex = Regex(".*\.$(Libdl.dlext)[\.0-9]*\$")
+    shlib_regex = Regex(".*\\.$(Libdl.dlext)[\\.0-9]*\$")
     shlib_files = filter(f -> ismatch(shlib_regex, f), all_files)
     for f in shlib_files
         if Libdl.dlopen_e(f) == C_NULL
