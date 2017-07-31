@@ -290,8 +290,8 @@ end
 """
 `parse_7z_list(output::AbstractString)`
 
-Given the output of `tar -t`, parse out the listed filenames.  This funciton used
-by  `list_tarball_files`.
+Given the output of `tar -t`, parse out the listed filenames.  This funciton
+used by `list_tarball_files`.
 """
 function parse_tar_list(output::AbstractString)
     lines = [chomp(l) for l in split(output, "\n")]
@@ -300,4 +300,44 @@ function parse_tar_list(output::AbstractString)
     lines = [l for l in lines if !isempty(l) && !endswith(l, '/')]
 
     return lines
+end
+
+"""
+`download_verify_unpack(url::AbstractString, hash::AbstractString, dest::AbstractString)`
+
+Helper method to download tarball located at `url`, verify it matches the
+given `hash`, then unpack it into folder `dest`.
+"""
+function download_verify_unpack(url::AbstractString,
+                                hash::AbstractString,
+                                dest::AbstractString;
+                                verbose::Bool = false)
+    mktempdir(_tempdir()) do path
+        # download to temporary path
+        tarball_path = joinpath(path, "download.tar.gz")
+        download_cmd = gen_download_cmd(url, tarball_path)
+        oc = OutputCollector(download_cmd; verbose=verbose)
+        try
+            if !wait(oc)
+                error()
+            end
+        catch
+            error("Could not download $(tarball_url) to $(tarball_path)")
+        end
+
+        # verify download
+        verify(tarball_path, hash; verbose=verbose)
+
+        # unpack into dest
+        try mkpath(dest) end
+        unpack_cmd = gen_unpack_cmd(tarball_path, dest)
+        oc = OutputCollector(unpack_cmd; verbose=verbose)
+        try 
+            if !wait(oc)
+                error()
+            end
+        catch
+            error("Could not unpack $(tarball_path) into $(dest)")
+        end
+    end
 end

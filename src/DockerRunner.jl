@@ -122,6 +122,13 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
     # Run the command
     d = pwd()
     user_cmd = `$(dr.cmd_prefix) -w $(d) -v $(d):$(d) $BUILD_IMAGE $cmd`
+
+    # This is for debugging
+    # if verbose
+    #     info(user_cmd)
+    #     wait()
+    # end
+
     oc = OutputCollector(user_cmd; verbose=verbose)
     did_succeed = wait(oc)
 
@@ -133,11 +140,6 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
         print(f, merge(oc))
     end
 
-    # If we were not successful, fess up
-    if !did_succeed
-        msg = "Build step $(step.name) did not complete successfully\n"
-        error(msg)
-    end
-
-    return true
+    # Return whether we succeeded or not
+    return did_succeed
 end

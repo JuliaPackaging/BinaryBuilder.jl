@@ -103,7 +103,17 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false)
 
         # Run the build recipe one step at a time
         for step in dep.steps
-            run(runner, step.cmd, logpath(step); verbose=verbose)
+            if verbose
+                info("[BuildStep $(step.name)]")
+                info("  $(step.cmd)")
+            end
+
+            did_succeed = run(runner, step.cmd, logpath(step); verbose=verbose)
+            # If we were not successful, fess up
+            if !did_succeed
+                msg = "Build step $(step.name) did not complete successfully\n"
+                error(msg)
+            end 
         end
     elseif !should_build && verbose
         info("Not building as $(dep.name) is already satisfied")
