@@ -120,21 +120,6 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
         print(f, merge(oc))
     end
 
-    # We always chown() the entire prefix back to ourselves if we're running
-    # on Linux because otherwise things get owned by root and other weird stuff
-    # like that.  We do this whether the above command is successful or not, so
-    # that users don't get files owned by root sitting around inside their
-    # prefix directories.
-    # @static if is_linux()
-    #     if verbose
-    #         info("chown()'ing prefix to $(getuid()):$(getgid())")
-    #     end
-    #     chown_cmd = `$(dr.cmd_prefix) -v $(d):$(d) $BUILD_IMAGE chown $(getuid()):$(getgid()) -R $(d)`
-    #     if !wait(OutputCollector(chown_cmd))
-    #         error("Chowning prefix to $(getuid()):$(getgid()) failed!\n")
-    #     end
-    # end
-
     # If we were not successful, fess up
     if !did_succeed
         msg = "Build step $(step.name) did not complete successfully\n"
