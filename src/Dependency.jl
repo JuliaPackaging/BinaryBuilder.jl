@@ -1,16 +1,28 @@
-# A dependency is something that must be satisfied before a
-# package can be run.  These dependencies can be Libraries,
-# basic files, etc...
+# A `BuildStep` is just a `Cmd` with some helper data bundled along, such as a
+# unique (from within a `Dependency`) name, a link to its prefix for
+# auto-calculating the `logpath()` for a `BuildStep`, etc....
+immutable BuildStep
+    name::String
+    cmd::Cmd
+    prefix::Prefix
+end
+
+function logpath(step::BuildStep)
+    return joinpath(logdir(step.prefix), "$(step.name).log")
+end
+
+# A dependency is something that must be satisfied before a package can be run.
+# These dependencies can be Libraries, basic files, etc...
 immutable Dependency
     # The "name" of this dependency (e.g. "cairo")
     name::AbstractString
 
-    # The resultant objects that must be present by this recipe
-    # BuildResults have different rules that are automatically
-    # applied when verifying that this dependency is satisfied
+    # The resultant objects that must be present by this recipe BuildResults
+    # have different rules that are automatically applied when verifying that
+    # this dependency is satisfied
     results::Vector{BuildResult}
 
-    # The build steps in order to build this dependency
+    # The build steps in order to build this dependency.
     steps::Vector{BuildStep}
 
     # The parent "prefix" this dependency must be installed within
@@ -18,6 +30,9 @@ immutable Dependency
 
     # Dependencies (e.g. ["gdk-pixbuf", "pango"], etc...)
     dependencies::Vector{Dependency}
+
+    # The platform this dependency gets built for
+    platform::Symbol
 end
 
 """
@@ -28,6 +43,7 @@ Defines a new dependency that can be
 function Dependency{R <: BuildResult}(name::AbstractString,
                     results::Vector{R},
                     cmds::Vector{Cmd},
+                    platform::Symbol,
                     prefix::Prefix = global_prefix,
                     dependencies::Vector{Dependency} = Dependency[])
     name_idxs = Dict{String,Int64}()
@@ -43,7 +59,7 @@ function Dependency{R <: BuildResult}(name::AbstractString,
     end
 
     steps = [build_step(prefix, cmd) for cmd in cmds]
-    return Dependency(name, results, steps, prefix, dependencies)
+    return Dependency(name, results, steps, prefix, dependencies, platform)
 end
 
 
@@ -82,33 +98,15 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false)
             end
         end
 
-        # Apply the build environment (set `prefix`, `CC`, etc...)
-        withenv(default_env(dep.prefix)...) do
-            for step in dep.steps
-                build(step; verbose=verbose)
-            end
+        # Construct the runner object that we'll use to actually run the commands
+        runner = DockerRunner(dep.prefix, dep.platform)
+
+        # Run the build recipe one step at a time
+        for step in dep.steps
+            run(runner, step.cmd, logpath(step); verbose=verbose)
         end
     elseif !should_build && verbose
         info("Not building as $(dep.name) is already satisfied")
     end
     return true
-end
-
-
-"""
-`default_env(prefix::Prefix)`
-
-Returns an array of pairs of default environment variables to be used as a set
-of sane defaults including `prefix`, `bindir`, `libdir`, etc...
-
-TODO: We need to provide cross-compiler configuration here.
-"""
-function default_env(prefix::Prefix)
-    const def_vars = [
-        "prefix" => prefix.path,
-        "bindir" => bindir(prefix),
-        "libdir" => libdir(prefix),
-    ]
-
-    return def_vars
 end

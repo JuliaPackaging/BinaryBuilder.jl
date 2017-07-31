@@ -40,42 +40,55 @@ function target_envs(target::String)
     return mapping
 end
 
+const platform_to_target_mapping = Dict(
+    :linux64 => "x86_64-linux-gnu",
+    :linuxaarch64 => "aarch64-linux-gnu",
+    :linuxarmv7l => "arm-linux-gnueabihf",
+    :linuxppc64le => "powerpc64le-linux-gnu",
+    :mac64 => "x86_64-apple-darwin14",
+    #:win64 => "x86_64-mingw-something-something",
+)
+
+function supported_platforms()
+    return keys(platform_to_target_mapping)
+end
+
 function platform_map(platform::Symbol)
-    const mapping = Dict(
-        :linux64 => "x86_64-linux-gnu",
-        :linuxaarch64 => "aarch64-linux-gnu",
-        :linuxarmv7l => "arm-linux-gnueabihf",
-        :linuxppc64le => "powerpc64le-linux-gnu",
-        :mac64 => "x86_64-apple-darwin14",
-        #:win64 => "x86_64-mingw-something-something",
+    return platform_to_target_mapping[platform]
+end
+
+
+"""
+`platform_suffix(kernel::Symbol = Sys.KERNEL, arch::Symbol = Sys.ARCH)`
+
+Returns the platform-dependent suffix of a packaging tarball for the current
+platform, or any other though the use of the `kernel` and `arch` parameters.
+"""
+function platform_suffix(kernel::Symbol = Sys.KERNEL, arch::Symbol = Sys.ARCH)
+    const kern_dict = Dict(
+        :Darwin => "mac",
+        :Apple => "mac",
+        :Linux => "linux",
+        :FreeBSD => "bsd",
+        :OpenBSD => "bsd",
+        :NetBSD => "bsd",
+        :DragonFly => "bsd",
+        :Windows => "win",
+        :NT => "win",
     )
-    return mapping[platform]
+
+    const arch_dict = Dict(
+        :x86_64 => "64",
+        :i686 => "32",
+        :powerpc64le => "ppc64le",
+        :ppc64le => "ppc64le",
+        :arm => "arm",
+        :aarch64 => "arm64",
+    )    
+    return Symbol("$(kern_dict[kernel])$(arch_dict[arch])")
 end
 
-function current_platform()
-    @static if is_linux()
-        @static if Sys.ARCH == :x86_64
-            return :linux64
-        end
-        @static if Sys.ARCH == :aarch64
-            return :linuxaarch64
-        end
-        @static if Sys.ARCH == :armv7l
-            return :linuxarmv7l
-        end
-        @static if Sys.ARCH == :ppc64le
-            return :linuxppc64le
-        end
-    end
-    @static if is_apple()
-        return :mac64
-    end
-    #@static if is_windows()
-    #    return :win64
-    #end
-end
-
-function DockerRunner(prefix::Prefix = global_prefix, volume_mapping::Vector = [], platform::Symbol = current_platform())
+function DockerRunner(prefix::Prefix = global_prefix, platform::Symbol = platform_suffix(), volume_mapping::Vector = [])
     # We are using `docker run` to provide isolation
     cmd_prefix = `docker run --rm -i`
 

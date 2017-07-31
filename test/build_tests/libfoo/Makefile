@@ -34,14 +34,12 @@ libfoo.$(SHLIB_EXT): libfoo.c Makefile
 	$(CC) libfoo.c -g -o $@ $(INSTALL_NAME) -shared
 libfoo: libfoo.$(SHLIB_EXT)
 install-libfoo: $(libdir) libfoo.$(SHLIB_EXT)
-	uname
-	echo ${target}
 	cp libfoo.$(SHLIB_EXT) $(libdir)/
 
 install: install-fooifier install-libfoo
 
 clean:
 	rm -rf fooifier fooifier.dSYM
-	rm -rf libfoo.$(SHLIB_EXT) libfoo.$(SHLIB_EXT).dSYM
+	rm -rf libfoo.{so,dylib,dll} libfoo.{so,dylib,dll}.dSYM
 
 .SUFFIXES:

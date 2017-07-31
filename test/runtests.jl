@@ -7,6 +7,9 @@ using Compat
 const simple_out = "1\n2\n3\n4\n"
 const long_out = join(["$(idx)\n" for idx in 1:100], "")
 
+# The platform we're running on
+const platform = BinDeps2.platform_suffix()
+
 # We are going to build libfoo a lot, so here's our function to make sure the
 # library is working properly
 function check_foo(fooifier_path = "fooifier",
@@ -138,27 +141,6 @@ end
     end
 end
 
-@testset "BuildStep" begin
-    BinDeps2.temp_prefix() do prefix
-        cd("output_tests") do
-            bs = BinDeps2.BuildStep("simple", `./simple.sh`, prefix)
-            @test BinDeps2.build(bs)
-            @test readstring(BinDeps2.logpath(bs)) == "$(`./simple.sh`)\n1\n2\n3\n4\n"
-
-            bs = BinDeps2.BuildStep("long", `./long.sh`, prefix)
-            @test BinDeps2.build(bs)
-            @test readstring(BinDeps2.logpath(bs)) == "$(`./long.sh`)\n$(long_out)"
-            
-            # Show what it looks like for something to fail/get killed
-            info("Expecting the following two BuildSteps to fail...")
-            bs = BinDeps2.BuildStep("fail", `./fail.sh`, prefix)
-            @test_throws ErrorException BinDeps2.build(bs)
-            bs = BinDeps2.BuildStep("kill", `./kill.sh`, prefix)
-            @test_throws ErrorException BinDeps2.build(bs)
-        end
-    end
-end
-
 @testset "Dependency" begin
     BinDeps2.temp_prefix() do prefix
         # First, let's create a Dependency that just installs a file
@@ -172,7 +154,7 @@ end
             push!(cmds, `bash -c "printf '#!/bin/bash\necho test' > $(test_exe.path)"`)
             push!(cmds, `chmod 775 $(test_exe.path)`)
             
-            dep = BinDeps2.Dependency("bash_test", results, cmds, prefix)
+            dep = BinDeps2.Dependency("bash_test", results, cmds, platform, prefix)
 
             @test BinDeps2.build(dep; verbose=true)
             @test BinDeps2.satisfied(dep)
@@ -184,7 +166,7 @@ end
             libfoo = BinDeps2.LibraryResult(joinpath(BinDeps2.libdir(prefix), "libfoo"))
             fooifier = BinDeps2.FileResult(joinpath(BinDeps2.bindir(prefix), "fooifier"))
             steps = [`make clean`, `make install`]
-            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], steps, prefix)
+            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], steps, platform, prefix)
 
             # Build it
             @test BinDeps2.build(dep; verbose=true)
@@ -211,11 +193,11 @@ end
         cd("build_tests/libfoo") do
             libfoo = BinDeps2.LibraryResult(joinpath(BinDeps2.libdir(prefix), "libfoo"))
             cmds = [`make install-libfoo`]
-            dep_libfoo = BinDeps2.Dependency("libfoo", [libfoo], cmds, prefix)
+            dep_libfoo = BinDeps2.Dependency("libfoo", [libfoo], cmds, platform, prefix)
 
             fooifier = BinDeps2.FileResult(joinpath(BinDeps2.bindir(prefix), "fooifier"))
             cmds = [`make install-fooifier`]
-            dep_fooifier = BinDeps2.Dependency("fooifier", [fooifier], cmds, prefix, [dep_libfoo])
+            dep_fooifier = BinDeps2.Dependency("fooifier", [fooifier], cmds, platform, prefix, [dep_libfoo])
 
             # Build fooifier, which should invoke libfoo automagically
             @test BinDeps2.build(dep_fooifier; verbose=true)
@@ -247,7 +229,8 @@ end
             # First, build libfoo
             libfoo = BinDeps2.LibraryResult(joinpath(BinDeps2.libdir(prefix), "libfoo"))
             fooifier = BinDeps2.FileResult(joinpath(BinDeps2.bindir(prefix), "fooifier"))
-            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], [`make install`], prefix)
+            steps = [`make clean`, `make install`]
+            dep = BinDeps2.Dependency("foo", [libfoo, fooifier], steps, platform, prefix)
 
             @test BinDeps2.build(dep)
         end    
@@ -316,22 +299,27 @@ end
 end
 
 # Use ./build_libfoo_tarball.jl to generate more of these
-small_bin_prefix = "https://github.com/staticfloat/small_bin/raw/197e9dd9031fd9bd51958f9f9f7e74a38db9513e/"
+small_bin_prefix = "https://github.com/staticfloat/small_bin/raw/94584567f67b7cd08e4f7bc36f62966ee22cea19/"
 libfoo_downloads = Dict(
-    "mac64" => ("$small_bin_prefix/libfoo_mac64.tar.gz",
-                "dd4654ee7f53af6f5c47bcfb516e7a60814613ecb17634c292692aa89a740828"),
-    "linux64" => ("$small_bin_prefix/libfoo_linux64.tar.gz",
-                  "57212a9a7891c4d39aea47181e77b12c701ac02d7d0e909dc6f03eb534409fa9"),
+    :mac64 => ("$small_bin_prefix/libfoo_mac64.tar.gz",
+               "87e3926840af3e47a1b4743c2786807a565495738d222d8ce0e865ed9498b5b8"),
+    :linux64 => ("$small_bin_prefix/libfoo_linux64.tar.gz",
+                 "072e6d7caa2f4009dd0cd831eb041cbf40ba0c3a4f1ea748e76d77463fbb4f12"),
+    :linuxaarch64 => ("$small_bin_prefix/libfoo_linuxaarch64.tar.gz",
+                 "634f38967ff8768393ce6c677814bbab596caa36ca565f82157cb3ccb79f2e1d"),
+    :linuxppc64le => ("$small_bin_prefix/libfoo_linuxppc64le.tar.gz",
+                 "cae66a63d82e2c81ace4619e84cf164c3f93118defe204b86f38b3616c674a50"),
+    :linuxarmv7l => ("$small_bin_prefix/libfoo_linuxarmv7l.tar.gz",
+                 "02950e8e8ac9053b37cb90e879621d26d6136805783ba65668615bf07c277e9f"),
 )
 
-platfix = BinDeps2.platform_suffix()
 @testset "Downloading" begin
     BinDeps2.temp_prefix() do prefix
-        if !haskey(libfoo_downloads, platfix)
-            warn("Platform $platfix does not have a libfoo download, skipping download tests")
+        if !haskey(libfoo_downloads, platform)
+            warn("Platform $platform does not have a libfoo download, skipping download tests")
         else
             # Test a good download works
-            url, hash = libfoo_downloads[platfix]
+            url, hash = libfoo_downloads[platform]
             @test BinDeps2.install(url, hash; prefix=prefix, verbose=true)
 
             BinDeps2.activate(prefix) do
@@ -341,7 +329,8 @@ platfix = BinDeps2.platform_suffix()
 
         # Test a bad download fails properly
         bad_url = "http://localhost:1/this_is_not_a_file_linux64.tar.gz"
-        @test_throws ErrorException BinDeps2.install(bad_url, hash; prefix=prefix, verbose=true)
+        bad_hash = "0"^64
+        @test_throws ErrorException BinDeps2.install(bad_url, bad_hash; prefix=prefix, verbose=true)
     end
 end
 
