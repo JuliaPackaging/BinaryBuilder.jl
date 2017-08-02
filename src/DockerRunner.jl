@@ -123,12 +123,6 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
     d = pwd()
     user_cmd = `$(dr.cmd_prefix) -w $(d) -v $(d):$(d) $BUILD_IMAGE $cmd`
 
-    # This is for debugging
-    # if verbose
-    #     info(user_cmd)
-    #     wait()
-    # end
-
     oc = OutputCollector(user_cmd; verbose=verbose)
     did_succeed = wait(oc)
 
