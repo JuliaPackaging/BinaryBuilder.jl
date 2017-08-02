@@ -12,6 +12,6 @@ prefix="$1"
 
 mkdir build_${target}
 cd build_${target}
-${prefix}/src/nettle-3.3/configure --host=${target} --prefix="${prefix}"
+${prefix}/src/nettle-3.3/configure --host=${target} --prefix=/${target}
 make -j4
 make install

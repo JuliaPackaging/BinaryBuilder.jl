@@ -1,5 +1,8 @@
 import Base: run, show
 
+# The docker image we use
+const BUILD_IMAGE = "staticfloat/julia_workerbase:crossbuild-x64"
+
 type DockerRunner
     cmd_prefix::Cmd
     platform::Symbol
@@ -114,8 +117,6 @@ function DockerRunner(prefix::Prefix = global_prefix, platform::Symbol = platfor
 end
 
 function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool = false)
-    const BUILD_IMAGE = "staticfloat/julia_workerbase:crossbuild-x64"
-
     # Create the directory where we'll store logs, if we need to
     mkpath(dirname(logpath))
 
@@ -136,4 +137,9 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
 
     # Return whether we succeeded or not
     return did_succeed
+end
+
+function runshell(dr::DockerRunner)
+    d = pwd()
+    user_cmd = `$(dr.cmd_prefix) -w $(d) -v $(d):$(d) -t $BUILD_IMAGE bash`
 end
