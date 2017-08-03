@@ -1,3 +1,7 @@
+# PRE-ALPHA SOFTWARE
+
+The code monkeys are still hard at work tinkering to develop the best possible binary building solution for [Julia](https://julialang.org). Please **do not use this software** for any real work until this notice is removed.  This software is provided AS-IS with no warranty, implied or otherwise, and is not even guaranteed to be fit for a particular purpose.
+
 # BinDeps2
 
 [![Build Status](https://travis-ci.org/staticfloat/BinDeps2.jl.svg?branch=master)](https://travis-ci.org/staticfloat/BinDeps2.jl)  [![codecov.io](http://codecov.io/github/staticfloat/BinDeps2.jl/coverage.svg?branch=master)](http://codecov.io/github/staticfloat/BinDeps2.jl?branch=master)
