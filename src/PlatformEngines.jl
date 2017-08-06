@@ -122,15 +122,16 @@ function probe_platform_engines!(;verbose::Bool = false)
         (`wget --help`, (url, path) -> `wget -O $path $url`),
         (`fetch --help`, (url, path) -> `fetch -f $path $url`),
     ]
-
+    
+    const exe7z = Sys.iswindows() ? joinpath(JULIA_HOME, "7z.exe") : "7z"
     # 7z is rather intensely verbose
     unpack_7z = (tarball_path, out_path) ->
-        pipeline(`7z x $(tarball_path) -y -so`,
-                 `7z x -si -y -ttar -o$(out_path)`)
+        pipeline(`$exe7z x $(tarball_path) -y -so`,
+                 `$exe7z x -si -y -ttar -o$(out_path)`)
     package_7z = (in_path, tarball_path) ->
-        pipeline(`7z a -ttar -so a.tar "$(joinpath(".", in_path, "*"))"`,
-                 `7z a -si $(tarball_path)`)
-    list_7z = (in_path) -> pipeline(`7z x $in_path -so`, `7z l -ttar -y -si`)
+        pipeline(`$exe7z a -ttar -so a.tar "$(joinpath(".", in_path, "*"))"`,
+                 `$exe7z a -si $(tarball_path)`)
+    list_7z = (in_path) -> pipeline(`$exe7z x $in_path -so`, `7z l -ttar -y -si`)
 
     # Tar is rather less verbose
     unpack_tar = (tarball_path, out_path) ->
@@ -145,7 +146,7 @@ function probe_platform_engines!(;verbose::Bool = false)
     # works, will set the global compression functions appropriately.
     const compression_engines = [
         (`tar --help`, unpack_tar, package_tar, list_tar, parse_tar_list),
-        (`7z --help`, unpack_7z, package_7z, list_7z, parse_7z_list),
+        (`$exe7z --help`, unpack_7z, package_7z, list_7z, parse_7z_list),
     ]
 
     if verbose
