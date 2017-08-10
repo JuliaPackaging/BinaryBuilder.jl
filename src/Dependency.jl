@@ -99,7 +99,7 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false)
         end
 
         # Construct the runner object that we'll use to actually run the commands
-        runner = DockerRunner(dep.prefix, dep.platform)
+        runner = DockerRunner(prefix=dep.prefix, platform=dep.platform)
 
         # Run the build recipe one step at a time
         for step in dep.steps

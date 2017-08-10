@@ -14,6 +14,7 @@ for platform in BinDeps2.supported_platforms()
         end
     
         # Next, package it up as a .tar.gz file
+        rm("./libfoo_$(platform).tar.gz"; force=true)
         tarball_path = BinDeps2.package(prefix, "./libfoo", platform=platform)
         info("Built and saved at $(tarball_path)")
     end

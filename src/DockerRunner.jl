@@ -49,7 +49,7 @@ const platform_to_target_mapping = Dict(
     :linuxarmv7l => "arm-linux-gnueabihf",
     :linuxppc64le => "powerpc64le-linux-gnu",
     :mac64 => "x86_64-apple-darwin14",
-    #:win64 => "x86_64-mingw-something-something",
+    :win64 => "x86_64-w64-mingw32",
 )
 
 function supported_platforms()
@@ -91,7 +91,7 @@ function platform_suffix(kernel::Symbol = Sys.KERNEL, arch::Symbol = Sys.ARCH)
     return Symbol("$(kern_dict[kernel])$(arch_dict[arch])")
 end
 
-function DockerRunner(prefix::Prefix = global_prefix, platform::Symbol = platform_suffix(), volume_mapping::Vector = [])
+function DockerRunner(;prefix::Prefix = global_prefix, platform::Symbol = platform_suffix(), volume_mapping::Vector = [])
     # We are using `docker run` to provide isolation
     cmd_prefix = `docker run --rm -i`
 
@@ -142,4 +142,9 @@ end
 function runshell(dr::DockerRunner)
     d = pwd()
     user_cmd = `$(dr.cmd_prefix) -w $(d) -v $(d):$(d) -t $BUILD_IMAGE bash`
+    run(user_cmd)
+end
+
+function runshell(platform::Symbol)
+    runshell(DockerRunner(platform=platform))
 end

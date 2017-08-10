@@ -11,6 +11,9 @@ ifeq ($(shell uname),Darwin)
 INSTALL_NAME ?= -install_name '@rpath/libfoo.$(SHLIB_EXT)'
 SHLIB_EXT ?= dylib
 RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
+ifneq ($(findstring MSYS,$(shell uname)),)
+libdir = $(bindir)
+SHLIB_EXT ?= dll
 else
 SHLIB_EXT ?= so
 RPATH ?= -Wl,-rpath,'$$ORIGIN/../lib' -Wl,-rpath,'$$ORIGIN'
@@ -40,6 +43,6 @@ install: install-fooifier install-libfoo
 
 clean:
 	rm -rf fooifier fooifier.dSYM
-	rm -rf libfoo.{so,dylib,dll} libfoo.{so,dylib,dll}.dSYM
+	rm -rf libfoo.so libfoo.dll libfoo.dylib libfoo.dylib.dSYM
 
 .SUFFIXES:
