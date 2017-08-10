@@ -29,8 +29,11 @@ function audit(prefix::Prefix)
         if Libdl.dlopen_e(f) == C_NULL
             # TODO: Use the relevant ObjFileBase packages to inspect why this
             # file is being nasty to us.
-            warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
-            all_ok = false
+
+            # TODO: Commenting this out for now since we have cross-compilation working
+            # and that obviously doesn't play well with this test.
+            #warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+            #all_ok = false
         end
     end
 
