@@ -11,7 +11,7 @@ ifeq ($(shell uname),Darwin)
 INSTALL_NAME ?= -install_name '@rpath/libfoo.$(SHLIB_EXT)'
 SHLIB_EXT ?= dylib
 RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
-ifneq ($(findstring MSYS,$(shell uname)),)
+else ifneq ($(findstring MSYS,$(shell uname)),)
 libdir = $(bindir)
 SHLIB_EXT ?= dll
 else
