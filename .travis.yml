@@ -44,7 +44,7 @@ addons:
 
 before_install:
   # If we're running the builder tests, go ahead and pull the latest crossbuild image
-  - [[ -n "${BINDEPS2_RUN_BUILDER_TESTS}" ]] && docker pull staticfloat/julia_workerbase:crossbuild-x64
+  - [[ -n "$BINDEPS2_RUN_BUILDER_TESTS" ]] && docker pull staticfloat/julia_workerbase:crossbuild-x64
 
 after_success:
   # push coverage results to Codecov
