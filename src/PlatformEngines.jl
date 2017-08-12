@@ -160,8 +160,10 @@ function probe_platform_engines!(;verbose::Bool = false)
         psh_path = "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell"
         psh_copts = `-NoProfile -Command`
         psh_download = (url, path) -> begin
-            webclient = "(new-object net.webclient)"
-            return `$psh_copts "$webclient.DownloadFile(\"$url\", \"$path\")"`
+            tls12 = "[System.Net.ServicePointManager]::SecurityProtocol = " *
+                    "[System.Net.SecurityProtocolType]::Tls12"
+            webclient = "(New-Object System.Net.Webclient).DownloadFile"
+            return `$psh_copts "$tls12; $webclient(\"$url\", \"$path\")"`
         end
 
         # Push these guys onto the top of our download_engines search list
