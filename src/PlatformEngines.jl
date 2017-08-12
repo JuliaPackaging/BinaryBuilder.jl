@@ -168,10 +168,10 @@ function probe_platform_engines!(;verbose::Bool = false)
 
         # Push these guys onto the top of our download_engines search list
         prepend!(download_engines, [
-            (psh_path,     `$psh_path $psh_copts ""`, psh_download)
+            (`$psh_path -Help`, psh_download)
         ])
         prepend!(download_engines, [
-            ("powershell", `powershell $psh_copts ""`, psh_download)
+            (`powershell -Help`, psh_download)
         ])
     end
 
