@@ -103,7 +103,7 @@ the given override does not match any of the download engines known to this
 function, a warning will be printed and the typical ordering will be performed.
 
 Similarly, if you wish to override the compression engine used, set the
-`BINDEPS2_COMPRESSION_ENGINE` environment variable to its name (either `7z` or
+`BINDEPS2_COMPRESSION_ENGINE` environment variable to its name (e.g. `7z` or
 `tar`) and it will be the only engine searched for.  If the given override does
 not match any of the compression engines known to this function, a warning will
 be printed and the typical searching will be performed.
@@ -123,16 +123,27 @@ function probe_platform_engines!(;verbose::Bool = false)
         (`fetch --help`, (url, path) -> `fetch -f $path $url`),
     ]
 
-    # 7z is rather intensely verbose
-    unpack_7z = (tarball_path, out_path) ->
-        pipeline(`7z x $(tarball_path) -y -so`,
-                 `7z x -si -y -ttar -o$(out_path)`)
-    package_7z = (in_path, tarball_path) ->
-        pipeline(`7z a -ttar -so a.tar "$(joinpath(".", in_path, "*"))"`,
-                 `7z a -si $(tarball_path)`)
-    list_7z = (in_path) -> pipeline(`7z x $in_path -so`, `7z l -ttar -y -si`)
+    # 7z is rather intensely verbose.  We also want to try running not only
+    # `7z` but also a direct path to the `7z.exe` bundled with Julia on
+    # windows, so we create generator functions to spit back functors to invoke
+    # the correct 7z given the path to the executable:
+    unpack_7z = (exe7z) -> begin
+        return (tarball_path, out_path) ->
+            pipeline(`$exe7z x $(tarball_path) -y -so`,
+                     `$exe7z x -si -y -ttar -o$(out_path)`)
+    end
+    package_7z = (exe7z) -> begin
+        return (in_path, tarball_path) ->
+            pipeline(`$exe7z a -ttar -so a.tar "$(joinpath(".",in_path,"*"))"`,
+                     `$exe7z a -si $(tarball_path)`)
+    end
+    list_7z = (exe7z) -> begin
+        return (path) ->
+            pipeline(`$exe7z x $path -so`, `$exe7z l -ttar -y -si`)
+    end
 
-    # Tar is rather less verbose
+    # Tar is rather less verbose, and we don't need to search multiple places
+    # for it, so just rely on PATH to have `tar` available for us:
     unpack_tar = (tarball_path, out_path) ->
         `tar xzf $(tarball_path) --directory=$(out_path)`
     package_tar = (in_path, tarball_path) ->
@@ -143,13 +154,16 @@ function probe_platform_engines!(;verbose::Bool = false)
     # package_opts_functor, list_opts_functor, parse_functor).  The probulator
     # will check each of them by attempting to run `$test_cmd`, and if that
     # works, will set the global compression functions appropriately.
+    gen_7z = (p) -> (unpack_7z(p), package_7z(p), list_7z(p), parse_7z_list)
     const compression_engines = [
         (`tar --help`, unpack_tar, package_tar, list_tar, parse_tar_list),
-        (`7z --help`, unpack_7z, package_7z, list_7z, parse_7z_list),
+        (`7z --help`, gen_7z("7z")...),
     ]
 
-    if verbose
-        info("Probing for download engine...")
+    @static if is_windows()
+        # On windows, we bundle 7z with Julia, so try invoking that directly
+        const exe7z = joinpath(JULIA_HOME, "7z.exe")
+        append!(compression_engines, (`$exe7z`, gen_7z("exe7z")...))
     end
 
     # For windows, let's add powershell onto the front of the list of things
@@ -211,14 +225,26 @@ function probe_platform_engines!(;verbose::Bool = false)
     download_found = false
     compression_found = false
 
+    if verbose
+        info("Probing for download engine...")
+    end
+
     # Search for a download engine
     for (test, dl_func) in download_engines
         if probe_cmd(`$test`; verbose=verbose)
             # Set our download command generator
             gen_download_cmd = dl_func
             download_found = true
+
+            if verbose
+                info("Found download engine $(test.exec[1])")
+            end
             break
         end
+    end
+
+    if verbose
+        info("Probing for compression engine...")
     end
 
     # Search for a compression engine
@@ -230,6 +256,10 @@ function probe_platform_engines!(;verbose::Bool = false)
             gen_list_tarball_cmd = list
             parse_tarball_listing = parse
 
+            if verbose
+                info("Found compression engine $(test.exec[1])")
+            end
+
             compression_found = true
             break
         end
@@ -239,13 +269,13 @@ function probe_platform_engines!(;verbose::Bool = false)
     errmsg = ""
     if !download_found
         errmsg *= "No download engines found. We looked for: "
-        errmsg *= join([d[1] for d in download_engines], ", ")
-        errmsg *= ". Install one and ensure it is available on the path.\n"
+        errmsg *= join([d[1].exec[1] for d in download_engines], ", ")
+        errmsg *= ". Install one and ensure it  is available on the path.\n"
     end
 
     if !compression_found
         errmsg *= "No compression engines found. We looked for: "
-        errmsg *= join([d[1] for d in compression_engines], ", ")
+        errmsg *= join([c[1].exec[1] for c in compression_engines], ", ")
         errmsg *= ". Install one and ensure it is available on the path.\n"
     end
 
