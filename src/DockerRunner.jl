@@ -2,6 +2,23 @@ import Base: run, show
 
 # The docker image we use
 const BUILD_IMAGE = "staticfloat/julia_workerbase:crossbuild-x64"
+BUILD_IMAGE_UPDATED = false
+
+function update_build_image(; verbose::Bool = false, force::Bool = false)
+    global BUILD_IMAGE_UPDATED
+    if !BUILD_IMAGE_UPDATED || force
+        if verbose
+            info("Updating build image $BUILD_IMAGE...")
+        end
+        oc = OutputCollector(`docker pull $BUILD_IMAGE`; verbose=verbose)
+        did_succeed = wait(oc)
+        if !did_succeed
+            error("Could not update build image $BUILD_IMAGE")
+        end
+
+        BUILD_IMAGE_UPDATED = true
+    end
+end
 
 type DockerRunner
     cmd_prefix::Cmd
@@ -112,6 +129,9 @@ function DockerRunner(;prefix::Prefix = global_prefix, platform::Symbol = platfo
 
     # Manually set DESTDIR environment variable
     cmd_prefix = `$cmd_prefix -e DESTDIR=$(prefix.path)`
+
+    # Actually update the build image, if we need to
+    update_build_image()
 
     return DockerRunner(cmd_prefix, platform)
 end

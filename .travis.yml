@@ -2,8 +2,7 @@
 language: julia
 os:
   - linux
-# As long as we require docker, don't run on OSX
-#  - osx
+  - osx
 julia:
   - 0.5
   - 0.6
@@ -24,6 +23,11 @@ env:
     # Not doing this for now, since 7z doesn't save file permissions. :(
     #- BINDEPS2_COMPRESSION_ENGINE="7z"
     - BINDEPS2_COMPRESSION_ENGINE="tar"
+
+    # Also run the builder tests. They are not affected by the download or
+    # compression engine runs, so no need to combinatorially explode the
+    # testing space by looking at all combinations
+    - BINDEPS2_RUN_BUILDER_TESTS="true"
 matrix:
   allow_failures:
     - julia: nightly
@@ -39,7 +43,8 @@ addons:
       - gzip
 
 before_install:
-  - docker pull staticfloat/julia_workerbase:crossbuild-x64
+  # If we're running the builder tests, go ahead and pull the latest crossbuild image
+  - [[ -n "${BINDEPS2_RUN_BUILDER_TESTS}" ]] && docker pull staticfloat/julia_workerbase:crossbuild-x64
 
 after_success:
   # push coverage results to Codecov
