@@ -172,7 +172,6 @@ function probe_platform_engines!(;verbose::Bool = false)
     gen_7z = (p) -> (unpack_7z(p), package_7z(p), list_7z(p), parse_7z_list)
     const compression_engines = [
         (`tar --help`, unpack_tar, package_tar, list_tar, parse_tar_list),
-        (`7z --help`, gen_7z("7z")...),
     ]
 
     # bash_engines is just a list of Cmds-as-paths
@@ -206,6 +205,9 @@ function probe_platform_engines!(;verbose::Bool = false)
         prepend!(download_engines, [
             (`powershell -Help`, psh_download(`powershell`))
         ])
+
+        # We greatly prefer `7z` as a compression engine on Windows
+        prepend!(compression_engines, [(`7z --help`, gen_7z("7z")...)])
 
         # On windows, we bundle 7z with Julia, so try invoking that directly
         const exe7z = joinpath(JULIA_HOME, "7z.exe")
