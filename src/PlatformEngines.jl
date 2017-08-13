@@ -170,7 +170,7 @@ function probe_platform_engines!(;verbose::Bool = false)
     # will check each of them by attempting to run `$test_cmd`, and if that
     # works, will set the global compression functions appropriately.
     gen_7z = (p) -> (unpack_7z(p), package_7z(p), list_7z(p), parse_7z_list)
-    const compression_engines = [
+    const compression_engines = Tuple[
         (`tar --help`, unpack_tar, package_tar, list_tar, parse_tar_list),
     ]
 
