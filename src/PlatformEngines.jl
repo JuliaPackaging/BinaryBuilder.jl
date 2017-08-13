@@ -209,11 +209,11 @@ function probe_platform_engines!(;verbose::Bool = false)
 
         # On windows, we bundle 7z with Julia, so try invoking that directly
         const exe7z = joinpath(JULIA_HOME, "7z.exe")
-        append!(compression_engines, (`$exe7z`, gen_7z("exe7z")...))
+        append!(compression_engines, [(`$exe7z --help`, gen_7z("exe7z")...)])
 
         # And finally, we want to look for bash as busybox as well:
         const busybox = joinpath(JULIA_HOME, "busybox.exe")
-        append(bash_engines, (`$busybox bash`))
+        append(bash_engines, [(`$busybox bash`)])
     end
 
     # Allow environment override
