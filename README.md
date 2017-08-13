@@ -4,7 +4,7 @@ The code monkeys are still hard at work tinkering to develop the best possible b
 
 # BinDeps2
 
-[![Build Status](https://travis-ci.org/staticfloat/BinDeps2.jl.svg?branch=master)](https://travis-ci.org/staticfloat/BinDeps2.jl)  [![codecov.io](http://codecov.io/github/staticfloat/BinDeps2.jl/coverage.svg?branch=master)](http://codecov.io/github/staticfloat/BinDeps2.jl?branch=master)
+[![Build Status](https://travis-ci.org/staticfloat/BinDeps2.jl.svg?branch=master)](https://travis-ci.org/staticfloat/BinDeps2.jl)  [![Build status](https://ci.appveyor.com/api/projects/status/feqn75vl4k5ia6nj?svg=true)](https://ci.appveyor.com/project/staticfloat/bindeps2-jl)  [![codecov.io](http://codecov.io/github/staticfloat/BinDeps2.jl/coverage.svg?branch=master)](http://codecov.io/github/staticfloat/BinDeps2.jl?branch=master)
 
 "Yea, though I walk through the valley of the shadow of death, I will fear no evil"
 
