@@ -64,12 +64,14 @@ const long_out = join(["$(idx)\n" for idx in 1:100], "")
         @test BinDeps2.merge(oc) == "1\n2\n"
     end
 
-    # Next, test a command that kills itself
-    cd("output_tests") do
-        oc = BinDeps2.OutputCollector(bash(`./kill.sh`))
+    # Next, test a command that kills itself (NOTE: This doesn't work on windows.  sigh.)
+    @static if !is_windows()
+        cd("output_tests") do
+            oc = BinDeps2.OutputCollector(bash(`./kill.sh`))
 
-        @test !BinDeps2.wait(oc)
-        @test BinDeps2.merge(oc) == "1\n2\n"
+            @test !BinDeps2.wait(oc)
+            @test BinDeps2.merge(oc) == "1\n2\n"
+        end
     end
 
     # Next, test reading the output of a pipeline()
