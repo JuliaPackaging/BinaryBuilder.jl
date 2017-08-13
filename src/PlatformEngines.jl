@@ -194,7 +194,7 @@ function probe_platform_engines!(;verbose::Bool = false)
                 webclient.DownloadFile(\"$url\", \"$path\")
                 """
                 replace(webclient_code, "\n", " ")
-                return `$psh_apth -NoProfile -Command "$webclient_code"`
+                return `$psh_path -NoProfile -Command "$webclient_code"`
             end
         end
 
