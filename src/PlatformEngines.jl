@@ -190,8 +190,8 @@ function probe_platform_engines!(;verbose::Bool = false)
                 webclient_code = """
                 [System.Net.ServicePointManager]::SecurityProtocol =
                     [System.Net.SecurityProtocolType]::Tls12;
-                webclient = (New-Object System.Net.Webclient);
-                webclient.DownloadFile(\"$url\", \"$path\")
+                \$webclient = (New-Object System.Net.Webclient);
+                \$webclient.DownloadFile(\"$url\", \"$path\")
                 """
                 replace(webclient_code, "\n", " ")
                 return `$psh_path -NoProfile -Command "$webclient_code"`
