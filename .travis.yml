@@ -20,10 +20,6 @@ env:
     - BINDEPS2_DOWNLOAD_ENGINE="curl"
     - BINDEPS2_DOWNLOAD_ENGINE="wget"
 
-    # Not doing this for now, since 7z doesn't save file permissions. :(
-    #- BINDEPS2_COMPRESSION_ENGINE="7z"
-    - BINDEPS2_COMPRESSION_ENGINE="tar"
-
     # Also run the builder tests. They are not affected by the download or
     # compression engine runs, so no need to combinatorially explode the
     # testing space by looking at all combinations
@@ -31,6 +27,10 @@ env:
 matrix:
   allow_failures:
     - julia: nightly
+  exclude:
+    # Don't run builder tests on OSX
+    - os: osx
+      env: BINDEPS2_RUN_BUILDER_TESTS="true"
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
