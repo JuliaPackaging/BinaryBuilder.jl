@@ -213,7 +213,7 @@ function probe_platform_engines!(;verbose::Bool = false)
 
         # And finally, we want to look for bash as busybox as well:
         const busybox = joinpath(JULIA_HOME, "busybox.exe")
-        append(bash_engines, [(`$busybox bash`)])
+        append!(bash_engines, [(`$busybox bash`)])
     end
 
     # Allow environment override
