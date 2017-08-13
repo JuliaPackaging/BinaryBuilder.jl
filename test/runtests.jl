@@ -6,9 +6,12 @@ using Compat
 # The platform we're running on
 const platform = BinDeps2.platform_suffix()
 
+# On windows, the `.exe` extension is very important
+const exe_ext = is_windows() ? ".exe" : ""
+
 # We are going to build/install libfoo a lot, so here's our function to make sure the
 # library is working properly
-function check_foo(fooifier_path = "fooifier",
+function check_foo(fooifier_path = "fooifier$(exe_ext)",
                    libfoo_path = "libfoo.$(Libdl.dlext)")
     # We know that foo(a, b) returns 2*a^2 - b
     result = 2*2.2^2 - 1.1

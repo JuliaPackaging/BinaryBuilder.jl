@@ -113,7 +113,7 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false)
             if !did_succeed
                 msg = "Build step $(step.name) did not complete successfully\n"
                 error(msg)
-            end 
+            end
         end
     elseif !should_build && verbose
         info("Not building as $(dep.name) is already satisfied")

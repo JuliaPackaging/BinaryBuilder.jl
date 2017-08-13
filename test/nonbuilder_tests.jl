@@ -226,20 +226,20 @@ end
 
 
 # Use ./build_libfoo_tarball.jl to generate more of these
-small_bin_prefix = "https://github.com/staticfloat/small_bin/raw/0fd2342ba2139cf1e60fc2631fdd20015ae79228/"
+small_bin_prefix = "https://github.com/staticfloat/small_bin/raw/f56b9917917ef885b9e9cb4356dbf1168c2a67d4/"
 libfoo_downloads = Dict(
     :win64 =>   ("$small_bin_prefix/libfoo_win64.tar.gz",
-                 "47ec2e805d0d7db226ce01dfdb87e4d09f36eb86af16e2ca67d10852305ccb5d"),
+                 "4288a7ede954ac5fb0eb27065ff94343ca4b723850c6e9419cb487e9f7958dc5"),
     :mac64 =>   ("$small_bin_prefix/libfoo_mac64.tar.gz",
-                 "1fbae63f894c9669eaad6a11342989edc20f1171015d37df2b1e4195c4dcd046"),
+                 "9a7f5b4e2fd6fad12efdab1a8bad3aa92cf88ca425816857b17089d162d54955"),
     :linux64 => ("$small_bin_prefix/libfoo_linux64.tar.gz",
-                 "613e301a9c5c5cf5e7d397c2bffaf3582d86837a22482ea766480210625634e9"),
+                 "9fe64563ea1181ea2111fe535c8905bc37c720a57ca74abdabda2a7943efa075"),
     :linuxaarch64 => ("$small_bin_prefix/libfoo_linuxaarch64.tar.gz",
-                 "907040167b5e7d31ad7cad1f860bde12e9deaaf4991360d4d17c9f42157a0661"),
+                 "6d4726f8d36196d11ada388008d10a4e86227f143b56487c3740ca88e8300f78"),
     :linuxppc64le => ("$small_bin_prefix/libfoo_linuxppc64le.tar.gz",
-                 "7b772537d07bd00e59e119479e03477ce55e361927dafbf3eb16972450a76cce"),
+                 "b7c29ec2d930cde9030a16b75b436ef8718c9cdb6a2ffdec941608c9b9ecbb4b"),
     :linuxarmv7l => ("$small_bin_prefix/libfoo_linuxarmv7l.tar.gz",
-                 "1160ddd25b44f0bfd454d7ca320fd2f9030d33cb5c070c437da503958bb8ed54"),
+                 "fd12135132f29ae16a6f69a0edace990d6996fd2ce4b2ed66eeef73ce1c7ed99"),
 )
 
 
