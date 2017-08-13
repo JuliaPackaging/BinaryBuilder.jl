@@ -174,12 +174,9 @@ end
 
     # Test that we can inspect the contents of the tarball
     contents = BinDeps2.list_tarball_files(tarball_path)
-    @test "bin/bar.sh" in contents
-    @static if is_windows()
-        @test "bin/baz.so" in contents
-    else
-        @test "lib/baz.so" in contents
-    end
+    const libdir_name = is_windows() ? "bin" : "lib"
+    @test joinpath("bin", "bar.sh") in contents
+    @test joinpath(libdir_name, "baz.so") in contents
 
     # Install it within a new Prefix
     BinDeps2.temp_prefix() do prefix
