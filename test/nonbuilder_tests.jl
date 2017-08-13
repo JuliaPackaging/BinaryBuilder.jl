@@ -112,6 +112,18 @@ end
     end
 end
 
+@testset "Dependency Results" begin
+    BinDeps2.temp_prefix() do prefix
+        f = BinDeps2.FileResult(joinpath(BinDeps2.bindir(prefix), "fooifier"))
+        @test !BinDeps2.satisfied(f; verbose=true)
+        l = BinDeps2.LibraryResult(joinpath(BinDeps2.libdir(prefix), "libfoo.$(Libdl.dlext)"))
+        @test !BinDeps2.satisfied(l, verbose=true)
+        mkpath(dirname(l.path))
+        touch(l.path)
+        @test !BinDeps2.satisfied(l, verbose=true)
+    end
+end
+
 @testset "Packaging" begin
     # Clear out previous build products
     for f in readdir(".")
@@ -126,8 +138,8 @@ end
 
     BinDeps2.temp_prefix() do prefix
         # Create random files
-        mkpath(joinpath(BinDeps2.bindir(prefix)))
-        mkpath(joinpath(BinDeps2.libdir(prefix)))
+        mkpath(BinDeps2.bindir(prefix))
+        mkpath(BinDeps2.libdir(prefix))
         bar_path = joinpath(BinDeps2.bindir(prefix), "bar.sh")
         open(bar_path, "w") do f
             write(f, "#!/bin/bash\n")
@@ -203,18 +215,20 @@ end
 
 
 # Use ./build_libfoo_tarball.jl to generate more of these
-small_bin_prefix = "https://github.com/staticfloat/small_bin/raw/94584567f67b7cd08e4f7bc36f62966ee22cea19/"
+small_bin_prefix = "https://github.com/staticfloat/small_bin/raw/0fd2342ba2139cf1e60fc2631fdd20015ae79228/"
 libfoo_downloads = Dict(
-    :mac64 => ("$small_bin_prefix/libfoo_mac64.tar.gz",
-               "87e3926840af3e47a1b4743c2786807a565495738d222d8ce0e865ed9498b5b8"),
+    :win64 =>   ("$small_bin_prefix/libfoo_win64.tar.gz",
+                 "47ec2e805d0d7db226ce01dfdb87e4d09f36eb86af16e2ca67d10852305ccb5d"),
+    :mac64 =>   ("$small_bin_prefix/libfoo_mac64.tar.gz",
+                 "1fbae63f894c9669eaad6a11342989edc20f1171015d37df2b1e4195c4dcd046"),
     :linux64 => ("$small_bin_prefix/libfoo_linux64.tar.gz",
-                 "072e6d7caa2f4009dd0cd831eb041cbf40ba0c3a4f1ea748e76d77463fbb4f12"),
+                 "613e301a9c5c5cf5e7d397c2bffaf3582d86837a22482ea766480210625634e9"),
     :linuxaarch64 => ("$small_bin_prefix/libfoo_linuxaarch64.tar.gz",
-                 "634f38967ff8768393ce6c677814bbab596caa36ca565f82157cb3ccb79f2e1d"),
+                 "907040167b5e7d31ad7cad1f860bde12e9deaaf4991360d4d17c9f42157a0661"),
     :linuxppc64le => ("$small_bin_prefix/libfoo_linuxppc64le.tar.gz",
-                 "cae66a63d82e2c81ace4619e84cf164c3f93118defe204b86f38b3616c674a50"),
+                 "7b772537d07bd00e59e119479e03477ce55e361927dafbf3eb16972450a76cce"),
     :linuxarmv7l => ("$small_bin_prefix/libfoo_linuxarmv7l.tar.gz",
-                 "02950e8e8ac9053b37cb90e879621d26d6136805783ba65668615bf07c277e9f"),
+                 "1160ddd25b44f0bfd454d7ca320fd2f9030d33cb5c070c437da503958bb8ed54"),
 )
 
 

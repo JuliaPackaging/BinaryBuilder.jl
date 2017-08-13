@@ -7,9 +7,7 @@ BUILD_IMAGE_UPDATED = false
 function update_build_image(; verbose::Bool = false, force::Bool = false)
     global BUILD_IMAGE_UPDATED
     if !BUILD_IMAGE_UPDATED || force
-        if verbose
-            info("Updating build image $BUILD_IMAGE...")
-        end
+        info("Updating build image $BUILD_IMAGE, this may take a few minutes...")
         oc = OutputCollector(`docker pull $BUILD_IMAGE`; verbose=verbose)
         did_succeed = wait(oc)
         if !did_succeed

@@ -125,7 +125,7 @@ end
     rm(tarball_path; force=true)
 end
 
-@testset "Builder Nettle" begin
+@testset "Build Nettle" begin
     BinDeps2.temp_prefix() do prefix
         # Some useful directories
         src_path = joinpath(prefix, "src")

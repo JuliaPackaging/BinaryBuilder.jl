@@ -36,6 +36,8 @@ include("nonbuilder_tests.jl")
 
 # We run the builder tests only if they are explicitly asked for
 if get(ENV, "BINDEPS2_RUN_BUILDER_TESTS", "") == "true"
-    info("Builder packaging ")
+    info("Running builder tests...")
     include("builder_tests.jl")
+else
+    info("Not running builder tests, to do so set BINDEPS2_RUN_BUILDER_TESTS=true.")
 end
