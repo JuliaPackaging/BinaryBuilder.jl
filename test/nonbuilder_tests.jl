@@ -4,6 +4,10 @@
 
 const bash = BinDeps2.gen_bash_cmd
 
+# Output of a few scripts we are going to run
+const simple_out = "1\n2\n3\n4\n"
+const long_out = join(["$(idx)\n" for idx in 1:100], "")
+
 @testset "OutputCollector" begin
     cd("output_tests") do
         # Collect the output of `simple.sh``

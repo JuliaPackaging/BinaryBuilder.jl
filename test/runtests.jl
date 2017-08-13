@@ -3,10 +3,6 @@ using Base.Test
 using SHA
 using Compat
 
-# Output of a few scripts we are going to run
-const simple_out = "1\n2\n3\n4\n"
-const long_out = join(["$(idx)\n" for idx in 1:100], "")
-
 # The platform we're running on
 const platform = BinDeps2.platform_suffix()
 
