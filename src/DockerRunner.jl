@@ -125,6 +125,9 @@ function DockerRunner(;prefix::Prefix = global_prefix, platform::Symbol = platfo
     # Set our user id and group id to match the outside world
     cmd_prefix = `$cmd_prefix --user=$(getuid()):$(getgid())`
 
+    # Don't run with a confined seccomp profile
+    cmd_prefix = `$cmd_prefix --security-opt seccomp=unconfined`
+
     # Manually set DESTDIR environment variable
     cmd_prefix = `$cmd_prefix -e DESTDIR=$(prefix.path)`
 
