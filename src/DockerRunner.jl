@@ -38,7 +38,7 @@ end
 function target_envs(target::String)
     target_tool = tool -> "/opt/$(target)/bin/$(target)-$(tool)"
     mapping = Dict(
-        "PATH" => "/opt/$(target)/bin:/usr/local/bin:/usr/bin:/bin",
+        "PATH" => "/opt/$(target)/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
         "AR" => target_tool("ar"),
         "CC" => target_tool("gcc"),
         "CXX" => target_tool("g++"),
