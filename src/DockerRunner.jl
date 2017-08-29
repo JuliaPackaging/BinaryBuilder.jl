@@ -1,4 +1,5 @@
 import Base: run, show
+export update_build_image, DockerRunner, run, runshell
 
 # The docker image we use
 const BUILD_IMAGE = "staticfloat/julia_workerbase:crossbuild-x64"
@@ -58,55 +59,9 @@ function target_envs(target::String)
     return mapping
 end
 
-const platform_to_target_mapping = Dict(
-    :linux64 => "x86_64-linux-gnu",
-    :linuxaarch64 => "aarch64-linux-gnu",
-    :linuxarmv7l => "arm-linux-gnueabihf",
-    :linuxppc64le => "powerpc64le-linux-gnu",
-    :mac64 => "x86_64-apple-darwin14",
-    :win64 => "x86_64-w64-mingw32",
-)
-
-function supported_platforms()
-    return keys(platform_to_target_mapping)
-end
-
-function platform_map(platform::Symbol)
-    return platform_to_target_mapping[platform]
-end
 
 
-"""
-`platform_suffix(kernel::Symbol = Sys.KERNEL, arch::Symbol = Sys.ARCH)`
-
-Returns the platform-dependent suffix of a packaging tarball for the current
-platform, or any other though the use of the `kernel` and `arch` parameters.
-"""
-function platform_suffix(kernel::Symbol = Sys.KERNEL, arch::Symbol = Sys.ARCH)
-    const kern_dict = Dict(
-        :Darwin => "mac",
-        :Apple => "mac",
-        :Linux => "linux",
-        :FreeBSD => "bsd",
-        :OpenBSD => "bsd",
-        :NetBSD => "bsd",
-        :DragonFly => "bsd",
-        :Windows => "win",
-        :NT => "win",
-    )
-
-    const arch_dict = Dict(
-        :x86_64 => "64",
-        :i686 => "32",
-        :powerpc64le => "ppc64le",
-        :ppc64le => "ppc64le",
-        :arm => "arm",
-        :aarch64 => "arm64",
-    )    
-    return Symbol("$(kern_dict[kernel])$(arch_dict[arch])")
-end
-
-function DockerRunner(;prefix::Prefix = global_prefix, platform::Symbol = platform_suffix(), volume_mapping::Vector = [])
+function DockerRunner(;prefix::Prefix = global_prefix, platform::Symbol = platform_key(), volume_mapping::Vector = [])
     # We are using `docker run` to provide isolation
     cmd_prefix = `docker run --rm -i`
 
@@ -117,7 +72,7 @@ function DockerRunner(;prefix::Prefix = global_prefix, platform::Symbol = platfo
     end
 
     # The environment variables we'll set
-    env_mapping = target_envs(platform_map(platform))
+    env_mapping = target_envs(platform_triplet(platform))
     for v in env_mapping
         cmd_prefix = `$cmd_prefix -e $(v[1])=$(v[2])`
     end

@@ -34,3 +34,6 @@ if [[ $? != 0 ]]; then
     echo "Install failed" >&2
     exit 1
 fi
+
+cd ..
+rm -rf build_${target}

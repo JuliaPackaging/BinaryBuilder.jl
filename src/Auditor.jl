@@ -3,6 +3,7 @@
 #using COFF
 #using ELF
 #using ObjFileBase
+export audit, collect_files
 
 function audit(prefix::Prefix)
     # Search _every_ file in the prefix path to find hardcoded paths

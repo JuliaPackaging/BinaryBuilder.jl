@@ -2,7 +2,8 @@
 language: julia
 os:
   - linux
-  - osx
+  # We don't have docker on OSX on travis at the moment...
+  #- osx
 julia:
   - 0.5
   - 0.6
@@ -15,22 +16,9 @@ sudo: required
 services:
   - docker
 
-env:
-  matrix:
-    - BINDEPS2_DOWNLOAD_ENGINE="curl"
-    - BINDEPS2_DOWNLOAD_ENGINE="wget"
-
-    # Also run the builder tests. They are not affected by the download or
-    # compression engine runs, so no need to combinatorially explode the
-    # testing space by looking at all combinations
-    - BINDEPS2_RUN_BUILDER_TESTS="true"
 matrix:
   allow_failures:
     - julia: nightly
-  exclude:
-    # Don't run builder tests on OSX
-    - os: osx
-      env: BINDEPS2_RUN_BUILDER_TESTS="true"
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
@@ -44,7 +32,9 @@ addons:
 
 before_install:
   # If we're running the builder tests, go ahead and pull the latest crossbuild image
-  - if [[ -n "$BINDEPS2_RUN_BUILDER_TESTS" ]]; then docker pull staticfloat/julia_workerbase:crossbuild-x64; fi
+  - docker pull staticfloat/julia_workerbase:crossbuild-x64
+  # We need a particular BinaryProvider.jl, just install that here now
+  - julia -e 'Pkg.init(); Pkg.clone("https://github.com/staticfloat/BinaryProvider.jl")'
 
 after_success:
   # push coverage results to Codecov

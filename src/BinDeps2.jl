@@ -3,29 +3,27 @@
 
 module BinDeps2
 using Compat
+using BinaryProvider
 
-include("Prefix.jl")
-include("OutputCollector.jl")
+# Re-export important stuff from BinaryProvider so that we don't have to
+# explicitly `using BinaryProvider` in every script that uses BinDeps2
+export Prefix, bindir, libdir, logdir, activate, deactivate,
+       extract_platform_key, install, uninstall, manifest_for_file,
+       list_tarball_files, verify, temp_prefix, package,
+       Product, LibraryResult, FileResult, satisfied,
+       supported_platforms, platform_triplet, platform_key,
+       gen_download_cmd, gen_unpack_cmd, gen_package_cmd, gen_list_tarball_cmd,
+       parse_tarball_listing, gen_bash_cmd, parse_7z_list, parse_tar_list,
+       download_verify_unpack, OutputCollector, merge, stdout, stderr, tail,
+       tee
+
+
 include("Auditor.jl")
-include("PlatformEngines.jl")
-include("BuildResult.jl")
 include("DockerRunner.jl")
 include("Dependency.jl")
 
 function __init__()
-    global global_prefix
-
-    # Initialize our global_prefix
-    global_prefix = Prefix(joinpath(dirname(@__FILE__), "../", "global_prefix"))
-    activate(global_prefix)
-
-    # Find the right download/compression engines for this platform
-    probe_platform_engines!()
-
-    # If we're on a julia that's too old, then fixup the color mappings
-    if !haskey(Base.text_colors, :default)
-        Base.text_colors[:default] = Base.color_normal
-    end
+    # Nothing to see here folks
 end
 
 end # module

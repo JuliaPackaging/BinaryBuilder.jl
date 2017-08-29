@@ -1,3 +1,6 @@
+import BinaryProvider: satisfied
+export BuildStep, Dependency, satisfied, build
+
 # A `BuildStep` is just a `Cmd` with some helper data bundled along, such as a
 # unique (from within a `Dependency`) name, a link to its prefix for
 # auto-calculating the `logpath()` for a `BuildStep`, etc....
@@ -17,10 +20,10 @@ immutable Dependency
     # The "name" of this dependency (e.g. "cairo")
     name::AbstractString
 
-    # The resultant objects that must be present by this recipe BuildResults
+    # The resultant objects that must be present by this recipe's Products
     # have different rules that are automatically applied when verifying that
     # this dependency is satisfied
-    results::Vector{BuildResult}
+    results::Vector{Product}
 
     # The build steps in order to build this dependency.
     steps::Vector{BuildStep}
@@ -36,12 +39,19 @@ immutable Dependency
 end
 
 """
-`Dependency(prefix, name, dependencies, cmds, results)`
+`Dependency(name::AbstractString,
+            results::Vector{Product},
+            cmds::Vector{Cmd},
+            platform::Symbol,
+            prefix::Prefix = global_prefix,
+            dependencies::Vector{Dependency} = [])`
 
-Defines a new dependency that can be 
+Defines a new dependency that must be built, along with its name, dependencies
+(other `Dependency` objects), the commands that must be run to build it, the
+platform this build recipe is for, etc...
 """
-function Dependency{R <: BuildResult}(name::AbstractString,
-                    results::Vector{R},
+function Dependency{P <: Product}(name::AbstractString,
+                    results::Vector{P},
                     cmds::Vector{Cmd},
                     platform::Symbol,
                     prefix::Prefix = global_prefix,
@@ -73,12 +83,16 @@ function satisfied(dep::Dependency; verbose::Bool = false)
 end
 
 """
-`build(dep::Dependency; verbose::Bool = false, force::Bool = false)`
+`build(dep::Dependency; verbose::Bool = false, force::Bool = false,
+       ignore_audit_errors::Bool = true)`
 
 Build the dependency unless it is already satisfied.  If `force` is set to
-`true`, then the dependency is always built.
+`true`, then the dependency is always built.  Runs an audit of the built files,
+printing out warnings if hints of unrelocatability are found.  These warnings
+are, by default, ignored, unless `ignore_audit_errors::Bool` is set to `false`.
 """
-function build(dep::Dependency; verbose::Bool = false, force::Bool = false)
+function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
+               ignore_audit_errors::Bool = true)
     # First things first, build all dependencies
     for d in dep.dependencies
         build(d; verbose = verbose, force = force)
@@ -114,6 +128,14 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false)
                 msg = "Build step $(step.name) did not complete successfully\n"
                 error(msg)
             end
+        end
+
+        # Run an audit of the prefix to ensure it is properly relocatable
+        if !audit(dep.prefix) && !ignore_audit_errors
+            msg  = "Audit failed for $(dep.prefix.path). "
+            msg *= "Address the errors above to ensure relocatability. "
+            msg *= "To override this check, set `ignore_audit_errors = true`."
+            error(msg)
         end
     elseif !should_build && verbose
         info("Not building as $(dep.name) is already satisfied")
