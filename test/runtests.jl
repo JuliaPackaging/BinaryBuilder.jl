@@ -155,34 +155,3 @@ end
 
     rm(tarball_path; force=true)
 end
-
-@testset "Build Nettle" begin
-    temp_prefix() do prefix
-        # Some useful directories
-        src_path = joinpath(prefix, "src")
-        build_path = joinpath(prefix, "build")
-        try mkpath(src_path) end
-        try mkpath(build_path) end
-
-        # First, download the sources, store them into /src
-        src_url = "https://ftp.gnu.org/gnu/nettle/nettle-3.3.tar.gz"
-        src_hash = "46942627d5d0ca11720fec18d81fc38f7ef837ea4197c1f630e71ce0d470b11e"        
-        download_verify_unpack(src_url, src_hash, src_path; verbose=true)
-
-        # Copy in our nettle build script to /build
-        cp(joinpath("build_tests", "nettle", "build_nettle.sh"), joinpath(build_path,"build_nettle.sh"))
-
-        # Build for many platforms
-        for platform in supported_platforms()
-            cd(build_path) do
-                target = platform_triplet(platform)
-                libnettle = LibraryResult(joinpath(libdir(prefix), target, "libnettle"))
-                nettlehash = FileResult(joinpath(bindir(prefix), target, "nettle-hash"))
-
-                steps = [`bash ./build_nettle.sh $(prefix.path)`]
-                dep = Dependency("nettle", [libnettle, nettlehash], steps, platform, prefix)
-                build(dep; verbose=true)
-            end
-        end
-    end
-end
