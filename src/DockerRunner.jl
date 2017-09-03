@@ -61,7 +61,9 @@ end
 
 
 
-function DockerRunner(;prefix::Prefix = global_prefix, platform::Symbol = platform_key(), volume_mapping::Vector = [])
+function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
+                       platform::Symbol = platform_key(),
+                       volume_mapping::Vector = [])
     # We are using `docker run` to provide isolation
     cmd_prefix = `docker run --rm -i`
 

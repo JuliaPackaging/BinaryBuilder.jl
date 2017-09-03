@@ -54,7 +54,7 @@ function Dependency{P <: Product}(name::AbstractString,
                     results::Vector{P},
                     cmds::Vector{Cmd},
                     platform::Symbol,
-                    prefix::Prefix = global_prefix,
+                    prefix::Prefix = BinaryProvider.global_prefix,
                     dependencies::Vector{Dependency} = Dependency[])
     name_idxs = Dict{String,Int64}()
 
