@@ -1,5 +1,5 @@
 using BinaryProvider
-using BinDeps2
+using BinaryBuilder
 using Base.Test
 using SHA
 using Compat

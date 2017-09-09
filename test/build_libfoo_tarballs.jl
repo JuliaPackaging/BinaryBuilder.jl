@@ -1,5 +1,5 @@
 #!/usr/bin/env julia
-using BinDeps2
+using BinaryBuilder
 
 out_path = joinpath(pwd(), "libfoo_tarballs")
 rm(out_path; force=true, recursive=true)

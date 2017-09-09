@@ -1,6 +1,6 @@
 all: install
 
-# We provide sane defaults, but BinDeps2 may override most of these values.
+# We provide sane defaults, but BinaryBuilder may override most of these values.
 DESTDIR ?= /usr/local
 prefix ?= $(DESTDIR)
 bindir ?= $(prefix)/bin
@@ -27,7 +27,7 @@ $(libdir):
 
 # We explicitly do not have `fooifier` depend on `libfoo` so that the user has
 # to make first libfoo and then `fooifier`, in order to properly test that
-# BinDeps2 can build dependent objects
+# BinaryBuilder can build dependent objects
 fooifier$(EXE_EXT): fooifier.c Makefile | libfoo
 	$(CC) fooifier.c -g -o $@ -L"$(shell pwd)" $(RPATH) -lfoo
 install-fooifier: $(bindir) fooifier$(EXE_EXT)

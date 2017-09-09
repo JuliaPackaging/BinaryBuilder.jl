@@ -41,10 +41,10 @@ build_script:
 # Need to convert from shallow to complete for Pkg.clone to work
   - IF EXIST .git\shallow (git fetch --unshallow)
   - C:\projects\julia\bin\julia -e "versioninfo();
-      Pkg.clone(pwd(), \"BinDeps2\"); Pkg.build(\"BinDeps2\")"
+      Pkg.clone(pwd(), \"BinaryBuilder\"); Pkg.build(\"BinaryBuilder\")"
 
 test_script:
-  - C:\projects\julia\bin\julia -e "Pkg.test(\"BinDeps2\", coverage=true)"
+  - C:\projects\julia\bin\julia -e "Pkg.test(\"BinaryBuilder\", coverage=true)"
 
 after_test:
-  - C:\projects\julia\bin\julia -e "cd(Pkg.dir(\"BinDeps2\")); Pkg.add(\"Coverage\"); using Coverage; Codecov.submit(process_folder())"
+  - C:\projects\julia\bin\julia -e "cd(Pkg.dir(\"BinaryBuilder\")); Pkg.add(\"Coverage\"); using Coverage; Codecov.submit(process_folder())"
