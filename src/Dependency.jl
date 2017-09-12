@@ -18,7 +18,7 @@ end
 # These dependencies can be Libraries, basic files, etc...
 immutable Dependency
     # The "name" of this dependency (e.g. "cairo")
-    name::AbstractString
+    name::String
 
     # The resultant objects that must be present by this recipe's Products
     # have different rules that are automatically applied when verifying that
@@ -28,34 +28,32 @@ immutable Dependency
     # The build steps in order to build this dependency.
     steps::Vector{BuildStep}
 
+    # The platform this dependency is built for
+    platform::Symbol
+
     # The parent "prefix" this dependency must be installed within
     prefix::Prefix
-
-    # Dependencies (e.g. ["gdk-pixbuf", "pango"], etc...)
-    dependencies::Vector{Dependency}
-
-    # The platform this dependency gets built for
-    platform::Symbol
 end
 
-"""
-`Dependency(name::AbstractString,
-            results::Vector{Product},
-            cmds::Vector{Cmd},
-            platform::Symbol,
-            prefix::Prefix = global_prefix,
-            dependencies::Vector{Dependency} = [])`
 
-Defines a new dependency that must be built, along with its name, dependencies
-(other `Dependency` objects), the commands that must be run to build it, the
-platform this build recipe is for, etc...
+"""
+Dependency(name::AbstractString,
+           results::Vector{Product},
+           cmds::Vector{Cmd},
+           platform::Symbol,
+           prefix::Prefix = global_prefix)
+
+Defines a new dependency that must be built by its name, the binary objects
+that will be built, the commands that must be run to build them, and the prefix
+within which all of this will be installed.
+
+You may, alternately, provide a `Vector` of tuples containing the URLs and hashes
 """
 function Dependency{P <: Product}(name::AbstractString,
                     results::Vector{P},
                     cmds::Vector{Cmd},
                     platform::Symbol,
-                    prefix::Prefix = BinaryProvider.global_prefix,
-                    dependencies::Vector{Dependency} = Dependency[])
+                    prefix::Prefix = BinaryProvider.global_prefix)
     name_idxs = Dict{String,Int64}()
 
     function build_step(prefix, cmd)
@@ -69,35 +67,33 @@ function Dependency{P <: Product}(name::AbstractString,
     end
 
     steps = [build_step(prefix, cmd) for cmd in cmds]
-    return Dependency(name, results, steps, prefix, dependencies, platform)
+    return Dependency(name, results, steps, platform, prefix)
 end
 
 
 """
-`satisfied(dep::Dependency)`
+satisfied(dep::Dependency; platform::Symbol = platform_key(),
+                           verbose::Bool = false)
 
 Return true if all results are satisfied for this dependency.
 """
 function satisfied(dep::Dependency; verbose::Bool = false)
-    return all(satisfied(result; verbose=verbose) for result in dep.results)
+    s = result -> satisfied(result; verbose=verbose)
+    return all(s(result) for result in dep.results)
 end
 
 """
-`build(dep::Dependency; verbose::Bool = false, force::Bool = false,
-       ignore_audit_errors::Bool = true)`
+build(dep::Dependency; verbose::Bool = false, force::Bool = false,
+                       ignore_audit_errors::Bool = true)
 
-Build the dependency unless it is already satisfied.  If `force` is set to
-`true`, then the dependency is always built.  Runs an audit of the built files,
-printing out warnings if hints of unrelocatability are found.  These warnings
-are, by default, ignored, unless `ignore_audit_errors::Bool` is set to `false`.
+Build the dependency for given `platform` (defaulting to the host platform)
+unless it is already satisfied.  If `force` is set to `true`, then the
+dependency is always built.  Runs an audit of the built files, printing out
+warnings if hints of unrelocatability are found.  These warnings are, by
+default, ignored, unless `ignore_audit_errors` is set to `false`.
 """
 function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
                ignore_audit_errors::Bool = true)
-    # First things first, build all dependencies
-    for d in dep.dependencies
-        build(d; verbose = verbose, force = force)
-    end
-
     # First, look to see whether this dependency is satisfied or not
     should_build = !satisfied(dep)
 
@@ -131,7 +127,7 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
         end
 
         # Run an audit of the prefix to ensure it is properly relocatable
-        if !audit(dep.prefix) && !ignore_audit_errors
+        if !audit(dep.prefix; platform=dep.platform, verbose=verbose) && !ignore_audit_errors
             msg  = "Audit failed for $(dep.prefix.path). "
             msg *= "Address the errors above to ensure relocatability. "
             msg *= "To override this check, set `ignore_audit_errors = true`."

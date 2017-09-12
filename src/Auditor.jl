@@ -5,43 +5,85 @@
 #using ObjFileBase
 export audit, collect_files
 
-function audit(prefix::Prefix)
-    # Search _every_ file in the prefix path to find hardcoded paths
-    predicate = f -> !startswith(f, joinpath(prefix, "logs")) &&
-                     !startswith(f, joinpath(prefix, "manifests"))
-    all_files = collect_files(prefix, predicate)
+# AUDITOR TODO LIST:
+#
+# * Find external library dependencies (e.g. libgfortran)
+# * Auto-copy in external libraries?  Or provide an easy way for the user to
+# * Auto re-write libraries to use RPATH, etc...
+# * Auto-determine minimum glibc version (to sate our own curiosity)
+# * Detect instruction sets that are non-portable
+
+"""
+audit(prefix::Prefix; platform::Symbol = platform_key();
+                      verbose::Bool = false)
+
+Audits a prefix to attempt to find deployability issues with the binary objects
+that have been installed within.  This auditing will check for relocatability
+issues such as dependencies on libraries outside of the current `prefix`,
+usage of advanced instruction sets such as AVX2 that may not be usable on many
+platforms, linkage against newer glibc symbols, etc...
+
+This method is still a work in progress, only some of the above list is
+actually implemented, be sure to actually inspect `Auditor.jl` to see what is
+and is not currently in the realm of fantasy.
+"""
+function audit(prefix::Prefix; platform::Symbol = platform_key(),
+                               verbose::Bool = false)
+    if verbose
+        info("Beginning audit of $(prefix.path)")
+    end
 
     # If this is false then it's bedtime for bonzo boy
     all_ok = true
 
-    # First, check for absolute paths in files
-    for f in all_files
-        file_contents = readstring(f)
-        if contains(file_contents, prefix.path)
-            warn("$(relpath(f,prefix.path)) contains hints of an absolute path")
-            all_ok = false
-        end
-    end
-
-    # Inspect all relevant shared library files
-    shlib_regex = Regex(".*\\.$(Libdl.dlext)[\\.0-9]*\$")
-    shlib_files = filter(f -> ismatch(shlib_regex, f), all_files)
+    # Inspect all shared library files for our platform
+    predicate = f -> valid_dl_path(f, platform)
+    shlib_files = collect_files(prefix, predicate)
     for f in shlib_files
-        if Libdl.dlopen_e(f) == C_NULL
+        if verbose
+            info("Checking shared library $(relpath(f, prefix.path))")
+        end
+        hdl = Libdl.dlopen_e(f)
+        if hdl == C_NULL
             # TODO: Use the relevant ObjFileBase packages to inspect why this
             # file is being nasty to us.
 
-            # TODO: Commenting this out for now since we have cross-compilation working
-            # and that obviously doesn't play well with this test.
-            #warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
-            #all_ok = false
+            warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+            all_ok = false
+        else
+            Libdl.dlclose(hdl)
         end
+
+        # TODO: Check linking against global libraries
     end
 
     # Eventually, we'll want to filter out MachO binaries, ELF binaries, etc...
     # and inspect those more thoroughly in order to provide more interesting
     # feedback.
-    #binaries = filter(f -> filemode(f) & 0o100, all_files)
+    bin_files = collect_files(prefix, f -> (filemode(f) & 0o111) != 0)
+    bin_files = filter(f -> !(f in shlib_files), bin_files)
+    for f in bin_files
+        if verbose
+            info("Checking binary $(relpath(f, prefix.path))")
+        end
+
+        # TODO: Check linking against global libraries
+    end
+
+    # Search _every_ file in the prefix path to find hardcoded paths
+    predicate = f -> !startswith(f, joinpath(prefix, "logs")) &&
+                     !startswith(f, joinpath(prefix, "manifests"))
+    all_files = collect_files(prefix, predicate)
+
+    # Finally, check for absolute paths in any files.  This is not a "fatal"
+    # offense, as many files have absolute paths.  We want to know about it
+    # though, so we'll still warn the user.
+    for f in all_files
+        file_contents = readstring(f)
+        if contains(file_contents, prefix.path)
+            warn("$(relpath(f,prefix.path)) contains hints of an absolute path")
+        end
+    end
     
     return all_ok
 end
