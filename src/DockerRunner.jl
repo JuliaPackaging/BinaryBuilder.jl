@@ -123,6 +123,10 @@ function target_envs(target::String)
         "LIPO" => target_tool("lipo"),
         "OTOOL" => target_tool("otool"),
         "target" => target,
+
+        # Autotools really appreciates being able to build stuff for the
+        # host system, so we set this to ease its woes
+        "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
     )
 
     return mapping
