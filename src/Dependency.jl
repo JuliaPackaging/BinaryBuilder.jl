@@ -37,11 +37,11 @@ end
 
 
 """
-Dependency(name::AbstractString,
-           results::Vector{Product},
-           cmds::Vector{Cmd},
-           platform::Symbol,
-           prefix::Prefix = global_prefix)
+    Dependency(name::AbstractString,
+               results::Vector{Product},
+               cmds::Vector{Cmd},
+               platform::Symbol,
+               prefix::Prefix = global_prefix)
 
 Defines a new dependency that must be built by its name, the binary objects
 that will be built, the commands that must be run to build them, and the prefix
@@ -72,8 +72,8 @@ end
 
 
 """
-satisfied(dep::Dependency; platform::Symbol = platform_key(),
-                           verbose::Bool = false)
+    satisfied(dep::Dependency; platform::Symbol = platform_key(),
+                               verbose::Bool = false)
 
 Return true if all results are satisfied for this dependency.
 """
@@ -83,8 +83,8 @@ function satisfied(dep::Dependency; verbose::Bool = false)
 end
 
 """
-build(dep::Dependency; verbose::Bool = false, force::Bool = false,
-                       ignore_audit_errors::Bool = true)
+    build(dep::Dependency; verbose::Bool = false, force::Bool = false,
+                           ignore_audit_errors::Bool = true)
 
 Build the dependency for given `platform` (defaulting to the host platform)
 unless it is already satisfied.  If `force` is set to `true`, then the

@@ -2,11 +2,11 @@ import Base: run, show
 export update_build_image, DockerRunner, run, runshell
 
 # The docker image we use
-const BUILD_IMAGE = "staticfloat/julia_workerbase:crossbuild-x64"
+const BUILD_IMAGE = "staticfloat/julia_crossbuild:x64"
 BUILD_IMAGE_UPDATED = false
 
 """
-`should_update_build_image(force::Bool)`
+    should_update_build_image(force::Bool)
 
 Helper function to determine whether we shuold or should not attempt to update
 the build image containing all cross-compiler toolchains. To override automatic
@@ -37,7 +37,7 @@ function should_update_build_image(force::Bool)
 end
 
 """
-`update_build_image(; verbose::Bool = false, force::Bool = false)`
+    update_build_image(; verbose::Bool = false, force::Bool = false)
 
 Updates the build image containing all cross-compiler toolchains.  Checks for
 updates upon first attempt to run a build by default.  Set `force` to `true`
@@ -78,7 +78,7 @@ function show(io::IO, x::DockerRunner)
 end
 
 """
-`getuid()`
+    getuid()
 
 Wrapper function around libc's `getuid()` function
 """
@@ -87,7 +87,7 @@ function getuid()
 end
 
 """
-`getgid()`
+    getgid()
 
 Wrapper function around libc's `getgid()` function
 """
@@ -96,7 +96,7 @@ function getgid()
 end
 
 """
-`target_envs(target::String)`
+    target_envs(target::String)
 
 Given a `target` (this term is used interchangeably with `triplet`), generate a
 `Dict` mapping representing all the environment variables to be set within the
@@ -133,9 +133,9 @@ function target_envs(target::String)
 end
 
 """
-DockerRunner(; prefix::Prefix = global_prefix,
-               platform::Symbol = platform_key(),
-               volume_mapping::Vector = [])
+    DockerRunner(; prefix::Prefix = global_prefix,
+                   platform::Symbol = platform_key(),
+                   volume_mapping::Vector = [])
 
 Creates a `DockerRunner` object to run commands within the environment defined
 by the given `prefix`, `platform` and `volume_mapping`s.  The `prefix` given
@@ -178,7 +178,7 @@ function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
 end
 
 """
-`run(dr::DockerRunner, cmd::Cmd, logpath::String; verbose::Bool = false)`
+    run(dr::DockerRunner, cmd::Cmd, logpath::String; verbose::Bool = false)
 
 Given a `DockerRunner`, runs `cmd` within the docker environment, storing any
 output logs into `logpath` and returning `false` if the command did not
@@ -209,7 +209,7 @@ function run(dr::DockerRunner, cmd::Cmd, logpath::AbstractString; verbose::Bool 
 end
 
 """
-`runshell(dr::DockerRunner)`
+    runshell(dr::DockerRunner)
 
 Open an interactive session inside a Docker environment defined by a
 `DockerRunner` object with the current directory mapped in as well.
@@ -221,7 +221,7 @@ function runshell(dr::DockerRunner)
 end
 
 """
-`runshell(platform::Symbol)`
+    runshell(platform::Symbol)
 
 Open an interactive session inside a Docker environment created for a
 particular target `platform`.

@@ -1,9 +1,6 @@
-# Use these libraries to verify dynamic library dependency chains eventually
-#using MachO
-#using COFF
-#using ELF
-#using ObjFileBase
 export audit, collect_files
+
+using ObjectFile
 
 # AUDITOR TODO LIST:
 #
@@ -14,8 +11,8 @@ export audit, collect_files
 # * Detect instruction sets that are non-portable
 
 """
-audit(prefix::Prefix; platform::Symbol = platform_key();
-                      verbose::Bool = false)
+    audit(prefix::Prefix; platform::Symbol = platform_key();
+                          verbose::Bool = false)
 
 Audits a prefix to attempt to find deployability issues with the binary objects
 that have been installed within.  This auditing will check for relocatability
@@ -36,30 +33,11 @@ function audit(prefix::Prefix; platform::Symbol = platform_key(),
     # If this is false then it's bedtime for bonzo boy
     all_ok = true
 
-    # Inspect all shared library files for our platform
+    # Find all dynamic libraries
     predicate = f -> valid_dl_path(f, platform)
     shlib_files = collect_files(prefix, predicate)
-    for f in shlib_files
-        if verbose
-            info("Checking shared library $(relpath(f, prefix.path))")
-        end
-        hdl = Libdl.dlopen_e(f)
-        if hdl == C_NULL
-            # TODO: Use the relevant ObjFileBase packages to inspect why this
-            # file is being nasty to us.
 
-            warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
-            all_ok = false
-        else
-            Libdl.dlclose(hdl)
-        end
-
-        # TODO: Check linking against global libraries
-    end
-
-    # Eventually, we'll want to filter out MachO binaries, ELF binaries, etc...
-    # and inspect those more thoroughly in order to provide more interesting
-    # feedback.
+    # Inspect binary files, looking for improper linkage
     bin_files = collect_files(prefix, f -> (filemode(f) & 0o111) != 0)
     bin_files = filter(f -> !(f in shlib_files), bin_files)
     for f in bin_files
@@ -67,7 +45,40 @@ function audit(prefix::Prefix; platform::Symbol = platform_key(),
             info("Checking binary $(relpath(f, prefix.path))")
         end
 
-        # TODO: Check linking against global libraries
+        # Peel this binary file open like a delicious tangerine
+        oh = readmeta(f)
+        libs = filter_default_linkages(find_libraries(oh), oh)
+
+        # Look at every non-default link
+        for libname in keys(libs)
+            if !startswith(libs[libname], prefix.path)
+                msg = replace("""
+                Linked library $(libname) (resolved path $(libs[libname]))
+                is not within the given prefix
+                """, '\n', ' ')
+                warn(msg)
+            end
+        end
+    end
+
+    # Inspect all shared library files for our platform (but only if we're
+    # running native, don't try to load library files from other platforms)
+    if platform == platform_key()
+        for f in shlib_files
+            if verbose
+                info("Checking shared library $(relpath(f, prefix.path))")
+            end
+            hdl = Libdl.dlopen_e(f)
+            if hdl == C_NULL
+                # TODO: Use the relevant ObjFileBase packages to inspect why this
+                # file is being nasty to us.
+
+                warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                all_ok = false
+            else
+                Libdl.dlclose(hdl)
+            end
+        end
     end
 
     # Search _every_ file in the prefix path to find hardcoded paths
@@ -89,7 +100,7 @@ function audit(prefix::Prefix; platform::Symbol = platform_key(),
 end
 
 """
-`collect_files(prefix::Prefix, predicate::Function = f -> true)`
+    collect_files(prefix::Prefix, predicate::Function = f -> true)
 
 Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
@@ -105,4 +116,39 @@ function collect_files(prefix::Prefix, predicate::Function = f -> true)
         end
     end
     return collected
+end
+
+
+"""
+    filter_default_linkages(libs::Dict, oh::ObjectHandle)
+
+Given libraries obtained through `ObjectFile.find_libraries()`, filter out
+libraries that are "default" libraries and should be available on any system.
+"""
+function filter_default_linkages(libs::Dict, oh::ObjectHandle)
+    return Dict(k => libs[k] for k in keys(libs) if !should_ignore_lib(k, oh))
+end
+
+function should_ignore_lib(lib, ::ELFHandle)
+    default_libs = [
+        "libc.so.6",
+        "libgcc_s.1.so",
+    ]
+    return basename(lib) in default_libs
+end
+
+function should_ignore_lib(lib, ::MachOHandle)
+    default_libs = [
+        "libSystem.B.dylib",
+        "libgcc_s.1.dylib",
+    ]
+    return basename(lib) in default_libs
+end
+
+function should_ignore_lib(lib, ::COFFHandle)
+    default_libs = [
+        "msvcrt.dll",
+        "KERNEL32.dll",
+    ]
+    return basename(lib) in default_libs
 end
