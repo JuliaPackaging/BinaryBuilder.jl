@@ -202,7 +202,7 @@ function should_ignore_lib(lib, ::COFFHandle)
     return lowercase(basename(lib)) in default_libs
 end
 
-function update_linkage(prefix::Prefix, platform::Symbol, path::String,
+function update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
                         old_libpath, new_libpath; verbose::Bool = false)
     # Windows doesn't do updating of linkage
     if is_windows(platform)

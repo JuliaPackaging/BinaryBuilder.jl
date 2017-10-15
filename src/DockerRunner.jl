@@ -105,7 +105,7 @@ build environment to force compiles toward the defined target architecture.
 Examples of things set are `PATH`, `CC`, `RANLIB`, as well as nonstandard
 things like `target`.
 """
-function target_envs(target::String)
+function target_envs(target::AbstractString)
     target_tool = tool -> "/opt/$(target)/bin/$(target)-$(tool)"
     mapping = Dict(
         "PATH" => "/opt/$(target)/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
