@@ -32,7 +32,7 @@ addons:
 
 before_install:
   # If we're running the builder tests, go ahead and pull the latest crossbuild image
-  - docker pull staticfloat/julia_workerbase:crossbuild-x64
+  - docker pull staticfloat/julia_crossbuild:x64
   # We need the bleeding edge of BinaryProvider.jl, just install that here now
   - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryProvider.jl")'
 
