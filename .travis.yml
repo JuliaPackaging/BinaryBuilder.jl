@@ -5,7 +5,6 @@ os:
   # We don't have docker on OSX on travis at the moment...
   #- osx
 julia:
-  - 0.5
   - 0.6
   - nightly
 notifications:
