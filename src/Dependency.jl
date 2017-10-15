@@ -93,7 +93,7 @@ warnings if hints of unrelocatability are found.  These warnings are, by
 default, ignored, unless `ignore_audit_errors` is set to `false`.
 """
 function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
-               ignore_audit_errors::Bool = true)
+               autofix::Bool = false, ignore_audit_errors::Bool = true)
     # First, look to see whether this dependency is satisfied or not
     should_build = !satisfied(dep)
 
@@ -127,11 +127,15 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
         end
 
         # Run an audit of the prefix to ensure it is properly relocatable
-        if !audit(dep.prefix; platform=dep.platform, verbose=verbose) && !ignore_audit_errors
-            msg  = "Audit failed for $(dep.prefix.path). "
-            msg *= "Address the errors above to ensure relocatability. "
-            msg *= "To override this check, set `ignore_audit_errors = true`."
-            error(msg)
+        audit_result = audit(dep.prefix; platform=dep.platform,
+                             verbose=verbose, autofix=autofix) 
+        if !audit_result && !ignore_audit_errors
+            msg = replace("""
+            Audit failed for $(dep.prefix.path).
+            Address the errors above to ensure relocatability.
+            To override this check, set `ignore_audit_errors = true`.
+            """, '\n', ' ')
+            error(strip(msg))
         end
     elseif !should_build && verbose
         info("Not building as $(dep.name) is already satisfied")
