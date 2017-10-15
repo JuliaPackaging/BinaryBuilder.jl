@@ -39,7 +39,15 @@ function audit(prefix::Prefix; platform::Symbol = platform_key(),
     bin_files = collect_files(prefix, predicate)
     for f in bin_files
         # Peel this binary file open like a delicious tangerine
-        oh = readmeta(f)
+        oh = try
+            readmeta(f)
+        catch
+            # If this isn't an actual binary file, skip it
+            if verbose
+                info("Skipping binary analysis of $(relpath(f, prefix.path))")
+            end
+            continue
+        end
         rp = RPath(oh)
 
         if verbose
