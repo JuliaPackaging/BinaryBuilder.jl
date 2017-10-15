@@ -1,9 +1,13 @@
 import BinaryProvider: satisfied
 export BuildStep, Dependency, satisfied, build
 
-# A `BuildStep` is just a `Cmd` with some helper data bundled along, such as a
-# unique (from within a `Dependency`) name, a link to its prefix for
-# auto-calculating the `logpath()` for a `BuildStep`, etc....
+"""
+    BuildStep
+
+A `BuildStep` is just a `Cmd` with some helper data bundled along, such as a
+unique (from within a `Dependency`) name, a link to its prefix for auto-
+calculating the `logpath()` for a `BuildStep`, etc....
+"""
 immutable BuildStep
     name::String
     cmd::Cmd
@@ -14,8 +18,16 @@ function logpath(step::BuildStep)
     return joinpath(logdir(step.prefix), "$(step.name).log")
 end
 
-# A dependency is something that must be satisfied before a package can be run.
-# These dependencies can be Libraries, basic files, etc...
+"""
+    Dependency
+
+A `Dependency` represents a set of `Product`s that must be satisfied before a
+package can be run.  These `Product`s can be libraries, basic files,
+executables, etc...
+
+To build a `Dependency`, construct it and use `build()`.  To check to see if it
+is already satisfied, use `satisfied()`.
+"""
 immutable Dependency
     # The "name" of this dependency (e.g. "cairo")
     name::String
@@ -83,14 +95,16 @@ function satisfied(dep::Dependency; verbose::Bool = false)
 end
 
 """
-    build(dep::Dependency; verbose::Bool = false, force::Bool = false,
-                           ignore_audit_errors::Bool = true)
+    build(dep::Dependency; verbose = false, force = false, autofix = false,
+                           ignore_audit_errors = true)
 
 Build the dependency for given `platform` (defaulting to the host platform)
 unless it is already satisfied.  If `force` is set to `true`, then the
 dependency is always built.  Runs an audit of the built files, printing out
 warnings if hints of unrelocatability are found.  These warnings are, by
-default, ignored, unless `ignore_audit_errors` is set to `false`.
+default, ignored, unless `ignore_audit_errors` is set to `false`.  Some
+warnings can be automatically fixed, and this will be attempted if `autofix` is
+set to `true`.
 """
 function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
                autofix::Bool = false, ignore_audit_errors::Bool = true)

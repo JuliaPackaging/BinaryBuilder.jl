@@ -68,6 +68,16 @@ function update_build_image(; verbose::Bool = false, force::Bool = false)
     end
 end
 
+
+"""
+    DockerRunner
+
+A `DockerRunner` represents an "execution context", an object that bundles all
+necessary information to run commands within the docker container that contains
+our crossbuild environment.  Use `run()` to actually run commands within the
+`DockerRunner`, and `runshell()` as a quick way to get an interactive shell
+within the crossbuild environment.
+"""
 type DockerRunner
     cmd_prefix::Cmd
     platform::Symbol

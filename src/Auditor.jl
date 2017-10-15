@@ -4,15 +4,13 @@ using ObjectFile
 
 # AUDITOR TODO LIST:
 #
-# * Find external library dependencies (e.g. libgfortran)
-# * Auto-copy in external libraries?  Or provide an easy way for the user to
-# * Auto re-write libraries to use RPATH, etc...
 # * Auto-determine minimum glibc version (to sate our own curiosity)
 # * Detect instruction sets that are non-portable
 
 """
     audit(prefix::Prefix; platform::Symbol = platform_key();
-                          verbose::Bool = false)
+                          verbose::Bool = false,
+                          autofix::Bool = false)
 
 Audits a prefix to attempt to find deployability issues with the binary objects
 that have been installed within.  This auditing will check for relocatability
@@ -202,6 +200,16 @@ function should_ignore_lib(lib, ::COFFHandle)
     return lowercase(basename(lib)) in default_libs
 end
 
+"""
+    update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
+                   old_libpath, new_libpath; verbose::Bool = false)
+
+Given a binary object located at `path` within `prefix`, update its dynamic
+linkage to point to `new_libpath` instead of `old_libpath`.  This is done using
+a tool within the cross-compilation environment such as `install_name_tool` on
+MacOS or `patchelf` on Linux.  Windows platforms are completely skipped, as
+they do not encode paths or RPaths within their executables.
+"""
 function update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
                         old_libpath, new_libpath; verbose::Bool = false)
     # Windows doesn't do updating of linkage
