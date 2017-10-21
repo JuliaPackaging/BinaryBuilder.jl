@@ -153,11 +153,19 @@ passed in, returning the list of file paths.
 """
 function collect_files(prefix::Prefix, predicate::Function = f -> true)
     collected = String[]
+    real_paths = String[]
     for (root, dirs, files) in walkdir(prefix.path)
         for f in files
             f_path = joinpath(root, f)
-            if predicate(f_path)
+
+            # Calculate the realpath, but keep the nicely formatted path too
+            f_real_path = realpath(f_path)
+
+            # Only add this file into our list if it is not already contained.
+            # This removes duplicate symlinks
+            if !(f_real_path in real_paths) && predicate(f_path)
                 push!(collected, f_path)
+                push!(real_paths, realpath(f_path))
             end
         end
     end

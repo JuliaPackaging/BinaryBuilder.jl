@@ -31,6 +31,20 @@ function check_foo(fooifier_path = "fooifier$(exe_ext)",
     Libdl.dlclose(libfoo)
 end
 
+@testset "File Collection" begin
+    temp_prefix() do prefix
+        # Create a file and a link, ensure that only the one file is returned by collect_files()
+        f = joinpath(prefix, "foo")
+        f_link = joinpath(prefix, "foo_link")
+        touch(f)
+        symlink(f, f_link)
+
+        files = collect_files(prefix)
+        @test length(files) == 1
+        @test files[1] == abspath(f)
+    end
+end
+
 # This file contains tests that require our cross-compilation environment
 @testset "Builder Dependency" begin
     temp_prefix() do prefix
