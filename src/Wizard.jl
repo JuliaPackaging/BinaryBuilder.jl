@@ -1,3 +1,5 @@
+using TerminalMenus
+
 function yn_prompt(question, default = :y)
     @assert default in (:y, :n)
     while true
@@ -40,7 +42,40 @@ function run_wizard()
     println("Welcome to the BinaryBuilder wizard.\n"*
             "We'll get you set up in no time.\n")
 
-    print_with_color(:bold, "\t\t\t\# Step 1: Obtain the source code\n\n")
+    print_with_color(:bold, "\t\t\t\# Step 1: Select your platforms\n\n")
+
+    platform_select = request("Make a platform selection",
+        RadioMenu(["All supported architectures",
+                   "Specific operating system",
+                   "Specific architecture",
+                   "Custom"]))
+
+    println()
+
+    if platform_select == 1
+        platforms = supported_platforms()
+    elseif platform_select == 2
+        oses = sort(unique(map(typeof, supported_platforms())), by = repr)
+        result = request("Select operating systems",
+            MultiSelectMenu(map(repr, oses)))
+        result = map(x->oses[x], result)
+        platforms = collect(filter(x->typeof(x) in result, supported_platforms()))
+    elseif platform_select == 3
+        arches = sort(unique(map(arch, supported_platforms())), by = repr)
+        result = request("Select architectures",
+            MultiSelectMenu(map(repr, arches)))
+        result = map(x->arches[x], result)
+        platforms = collect(filter(x->arch(x) in result, supported_platforms()))
+    elseif platform_select == 4
+        platfs = supported_platforms()
+        result = request("Select platforms",
+            MultiSelectMenu(map(repr, platfs)))
+        platforms = collect(map(x->platfs[x], result))
+    else
+        error("Fail")
+    end
+
+    print_with_color(:bold, "\t\t\t\# Step 2: Obtain the source code\n\n")
 
     workspace = tempname()
     mkpath(workspace)
@@ -56,7 +91,7 @@ function run_wizard()
     end
 
     println()
-    print_with_color(:bold, "\t\t\t\# Step 2: Build for Linux x86_64\n\n")
+    print_with_color(:bold, "\t\t\t\# Step 3: Build for Linux x86_64\n\n")
 
     println("You will now be dropped into the cross-compilation environment.")
     println("Please compile the library. Your initial compilation target is Linux x86_64")
@@ -72,7 +107,7 @@ function run_wizard()
     cd(build_path) do
         temp_prefix() do prefix
             histfile = joinpath(build_path, ".bash_history")
-            dr = DockerRunner(prefix = prefix, platform = :linux64,
+            dr = DockerRunner(prefix = prefix, platform = Linux(:x86_64),
                 extra_env = Dict("HISTFILE" => histfile))
             for source in source_files
                 unpack(source, build_path)
@@ -90,12 +125,12 @@ function run_wizard()
 
             print_with_color(:bold, "\n\t\t\tAnalyzing...\n\n")
 
-            audit(prefix; platform=:linux64, verbose=true, autofix=false)
+            audit(prefix; platform=Linux(:x86_64), verbose=true, autofix=false)
         end
     end
 
     println()
-    print_with_color(:bold, "\t\t\t\# Step 3: Generalize the build script\n\n")
+    print_with_color(:bold, "\t\t\t\# Step 4: Generalize the build script\n\n")
 
     println("You have successfully built for Linux x86_64 (yay!).")
     println("We will now attempt to use the same script to build for other architectures.")
@@ -116,7 +151,7 @@ function run_wizard()
     mkpath(build_path)
     cd(build_path) do
         temp_prefix() do prefix
-            dr = DockerRunner(prefix = prefix, platform = :win64)
+            dr = DockerRunner(prefix = prefix, platform = Windows(:x86_64))
             for source in source_files
                 unpack(source, build_path)
             end
@@ -125,7 +160,7 @@ function run_wizard()
 
             print_with_color(:bold, "\n\t\t\tBuild complete. Analyzing...\n\n")
 
-            audit(prefix; platform=:win64, verbose=true, autofix=false)
+            audit(prefix; platform=Windows(:x86_64), verbose=true, autofix=false)
         end
     end
 
@@ -147,7 +182,7 @@ function run_wizard()
     mkpath(build_path)
     cd(build_path) do
         temp_prefix() do prefix
-            dr = DockerRunner(prefix = prefix, platform = :linuxaarch64)
+            dr = DockerRunner(prefix = prefix, platform = Linux(:aarch64))
             for source in source_files
                 unpack(source, build_path)
             end
@@ -156,7 +191,7 @@ function run_wizard()
 
             print_with_color(:bold, "\n\t\t\tBuild complete. Analyzing...\n\n")
 
-            audit(prefix; platform=:linuxaarch64, verbose=true, autofix=false)
+            audit(prefix; platform=Linux(:aarch64), verbose=true, autofix=false)
         end
     end
 
@@ -171,13 +206,8 @@ function run_wizard()
     read(STDIN, Char)
     println()
 
-    for platform in (
-            :linux32,
-            :linuxarmv7l,
-            :linuxppc64le,
-            :mac64,
-            :win32
-        )
+    for platform in filter(x->!(x in (Linux(:x86_64), Linux(:aarch64), Windows(:x86_64))),
+            platforms)
         print("Building $platform ")
         build_path = tempname()
         mkpath(build_path)
