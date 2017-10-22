@@ -8,7 +8,7 @@ using Compat
 const platform = platform_key()
 
 # On windows, the `.exe` extension is very important
-const exe_ext = is_windows() ? ".exe" : ""
+const exe_ext = Compat.Sys.iswindows() ? ".exe" : ""
 
 # We are going to build/install libfoo a lot, so here's our function to make sure the
 # library is working properly
