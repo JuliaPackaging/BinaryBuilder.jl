@@ -9,6 +9,7 @@ using Reexport
 include("Auditor.jl")
 include("DockerRunner.jl")
 include("Dependency.jl")
+include("Wizard.jl")
 
 export shortname
 

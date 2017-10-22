@@ -160,7 +160,8 @@ so with `volume_mapping`, which expects tuples of paths in a similar spirit to
 """
 function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
                        platform::Platform = platform_key(),
-                       volume_mapping::Vector = [])
+                       volume_mapping::Vector = [],
+                       extra_env::Dict{String, String} = Dict{String, String}())
     # We are using `docker run` to provide isolation
     cmd_prefix = `docker run --rm -i`
 
@@ -173,6 +174,9 @@ function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
     # The environment variables we'll set
     env_mapping = target_envs(triplet(platform))
     for v in env_mapping
+        cmd_prefix = `$cmd_prefix -e $(v[1])=$(v[2])`
+    end
+    for v in extra_env
         cmd_prefix = `$cmd_prefix -e $(v[1])=$(v[2])`
     end
 
