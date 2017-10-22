@@ -126,11 +126,47 @@ function run_wizard()
             print_with_color(:bold, "\n\t\t\tAnalyzing...\n\n")
 
             audit(prefix; platform=Linux(:x86_64), verbose=true, autofix=false)
+
+            println()
+            print_with_color(:bold, "\t\t\t\# Step 4: Select build products\n\n")
+
+
+            # Collect all executable/library files
+            files = collect_files(prefix)
+            # Check if we can load them as an object file
+            files = filter(files) do f
+                try
+                    readmeta(f)
+                    return true
+                catch
+                    return false
+                end
+            end
+
+            if length(files) == 0
+                # TODO: Make this a regular error path
+                error("No build")
+            elseif length(files) == 1
+                println("The build has produced only one build artifact:\n")
+                println("\t$(replace(files[1],prefix.path,""))")
+            else
+                println("The build has produced several libraries and executables.")
+                println("Please select which of these you want to consider `products`.")
+                println("These are generally those artifacts you will load or use from julia.")
+
+                files = map(x->files[x],collect(request("",
+                    MultiSelectMenu(
+                        map(files) do file
+                            replace(file, prefix.path, "")
+                        end))))
+            end
+
+            println()
         end
     end
 
     println()
-    print_with_color(:bold, "\t\t\t\# Step 4: Generalize the build script\n\n")
+    print_with_color(:bold, "\t\t\t\# Step 5: Generalize the build script\n\n")
 
     println("You have successfully built for Linux x86_64 (yay!).")
     println("We will now attempt to use the same script to build for other architectures.")

@@ -141,7 +141,7 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
             warn("$(relpath(f, prefix.path)) contains an absolute path")
         end
     end
-    
+
     return all_ok
 end
 
