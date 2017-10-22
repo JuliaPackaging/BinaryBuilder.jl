@@ -26,6 +26,14 @@ julia> shortname(MacOS())
 :osx64
 ```
 """
+function shortname(p::Linux)
+    a = arch(p)
+    if a === :x86_64 || a === :i686
+        return Symbol("linux", wordsize(p))
+    else
+        return Symbol("linux", a)
+    end
+end
 shortname(p::Linux) = Symbol("linux", wordsize(p))
 shortname(p::Windows) = Symbol("win", wordsize(p))
 shortname(p::MacOS) = :osx64
