@@ -8,7 +8,7 @@ using ObjectFile
 # * Detect instruction sets that are non-portable
 
 """
-    audit(prefix::Prefix; platform::Symbol = platform_key();
+    audit(prefix::Prefix; platform::Platform = platform_key();
                           verbose::Bool = false,
                           autofix::Bool = false)
 
@@ -22,7 +22,7 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(prefix::Prefix; platform::Symbol = platform_key(),
+function audit(prefix::Prefix; platform::Platform = platform_key(),
                                verbose::Bool = false,
                                autofix::Bool = false)
     if verbose
@@ -209,7 +209,7 @@ function should_ignore_lib(lib, ::COFFHandle)
 end
 
 """
-    update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
+    update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                    old_libpath, new_libpath; verbose::Bool = false)
 
 Given a binary object located at `path` within `prefix`, update its dynamic
@@ -218,7 +218,7 @@ a tool within the cross-compilation environment such as `install_name_tool` on
 MacOS or `patchelf` on Linux.  Windows platforms are completely skipped, as
 they do not encode paths or RPaths within their executables.
 """
-function update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
+function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                         old_libpath, new_libpath; verbose::Bool = false)
     # Windows doesn't do updating of linkage
     if is_windows(platform)

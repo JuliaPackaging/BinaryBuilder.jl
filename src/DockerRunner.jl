@@ -49,7 +49,7 @@ don't particularly feel like waiting for download the new 4GB+ image that
 """
 function update_build_image(; verbose::Bool = false, force::Bool = false)
     global BUILD_IMAGE_UPDATED
-    if should_update_build_image(force)    
+    if should_update_build_image(force)
         msg = """
         Updating build image $BUILD_IMAGE, this may take a few minutes. To
         disable automatic image updating, set the `BINBUILD_IMAGE_AUTOUPDATE`
@@ -80,7 +80,7 @@ within the crossbuild environment.
 """
 type DockerRunner
     cmd_prefix::Cmd
-    platform::Symbol
+    platform::Platform
 end
 
 function show(io::IO, x::DockerRunner)
@@ -155,7 +155,7 @@ so with `volume_mapping`, which expects tuples of paths in a similar spirit to
 `docker`'s `-v` option.
 """
 function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
-                       platform::Symbol = platform_key(),
+                       platform::Platform = platform_key(),
                        volume_mapping::Vector = [])
     # We are using `docker run` to provide isolation
     cmd_prefix = `docker run --rm -i`
@@ -167,7 +167,7 @@ function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
     end
 
     # The environment variables we'll set
-    env_mapping = target_envs(platform_triplet(platform))
+    env_mapping = target_envs(triplet(platform))
     for v in env_mapping
         cmd_prefix = `$cmd_prefix -e $(v[1])=$(v[2])`
     end
@@ -236,6 +236,6 @@ end
 Open an interactive session inside a Docker environment created for a
 particular target `platform`.
 """
-function runshell(platform::Symbol)
+function runshell(platform::Platform)
     runshell(DockerRunner(platform=platform))
 end
