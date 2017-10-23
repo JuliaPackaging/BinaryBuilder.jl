@@ -185,7 +185,9 @@ end
 function should_ignore_lib(lib, ::ELFHandle)
     default_libs = [
         "libc.so.6",
+        # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
+        "libgcc_s.so.1",
     ]
     return lowercase(basename(lib)) in default_libs
 end
