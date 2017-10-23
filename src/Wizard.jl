@@ -255,7 +255,7 @@ function step5a(state)
     end
 
     println("")
-    println("You have successfully built for Win64. Congratualations!")
+    println("You have successfully built for Win64. Congratulations!")
     println()
 end
 
@@ -291,7 +291,7 @@ function step5b(state)
     end
 
     println("")
-    println("You have successfully built for Linux AArch64. Congratualations!")
+    println("You have successfully built for Linux AArch64. Congratulations!")
     println()
 end
 
