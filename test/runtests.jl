@@ -8,7 +8,7 @@ using Compat
 const platform = platform_key()
 
 # On windows, the `.exe` extension is very important
-const exe_ext = is_windows() ? ".exe" : ""
+const exe_ext = Compat.Sys.iswindows() ? ".exe" : ""
 
 # We are going to build/install libfoo a lot, so here's our function to make sure the
 # library is working properly
@@ -40,8 +40,13 @@ end
         symlink(f, f_link)
 
         files = collect_files(prefix)
-        @test length(files) == 1
-        @test files[1] == abspath(f)
+        @test length(files) == 2
+        @test f in files
+        @test f_link in files
+
+        collapsed_files = collapse_symlinks(files)
+        @test length(collapsed_files) == 1
+        @test f in collapsed_files
     end
 end
 
@@ -61,7 +66,7 @@ end
             push!(cmds, `mkdir -p $(bindir(prefix))`)
             push!(cmds, `bash -c "printf '#!/bin/bash\necho test' > $(test_exe_path)"`)
             push!(cmds, `chmod 775 $(test_exe_path)`)
-            
+
             dep = Dependency("bash_test", results, cmds, platform, prefix)
 
             @test build(dep; verbose=true)
@@ -118,8 +123,8 @@ end
             dep = Dependency("foo", [libfoo, fooifier], steps, platform, prefix)
 
             @test build(dep)
-        end    
-        
+        end
+
         # Next, package it up as a .tar.gz file
         tarball_path, tarball_hash = package(prefix, "./libfoo"; verbose=true)
         @test isfile(tarball_path)

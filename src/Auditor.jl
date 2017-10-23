@@ -1,4 +1,4 @@
-export audit, collect_files
+export audit, collect_files, collapse_symlinks
 
 using ObjectFile
 
@@ -8,7 +8,7 @@ using ObjectFile
 # * Detect instruction sets that are non-portable
 
 """
-    audit(prefix::Prefix; platform::Symbol = platform_key();
+    audit(prefix::Prefix; platform::Platform = platform_key();
                           verbose::Bool = false,
                           autofix::Bool = false)
 
@@ -22,7 +22,7 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(prefix::Prefix; platform::Symbol = platform_key(),
+function audit(prefix::Prefix; platform::Platform = platform_key(),
                                verbose::Bool = false,
                                autofix::Bool = false)
     if verbose
@@ -35,7 +35,7 @@ function audit(prefix::Prefix; platform::Symbol = platform_key(),
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
     bin_files = collect_files(prefix, predicate)
-    for f in bin_files
+    for f in collapse_symlinks(bin_files)
         # Peel this binary file open like a delicious tangerine
         oh = try
             readmeta(f)
@@ -153,23 +153,30 @@ passed in, returning the list of file paths.
 """
 function collect_files(prefix::Prefix, predicate::Function = f -> true)
     collected = String[]
-    real_paths = String[]
     for (root, dirs, files) in walkdir(prefix.path)
         for f in files
             f_path = joinpath(root, f)
 
-            # Calculate the realpath, but keep the nicely formatted path too
-            f_real_path = realpath(f_path)
-
             # Only add this file into our list if it is not already contained.
             # This removes duplicate symlinks
-            if !(f_real_path in real_paths) && predicate(f_path)
+            if predicate(f_path)
                 push!(collected, f_path)
-                push!(real_paths, realpath(f_path))
             end
         end
     end
     return collected
+end
+
+
+"""
+    collapse_symlinks(files::Vector{String})
+
+Given a list of files, prune those that are symlinks pointing to other files
+within the list.
+"""
+function collapse_symlinks(files::Vector{String})
+    abs_files = abspath.(files)
+    return filter(f -> !(islink(f) && realpath(f) in abs_files), files)
 end
 
 """
@@ -185,7 +192,9 @@ end
 function should_ignore_lib(lib, ::ELFHandle)
     default_libs = [
         "libc.so.6",
+        # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
+        "libgcc_s.so.1",
     ]
     return lowercase(basename(lib)) in default_libs
 end
@@ -209,7 +218,7 @@ function should_ignore_lib(lib, ::COFFHandle)
 end
 
 """
-    update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
+    update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                    old_libpath, new_libpath; verbose::Bool = false)
 
 Given a binary object located at `path` within `prefix`, update its dynamic
@@ -218,10 +227,10 @@ a tool within the cross-compilation environment such as `install_name_tool` on
 MacOS or `patchelf` on Linux.  Windows platforms are completely skipped, as
 they do not encode paths or RPaths within their executables.
 """
-function update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
+function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                         old_libpath, new_libpath; verbose::Bool = false)
     # Windows doesn't do updating of linkage
-    if is_windows(platform)
+    if Compat.Sys.iswindows(platform)
         return
     end
 
@@ -230,11 +239,11 @@ function update_linkage(prefix::Prefix, platform::Symbol, path::AbstractString,
     add_rpath = x -> ``
     relink = (x, y) -> ``
     origin = ""
-    if is_apple(platform)
+    if Compat.Sys.isapple(platform)
         origin = "@loader_path"
         add_rpath = rp -> `install_name_tool -add_rpath $(rp) $(path)`
         relink = (op, np) -> `install_name_tool -change $(op) $(np) $(path)`
-    elseif is_linux(platform)
+    elseif Compat.Sys.islinux(platform)
         origin = "\$ORIGIN"
         full_rpath = join(':', rpaths(RPath(readmeta(path))))
         add_rpath = rp -> `patchelf --set-rpath $(full_rpath):$(rp) $(path)`

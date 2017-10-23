@@ -17,7 +17,7 @@ for platform in supported_platforms()
 
         # Next, package it up as a .tar.gz file
         cd("./libfoo_tarballs") do
-            rm("./libfoo_$(platform).tar.gz"; force=true)
+            rm("./libfoo_$(shortname(platform)).tar.gz"; force=true)
             tarball_path = package(prefix, "./libfoo", platform=platform)
             info("Built and saved at ./libfoo_tarballs/$(tarball_path)")
         end
