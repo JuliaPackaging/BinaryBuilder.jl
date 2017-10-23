@@ -34,7 +34,6 @@ function shortname(p::Linux)
         return Symbol("linux", a)
     end
 end
-shortname(p::Linux) = Symbol("linux", wordsize(p))
 shortname(p::Windows) = Symbol("win", wordsize(p))
 shortname(p::MacOS) = :osx64
 
