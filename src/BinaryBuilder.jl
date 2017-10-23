@@ -9,9 +9,10 @@ using Reexport
 include("Auditor.jl")
 include("DockerRunner.jl")
 include("Dependency.jl")
+include("AutoBuild.jl")
 include("Wizard.jl")
 
-export shortname
+export shortname, autobuild, run_wizard
 
 """
     shortname(p::Platform)

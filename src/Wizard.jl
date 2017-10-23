@@ -35,12 +35,27 @@ function download_source(workspace, num)
         error("Could not download $(url) to $(workspace)")
     end
 
-    source_path
+    local source_hash
+    open(source_path) do file
+        source_hash = bytes2hex(BinaryProvider.sha256(file))
+    end
+
+    url, source_path, source_hash
+end
+
+# Normalize each file to only the filename, stripping extensions
+function normalize_name(file)
+    file = basename(file)
+    idx = findfirst(file, '.')
+    if idx != 0
+        return file[1:prevind(file, idx)]
+    end
+    return file
 end
 
 function match_files(prefix, platform, files)
     # Collect all executable/library files
-    prefix_files = collect_files(prefix)
+    prefix_files = collapse_symlinks(collect_files(prefix))
     # Check if we can load them as an object file
     prefix_files = filter(prefix_files) do f
         try
@@ -49,16 +64,6 @@ function match_files(prefix, platform, files)
         catch
             return false
         end
-    end
-
-    # Normalize each file to only the filename, stripping extensions
-    function normalize_name(file)
-        file = basename(file)
-        idx = findfirst(file, '.')
-        if idx != 0
-            return file[1:prevind(file, idx)]
-        end
-        return file
     end
 
     norm_prefix_files = Set(map(normalize_name, prefix_files))
@@ -80,13 +85,16 @@ mutable struct State
     platforms::Union{Void, Vector{Platform}}
     # Filled in by step 2
     workspace::Union{Void, String}
+    source_urls::Union{Void, Vector{String}}
     source_files::Union{Void, Vector{String}}
+    source_hashes::Union{Void, Vector{String}}
     # Filled in by step 3
     history::Union{Void, String}
     files::Union{Void, Vector{String}}
+    file_kinds::Union{Void, Vector{Symbol}}
 end
 
-State() = State(:step1, nothing, nothing, nothing, nothing, nothing)
+State() = State(:step1, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
 
 function step1(state)
     print_with_color(:bold, "\t\t\t\# Step 1: Select your platforms\n\n")
@@ -131,11 +139,16 @@ function step2(state)
     workspace = tempname()
     mkpath(workspace)
 
+    state.source_urls = String[]
     state.source_files = String[]
+    state.source_hashes = String[]
 
     num = 1
     while true
-        push!(state.source_files, download_source(workspace, num))
+        url, file, hash = download_source(workspace, num)
+        push!(state.source_urls, url)
+        push!(state.source_files, file)
+        push!(state.source_hashes, hash)
         println()
         num += 1
         yn_prompt("Would you like to download additional sources? ", :n) == :y || break
@@ -185,7 +198,8 @@ function step34(state)
 
 
             # Collect all executable/library files
-            files = collect_files(prefix)
+            files = collapse_symlinks(collect_files(prefix))
+
             # Check if we can load them as an object file
             files = filter(files) do f
                 try
@@ -197,6 +211,12 @@ function step34(state)
             end
 
             state.files = map(file->replace(file, prefix.path, ""), files)
+            state.file_kinds = map(files) do f
+                h = readmeta(f)
+                isexecutable(h) ? :executable :
+                islibrary(h) ? :library : :other
+            end
+
             if length(files) == 0
                 # TODO: Make this a regular error path
                 error("No build")
@@ -367,5 +387,79 @@ function run_wizard(state = State())
     print("Your build script was:\n\n\t")
     print(replace(state.history, "\n", "\n\t"))
 
-    nothing
+    print_with_color(:bold, "\t\t\t\# Step 6: Deployment\n\n")
+
+    println("Pick a name for this project. This will be used for filenames, etc (e.g. `julia`):")
+    print("> ")
+    name = readline()
+
+    println("Use this as your build_tarballs.jl:")
+
+    platforms_string = string("[\n",join(state.platforms,",\n"),"]\n")
+    sources_string = string("[\n",for (src, hash) in zip(state.source_urls, state.source_hashes)
+        string(repr(hash)," =>\n", repr(src), ",\n")
+    end,"]")
+
+    products_string = join(map(zip(state.files, state.file_kinds)) do x
+        file, kind = x
+        file = normalize_name(file)
+        kind == :executable ? "ExecutableProduct(prefix,$(repr(file)))" :
+        kind == :library ? "LibraryProduct(prefix,$(repr(file)))" :
+        "FileProduct(prefix,$(repr(file)))"
+    end,",\n")
+
+    println("""
+
+    ```
+    using BinaryBuilder
+
+    platforms = $platforms_string
+    sources = $sources_string
+
+    script = \"\"\"
+    $(state.history)
+    \"\"\"
+
+    products = prefix -> [
+        $products_string
+    ]
+
+    autobuild(pwd(), "$name", platforms, sources, script, products)
+    ```
+    """)
+
+    println("Use this as your .travis.yml")
+
+    println("""
+
+    ```
+    language: julia
+    os:
+      - linux
+    julia:
+      - 0.6
+    notifications:
+      email: false
+    git:
+      depth: 99999999
+    sudo: required
+    services:
+      - docker
+
+    env:
+      DOCKER_IMAGE: staticfloat/julia_crossbuild:x64
+
+    # Before anything else, get the latest versions of things
+    before_script:
+      - docker pull \$DOCKER_IMAGE
+      - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryProvider.jl")'
+      - julia -e 'Pkg.clone("https://github.com/staticfloat/ObjectFile.jl")'
+      - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryBuilder.jl"); Pkg.build()'
+
+    script:
+      - julia build_tarballs.jl
+    ```
+    """)
+
+    state
 end
