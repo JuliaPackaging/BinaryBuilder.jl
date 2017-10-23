@@ -40,8 +40,13 @@ end
         symlink(f, f_link)
 
         files = collect_files(prefix)
-        @test length(files) == 1
-        @test files[1] == abspath(f)
+        @test length(files) == 2
+        @test f in files
+        @test f_link in files
+
+        collapsed_files = collapse_symlinks(files)
+        @test length(collapsed_files) == 1
+        @test f in collapsed_files
     end
 end
 

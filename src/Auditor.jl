@@ -1,4 +1,4 @@
-export audit, collect_files
+export audit, collect_files, collapse_symlinks
 
 using ObjectFile
 
@@ -35,7 +35,7 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
     bin_files = collect_files(prefix, predicate)
-    for f in bin_files
+    for f in collapse_symlinks(bin_files)
         # Peel this binary file open like a delicious tangerine
         oh = try
             readmeta(f)
@@ -153,23 +153,30 @@ passed in, returning the list of file paths.
 """
 function collect_files(prefix::Prefix, predicate::Function = f -> true)
     collected = String[]
-    real_paths = String[]
     for (root, dirs, files) in walkdir(prefix.path)
         for f in files
             f_path = joinpath(root, f)
 
-            # Calculate the realpath, but keep the nicely formatted path too
-            f_real_path = realpath(f_path)
-
             # Only add this file into our list if it is not already contained.
             # This removes duplicate symlinks
-            if !(f_real_path in real_paths) && predicate(f_path)
+            if predicate(f_path)
                 push!(collected, f_path)
-                push!(real_paths, realpath(f_path))
             end
         end
     end
     return collected
+end
+
+
+"""
+    collapse_symlinks(files::Vector{String})
+
+Given a list of files, prune those that are symlinks pointing to other files
+within the list.
+"""
+function collapse_symlinks(files::Vector{String})
+    abs_files = abspath.(files)
+    return filter(f -> !(islink(f) && realpath(f) in abs_files), files)
 end
 
 """
