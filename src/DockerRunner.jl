@@ -97,7 +97,10 @@ end
 Wrapper function around libc's `getuid()` function
 """
 function getuid()
-    return ccall((:getuid, :libc), UInt32, ())
+    @static if is_linux()
+        return ccall((:getuid, :libc), UInt32, ())
+    end
+    return UInt32(0)
 end
 
 """
@@ -106,7 +109,10 @@ end
 Wrapper function around libc's `getgid()` function
 """
 function getgid()
-    return ccall((:getgid, :libc), UInt32, ())
+    @static if is_linux()
+        return ccall((:getgid, :libc), UInt32, ())
+    end
+    return UInt32(0)
 end
 
 """
@@ -176,8 +182,10 @@ function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
         cmd_prefix = `$cmd_prefix -e $(v[1])=$(v[2])`
     end
 
-    # Set our user id and group id to match the outside world
-    cmd_prefix = `$cmd_prefix --user=$(getuid()):$(getgid())`
+    # Set our user id and group id to match the outside world, if on Linux
+    @static if is_linux()
+        cmd_prefix = `$cmd_prefix --user=$(getuid()):$(getgid())`
+    end
 
     # Don't run with a confined seccomp profile
     cmd_prefix = `$cmd_prefix --security-opt seccomp=unconfined`
