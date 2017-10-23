@@ -227,9 +227,10 @@ function step34(state)
                 println("The build has produced several libraries and executables.")
                 println("Please select which of these you want to consider `products`.")
                 println("These are generally those artifacts you will load or use from julia.")
-
-                state.files = map(x->state.files[x],collect(request("",
-                    MultiSelectMenu(state.files))))
+                selected = collect(request("",
+                    MultiSelectMenu(state.files)))
+                state.file_kinds = map(x->state.file_kinds[x], selected)
+                state.files = map(x->state.files[x], selected)
             end
 
             println()
@@ -349,39 +350,7 @@ function step5c(state)
     end
 end
 
-function run_wizard(state = State())
-    println("Welcome to the BinaryBuilder wizard.\n"*
-            "We'll get you set up in no time.\n")
-
-    try
-        while state.step != :done
-            if state.step == :step1
-                step1(state)
-                state.step = :step2
-            elseif state.step == :step2
-                step2(state)
-                state.step = :step3
-            elseif state.step == :step3
-                step34(state)
-                state.step = :step5a
-            elseif state.step == :step5a
-                step5a(state)
-                state.step = :step5b
-            elseif state.step == :step5b
-                step5b(state)
-                state.step = :step5c
-            elseif state.step == :step5c
-                step5c(state)
-                state.step = :done
-            end
-        end
-    catch err
-        bt = catch_backtrace()
-        Base.showerror(STDERR, err, bt)
-        println("\n")
-        return state
-    end
-
+function step6(state)
     print_with_color(:bold, "\t\t\tDone!\n\n")
 
     print("Your build script was:\n\n\t")
@@ -395,12 +364,16 @@ function run_wizard(state = State())
 
     println("Use this as your build_tarballs.jl:")
 
-    platforms_string = string("[\n",join(state.platforms,",\n"),"]\n")
-    sources_string = string("[\n",for (src, hash) in zip(state.source_urls, state.source_hashes)
+    platforms_string = string("[\n",join(state.platforms,",\n"),"\n]\n")
+    sources_string = string("[\n",join(map(zip(state.source_urls, state.source_hashes)) do x
+        (src, hash) = x
         string(repr(hash)," =>\n", repr(src), ",\n")
-    end,"]")
+    end,",\n"),"]")
 
-    products_string = join(map(zip(state.files, state.file_kinds)) do x
+    @show state.files
+    @show state.file_kinds
+    stuff = collect(zip(state.files, state.file_kinds))
+    products_string = join(map(stuff) do x
         file, kind = x
         file = normalize_name(file)
         kind == :executable ? "ExecutableProduct(prefix,$(repr(file)))" :
@@ -460,6 +433,46 @@ function run_wizard(state = State())
       - julia build_tarballs.jl
     ```
     """)
+end
+
+function run_wizard(state = State())
+    println("Welcome to the BinaryBuilder wizard.\n"*
+            "We'll get you set up in no time.\n")
+
+    try
+        while state.step != :done
+            if state.step == :step1
+                step1(state)
+                state.step = :step2
+            elseif state.step == :step2
+                step2(state)
+                state.step = :step3
+            elseif state.step == :step3
+                step34(state)
+                state.step = :step5a
+            elseif state.step == :step5a
+                step5a(state)
+                state.step = :step5b
+            elseif state.step == :step5b
+                step5b(state)
+                state.step = :step5c
+            elseif state.step == :step5c
+                step5c(state)
+                state.step = :step6
+            elseif state.step == :step6
+                step6(state)
+                state.step = :done
+            end
+        end
+    catch err
+        bt = catch_backtrace()
+        Base.showerror(STDERR, err, bt)
+        println("\n")
+        return state
+    end
+
+    println("\nWizard Complete. Press any key to exit...")
+    read(STDIN, Char)
 
     state
 end
