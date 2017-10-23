@@ -41,7 +41,7 @@ immutable Dependency
     steps::Vector{BuildStep}
 
     # The platform this dependency is built for
-    platform::Symbol
+    platform::Platform
 
     # The parent "prefix" this dependency must be installed within
     prefix::Prefix
@@ -52,7 +52,7 @@ end
     Dependency(name::AbstractString,
                results::Vector{Product},
                cmds::Vector{Cmd},
-               platform::Symbol,
+               platform::Platform,
                prefix::Prefix = global_prefix)
 
 Defines a new dependency that must be built by its name, the binary objects
@@ -64,7 +64,7 @@ You may, alternately, provide a `Vector` of tuples containing the URLs and hashe
 function Dependency{P <: Product}(name::AbstractString,
                     results::Vector{P},
                     cmds::Vector{Cmd},
-                    platform::Symbol,
+                    platform::Platform,
                     prefix::Prefix = BinaryProvider.global_prefix)
     name_idxs = Dict{String,Int64}()
 
@@ -84,7 +84,7 @@ end
 
 
 """
-    satisfied(dep::Dependency; platform::Symbol = platform_key(),
+    satisfied(dep::Dependency; platform::Platform = platform_key(),
                                verbose::Bool = false)
 
 Return true if all results are satisfied for this dependency.

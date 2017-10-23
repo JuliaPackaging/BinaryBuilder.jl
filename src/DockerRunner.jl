@@ -80,11 +80,15 @@ within the crossbuild environment.
 """
 type DockerRunner
     cmd_prefix::Cmd
-    platform::Symbol
+    platform::Platform
 end
 
 function show(io::IO, x::DockerRunner)
-    write(io, "$(x.platform) DockerRunner")
+    p = x.platform
+    # Displays as, e.g., Linux x86_64 (glibc) DockerRunner
+    write(io, typeof(p), " ", arch(p), " ",
+          Compat.Sys.islinux(p) ? "($(p.libc)) " : "",
+          "DockerRunner")
 end
 
 """
@@ -144,7 +148,7 @@ end
 
 """
     DockerRunner(; prefix::Prefix = global_prefix,
-                   platform::Symbol = platform_key(),
+                   platform::Platform = platform_key(),
                    volume_mapping::Vector = [])
 
 Creates a `DockerRunner` object to run commands within the environment defined
@@ -155,7 +159,7 @@ so with `volume_mapping`, which expects tuples of paths in a similar spirit to
 `docker`'s `-v` option.
 """
 function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
-                       platform::Symbol = platform_key(),
+                       platform::Platform = platform_key(),
                        volume_mapping::Vector = [])
     # We are using `docker run` to provide isolation
     cmd_prefix = `docker run --rm -i`
@@ -167,7 +171,7 @@ function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
     end
 
     # The environment variables we'll set
-    env_mapping = target_envs(platform_triplet(platform))
+    env_mapping = target_envs(triplet(platform))
     for v in env_mapping
         cmd_prefix = `$cmd_prefix -e $(v[1])=$(v[2])`
     end
@@ -231,11 +235,11 @@ function runshell(dr::DockerRunner)
 end
 
 """
-    runshell(platform::Symbol)
+    runshell(platform::Platform)
 
 Open an interactive session inside a Docker environment created for a
 particular target `platform`.
 """
-function runshell(platform::Symbol)
+function runshell(platform::Platform)
     runshell(DockerRunner(platform=platform))
 end
