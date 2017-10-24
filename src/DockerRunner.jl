@@ -97,7 +97,7 @@ end
 Wrapper function around libc's `getuid()` function
 """
 function getuid()
-    @static if is_linux()
+    @static if Compat.Sys.islinux()
         return ccall((:getuid, :libc), UInt32, ())
     end
     return UInt32(0)
@@ -109,7 +109,7 @@ end
 Wrapper function around libc's `getgid()` function
 """
 function getgid()
-    @static if is_linux()
+    @static if Compat.Sys.islinux()
         return ccall((:getgid, :libc), UInt32, ())
     end
     return UInt32(0)
@@ -183,7 +183,7 @@ function DockerRunner(;prefix::Prefix = BinaryProvider.global_prefix,
     end
 
     # Set our user id and group id to match the outside world, if on Linux
-    @static if is_linux()
+    @static if Compat.Sys.islinux()
         cmd_prefix = `$cmd_prefix --user=$(getuid()):$(getgid())`
     end
 
