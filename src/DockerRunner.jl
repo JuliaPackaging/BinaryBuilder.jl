@@ -78,7 +78,7 @@ our crossbuild environment.  Use `run()` to actually run commands within the
 `DockerRunner`, and `runshell()` as a quick way to get an interactive shell
 within the crossbuild environment.
 """
-type DockerRunner
+mutable struct DockerRunner
     cmd_prefix::Cmd
     platform::Platform
 end

@@ -8,7 +8,7 @@ A `BuildStep` is just a `Cmd` with some helper data bundled along, such as a
 unique (from within a `Dependency`) name, a link to its prefix for auto-
 calculating the `logpath()` for a `BuildStep`, etc....
 """
-immutable BuildStep
+struct BuildStep
     name::String
     cmd::Cmd
     prefix::Prefix
@@ -28,7 +28,7 @@ executables, etc...
 To build a `Dependency`, construct it and use `build()`.  To check to see if it
 is already satisfied, use `satisfied()`.
 """
-immutable Dependency
+struct Dependency
     # The "name" of this dependency (e.g. "cairo")
     name::String
 
@@ -61,11 +61,11 @@ within which all of this will be installed.
 
 You may, alternately, provide a `Vector` of tuples containing the URLs and hashes
 """
-function Dependency{P <: Product}(name::AbstractString,
-                    results::Vector{P},
-                    cmds::Vector{Cmd},
-                    platform::Platform,
-                    prefix::Prefix = BinaryProvider.global_prefix)
+function Dependency(name::AbstractString,
+      results::Vector{P},
+      cmds::Vector{Cmd},
+      platform::Platform,
+      prefix::Prefix = BinaryProvider.global_prefix) where P <: Product
     name_idxs = Dict{String,Int64}()
 
     function build_step(prefix, cmd)
