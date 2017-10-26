@@ -1,0 +1,199 @@
+/* Copyright (c) 2016 Julia Computing Inc */
+#define _GNU_SOURCE
+
+/* Seperate because the headers below don't have all dependencies properly
+   declared */
+#include <sys/socket.h>
+
+#include <assert.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <linux/capability.h>
+#include <linux/socket.h>
+#include <linux/if.h>
+#include <linux/in.h>
+#include <linux/netlink.h>
+#include <linux/route.h>
+#include <linux/rtnetlink.h>
+#include <linux/sockios.h>
+#include <linux/veth.h>
+#include <sched.h>
+#include <signal.h>
+#include <stdint.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <sys/mount.h>
+#include <sys/ioctl.h>
+#include <sys/prctl.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#include <dirent.h>
+#include <sys/stat.h>
+
+/**** General Utilities ***/
+
+/* Like assert, but don't go away with optimizations */
+static void _check(int ok, int line) {
+  if (!ok) {
+    printf("At line %d, ABORTED (%s)!\n", line, strerror(errno));
+    sleep(1000);
+    abort();
+  }
+}
+#define check(ok) _check(ok, __LINE__)
+
+/* Opens /proc/%pid/%file */
+static int open_proc_file(pid_t pid, const char *file, int mode) {
+  char path[100];
+  int n = snprintf(path, sizeof(path), "/proc/%d/%s", pid, file);
+  check(n >= 0 && n < sizeof(path));
+  int fd = open(path, mode);
+  check(fd != -1);
+  return fd;
+}
+
+/**** 2: User namespaces
+ *
+ * For a general overview on user namespaces, see the corresponding manual page,
+ * user_namespaces(7). In general, user namespaces allow unprivileged users to
+ * run privileged executables, by rewriting uids inside the namespaces (and
+ * in particular, a user can be root inside the namespace, but not outside),
+ * with the kernel still enforcing, access protection as if the user was
+ * unprivilged (to all files and resources not created exclusively within the
+ * namespace). Absent kernel bugs, this provides relatively strong protections
+ * against misconfiguration (because no true privilege is ever bestowed upon
+ * the sandbox). It should be noted however, that there were such kernel bugs
+ * as recently as Feb 2016, so it is imperative that this is run on a recent and
+ * fully patched kernel.
+ */
+static void configure_user_namespace(pid_t pid) {
+  int nbytes = 0;
+
+  // Setup uid map
+  int uidmap_fd = open_proc_file(pid, "uid_map", O_WRONLY);
+  check(uidmap_fd != -1);
+  char uidmap[100];
+  nbytes = snprintf(uidmap, sizeof(uidmap), "0\t%d\t1", getuid());
+  check(nbytes > 0 && nbytes <= sizeof(uidmap));
+  check(write(uidmap_fd, uidmap, nbytes) == nbytes);
+  close(uidmap_fd);
+
+  // Deny setgroups
+  int setgroups_fd = open_proc_file(pid, "setgroups", O_WRONLY);
+  char deny[] = "deny";
+  check(write(setgroups_fd, deny, sizeof(deny)) == sizeof(deny));
+  close(setgroups_fd);
+
+  // Setup gid map
+  int gidmap_fd = open_proc_file(pid, "gid_map", O_WRONLY);
+  check(gidmap_fd != -1);
+  char gidmap[100];
+  nbytes = snprintf(gidmap, sizeof(gidmap), "0\t%d\t1", getgid());
+  check(nbytes > 0 && nbytes <= sizeof(gidmap));
+  check(write(gidmap_fd, gidmap, nbytes) == nbytes);
+}
+
+char *initial_script =
+    // Remount proc file system
+    "/bin/busybox mount -t proc proc /proc\n"
+    // Mount sandboxed pts devices
+    "/bin/busybox mount -t devpts -o newinstance jrunpts /dev/pts\n"
+    "/bin/busybox mount -o bind /dev/pts/ptmx /dev/ptmx\n";
+
+const char sandbox_root[] = "/data/keno/test/root";
+const char workdir[] = "/tmp";
+
+/* Sets up the jail, prepares the initial linux environment,
+   then execs busybox */
+static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
+  pid_t pid;
+  int status;
+  /// Setup file system
+  check(0 == mount(sandbox_root, "sandbox_root", "", MS_BIND | MS_RDONLY, NULL));
+  /// Bind host /dev/null in the sandbox
+  check(0 == mount("/dev/null", "sandbox_root/dev/null", "", MS_BIND, NULL));
+  /// Enter chroot
+  check(0 == chdir("sandbox_root"));
+  check(0 == chroot("."));
+  // Set up the environment
+  if ((pid = fork()) == 0) {
+    char *ie_argv[] = {"/bin/busybox", "sh", "-c", initial_script, 0};
+    execve("/bin/busybox", ie_argv, environ);
+    _exit(0);
+  }
+  check(pid > 1);
+  check(pid == waitpid(pid, &status, 0));
+  check(WIFEXITED(status));
+  int has_sandbox_arg = sandbox_argc > 1;
+  char *sandbox_arg = has_sandbox_arg ? sandbox_argv[1] : 0;
+  if (has_sandbox_arg) {
+    printf("Running %s\n", sandbox_arg);
+  }
+  char *argv[] = {"/bin/busybox", "sh", has_sandbox_arg ? "-c" : 0, sandbox_arg,
+                  0};
+  execve("/bin/busybox", argv, environ);
+  fputs("ERROR: Busybox not installed!\n", stderr);
+  _exit(1);
+}
+
+/******* Driver Code
+ * Not much to see here, just putting it all together.
+ */
+static void sigint_handler() { _exit(0); }
+
+int main(int sandbox_argc, char **sandbox_argv) {
+  int status;
+  pid_t pid;
+
+  // Use a pipe for synchronization. The regular SIGSTOP method does not work
+  // because container-inits don't receive STOP or KILL signals from within
+  // their own pid namespace.
+  int child_block[2], parent_block[2];
+  pipe(child_block);
+  pipe(parent_block);
+
+  if ((pid = syscall(SYS_clone, CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWUSER | SIGCHLD,
+                     0, 0, 0, 0)) == 0) {
+    close(child_block[1]);
+    close(parent_block[0]);
+    // N.B: Capabilities in the original user namespaces are now dropped
+    // The kernel may have decided to reset our dumpability, because of
+    // the privilege change. However, the parent needs to access our /proc
+    // entries (undumpable processes have /proc/%pid owned by root) in order
+    // to configure the sandbox, so reset dumpability.
+    prctl(PR_SET_DUMPABLE, 1, 0, 0, 0);
+
+    // Make sure ^C actually kills this process. By default init ignores
+    // all signals.
+    signal(SIGINT, sigint_handler);
+
+    // Tell the parent we're ready
+    close(parent_block[1]);
+
+    // This will block until the parent closes fds[1]
+    check(0 == read(child_block[0], NULL, 1));
+
+    sandbox_main(sandbox_argc, sandbox_argv);
+    return -1;
+  }
+  close(child_block[0]);
+  close(parent_block[1]);
+
+  // Wait until the child is ready to be configured.
+  check(0 == read(parent_block[0], NULL, 1));
+  printf("Child Process PID is %d\n", pid);
+
+  configure_user_namespace(pid);
+
+  // Resume the child
+  close(child_block[1]);
+  // Wait until the child exits.
+  check(pid == waitpid(pid, &status, 0));
+  check(WIFEXITED(status));
+
+  return 0;
+}
