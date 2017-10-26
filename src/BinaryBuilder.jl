@@ -8,6 +8,7 @@ using Reexport
 
 include("Auditor.jl")
 include("DockerRunner.jl")
+include("UserNSRunner.jl")
 include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")

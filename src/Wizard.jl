@@ -180,6 +180,33 @@ function provide_hints(path)
     end
 end
 
+function setup_workspace(build_path, state, platform, extra_env=Dict{String, String}())
+    # Use a random nonce to make detection of paths in embedded binary
+    # easier.
+    nonce = randstring()
+    mkdir(nonce); cd(nonce)
+
+    # We now set up two directories here, one as a source dir, one as
+    # a dest dir
+    mkdir("srcdir"); mkdir("destdir");
+
+    # Unpack the sources into the srcdir
+    for source in state.source_files
+        unpack(source, "srcdir")
+    end
+
+    prefix = Prefix(joinpath(pwd(), "destdir"))
+
+    ur = UserNSRunner(
+        workspace = build_path,
+        cwd = "/workspace/$nonce/srcdir",
+        platform = Linux(:x86_64),
+        extra_env = merge(extra_env,
+            Dict("DESTDIR" => "/workspace/$nonce/destdir")))
+
+    prefix, ur
+end
+
 function step34(state)
     print_with_color(:bold, "\t\t\t\# Step 3: Build for Linux x86_64\n\n")
 
@@ -194,72 +221,67 @@ function step34(state)
     build_path = tempname()
     mkpath(build_path)
     cd(build_path) do
-        temp_prefix() do prefix
-            histfile = joinpath(build_path, ".bash_history")
-            dr = DockerRunner(prefix = prefix, platform = Linux(:x86_64),
-                extra_env = Dict("HISTFILE" => histfile))
-            println()
-            for source in state.source_files
-                unpack(source, build_path)
+        histfile = joinpath(build_path, ".bash_history")
+        prefix, ur = setup_workspace(build_path, state, Linux(:x86_64),
+            Dict("HISTFILE"=>"/workspace/.bash_history"))
+
+        provide_hints(joinpath(pwd(), "srcdir"))
+        runshell(ur)
+
+        # This is an extremely simplistic way to capture the history,
+        # but ok for now. Obviously doesn't include any interactive
+        # programs, etc.
+        state.history = readstring(histfile)
+
+        print_with_color(:bold, "\n\t\t\tBuild complete\n\n")
+        print("Your build script was:\n\n\t")
+        print(replace(state.history, "\n", "\n\t"))
+
+        print_with_color(:bold, "\n\t\t\tAnalyzing...\n\n")
+
+        audit(prefix; platform=Linux(:x86_64), verbose=true, autofix=false)
+
+        println()
+        print_with_color(:bold, "\t\t\t\# Step 4: Select build products\n\n")
+
+
+        # Collect all executable/library files
+        files = collapse_symlinks(collect_files(prefix))
+
+        # Check if we can load them as an object file
+        files = filter(files) do f
+            try
+                readmeta(f)
+                return true
+            catch
+                return false
             end
-            provide_hints(build_path)
-            runshell(dr)
-
-            # This is an extremely simplistic way to capture the history,
-            # but ok for now. Obviously doesn't include any interactive
-            # programs, etc.
-            state.history = readstring(histfile)
-
-            print_with_color(:bold, "\n\t\t\tBuild complete\n\n")
-            print("Your build script was:\n\n\t")
-            print(replace(state.history, "\n", "\n\t"))
-
-            print_with_color(:bold, "\n\t\t\tAnalyzing...\n\n")
-
-            audit(prefix; platform=Linux(:x86_64), verbose=true, autofix=false)
-
-            println()
-            print_with_color(:bold, "\t\t\t\# Step 4: Select build products\n\n")
-
-
-            # Collect all executable/library files
-            files = collapse_symlinks(collect_files(prefix))
-
-            # Check if we can load them as an object file
-            files = filter(files) do f
-                try
-                    readmeta(f)
-                    return true
-                catch
-                    return false
-                end
-            end
-
-            state.files = map(file->replace(file, prefix.path, ""), files)
-            state.file_kinds = map(files) do f
-                h = readmeta(f)
-                isexecutable(h) ? :executable :
-                islibrary(h) ? :library : :other
-            end
-
-            if length(files) == 0
-                # TODO: Make this a regular error path
-                error("No build")
-            elseif length(files) == 1
-                println("The build has produced only one build artifact:\n")
-                println("\t$(state.files[1])")
-            else
-                println("The build has produced several libraries and executables.")
-                println("Please select which of these you want to consider `products`.")
-                println("These are generally those artifacts you will load or use from julia.")
-                selected = collect(request("",
-                    MultiSelectMenu(state.files)))
-                state.file_kinds = map(x->state.file_kinds[x], selected)
-                state.files = map(x->state.files[x], selected)
-            end
-
-            println()
         end
+
+        state.files = map(file->replace(file, prefix.path, ""), files)
+        state.file_kinds = map(files) do f
+            h = readmeta(f)
+            isexecutable(h) ? :executable :
+            islibrary(h) ? :library : :other
+        end
+
+        if length(files) == 0
+            # TODO: Make this a regular error path
+            error("No build")
+        elseif length(files) == 1
+            println("The build has produced only one build artifact:\n")
+            println("\t$(state.files[1])")
+        else
+            println("The build has produced several libraries and executables.")
+            println("Please select which of these you want to consider `products`.")
+            println("These are generally those artifacts you will load or use from julia.")
+            selected = collect(request("",
+                MultiSelectMenu(state.files)))
+            state.file_kinds = map(x->state.file_kinds[x], selected)
+            state.files = map(x->state.files[x], selected)
+        end
+
+        println()
     end
 end
 
@@ -284,20 +306,15 @@ function step5a(state)
     build_path = tempname()
     mkpath(build_path)
     cd(build_path) do
-        temp_prefix() do prefix
-            dr = DockerRunner(prefix = prefix, platform = Windows(:x86_64))
-            for source in state.source_files
-                unpack(source, build_path)
-            end
+        prefix, ur = setup_workspace(build_path, state, Windows(:x86_64))
 
-            run(dr, `bash -c $(state.history)`, "/tmp/out.log"; verbose=true)
+        run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=true)
 
-            print_with_color(:bold, "\n\t\t\tBuild complete. Analyzing...\n\n")
+        print_with_color(:bold, "\n\t\t\tBuild complete. Analyzing...\n\n")
 
-            audit(prefix; platform=Windows(:x86_64), verbose=true, autofix=false)
+        audit(prefix; platform=Windows(:x86_64), verbose=true, autofix=false)
 
-            match_files(prefix, Windows(:x86_64), state.files)
-        end
+        match_files(prefix, Windows(:x86_64), state.files)
     end
 
     println("")
@@ -320,20 +337,15 @@ function step5b(state)
     build_path = tempname()
     mkpath(build_path)
     cd(build_path) do
-        temp_prefix() do prefix
-            dr = DockerRunner(prefix = prefix, platform = Linux(:aarch64))
-            for source in state.source_files
-                unpack(source, build_path)
-            end
+        prefix, ur = setup_workspace(build_path, state, Linux(:aarch64))
 
-            run(dr, `bash -c $(state.history)`, "/tmp/out.log"; verbose=true)
+        run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=true)
 
-            print_with_color(:bold, "\n\t\t\tBuild complete. Analyzing...\n\n")
+        print_with_color(:bold, "\n\t\t\tBuild complete. Analyzing...\n\n")
 
-            audit(prefix; platform=Linux(:aarch64), verbose=true, autofix=false)
+        audit(prefix; platform=Linux(:aarch64), verbose=true, autofix=false)
 
-            match_files(prefix, Linux(:aarch64), state.files)
-        end
+        match_files(prefix, Linux(:aarch64), state.files)
     end
 
     println("")
@@ -356,18 +368,13 @@ function step5c(state)
         build_path = tempname()
         mkpath(build_path)
         cd(build_path) do
-            temp_prefix() do prefix
-                dr = DockerRunner(prefix = prefix, platform = platform)
-                for source in state.source_files
-                    unpack(source, build_path)
-                end
+            prefix, ur = setup_workspace(build_path, state, platform)
 
-                run(dr, `bash -c $(state.history)`, "/tmp/out.log"; verbose=false)
+            run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=false)
 
-                audit(prefix; platform=platform, verbose=false, autofix=false)
+            audit(prefix; platform=platform, verbose=false, autofix=false)
 
-                match_files(prefix, platform, state.files)
-            end
+            match_files(prefix, platform, state.files)
         end
         print("[")
         print_with_color(:green, "✓")
