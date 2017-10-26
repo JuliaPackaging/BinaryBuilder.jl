@@ -104,21 +104,31 @@ char *initial_script =
     "/bin/busybox mount -t devpts -o newinstance jrunpts /dev/pts\n"
     "/bin/busybox mount -o bind /dev/pts/ptmx /dev/ptmx\n";
 
-const char sandbox_root[] = "/data/keno/test/root";
-const char workdir[] = "/tmp";
+// Options (gets filled in by driver code)
+char *sandbox_root = NULL;
+char *workspace = NULL;
+char *new_cd = NULL;
 
 /* Sets up the jail, prepares the initial linux environment,
    then execs busybox */
 static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   pid_t pid;
   int status;
-  /// Setup file system
+  check(sandbox_root != NULL);
+  /// Setup the root file system
   check(0 == mount(sandbox_root, "sandbox_root", "", MS_BIND | MS_RDONLY, NULL));
+  /// Setup the workspace
+  if (workspace) {
+    check(0 == mount(workspace, "sandbox_root/workspace", "", MS_BIND, NULL));
+  }
   /// Bind host /dev/null in the sandbox
   check(0 == mount("/dev/null", "sandbox_root/dev/null", "", MS_BIND, NULL));
   /// Enter chroot
   check(0 == chdir("sandbox_root"));
   check(0 == chroot("."));
+  if (new_cd) {
+    check(0 == chdir(new_cd));
+  }
   // Set up the environment
   if ((pid = fork()) == 0) {
     char *ie_argv[] = {"/bin/busybox", "sh", "-c", initial_script, 0};
@@ -128,16 +138,17 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   check(pid > 1);
   check(pid == waitpid(pid, &status, 0));
   check(WIFEXITED(status));
-  int has_sandbox_arg = sandbox_argc > 1;
-  char *sandbox_arg = has_sandbox_arg ? sandbox_argv[1] : 0;
-  if (has_sandbox_arg) {
-    printf("Running %s\n", sandbox_arg);
+  if (sandbox_argc == 0) {
+    char *argv[] = {"/bin/busybox", "sh", 0};
+    execve("/bin/busybox", argv, environ);
+    fputs("ERROR: Busybox not installed!\n", stderr);
+    _exit(1);
+  } else {
+    fprintf(stderr, "About to run %s\n", sandbox_argv[0]);
+    execve(sandbox_argv[0], sandbox_argv, environ);
+    fputs("ERROR: Failed to run specified command!\n", stderr);
+    _exit(1);
   }
-  char *argv[] = {"/bin/busybox", "sh", has_sandbox_arg ? "-c" : 0, sandbox_arg,
-                  0};
-  execve("/bin/busybox", argv, environ);
-  fputs("ERROR: Busybox not installed!\n", stderr);
-  _exit(1);
 }
 
 /******* Driver Code
@@ -148,6 +159,36 @@ static void sigint_handler() { _exit(0); }
 int main(int sandbox_argc, char **sandbox_argv) {
   int status;
   pid_t pid;
+
+  pid_t pgrp = getpgid(0);
+
+  // Skip the wrapper
+  sandbox_argv += 1;
+  sandbox_argc -= 1;
+
+  // Probably should replace this by proper argument parsing (or just make this a library)
+  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--rootfs") == 0) {
+    sandbox_root = strdup(sandbox_argv[1]);
+    sandbox_argv += 2;
+    sandbox_argc -= 2;
+  }
+
+  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--workspace") == 0) {
+    workspace = strdup(sandbox_argv[1]);
+    sandbox_argv += 2;
+    sandbox_argc -= 2;
+  }
+
+  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--cd") == 0) {
+    new_cd = strdup(sandbox_argv[1]);
+    sandbox_argv += 2;
+    sandbox_argc -= 2;
+  }
+
+  if (sandbox_argc == 0 || !sandbox_root) {
+    fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] [--cd <dir>] <cmd>\n", stderr);
+    return 1;
+  }
 
   // Use a pipe for synchronization. The regular SIGSTOP method does not work
   // because container-inits don't receive STOP or KILL signals from within
@@ -194,6 +235,10 @@ int main(int sandbox_argc, char **sandbox_argv) {
   // Wait until the child exits.
   check(pid == waitpid(pid, &status, 0));
   check(WIFEXITED(status));
+
+  // Give back the terminal to the parent
+  signal(SIGTTOU, SIG_IGN);
+  tcsetpgrp(0, pgrp);
 
   return 0;
 }
