@@ -24,25 +24,19 @@ function autobuild(dir, src_name, platforms, sources, script, products)
         try mkpath(build_path) end
 
         cd(build_path) do
-            # For each build, create a temporary prefix we'll install into, then package up
-            temp_prefix() do prefix
-                for src_path in src_paths
-                    # Unpack the source into our build directory
-                    unpack(src_path, build_path; verbose=true)
-                end
+            prefix, ur = setup_workspace(build_path, src_paths, platform; verbose=true)
 
-                prdcts = products(prefix)
+            prdcts = products(prefix)
 
-                # Build the script
-                steps = [`bash -c $script`]
+            # Build the script
+            steps = [`/bin/bash -c $script`]
 
-                dep = Dependency(src_name, prdcts, steps, platform, prefix)
-                build(dep; verbose=true, autofix=true)
+            dep = Dependency(src_name, prdcts, steps, platform, prefix)
+            build(ur, dep; verbose=true, autofix=true)
 
-                # Once we're built up, go ahead and package this prefix out
-                tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=true)
-                product_hashes[target] = (basename(tarball_path), tarball_hash)
-            end
+            # Once we're built up, go ahead and package this prefix out
+            tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=true)
+            product_hashes[target] = (basename(tarball_path), tarball_hash)
         end
 
         # Finally, destroy the build_path

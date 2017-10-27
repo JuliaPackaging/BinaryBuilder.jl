@@ -180,7 +180,7 @@ function provide_hints(path)
     end
 end
 
-function setup_workspace(build_path, state, platform, extra_env=Dict{String, String}())
+function setup_workspace(build_path, src_paths, platform, extra_env=Dict{String, String}(); verbose=false)
     # Use a random nonce to make detection of paths in embedded binary
     # easier.
     nonce = randstring()
@@ -191,8 +191,8 @@ function setup_workspace(build_path, state, platform, extra_env=Dict{String, Str
     mkdir("srcdir"); mkdir("destdir");
 
     # Unpack the sources into the srcdir
-    for source in state.source_files
-        unpack(source, "srcdir")
+    for src_path in src_paths
+        unpack(src_path, "srcdir")
     end
 
     prefix = Prefix(joinpath(pwd(), "destdir"))
@@ -222,7 +222,7 @@ function step34(state)
     mkpath(build_path)
     cd(build_path) do
         histfile = joinpath(build_path, ".bash_history")
-        prefix, ur = setup_workspace(build_path, state, Linux(:x86_64),
+        prefix, ur = setup_workspace(build_path, state.source_files, Linux(:x86_64),
             Dict("HISTFILE"=>"/workspace/.bash_history"))
 
         provide_hints(joinpath(pwd(), "srcdir"))
@@ -306,7 +306,7 @@ function step5a(state)
     build_path = tempname()
     mkpath(build_path)
     cd(build_path) do
-        prefix, ur = setup_workspace(build_path, state, Windows(:x86_64))
+        prefix, ur = setup_workspace(build_path, state.source_files, Windows(:x86_64))
 
         run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=true)
 
@@ -337,7 +337,7 @@ function step5b(state)
     build_path = tempname()
     mkpath(build_path)
     cd(build_path) do
-        prefix, ur = setup_workspace(build_path, state, Linux(:aarch64))
+        prefix, ur = setup_workspace(build_path, state.source_files, Linux(:aarch64))
 
         run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=true)
 
@@ -368,7 +368,7 @@ function step5c(state)
         build_path = tempname()
         mkpath(build_path)
         cd(build_path) do
-            prefix, ur = setup_workspace(build_path, state, platform)
+            prefix, ur = setup_workspace(build_path, state.source_files, platform)
 
             run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=false)
 
@@ -419,7 +419,7 @@ function step6(state)
     platforms = $platforms_string
     sources = $sources_string
 
-    script = \"\"\"
+    script = raw\"\"\"
     $(state.history)
     \"\"\"
 

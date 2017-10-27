@@ -7,7 +7,7 @@ using Reexport
 @reexport using BinaryProvider
 
 include("Auditor.jl")
-include("DockerRunner.jl")
+include("Runner.jl")
 include("UserNSRunner.jl")
 include("Dependency.jl")
 include("AutoBuild.jl")

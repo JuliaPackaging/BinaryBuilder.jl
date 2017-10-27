@@ -35,7 +35,7 @@ function show(io::IO, x::UserNSRunner)
           "UserNSRunner")
 end
 
-function run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false)
+function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false)
     cd(dirname(sandbox_path))
     oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $cmd`, ur.sandbox_cmd.env); verbose=verbose)
 
