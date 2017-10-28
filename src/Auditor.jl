@@ -22,11 +22,12 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(prefix::Prefix; platform::Platform = platform_key(),
+function audit(prefix::Prefix; io=STDERR,
+                               platform::Platform = platform_key(),
                                verbose::Bool = false,
                                autofix::Bool = false)
     if verbose
-        info("Beginning audit of $(prefix.path)")
+        info(io, "Beginning audit of $(prefix.path)")
     end
 
     # If this is false then it's bedtime for bonzo boy
@@ -42,7 +43,7 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
         catch
             # If this isn't an actual binary file, skip it
             if verbose
-                info("Skipping binary analysis of $(relpath(f, prefix.path))")
+                info(io, "Skipping binary analysis of $(relpath(f, prefix.path))")
             end
             continue
         end
@@ -52,7 +53,7 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
             msg = strip("""
             Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
             """)
-            info(msg)
+            info(io, msg)
         end
 
         # Look at every non-default dynamic link
@@ -74,14 +75,14 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
                             Linked library $(libname) has been auto-mapped to
                             $(new_link)
                             """, '\n', ' ')
-                            info(strip(msg))
+                            info(io, strip(msg))
                         end
                     else
                         msg = replace("""
                         Linked library $(libname) could not be resolved and
                         could not be auto-mapped
                         """, '\n', ' ')
-                        warn(strip(msg))
+                        warn(io, strip(msg))
                         all_ok = false
                     end
                 else
@@ -89,7 +90,7 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
                     Linked library $(libname) could not be resolved within
                     the given prefix
                     """, '\n', ' ')
-                    warn(strip(msg))
+                    warn(io, strip(msg))
                     all_ok = false
                 end
             elseif !startswith(libs[libname], prefix.path)
@@ -97,7 +98,7 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
                 Linked library $(libname) (resolved path $(libs[libname]))
                 is not within the given prefix
                 """, '\n', ' ')
-                warn(strip(msg))
+                warn(io, strip(msg))
                 all_ok = false
             end
         end
@@ -112,14 +113,14 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
 
         for f in shlib_files
             if verbose
-                info("Checking shared library $(relpath(f, prefix.path))")
+                info(io, "Checking shared library $(relpath(f, prefix.path))")
             end
             hdl = Libdl.dlopen_e(f)
             if hdl == C_NULL
                 # TODO: Use the relevant ObjFileBase packages to inspect why this
                 # file is being nasty to us.
 
-                warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 all_ok = false
             else
                 Libdl.dlclose(hdl)
@@ -138,7 +139,7 @@ function audit(prefix::Prefix; platform::Platform = platform_key(),
     for f in all_files
         file_contents = readstring(f)
         if contains(file_contents, prefix.path)
-            warn("$(relpath(f, prefix.path)) contains an absolute path")
+            warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
         end
     end
 

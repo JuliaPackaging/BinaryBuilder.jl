@@ -35,13 +35,13 @@ function show(io::IO, x::UserNSRunner)
           "UserNSRunner")
 end
 
-function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false)
+function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
     cd(dirname(sandbox_path))
-    oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $cmd`, ur.sandbox_cmd.env); verbose=verbose)
+    oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $cmd`, ur.sandbox_cmd.env); verbose=verbose, tee_stream=tee_stream)
 
     did_succeed = wait(oc)
 
-    # Write out the logfile, regardless of whether it was successful or not 
+    # Write out the logfile, regardless of whether it was successful or not
     mkpath(dirname(logpath))
     open(logpath, "w") do f
         # First write out the actual command, then the command output
@@ -53,7 +53,17 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
     return did_succeed
 end
 
-function runshell(ur::UserNSRunner)
+function runshell(ur::UserNSRunner, stdin = nothing, stdout = nothing, stderr = nothing)
     cd(dirname(sandbox_path))
-    run(setenv(`$(ur.sandbox_cmd) /bin/bash`, ur.sandbox_cmd.env))
+    cmd = setenv(`$(ur.sandbox_cmd) /bin/bash`, ur.sandbox_cmd.env)
+    if stdin != nothing
+        cmd = pipeline(cmd, stdin=stdin)
+    end
+    if stdout != nothing
+        cmd = pipeline(cmd, stdout=stdout)
+    end
+    if stderr != nothing
+        cmd = pipeline(cmd, stderr=stderr)
+    end
+    run(cmd)
 end
