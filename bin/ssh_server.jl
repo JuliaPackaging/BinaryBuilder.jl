@@ -10,7 +10,7 @@ sock = listen(port)
 pubkey_to_user_map = Dict{Vector{UInt8}, String}()
 user_to_pubkey_map = Dict{String, Vector{UInt8}}()
 
-const github_token = readstromg(joinpath(dirname(@__FILE__),"..","etc","github_tok"))
+const github_token = strip(readstring(joinpath(dirname(@__FILE__),"..","etc","github_tok")))
 auth = GitHub.authenticate(github_token)
 
 tx = "\033[0m\033[0m" # text

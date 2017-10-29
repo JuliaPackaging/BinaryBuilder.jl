@@ -324,7 +324,7 @@ function step5a(state)
     cd(build_path) do
         prefix, ur = setup_workspace(build_path, state.source_files, Windows(:x86_64))
 
-        run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=true, tee_stream=state.outs)
+        run(ur, `/bin/bash -c $(state.history)`, joinpath(build_path,"out.log"); verbose=true, tee_stream=state.outs)
 
         print_with_color(:bold, state.outs, "\n\t\t\tBuild complete. Analyzing...\n\n")
 
@@ -356,7 +356,7 @@ function step5b(state)
     cd(build_path) do
         prefix, ur = setup_workspace(build_path, state.source_files, Linux(:aarch64))
 
-        run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=true, tee_stream=state.outs)
+        run(ur, `/bin/bash -c $(state.history)`, joinpath(build_path,"out.log"); verbose=true, tee_stream=state.outs)
 
         print_with_color(:bold, state.outs, "\n\t\t\tBuild complete. Analyzing...\n\n")
 
@@ -388,7 +388,7 @@ function step5c(state)
         cd(build_path) do
             prefix, ur = setup_workspace(build_path, state.source_files, platform)
 
-            run(ur, `/bin/bash -c $(state.history)`, "/tmp/out.log"; verbose=false, tee_stream=state.outs)
+            run(ur, `/bin/bash -c $(state.history)`, joinpath(build_path,"out.log"); verbose=false, tee_stream=state.outs)
 
             audit(prefix; io=state.outs,
                 platform=platform, verbose=false, autofix=false)
