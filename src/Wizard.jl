@@ -215,7 +215,8 @@ function setup_workspace(build_path, src_paths, platform, extra_env=Dict{String,
         cwd = "/workspace/$nonce/srcdir",
         platform = Linux(:x86_64),
         extra_env = merge(extra_env,
-            Dict("DESTDIR" => "/workspace/$nonce/destdir")))
+            Dict("DESTDIR" => "/workspace/$nonce/destdir",
+                 "WORKSPACE" => "/workspace/$nonce")))
 
     prefix, ur
 end
@@ -233,71 +234,114 @@ function step34(state)
 
     build_path = tempname()
     mkpath(build_path)
+    history = ""
     cd(build_path) do
         histfile = joinpath(build_path, ".bash_history")
         prefix, ur = setup_workspace(build_path, state.source_files, Linux(:x86_64),
             Dict("HISTFILE"=>"/workspace/.bash_history"))
-
         provide_hints(state, joinpath(pwd(), "srcdir"))
-        runshell(ur, state.ins, state.outs, state.outs)
 
-        # This is an extremely simplistic way to capture the history,
-        # but ok for now. Obviously doesn't include any interactive
-        # programs, etc.
-        state.history = readstring(histfile)
+        while true
+            runshell(ur, state.ins, state.outs, state.outs)
 
-        print_with_color(:bold, state.outs, "\n\t\t\tBuild complete\n\n")
-        print(state.outs, "Your build script was:\n\n\t")
-        print(state.outs, replace(state.history, "\n", "\n\t"))
-
-        print_with_color(:bold, state.outs, "\n\t\t\tAnalyzing...\n\n")
-
-        audit(prefix; io=state.outs,
-            platform=Linux(:x86_64), verbose=true, autofix=false)
-
-        println(state.outs)
-        print_with_color(:bold, state.outs, "\t\t\t\# Step 4: Select build products\n\n")
-
-
-        # Collect all executable/library files
-        files = collapse_symlinks(collect_files(prefix))
-
-        # Check if we can load them as an object file
-        files = filter(files) do f
-            try
-                readmeta(f)
-                return true
-            catch
-                return false
+            # This is an extremely simplistic way to capture the history,
+            # but ok for now. Obviously doesn't include any interactive
+            # programs, etc.
+            if isfile(histfile)
+                history = string(history,
+                    # This is a bit of a hack for now to get around the fact
+                    # that we don't know cwd when we get back from bash, but
+                    # always start in the WORKSPACE. This makes sure the script
+                    # accurately reflects that.
+                    "cd \$WORKSPACE/srcdir\n",
+                    readstring(histfile))
+                rm(histfile)
             end
-        end
 
-        state.files = map(file->replace(file, prefix.path, ""), files)
-        state.file_kinds = map(files) do f
-            h = readmeta(f)
-            isexecutable(h) ? :executable :
-            islibrary(h) ? :library : :other
-        end
+            print_with_color(:bold, state.outs, "\n\t\t\tBuild complete\n\n")
+            print(state.outs, "Your build script was:\n\n\t")
+            print(state.outs, replace(history, "\n", "\n\t"))
 
-        if length(files) == 0
-            # TODO: Make this a regular error path
-            error("No build")
-        elseif length(files) == 1
-            println(state.outs, "The build has produced only one build artifact:\n")
-            println(state.outs, "\t$(state.files[1])")
-        else
-            println(state.outs, "The build has produced several libraries and executables.")
-            println(state.outs, "Please select which of these you want to consider `products`.")
-            println(state.outs, "These are generally those artifacts you will load or use from julia.")
-            selected = collect(request(
-                Base.Terminals.TTYTerminal("xterm", state.ins, state.outs, state.outs),
-                "",
-                MultiSelectMenu(state.files)))
-            state.file_kinds = map(x->state.file_kinds[x], selected)
-            state.files = map(x->state.files[x], selected)
-        end
+            print_with_color(:bold, state.outs, "\n\t\t\tAnalyzing...\n\n")
 
-        println(state.outs)
+            audit(prefix; io=state.outs,
+                platform=Linux(:x86_64), verbose=true, autofix=false)
+
+            println(state.outs)
+            print_with_color(:bold, state.outs, "\t\t\t\# Step 4: Select build products\n\n")
+
+
+            # Collect all executable/library files
+            files = collapse_symlinks(collect_files(prefix))
+
+            # Check if we can load them as an object file
+            files = filter(files) do f
+                try
+                    readmeta(f)
+                    return true
+                catch
+                    return false
+                end
+            end
+
+            state.files = map(file->replace(file, prefix.path, ""), files)
+            state.file_kinds = map(files) do f
+                h = readmeta(f)
+                isexecutable(h) ? :executable :
+                islibrary(h) ? :library : :other
+            end
+            
+            terminal = Base.Terminals.TTYTerminal("xterm", state.ins, state.outs, state.outs)
+
+            if length(files) == 0
+                # TODO: Make this a regular error path
+                print_with_color(:red, state.outs, "ERROR: ")
+                println(state.outs, "The build has produced no binary artifacts.")
+                println(state.outs, " "^7, "This is generally because an error occured during the build")
+                println(state.outs, " "^7, "or because you forgot to `make install` or equivalent.")
+                println(state.outs)
+                
+                choice = request(terminal, "How would you like to proceed?",
+                    RadioMenu([
+                        "Return to build enviornment",
+                        "Retry with a clean build enviornment",
+                        "Edit the script"
+                    ]))
+                println()
+                
+                if choice == 1
+                    continue
+                elseif choice == 2
+                    state.step = :step3
+                    return
+                elseif choice == 3
+                    error("Not implemented yet")
+                end
+                
+                return
+            elseif length(files) == 1
+                println(state.outs, "The build has produced only one build artifact:\n")
+                println(state.outs, "\t$(state.files[1])")
+            else
+                println(state.outs, "The build has produced several libraries and executables.")
+                println(state.outs, "Please select which of these you want to consider `products`.")
+                println(state.outs, "These are generally those artifacts you will load or use from julia.")
+                selected = collect(request(
+                    terminal,
+                    "",
+                    MultiSelectMenu(state.files)))
+                state.file_kinds = map(x->state.file_kinds[x], selected)
+                state.files = map(x->state.files[x], selected)
+            end
+            
+            state.history = history
+            
+            # Advance to next step
+            state.step = :step5a
+
+            println(state.outs)
+            return
+        end
     end
 end
 
@@ -499,7 +543,6 @@ function run_wizard(state = State())
                 state.step = :step3
             elseif state.step == :step3
                 step34(state)
-                state.step = :step5a
             elseif state.step == :step5a
                 step5a(state)
                 state.step = :step5b
