@@ -1,10 +1,11 @@
 using GitHub
 using SSH
 using BinaryBuilder
+using JSON
 
 eval(Base, :(have_color = true))
 
-port = 2222
+port = parse(Int, get(ENV, "BINBUILDER_PORT", "2222"))
 sock = listen(port)
 
 pubkey_to_user_map = Dict{Vector{UInt8}, String}()
@@ -23,9 +24,9 @@ d4 = "\033[35m" # fourth dot
 const banner =
 """
 
-   $(d3)⬤$(tx)     | JuliaLang Binary Builder
- $(d2)⬤$(tx)  $(d4)⬤$(tx)   | JuliaPackaging/BinaryBuilder.jl
-   $(d1)⬤$(tx)     | Please file issues for any problems you encounter
+   $(d3)⬤$(tx)     | JuliaLang Binary Builder (JuliaPackaging/BinaryBuilder.jl)
+ $(d2)⬤$(tx)   $(d4)⬤$(tx)   | Please file issues for any problems you encounter
+   $(d1)⬤$(tx)     | Your call may be monitored for quality assurance.
 """
 
 function enter_main(tty)
@@ -140,25 +141,52 @@ while true
                 end
                 println("Waiting to PTY request")
                 @async begin wait(c)
-                    slave, master, masterfd = open_fake_pty()
-                    new_termios = Ref{SSH.termios}()
-                    systemerror("tcgetattr",
-                        -1 == ccall(:tcgetattr, Cint, (Cint, Ptr{Void}), slave, new_termios))
-                    new_termios[] = SSH.decode_modes(encoded_termios, new_termios[])
-                    systemerror("tcsetattr",
-                        -1 == ccall(:tcsetattr, Cint, (Cint, Cint, Ptr{Void}), slave, 0, new_termios))
-                    new_termios = Ref{SSH.termios}()
-                    @async while true
-                        write(channel, readavailable(master))
+                    asciicast_io = IOBuffer()
+                    starttime = now()
+                    println(asciicast_io, JSON.json(Dict(
+                        "version" => 2,
+                        "timestamp" => trunc(Int64,Dates.datetime2unix(starttime)),
+                        "title" => "BinaryBuilder.jl session",
+                    )))
+                    try
+                        slave, master, masterfd = open_fake_pty()
+                        new_termios = Ref{SSH.termios}()
+                        systemerror("tcgetattr",
+                            -1 == ccall(:tcgetattr, Cint, (Cint, Ptr{Void}), slave, new_termios))
+                        new_termios[] = SSH.decode_modes(encoded_termios, new_termios[])
+                        systemerror("tcsetattr",
+                            -1 == ccall(:tcsetattr, Cint, (Cint, Cint, Ptr{Void}), slave, 0, new_termios))
+                        new_termios = Ref{SSH.termios}()
+                        @async while true
+                            data = readavailable(master)
+                            print(asciicast_io, "[", (now()-starttime).value/1000, ", \"o\", \"")
+                            for c in String(data)
+                                if c == '\\' || c == '"'
+                                    print(asciicast_io, '\\')
+                                    print(asciicast_io, c)
+                                elseif isprint(c)
+                                    print(asciicast_io, c)
+                                else
+                                    print(asciicast_io, "\\u")
+                                    print(asciicast_io, hex(c, 4))
+                                end
+                            end
+                            println(asciicast_io, "\"]")
+                            write(channel, data)
+                        end
+                        @async while true
+                            data = readavailable(channel)
+                            write(master, data)
+                        end
+                        tty = Base.TTY(slave, readable = true)
+                        println("Entering main loop")
+                        enter_main(tty)
+                    finally
+                        open(joinpath(dirname(@__FILE__),"..","logs",string(randstring(),".cast")), "w") do f
+                            write(f, take!(asciicast_io))
+                        end
+                        try; SSH.disconnect(channel.session); end
                     end
-                    @async while true
-                        data = readavailable(channel)
-                        write(master, data)
-                    end
-                    tty = Base.TTY(slave, readable = true)
-                    println("Entering main loop")
-                    enter_main(tty)
-                    SSH.disconnect(channel.session)
                 end
             end
         end
