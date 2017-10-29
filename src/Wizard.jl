@@ -253,7 +253,7 @@ function setup_workspace(build_path, src_paths, platform, extra_env=Dict{String,
     ur = UserNSRunner(
         workspace = build_path,
         cwd = "/workspace/$nonce/srcdir",
-        platform = Linux(:x86_64),
+        platform = platform,
         extra_env = merge(extra_env,
             Dict("DESTDIR" => "/workspace/$nonce/destdir",
                  "WORKSPACE" => "/workspace/$nonce")))
@@ -336,10 +336,6 @@ function step4(state, ur, build_path, prefix)
 end
 
 function step3_audit(prefix, state, history)
-    print_with_color(:bold, state.outs, "\n\t\t\tBuild complete\n\n")
-    print(state.outs, "Your build script was:\n\n\t")
-    print(state.outs, replace(history, "\n", "\n\t"))
-
     print_with_color(:bold, state.outs, "\n\t\t\tAnalyzing...\n\n")
 
     audit(prefix; io=state.outs,
@@ -366,9 +362,25 @@ function step3_interactive(ur, build_path, prefix, state)
         rm(histfile)
     end
 
-    step3_audit(prefix, state, state.history)
+    print_with_color(:bold, state.outs, "\n\t\t\tBuild complete\n\n")
+    print(state.outs, "Your build script was:\n\n\t")
+    print(state.outs, replace(state.history, "\n", "\n\t"))
+    println(state.outs)
 
-    return step4(state, ur, build_path, prefix)
+    if yn_prompt(state, "Would you like to edit this script now?", :n) == :y
+        state.history = edit_script(state, state.history)
+        
+        println(state.outs)
+        println(state.outs,
+            "We will now re-build with your new script to make it still works.")
+        println(state.outs)
+        
+        state.step = :step3_retry
+    else
+        step3_audit(prefix, state, state.history)
+
+        return step4(state, ur, build_path, prefix)
+    end
 end
 
 function step3_retry(state)
@@ -487,20 +499,16 @@ function step5a(state)
     println(state.outs, "We will now attempt to use the same script to build for other architectures.")
     println(state.outs, "This will likely fail, but the failure mode will help us understand why.")
 
-    if step5_internal(state, Windows(:x86_64), """
-    .\n This will help iron out any issues
-    with the cross compiler
-    """)
+    if step5_internal(state, Windows(:x86_64),
+        ".\n This will help iron out any issues\nwith the cross compiler")
         state.step = :step5b
         # Otherwise go around again
     end
 end
 
 function step5b(state)
-    if step5_internal(state, Linux(:aarch64), """
-    .\n This should uncover issues related
-    to architecture differences.
-    """)
+    if step5_internal(state, Linux(:aarch64),
+    ".\n This should uncover issues related\nto architecture differences.")
         state.step = :step5c
     end
 end
@@ -575,10 +583,14 @@ function step6(state)
         state.step = :step7
     elseif choice == 2
         plats = collect(state.failed_platforms)
-        choice = request(terminal,
-            "Which platform would you like to revisit?",
-            RadioMenu(map(repr, plats)))
-        println(state.outs)
+        if length(plats) > 1
+            choice = request(terminal,
+                "Which platform would you like to revisit?",
+                RadioMenu(map(repr, plats)))
+            println(state.outs)
+        else
+            choice = 1
+        end
         if step5_internal(state, plats[choice], ". ")
             delete!(state.failed_platforms, plats[choice])
         end
