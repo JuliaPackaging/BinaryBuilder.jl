@@ -1,6 +1,40 @@
 export audit, collect_files, collapse_symlinks
 
 using ObjectFile
+using ObjectFile.ELF
+
+function is_for_platform(h, platform)
+    if platform isa Linux
+        h isa ObjectFile.ELFHandle || return false
+        (h.ei.osabi == ELF.ELFOSABI_LINUX ||
+         h.ei.osabi == ELF.ELFOSABI_NONE) || return false
+        mach = h.header.e_machine
+        if platform.arch == :i686
+            return mach == ELF.EM_386
+        elseif platform.arch == :x86_64
+            # Allow i686 as well, because that's technically ok
+            return (
+                mach == ELF.EM_386 ||
+                mach == ELF.EM_X86_64)
+        elseif platform.arch == :aarch64
+            return mach == ELF.EM_AARCH64
+        elseif platform.arch == :powerpc64le || platform.arch == :ppc64le
+            return mach == ELF.EM_PPC64
+        elseif platform.arch == :armv7l
+            return mach == ELF.EM_ARM
+        else
+            error("Unknown architecture")
+        end
+    elseif platform isa Windows
+        h isa ObjectFile.COFFHandle || return false
+        return true
+    elseif platform isa MacOS
+        h isa ObjectFile.MachOHandle || return false
+        return true
+    else
+        error("Unkown platform")
+    end
+end
 
 # AUDITOR TODO LIST:
 #
@@ -10,6 +44,7 @@ using ObjectFile
 """
     audit(prefix::Prefix; platform::Platform = platform_key();
                           verbose::Bool = false,
+                          silent::Bool = false,
                           autofix::Bool = false)
 
 Audits a prefix to attempt to find deployability issues with the binary objects
@@ -25,6 +60,7 @@ and is not currently in the realm of fantasy.
 function audit(prefix::Prefix; io=STDERR,
                                platform::Platform = platform_key(),
                                verbose::Bool = false,
+                               silent::Bool = false,
                                autofix::Bool = false)
     if verbose
         info(io, "Beginning audit of $(prefix.path)")
@@ -39,7 +75,14 @@ function audit(prefix::Prefix; io=STDERR,
     for f in collapse_symlinks(bin_files)
         # Peel this binary file open like a delicious tangerine
         oh = try
-            readmeta(f)
+            h = readmeta(f)
+            if !is_for_platform(h, platform)
+                if verbose
+                    warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                end
+                continue
+            end
+            h
         catch
             # If this isn't an actual binary file, skip it
             if verbose
@@ -82,7 +125,9 @@ function audit(prefix::Prefix; io=STDERR,
                         Linked library $(libname) could not be resolved and
                         could not be auto-mapped
                         """, '\n', ' ')
-                        warn(io, strip(msg))
+                        if !silent
+                            warn(io, strip(msg))
+                        end
                         all_ok = false
                     end
                 else
@@ -90,7 +135,9 @@ function audit(prefix::Prefix; io=STDERR,
                     Linked library $(libname) could not be resolved within
                     the given prefix
                     """, '\n', ' ')
-                    warn(io, strip(msg))
+                    if !silent
+                        warn(io, strip(msg))
+                    end
                     all_ok = false
                 end
             elseif !startswith(libs[libname], prefix.path)
@@ -98,7 +145,9 @@ function audit(prefix::Prefix; io=STDERR,
                 Linked library $(libname) (resolved path $(libs[libname]))
                 is not within the given prefix
                 """, '\n', ' ')
-                warn(io, strip(msg))
+                if !silent
+                    warn(io, strip(msg))
+                end
                 all_ok = false
             end
         end
@@ -120,7 +169,9 @@ function audit(prefix::Prefix; io=STDERR,
                 # TODO: Use the relevant ObjFileBase packages to inspect why this
                 # file is being nasty to us.
 
-                warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                if !silent
+                    warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                end
                 all_ok = false
             else
                 Libdl.dlclose(hdl)
@@ -139,7 +190,9 @@ function audit(prefix::Prefix; io=STDERR,
     for f in all_files
         file_contents = readstring(f)
         if contains(file_contents, prefix.path)
-            warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
+            if !silent
+                warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
+            end
         end
     end
 
@@ -267,4 +320,3 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
 
     return origin_relpath
 end
-

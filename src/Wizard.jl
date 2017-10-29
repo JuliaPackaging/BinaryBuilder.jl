@@ -1,4 +1,5 @@
 using TerminalMenus
+using ObjectFile.ELF
 
 function yn_prompt(state, question, default = :y)
     @assert default in (:y, :n)
@@ -55,13 +56,19 @@ function normalize_name(file)
     return file
 end
 
-function match_files(prefix, platform, files)
+function match_files(prefix, platform, files; silent = false)
     # Collect all executable/library files
     prefix_files = collapse_symlinks(collect_files(prefix))
     # Check if we can load them as an object file
     prefix_files = filter(prefix_files) do f
         try
-            readmeta(f)
+            h = readmeta(f)
+            if !is_for_platform(h, platform)
+                if !silent
+                    warn("Skipping binary `$f` with incorrect platform")
+                end
+                return false
+            end
             return true
         catch
             return false
@@ -72,8 +79,12 @@ function match_files(prefix, platform, files)
     norm_files = Set(map(normalize_name, files))
     d = setdiff(norm_files, norm_prefix_files)
     if !isempty(d)
-        warn("Could not find correspondences for $(join(d, ' '))")
+        if !silent
+            warn("Could not find correspondences for $(join(d, ' '))")
+        end
+        return false, d
     end
+    return true, nothing
 end
 
 """
@@ -96,9 +107,11 @@ mutable struct State
     history::Union{Void, String}
     files::Union{Void, Vector{String}}
     file_kinds::Union{Void, Vector{Symbol}}
+    # Filled in by step 5c
+    failed_platforms::Set{Any}
 end
 
-State() = State(:step1, STDIN, STDOUT, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing)
+State() = State(:step1, STDIN, STDOUT, nothing, nothing, nothing, nothing, nothing, nothing, nothing, nothing, Set{Any}())
 
 function step1(state)
     print_with_color(:bold, state.outs, "\t\t\t\# Step 1: Select your platforms\n\n")
@@ -277,7 +290,8 @@ function step34(state)
             # Check if we can load them as an object file
             files = filter(files) do f
                 try
-                    readmeta(f)
+                    h = readmeta(f)
+                    is_for_platform(h, Linux(:x86_64)) || return false
                     return true
                 catch
                     return false
@@ -345,74 +359,88 @@ function step34(state)
     end
 end
 
+function step5_internal(state, platform, message)
+    print(state.outs, "Your next build target will be ")
+    print_with_color(:bold, state.outs, platform)
+    println(state.outs, message)
+    println(state.outs)
+    println(state.outs, "Press any key to continue...")
+    read(state.ins, Char)
+    println(state.outs)
+
+    terminal = Base.Terminals.TTYTerminal("xterm", state.ins, state.outs, state.outs)
+
+    print_with_color(:bold, state.ins, "\t\t\t\# Attempting to build for $platform\n\n")
+
+    build_path = tempname()
+    mkpath(build_path)
+    local ok = true
+    cd(build_path) do
+        prefix, ur = setup_workspace(build_path, state.source_files, platform)
+
+        run(ur, `/bin/bash -c $(state.history)`, joinpath(build_path,"out.log"); verbose=true, tee_stream=state.outs)
+
+        print_with_color(:bold, state.outs, "\n\t\t\tBuild complete. Analyzing...\n\n")
+
+        audit(prefix; io=state.outs,
+            platform=platform, verbose=true, autofix=false)
+
+        ok, _ = match_files(prefix, platform, state.files)
+        if !ok
+            println(state.outs)
+            print_with_color(:red, state.outs, "ERROR: ")
+            println(state.outs, "Some build products could not be found (see above).")
+            println(state.outs)
+            
+            # N.B.: This is a Star Trek reference (TNG Season 1, Episode 25,
+            # 25:00).
+            choice = request(terminal,
+                "Please specify how you would like to proceed, sir.",
+                RadioMenu(
+                    ["Drop into build environment",
+                     "Open a clean session for this platform",
+                     "Disable this platform",
+                     "Edit build script"]
+                ))
+                
+            if choice == 1
+                runshell(ur, state.ins, state.outs, state.outs)
+                # TODO: Append this as platform_only to the build script
+            elseif choice == 2
+                error("Not implemented yet")
+            elseif choice == 3
+                filter!(p->p != platform, state.platforms)
+            elseif choice == 4
+                error("Not implemented yet")
+            end
+        else
+            println(state.outs, "")
+            println(state.outs, "You have successfully built for $platform. Congratulations!")
+        end
+
+        println(state.outs)
+    end
+    return ok
+end
+
 function step5a(state)
     print_with_color(:bold, state.outs, "\t\t\t\# Step 5: Generalize the build script\n\n")
 
     println(state.outs, "You have successfully built for Linux x86_64 (yay!).")
     println(state.outs, "We will now attempt to use the same script to build for other architectures.")
     println(state.outs, "This will likely fail, but the failure mode will help us understand why.")
-    println(state.outs, )
-    print(state.outs, "Your next build target will be ")
-    print_with_color(:bold, state.outs, "Win64")
-    println(state.outs, ". This will help iron out any issues")
-    println(state.outs, "with the cross compiler.")
-    println(state.outs, )
-    println(state.outs, "Press any key to continue...")
-    read(state.ins, Char)
-    println(state.outs)
 
-    print_with_color(:bold, state.ins, "\t\t\t\# Attempting to build for Win64\n\n")
-
-    build_path = tempname()
-    mkpath(build_path)
-    cd(build_path) do
-        prefix, ur = setup_workspace(build_path, state.source_files, Windows(:x86_64))
-
-        run(ur, `/bin/bash -c $(state.history)`, joinpath(build_path,"out.log"); verbose=true, tee_stream=state.outs)
-
-        print_with_color(:bold, state.outs, "\n\t\t\tBuild complete. Analyzing...\n\n")
-
-        audit(prefix; io=state.outs,
-            platform=Windows(:x86_64), verbose=true, autofix=false)
-
-        match_files(prefix, Windows(:x86_64), state.files)
-    end
-
-    println(state.outs, "")
-    println(state.outs, "You have successfully built for Win64. Congratulations!")
-    println(state.outs)
+    step5_internal(state, Windows(:x86_64), """
+    . This will help iron out any issues
+    with the cross compiler
+    """)
 end
 
 function step5b(state)
-    print(state.outs, "Your next build target will be Linux ")
-    print_with_color(:bold, state.outs, "AArch64")
-    println(state.outs, ". This should uncover issues related")
-    println(state.outs, "to architecture differences.")
-    println(state.outs)
-    println(state.outs, "Press any key to continue...")
-    read(state.ins, Char)
-    println(state.outs)
-
-    print_with_color(:bold, state.outs, "\t\t\t\# Attempting to build for Linux AArch64\n\n")
-
-    build_path = tempname()
-    mkpath(build_path)
-    cd(build_path) do
-        prefix, ur = setup_workspace(build_path, state.source_files, Linux(:aarch64))
-
-        run(ur, `/bin/bash -c $(state.history)`, joinpath(build_path,"out.log"); verbose=true, tee_stream=state.outs)
-
-        print_with_color(:bold, state.outs, "\n\t\t\tBuild complete. Analyzing...\n\n")
-
-        audit(prefix; io=state.outs,
-            platform=Linux(:aarch64), verbose=true, autofix=false)
-
-        match_files(prefix, Linux(:aarch64), state.files)
-    end
-
-    println(state.outs, "")
-    println(state.outs, "You have successfully built for Linux AArch64. Congratulations!")
-    println(state.outs)
+    step5_internal(state, Linux(:aarch64), """
+    . This should uncover issues related
+    to architecture differences.
+    """)
 end
 
 function step5c(state)
@@ -429,29 +457,82 @@ function step5c(state)
         print(state.outs, "Building $platform ")
         build_path = tempname()
         mkpath(build_path)
+        local ok = true
         cd(build_path) do
             prefix, ur = setup_workspace(build_path, state.source_files, platform)
 
             run(ur, `/bin/bash -c $(state.history)`, joinpath(build_path,"out.log"); verbose=false, tee_stream=state.outs)
 
             audit(prefix; io=state.outs,
-                platform=platform, verbose=false, autofix=false)
+                platform=platform, verbose=false, silent=true, autofix=false)
 
-            match_files(prefix, platform, state.files)
+            ok, _ = match_files(prefix, platform, state.files; silent = true)
         end
         print(state.outs, "[")
-        print_with_color(:green, state.outs, "✓")
+        if ok
+            print_with_color(:green, state.outs, "✓")
+        else
+            print_with_color(:red, state.outs, "✗")
+            push!(state.failed_platforms, platform)
+        end
         println(state.outs, "]")
     end
+    
+    println(state.outs)
 end
 
 function step6(state)
+    if isempty(state.failed_platforms)
+        state.step = :step7
+        return
+    end
+    
+    terminal = Base.Terminals.TTYTerminal("xterm", state.ins, state.outs, state.outs)
+    
+    print_with_color(:bold, state.outs, "\t\t\t\# Step 6: Revisit failed platforms\n\n")
+    
+    println(state.outs, "Several platforms failed to build:")
+    for plat in state.failed_platforms
+        println(state.outs, " - ", plat)
+    end
+    
+    println(state.outs)
+    
+    choice = request(terminal,
+        "What would you like to do?",
+        RadioMenu([
+            "Disable these platforms",
+            "Revisit manually",
+            "Edit script and retry all"
+        ]))
+
+    println(state.outs)
+    
+    if choice == 1
+        filter!(p->!(p in state.failed_platforms), state.platforms)
+        state.step = :step7
+    elseif choice == 2
+        plats = collect(state.failed_platforms)
+        choice = request(terminal,
+            "Which platform would you like to revisit?",
+            RadioMenu(map(repr, plats)))
+        println(state.outs)
+        if step5_internal(state, plats[choice], ". ")
+            delete!(state.failed_platforms, plats[choice])
+        end
+        # Will wrap back around to step 6
+    elseif choice == 3
+        error("Not yet implemented")
+    end
+end
+
+function step7(state)
     print_with_color(:bold, state.outs, "\t\t\tDone!\n\n")
 
     print(state.outs, "Your build script was:\n\n\t")
     print(state.outs, replace(state.history, "\n", "\n\t"))
 
-    print_with_color(:bold, state.outs, "\t\t\t\# Step 6: Deployment\n\n")
+    print_with_color(:bold, state.outs, "\t\t\t\# Step 7: Deployment\n\n")
 
     println(state.outs, "Pick a name for this project. This will be used for filenames, etc (e.g. `julia`):")
     print(state.outs, "> ")
@@ -554,6 +635,8 @@ function run_wizard(state = State())
                 state.step = :step6
             elseif state.step == :step6
                 step6(state)
+            elseif state.step == :step7
+                step7(state)
                 state.step = :done
             end
         end
