@@ -53,9 +53,9 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
     return did_succeed
 end
 
-function runshell(ur::UserNSRunner, stdin = nothing, stdout = nothing, stderr = nothing)
+function run_interactive(ur::UserNSRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
     cd(dirname(sandbox_path))
-    cmd = setenv(`$(ur.sandbox_cmd) /bin/bash`, ur.sandbox_cmd.env)
+    cmd = setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.sandbox_cmd.env)
     if stdin != nothing
         cmd = pipeline(cmd, stdin=stdin)
     end
@@ -66,4 +66,8 @@ function runshell(ur::UserNSRunner, stdin = nothing, stdout = nothing, stderr = 
         cmd = pipeline(cmd, stderr=stderr)
     end
     run(cmd)
+end
+
+function runshell(ur::UserNSRunner, args...)
+    run_interactive(ur, `/bin/bash`, args...)
 end
