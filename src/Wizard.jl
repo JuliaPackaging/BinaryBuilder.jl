@@ -56,7 +56,7 @@ function normalize_name(file)
     return file
 end
 
-function match_files(prefix, platform, files; silent = false)
+function match_files(state, prefix, platform, files; silent = false)
     # Collect all executable/library files
     prefix_files = collapse_symlinks(collect_files(prefix))
     # Check if we can load them as an object file
@@ -65,7 +65,7 @@ function match_files(prefix, platform, files; silent = false)
             h = readmeta(f)
             if !is_for_platform(h, platform)
                 if !silent
-                    warn("Skipping binary `$f` with incorrect platform")
+                    warn(state.outs, "Skipping binary `$f` with incorrect platform")
                 end
                 return false
             end
@@ -80,7 +80,7 @@ function match_files(prefix, platform, files; silent = false)
     d = setdiff(norm_files, norm_prefix_files)
     if !isempty(d)
         if !silent
-            warn("Could not find correspondences for $(join(d, ' '))")
+            warn(state.outs, "Could not find correspondences for $(join(d, ' '))")
         end
         return false, d
     end
@@ -234,6 +234,12 @@ function provide_hints(state, path)
 end
 
 function setup_workspace(build_path, src_paths, platform, extra_env=Dict{String, String}(); verbose=false)
+    # Upper dir for the root overlay
+    mkdir("overlay_root")
+    # Working directory for the root overlay
+    mkdir("overlay_workdir")
+    # Workspace root
+    mkdir("workspace"); cd("workspace")
     # Use a random nonce to make detection of paths in embedded binary
     # easier.
     nonce = randstring()
@@ -250,8 +256,7 @@ function setup_workspace(build_path, src_paths, platform, extra_env=Dict{String,
 
     prefix = Prefix(joinpath(pwd(), "destdir"))
 
-    ur = UserNSRunner(
-        workspace = build_path,
+    ur = UserNSRunner(build_path,
         cwd = "/workspace/$nonce/srcdir",
         platform = platform,
         extra_env = merge(extra_env,
@@ -452,7 +457,7 @@ function step5_internal(state, platform, message)
         audit(prefix; io=state.outs,
             platform=platform, verbose=true, autofix=false)
 
-        ok, _ = match_files(prefix, platform, state.files)
+        ok, _ = match_files(state, prefix, platform, state.files)
         if !ok
             println(state.outs)
             print_with_color(:red, state.outs, "ERROR: ")
@@ -536,7 +541,7 @@ function step5c(state)
             audit(prefix; io=state.outs,
                 platform=platform, verbose=false, silent=true, autofix=false)
 
-            ok, _ = match_files(prefix, platform, state.files; silent = true)
+            ok, _ = match_files(state, prefix, platform, state.files; silent = true)
         end
         print(state.outs, "[")
         if ok

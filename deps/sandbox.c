@@ -106,6 +106,8 @@ char *initial_script =
 
 // Options (gets filled in by driver code)
 char *sandbox_root = NULL;
+char *overlay = NULL;
+char *overlay_workdir = NULL;
 char *workspace = NULL;
 char *new_cd = NULL;
 
@@ -115,8 +117,24 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   pid_t pid;
   int status;
   check(sandbox_root != NULL);
-  /// Setup the root file system
-  check(0 == mount(sandbox_root, "sandbox_root", "", MS_BIND | MS_RDONLY, NULL));
+  /// Mount the overlay filesystem
+  {
+      if (overlay) {
+          check(overlay_workdir != NULL);
+          char mount_opts[3*PATH_MAX+40];
+          snprintf(mount_opts, sizeof(mount_opts),
+            "lowerdir=%s,upperdir=%s,workdir=%s",
+            sandbox_root, overlay, overlay_workdir);
+          check(0 == mount("overlay", "sandbox_root", "overlay", 0, mount_opts));
+      } else {
+          // For consistency, still make this an overlay fs if no upper directory
+          // is specified. The resulting fs will be read only.
+          char mount_opts[PATH_MAX+40];
+          snprintf(mount_opts, sizeof(mount_opts),
+            "lowerdir=%s:%s", sandbox_root, sandbox_root);
+          check(0 == mount("overlay", "sandbox_root", "overlay", MS_RDONLY, mount_opts));
+      }
+  }
   /// Setup the workspace
   if (workspace) {
     check(0 == mount(workspace, "sandbox_root/workspace", "", MS_BIND, NULL));
@@ -172,6 +190,18 @@ int main(int sandbox_argc, char **sandbox_argv) {
     sandbox_argv += 2;
     sandbox_argc -= 2;
   }
+  
+  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--overlay") == 0) {
+    overlay = strdup(sandbox_argv[1]);
+    sandbox_argv += 2;
+    sandbox_argc -= 2;
+  }  
+
+  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--overlay_workdir") == 0) {
+    overlay_workdir = strdup(sandbox_argv[1]);
+    sandbox_argv += 2;
+    sandbox_argc -= 2;
+  }  
 
   if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--workspace") == 0) {
     workspace = strdup(sandbox_argv[1]);

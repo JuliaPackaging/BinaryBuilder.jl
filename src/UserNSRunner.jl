@@ -15,11 +15,8 @@ type UserNSRunner
     platform::Platform
 end
 
-function UserNSRunner(;cwd = nothing, workspace = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
-    sandbox_cmd = `$sandbox_path --rootfs $rootfs`
-    if workspace != nothing
-        sandbox_cmd = `$sandbox_cmd --workspace $workspace`
-    end
+function UserNSRunner(sandbox::String; cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
+    sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
