@@ -745,7 +745,38 @@ function step7(state)
     """)
 end
 
+function print_wizard_logo(outs)
+    tx = "\033[0m\033[0m" # text
+    d1 = "\033[34m" # first dot
+    d2 = "\033[31m" # second dot
+    d3 = "\033[32m" # third dot
+    d4 = "\033[35m" # fourth dot
+    
+    println(outs)
+
+    indent = " "^7
+    top = """
+    $(indent)⠀⠀⠀⠀⠀⠀⠀⠀⠀$(d3)★$(tx)⠀
+    $(indent)⠀⠀⠀⠀⠀⠀⠀ $(d2)★$(tx)⠀$(d4)★$(tx)   $(d1)★$(tx)
+    """
+    hat = """
+    $(indent)⠀⠀⠀⠀⠀⠀⠀⡨⢤⠠⣤⣴⣤⣤⣤⣁⠀⠀⠀⠀
+    $(indent)⠀⠀⠀⠀⠀⠀⡰⠁⡜⠈⠉⠉⠉⠉⠙⣿⣿⣆⠀⠀
+    $(indent)⠀⠀⠀⠀⠀⢠⣿⡞⣰⣶⣶⣶⣶⣶⣾⣿⣿⠏⠀⠀
+    $(indent)⠀⠀⠀⠀⢠⣿⡟⢀⠙⠛⠛⠿⠛⠛⠛⡉⠀⠀⠀⠀
+    $(indent)⠀⠀⠀⢠⣿⡿⠀⢸ 11010 ⡇⠀⠀⠀⠀
+    $(indent)⠀⠀⢠⣿⡿⠁⠀⠘⢿ 101 ⡿⠇⠀⠀⠀⠀
+    $(indent)⠀⠀⠀⠉⠁⠀⠀⠀⠀⠈⠉⠉⠉⠁⠀⠀⠀⠀
+    """
+    
+    print(outs, top, hat)
+    
+    println(outs)
+end
+
 function run_wizard(state = State())
+    print_wizard_logo(state.outs)
+    
     println(state.outs,
             "Welcome to the BinaryBuilder wizard.\n"*
             "We'll get you set up in no time.\n")
