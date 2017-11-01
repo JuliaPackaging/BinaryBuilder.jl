@@ -1,6 +1,6 @@
 const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
 const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-01.tar.gz"
-const rootfs_sha256 = "43d75724f0f5c5680a5fe60cc49ae6a72a8514355162c647834b563e374be7e2"
+const rootfs_sha256 = "5ffb2b3252ade7c0387a663b81f47fd36e0e6f105ba45d4e4ff3653cdf0d361f"
 const rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "rootfs.tar.gz")
 const rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")

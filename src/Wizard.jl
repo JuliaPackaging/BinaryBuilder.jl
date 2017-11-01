@@ -73,7 +73,7 @@ function yn_prompt(state::WizardState, question::AbstractString, default = :y)
 end
 
 """
-    download_source(state::WizardState, workspace)
+    download_source(state::WizardState)
 
 Ask the user where the source code is coming from, then download and record the
 relevant parameters, returning the source `url`, the local `path` it is stored
@@ -82,7 +82,7 @@ case of a `git` source URL, the `hash` will be a git treeish identifying the
 exact commit used to build the code, in the case of a tarball, it is the
 `sha256` hash of the tarball itself.
 """
-function download_source(state::WizardState, workspace)
+function download_source(state::WizardState)
     # First, ask the user where this is all coming from
     msg = replace(strip("""
     Please enter a URL (git repository or gzipped tarball) containing the
@@ -93,7 +93,7 @@ function download_source(state::WizardState, workspace)
     println(state.outs)
 
     # Record the source path and the source hash
-    source_path = joinpath(workspace, basename(url))
+    source_path = joinpath(state.workspace, basename(url))
     local source_hash
 
     if endswith(url, ".git")
@@ -127,7 +127,7 @@ function download_source(state::WizardState, workspace)
                 error()
             end
         catch
-            error("Could not download $(url) to $(workspace)")
+            error("Could not download $(url) to $(state.workspace)")
         end
 
         # Save the source hash
@@ -236,9 +236,7 @@ This step selets the relevant platform(s) for the built binaries.
 """
 function step1(state::WizardState)
     # Select a platform
-    msg = strip("""
-    \t\t\t\# Step 1: Select your platforms\n\n
-    """)
+    msg = "\t\t\t\# Step 1: Select your platforms\n\n"
     print_with_color(:bold, state.outs, msg)
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
     platform_select = request(terminal,
@@ -291,9 +289,7 @@ end
 This step obtains the source code to be built.
 """
 function step2(state::WizardState)
-    msg = strip("""
-    \t\t\t\# Step 2: Obtain the source code\n\n
-    """)
+    msg = "\t\t\t\# Step 2: Obtain the source code\n\n"
     print_with_color(:bold, state.outs, msg)
 
     # Create the workspace that we'll stash everything within
@@ -307,7 +303,7 @@ function step2(state::WizardState)
     state.source_hashes = String[]
 
     while true
-        url, file, hash = download_source(state, workspace)
+        url, file, hash = download_source(state)
         push!(state.source_urls, url)
         push!(state.source_files, file)
         push!(state.source_hashes, hash)
