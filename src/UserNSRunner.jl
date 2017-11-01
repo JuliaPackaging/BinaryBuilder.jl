@@ -1,4 +1,8 @@
-const rootfs = "/data/keno/test/root"
+const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
+const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-01.tar.gz"
+const rootfs_sha256 = "43d75724f0f5c5680a5fe60cc49ae6a72a8514355162c647834b563e374be7e2"
+const rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "rootfs.tar.gz")
+const rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
 
 """
@@ -13,6 +17,36 @@ within the crossbuild environment.
 type UserNSRunner
     sandbox_cmd::Cmd
     platform::Platform
+end
+
+function update_rootfs(;verbose::Bool = false)
+    # Check to make sure we have the latest version downloaded properly
+    try
+        if verbose
+            info("Verifying rootfs download...")
+        end
+        download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
+    catch
+        if verbose
+            info("rootfs image verification failed, downloading new rootfs...")
+        end
+
+        # If download_verify failed, we need to clear out the old rootfs and
+        # download the new rootfs image.  Start by removing the old rootfs: 
+        rm(rootfs; force=true, recursive=true)
+        rm(rootfs_tar; force=true)
+
+        # Then download and unpack again
+        download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
+    end
+
+    # Next, if the rootfs does not already exist, unpack it
+    if !isdir(rootfs)
+        if verbose
+            info("Unpacking rootfs...")
+        end
+        unpack(rootfs_tar, rootfs; verbose=verbose)
+    end
 end
 
 function UserNSRunner(sandbox::String; cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())

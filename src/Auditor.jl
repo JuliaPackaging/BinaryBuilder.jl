@@ -3,9 +3,16 @@ export audit, collect_files, collapse_symlinks
 using ObjectFile
 using ObjectFile.ELF
 
-function is_for_platform(h, platform)
+"""
+    is_for_platform(h::ObjectHandle, platform::Platform)
+
+Returns `true` if the given `ObjectHandle` refers to an object of the given
+`platform`; E.g. if the given `platform` is for AArch64 Linux, then `h` must
+be an `ELFHandle` with `h.header.e_machine` set to `ELF.EM_AARCH64`.
+"""
+function is_for_platform(h::ObjectHandle, platform::Platform)
     if platform isa Linux
-        h isa ObjectFile.ELFHandle || return false
+        h isa ELFHandle || return false
         (h.ei.osabi == ELF.ELFOSABI_LINUX ||
          h.ei.osabi == ELF.ELFOSABI_NONE) || return false
         mach = h.header.e_machine
@@ -26,10 +33,10 @@ function is_for_platform(h, platform)
             error("Unknown architecture")
         end
     elseif platform isa Windows
-        h isa ObjectFile.COFFHandle || return false
+        h isa COFFHandle || return false
         return true
     elseif platform isa MacOS
-        h isa ObjectFile.MachOHandle || return false
+        h isa MachOHandle || return false
         return true
     else
         error("Unkown platform")
