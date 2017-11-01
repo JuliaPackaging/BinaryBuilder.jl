@@ -106,7 +106,7 @@ default, ignored, unless `ignore_audit_errors` is set to `false`.  Some
 warnings can be automatically fixed, and this will be attempted if `autofix` is
 set to `true`.
 """
-function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
+function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = false,
                autofix::Bool = false, ignore_audit_errors::Bool = true)
     # First, look to see whether this dependency is satisfied or not
     should_build = !satisfied(dep)
@@ -121,9 +121,6 @@ function build(dep::Dependency; verbose::Bool = false, force::Bool = false,
                 info("Building $(dep.name) as it is unsatisfied")
             end
         end
-
-        # Construct the runner object that we'll use to actually run the commands
-        runner = DockerRunner(prefix=dep.prefix, platform=dep.platform)
 
         # Run the build recipe one step at a time
         for step in dep.steps
