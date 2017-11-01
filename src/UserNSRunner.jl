@@ -19,7 +19,32 @@ type UserNSRunner
     platform::Platform
 end
 
-function update_rootfs(;verbose::Bool = false)
+TOOLS_UPDATED = false
+function should_update_tools()
+    # We only want to update once per session, at the most
+    global TOOLS_UPDATED
+
+    if TOOLS_UPDATED
+        return false
+    end
+
+    # If the user explicitly asks for this not to be checked, don't do it
+    const no_synonyms = ["n", "no", "false"]
+    if lowercase(get(ENV, "BINBUILD_AUTOUPDATE", "y")) in no_synonyms
+        return false
+    end
+
+    # Otherwise, do it!
+    return true
+end
+
+"""
+    update_rootfs(;verbose::Bool = true)
+
+Updates the stored rootfs containing all cross-compilers and other compilation
+machinery for the builder.
+"""
+function update_rootfs(;verbose::Bool = true)
     # Check to make sure we have the latest version downloaded properly
     try
         if verbose
@@ -49,7 +74,28 @@ function update_rootfs(;verbose::Bool = false)
     end
 end
 
+"""
+    update_sandbox_binary(;verbose::Bool = true)
+
+Builds/updates the `sandbox` binary that launches all commands within the rootfs
+"""
+function update_sandbox_binary(;verbose::Bool = true)
+    cd(joinpath(dirname(@__FILE__), "..", "deps")) do
+        if !isfile("sandbox") || stat("sandbox").mtime < stat("sandbox.c").mtime
+            oc = OutputCollector(`gcc -o sandbox sandbox.c`; verbose=verbose)
+            wait(oc)
+        end
+    end
+end
+
 function UserNSRunner(sandbox::String; cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
+    # Do updates, if we need to
+    if should_update_tools()
+        update_rootfs()
+        update_sandbox_binary()
+    end
+
+
     sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
