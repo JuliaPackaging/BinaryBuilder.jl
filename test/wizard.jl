@@ -4,8 +4,8 @@ using VT100
 using BinaryBuilder
     
 pty = VT100.create_pty(false)
-function BinaryBuilder.State(ins::Base.TTY, outs::Base.TTY)
-    state = BinaryBuilder.State()
+function BinaryBuilder.WizardState(ins::Base.TTY, outs::Base.TTY)
+    state = BinaryBuilder.WizardState()
     state.ins = ins
     state.outs = outs
     state
@@ -35,7 +35,7 @@ end
 ins, outs = Base.TTY(pty.slave; readable=true), Base.TTY(pty.slave; readable=false);
 
 # Test one tar.gz download
-let state = BinaryBuilder.State(ins, outs)
+let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step2
     t = @async do_try(()->BinaryBuilder.step2(state))
     # URL
@@ -47,7 +47,7 @@ let state = BinaryBuilder.State(ins, outs)
 end
 
 # Test two tar.gz download
-let state = BinaryBuilder.State(ins, outs)
+let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step2
     t = @async do_try(()->BinaryBuilder.step2(state))
     # URL
@@ -75,7 +75,7 @@ open(joinpath(tempspace, "source.tar.gz"), "w") do f
 end
 
 # Test step3 success path
-let state = BinaryBuilder.State(ins, outs)
+let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step3
     state.source_urls = ["http://127.0.0.1:14123/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
@@ -99,7 +99,7 @@ wait_for_menu(pty) = sleep(1)
 wait_for_non_menu(pty) = sleep(1)
 
 # Step 3 failure path (no binary in destdir -> return to build)
-let state = BinaryBuilder.State(ins, outs)
+let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step3
     state.source_urls = ["http://127.0.0.1:14123/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
@@ -128,7 +128,7 @@ let state = BinaryBuilder.State(ins, outs)
 end
 
 # Step 3 failure path (no binary in destdir -> start over)
-let state = BinaryBuilder.State(ins, outs)
+let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step3
     state.source_urls = ["http://127.0.0.1:14123/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
