@@ -148,3 +148,5 @@ end
 
     rm(tarball_path; force=true)
 end
+
+include("wizard.jl")
