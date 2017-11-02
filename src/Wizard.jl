@@ -970,32 +970,41 @@ function step7(state::WizardState)
 end
 
 function print_wizard_logo(outs)
-    tx = "\033[0m\033[0m" # text
-    d1 = "\033[34m" # first dot
-    d2 = "\033[31m" # second dot
-    d3 = "\033[32m" # third dot
-    d4 = "\033[35m" # fourth dot
-    
-    println(outs)
+    logo = raw"""
 
-    indent = " "^7
-    top = """
-    $(indent)⠀⠀⠀⠀⠀⠀⠀⠀⠀$(d3)★$(tx)⠀
-    $(indent)⠀⠀⠀⠀⠀⠀⠀ $(d2)★$(tx)⠀$(d4)★$(tx)   $(d1)★$(tx)
+            o      `.
+           o*o      \'-_                 00000000: 01111111 $.
+             \\      \;"".     ,;.--*    00000001: 01000101 $E
+              \\     ,\''--.--'/         00000003: 01001100 $L
+              :=\--<' `""  _   |         00000003: 01000110 $F
+              ||\\     `" / ''--         00000004: 00000010  .
+              `/_\\,-|    |              00000005: 00000001  .
+                  \\/     L
+                   \\ ,'   \
+                 _/ L'   `  \
+                /  /    /   /          Julia Binzard
+               /  /    |    \          JuliaPackaging/BinaryBuilder.jl
+              "_''--_-''---__=;
+
     """
-    hat = """
-    $(indent)⠀⠀⠀⠀⠀⠀⠀⡨⢤⠠⣤⣴⣤⣤⣤⣁⠀⠀⠀⠀
-    $(indent)⠀⠀⠀⠀⠀⠀⡰⠁⡜⠈⠉⠉⠉⠉⠙⣿⣿⣆⠀⠀
-    $(indent)⠀⠀⠀⠀⠀⢠⣿⡞⣰⣶⣶⣶⣶⣶⣾⣿⣿⠏⠀⠀
-    $(indent)⠀⠀⠀⠀⢠⣿⡟⢀⠙⠛⠛⠿⠛⠛⠛⡉⠀⠀⠀⠀
-    $(indent)⠀⠀⠀⢠⣿⡿⠀⢸ 11010 ⡇⠀⠀⠀⠀
-    $(indent)⠀⠀⢠⣿⡿⠁⠀⠘⢿ 101 ⡿⠇⠀⠀⠀⠀
-    $(indent)⠀⠀⠀⠉⠁⠀⠀⠀⠀⠈⠉⠉⠉⠁⠀⠀⠀⠀
-    """
-    
-    print(outs, top, hat)
-    
-    println(outs)
+
+    blue    = "\033[34m"
+    red     = "\033[31m"
+    green   = "\033[32m"
+    magenta = "\033[35m"
+    normal  = "\033[0m\033[0m"
+
+    logo = replace(logo, " o ", " $(green)o$(normal) ")
+    logo = replace(logo, "o*o", "$(red)o$(blue)*$(magenta)o$(normal)")
+
+    logo = replace(logo, ".--*", "$(red).$(green)-$(magenta)-$(blue)*$(normal)")
+
+    logo = replace(logo, "\$.", " $(blue).$(normal)")
+    logo = replace(logo, "\$E", " $(red)E$(normal)")
+    logo = replace(logo, "\$L", " $(green)L$(normal)")
+    logo = replace(logo, "\$F", " $(magenta)F$(normal)")
+
+    print(outs, logo)
 end
 
 function run_wizard(state::WizardState = WizardState())
