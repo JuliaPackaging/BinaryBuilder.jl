@@ -125,24 +125,24 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
           snprintf(mount_opts, sizeof(mount_opts),
             "lowerdir=%s,upperdir=%s,workdir=%s",
             sandbox_root, overlay, overlay_workdir);
-          check(0 == mount("overlay", "sandbox_root", "overlay", 0, mount_opts));
+          check(0 == mount("overlay", sandbox_root, "overlay", 0, mount_opts));
       } else {
           // For consistency, still make this an overlay fs if no upper directory
           // is specified. The resulting fs will be read only.
           char mount_opts[PATH_MAX+40];
           snprintf(mount_opts, sizeof(mount_opts),
             "lowerdir=%s:%s", sandbox_root, sandbox_root);
-          check(0 == mount("overlay", "sandbox_root", "overlay", MS_RDONLY, mount_opts));
+          check(0 == mount("overlay", sandbox_root, "overlay", MS_RDONLY, mount_opts));
       }
   }
+  chdir(sandbox_root);
   /// Setup the workspace
   if (workspace) {
-    check(0 == mount(workspace, "sandbox_root/workspace", "", MS_BIND, NULL));
+    check(0 == mount(workspace, "workspace", "", MS_BIND, NULL));
   }
   /// Bind host /dev/null in the sandbox
-  check(0 == mount("/dev/null", "sandbox_root/dev/null", "", MS_BIND, NULL));
+  check(0 == mount("/dev/null", "dev/null", "", MS_BIND, NULL));
   /// Enter chroot
-  check(0 == chdir("sandbox_root"));
   check(0 == chroot("."));
   if (new_cd) {
     check(0 == chdir(new_cd));
