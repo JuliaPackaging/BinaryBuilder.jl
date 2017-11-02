@@ -1,6 +1,6 @@
 const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
 const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-01.tar.gz"
-const rootfs_sha256 = "5ffb2b3252ade7c0387a663b81f47fd36e0e6f105ba45d4e4ff3653cdf0d361f"
+const rootfs_sha256 = "c786f219095850bacadb89fafabb2909af6b8ee062c3fa9b30478a2ac006e6b8"
 const rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "rootfs.tar.gz")
 const rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
@@ -72,6 +72,9 @@ function update_rootfs(;verbose::Bool = true)
         end
         unpack(rootfs_tar, rootfs; verbose=verbose)
     end
+
+    global TOOLS_UPDATED
+    TOOLS_UPDATED=true
 end
 
 """
@@ -88,15 +91,19 @@ function update_sandbox_binary(;verbose::Bool = true)
     end
 end
 
-function UserNSRunner(sandbox::String; cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
+function UserNSRunner(sandbox::String; overlay = true, cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
     # Do updates, if we need to
     if should_update_tools()
         update_rootfs()
         update_sandbox_binary()
     end
 
+    if overlay
+        sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
+    else
+        sandbox_cmd = `$sandbox_path --rootfs $rootfs $sandbox`
+    end
 
-    sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end

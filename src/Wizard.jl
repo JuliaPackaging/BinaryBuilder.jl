@@ -120,6 +120,17 @@ function download_source(state::WizardState)
         close(repo)
     else
         # Download the source tarball
+        source_path = joinpath(state.workspace, basename(url))
+    
+        if isfile(source_path)
+            name, ext = splitext(basename(source_path))
+            n = 1
+            while isfile(joinpath(state.workspace, "$(name)_$n$ext"))
+                n += 1
+            end
+            source_path = joinpath(state.workspace, "$(name)_$n$ext")
+        end
+        
         download_cmd = gen_download_cmd(url, source_path)
         oc = OutputCollector(download_cmd; verbose=true, tee_stream=state.outs)
         try
@@ -156,7 +167,7 @@ function normalize_name(file::AbstractString)
 end
 
 """
-    match_files(state::WizardState, prefix::AbstractString,
+    match_files(state::WizardState, prefix::Prefix,
                 platform::Platform, files::Vector; silent::Bool = false)
 
 Inspects all binary files within a prefix, matching them with a given list of
@@ -164,7 +175,7 @@ Inspects all binary files within a prefix, matching them with a given list of
 returning the set of normalized names that were not matched, or an empty set if
 all names were properly matched.
 """
-function match_files(state::WizardState, prefix::AbstractString,
+function match_files(state::WizardState, prefix::Prefix,
                      platform::Platform, files::Vector; silent::Bool = false)
     # Collect all executable/library files
     prefix_files = collapse_symlinks(collect_files(prefix))
@@ -379,7 +390,8 @@ the environment variables that will be defined within the sandbox environment.
 """
 function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          src_hashes::Vector, platform::Platform,
-                         extra_env::Dict{String, String};
+                         extra_env::Dict{String, String} =
+                             Dict{String, String}();
                          verbose::Bool = false, tee_stream::IO = STDOUT)
     # Upper dir for the root overlay
     mkdir(joinpath(build_path, "overlay_root"))
@@ -488,10 +500,10 @@ function step4(state::WizardState, ur::UserNSRunner,
                 "Retry with a clean build enviornment",
                 "Edit the script"
             ]))
-        println()
+        println(state.outs)
         
         if choice == 1
-            return step3_interactive(ur, build_path, prefix, state)
+            return step3_interactive(state, prefix, ur, build_path)
         elseif choice == 2
             state.step = :step3
             return
@@ -522,11 +534,11 @@ function step4(state::WizardState, ur::UserNSRunner,
 end
 
 """
-    step3_audit(state::WizardState, prefix::Prefix, history)
+    step3_audit(state::WizardState, prefix::Prefix)
 
 Audit the `prefix`.
 """
-function step3_audit(state::WizardState, prefix::Prefix, history)
+function step3_audit(state::WizardState, prefix::Prefix)
     print_with_color(:bold, state.outs, "\n\t\t\tAnalyzing...\n\n")
 
     audit(prefix; io=state.outs,
@@ -544,7 +556,7 @@ reproducible steps for building this source.
 """
 function step3_interactive(state::WizardState, prefix::Prefix,
                            ur::UserNSRunner, build_path::AbstractString)
-    histfile = joinpath(build_path, ".bash_history")
+    histfile = joinpath(build_path, "workspace", ".bash_history")
     runshell(ur, state.ins, state.outs, state.outs)
 
     # This is an extremely simplistic way to capture the history,
@@ -578,7 +590,7 @@ function step3_interactive(state::WizardState, prefix::Prefix,
         
         state.step = :step3_retry
     else
-        step3_audit(prefix, state, state.history)
+        step3_audit(state, prefix)
 
         return step4(state, ur, build_path, prefix)
     end
@@ -616,7 +628,7 @@ function step3_retry(state::WizardState)
             tee_stream=state.outs
         )
 
-        step3_audit(prefix, state, state.history)
+        step3_audit(state, prefix)
         
         return step4(state, ur, build_path, prefix)
     end
@@ -646,7 +658,7 @@ function step34(state::WizardState)
     mkpath(build_path)
     state.history = ""
     cd(build_path) do
-        histfile = joinpath(build_path, ".bash_history")
+        histfile = joinpath(build_path, "workspace", ".bash_history")
         prefix, ur = setup_workspace(
             build_path,
             state.source_files,
@@ -656,9 +668,9 @@ function step34(state::WizardState)
             verbose=true,
             tee_stream=state.outs
         )
-        provide_hints(state, joinpath(pwd(), "srcdir"))
+        provide_hints(state, joinpath(prefix.path, "..", "srcdir"))
 
-        return step3_interactive(ur, build_path, prefix, state)
+        return step3_interactive(state, prefix, ur, build_path)
     end
 end
 
