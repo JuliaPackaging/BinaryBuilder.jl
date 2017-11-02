@@ -95,8 +95,12 @@ function UserNSRunner(sandbox::String; cwd = nothing, platform::Platform = platf
         update_sandbox_binary()
     end
 
+    if overlay
+        sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
+    else
+        sandbox_cmd = `$sandbox_path --rootfs $rootfs $sandbox`
+    end
 
-    sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end

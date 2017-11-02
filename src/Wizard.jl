@@ -120,6 +120,17 @@ function download_source(state::WizardState)
         close(repo)
     else
         # Download the source tarball
+        source_path = joinpath(workspace, basename(url))
+    
+        if isfile(source_path)
+            name, ext = splitext(basename(source_path))
+            n = 1
+            while isfile(joinpath(workspace, "$(name)_$n$ext"))
+                n += 1
+            end
+            source_path = joinpath(workspace, "$(name)_$n$ext")
+        end
+        
         download_cmd = gen_download_cmd(url, source_path)
         oc = OutputCollector(download_cmd; verbose=true, tee_stream=state.outs)
         try
@@ -488,7 +499,7 @@ function step4(state::WizardState, ur::UserNSRunner,
                 "Retry with a clean build enviornment",
                 "Edit the script"
             ]))
-        println()
+        println(state.outs)
         
         if choice == 1
             return step3_interactive(ur, build_path, prefix, state)
@@ -544,7 +555,7 @@ reproducible steps for building this source.
 """
 function step3_interactive(state::WizardState, prefix::Prefix,
                            ur::UserNSRunner, build_path::AbstractString)
-    histfile = joinpath(build_path, ".bash_history")
+    histfile = joinpath(build_path, "workspace", ".bash_history")
     runshell(ur, state.ins, state.outs, state.outs)
 
     # This is an extremely simplistic way to capture the history,
@@ -646,7 +657,7 @@ function step34(state::WizardState)
     mkpath(build_path)
     state.history = ""
     cd(build_path) do
-        histfile = joinpath(build_path, ".bash_history")
+        histfile = joinpath(build_path, "workspace", ".bash_history")
         prefix, ur = setup_workspace(
             build_path,
             state.source_files,
