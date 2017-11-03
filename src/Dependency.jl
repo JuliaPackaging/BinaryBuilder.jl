@@ -95,8 +95,8 @@ function satisfied(dep::Dependency; verbose::Bool = false)
 end
 
 """
-    build(dep::Dependency; verbose = false, force = false, autofix = false,
-                           ignore_audit_errors = true)
+    build(runner, dep::Dependency; verbose::Bool = false, force::Bool = false,
+                  autofix::Bool = false, ignore_audit_errors::Bool = true)
 
 Build the dependency for given `platform` (defaulting to the host platform)
 unless it is already satisfied.  If `force` is set to `true`, then the
