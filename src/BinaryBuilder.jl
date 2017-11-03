@@ -13,31 +13,9 @@ include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
-export shortname, autobuild, run_wizard
-
-"""
-    shortname(p::Platform)
-
-Get a convenient symbol representation of the given platform.
-
-# Examples
-```jldoctest
-julia> shortname(Linux(:i686))
-:linux32
-
-julia> shortname(MacOS())
-:osx64
-```
-"""
-function shortname(p::Linux)
-    a = arch(p)
-    if a === :x86_64 || a === :i686
-        return Symbol("linux", wordsize(p))
-    else
-        return Symbol("linux", a)
-    end
+function __init__()
+    # Initialize our rootfs and sandbox blobs
+    update_rootfs()
+    update_sandbox_binary()
 end
-shortname(p::Windows) = Symbol("win", wordsize(p))
-shortname(p::MacOS) = :osx64
-
 end # module

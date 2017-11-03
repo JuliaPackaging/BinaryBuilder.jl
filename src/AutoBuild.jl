@@ -1,13 +1,34 @@
-function autobuild(dir, src_name, platforms, sources, script, products)
+export autobuild
 
+"""
+    autobuild(dir::AbstractString, src_name::AbstractString, platforms::Vector,
+              sources::Vector, script, products)
+
+Runs the boiler plate code to download, build, and package a source package
+for multiple platforms.  `src_name`
+"""
+function autobuild(dir::AbstractString, src_name::AbstractString,
+                   platforms::Vector, sources::Vector, script, products)
     # First, download the source(s), store in ./downloads/
     downloads_dir = joinpath(dir, "downloads")
     try mkpath(downloads_dir) end
-    src_paths = String[]
-    for (src_hash, src_url) in sources
-        src_path = joinpath(downloads_dir, basename(src_url))
-        push!(src_paths, src_path)
-        download_verify(src_url, src_hash, src_path; verbose=true)
+    for idx in 1:length(sources)
+        src_url, src_hash = sources[idx]
+        if isfile(src_url)
+            # Immediately abspath() a src_url so we don't lose track of
+            # sources given to us with a relative path
+            src_path = abspath(src_url)
+
+            # Save it back for later use
+            sources[idx] = (src_path, src_hash)
+
+            # And if this is a locally-sourced tarball, just verify
+            verify(src_path, src_hash; verbose=true)
+        else
+            # Otherwise, download and verify
+            src_path = joinpath(downloads_dir, basename(src_url))
+            download_verify(src_url, src_hash, src_path; verbose=true)
+        end
     end
 
     # Our build products will go into ./products
@@ -24,7 +45,12 @@ function autobuild(dir, src_name, platforms, sources, script, products)
         try mkpath(build_path) end
 
         cd(build_path) do
-            prefix, ur = setup_workspace(build_path, src_paths, platform; verbose=true)
+            src_paths, src_hashes = collect(zip(sources...))
+
+            # Convert from tuples to arrays, if need be
+            src_paths = collect(src_paths)
+            src_hashes = collect(src_hashes)
+            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, platform; verbose=true)
 
             prdcts = products(prefix)
 

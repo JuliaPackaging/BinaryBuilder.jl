@@ -53,9 +53,6 @@ function update_rootfs(;verbose::Bool = true)
         end
         unpack(rootfs_tar, rootfs; verbose=verbose)
     end
-
-    global TOOLS_UPDATED
-    TOOLS_UPDATED=true
 end
 
 """
@@ -73,13 +70,6 @@ function update_sandbox_binary(;verbose::Bool = true)
 end
 
 function UserNSRunner(sandbox::String; overlay = true, cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
-    # Do updates, if we need to
-    if should_update_tools()
-        update_rootfs()
-        update_sandbox_binary()
-        TOOLS_UPDATED = true
-    end
-
     if overlay
         sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
     else

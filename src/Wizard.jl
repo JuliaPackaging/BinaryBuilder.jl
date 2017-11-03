@@ -2,6 +2,9 @@ using Base.Terminals
 using TerminalMenus
 using ObjectFile.ELF
 
+# It's Magic!
+export run_wizard
+
 
 """
     WizardState
@@ -397,11 +400,17 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                              Dict{String, String}();
                          verbose::Bool = false, tee_stream::IO = STDOUT)
     # Upper dir for the root overlay
-    mkdir(joinpath(build_path, "overlay_root"))
+    try
+        mkdir(joinpath(build_path, "overlay_root"))
+    end
     # Working directory for the root overlay
-    mkdir(joinpath(build_path, "overlay_workdir"))
+    try
+        mkdir(joinpath(build_path, "overlay_workdir"))
+    end
     # Workspace root
-    mkdir(joinpath(build_path, "workspace"))
+    try
+        mkdir(joinpath(build_path, "workspace"))
+    end
     
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
@@ -437,6 +446,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             end
         else
             # For consistency, we use the tar inside the sandbox to unpack
+            @show src_path
             cp(src_path, joinpath(srcdir, basename(src_path)))
             if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
                endswith(src_path, ".tar.bz") || endswith(src_path, ".tar.xz")
@@ -918,7 +928,7 @@ function step7(state::WizardState)
     urlhashes = zip(state.source_urls, state.source_hashes)
     sources_string = string("[\n",join(map(urlhashes) do x
         (src, hash) = x
-        string(repr(hash)," =>\n", repr(src), ",\n")
+        string(repr(src)," =>\n", repr(hash), ",\n")
     end,",\n"),"]")
 
     stuff = collect(zip(state.files, state.file_kinds))
