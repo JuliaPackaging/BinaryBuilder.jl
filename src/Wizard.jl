@@ -387,6 +387,10 @@ end
 Sets up a workspace within `build_path`, creating the directory structure
 needed by further steps, unpacking the source within `build_path`, and defining
 the environment variables that will be defined within the sandbox environment.
+
+This method returns the `Prefix` to install things into, the `srcdir` in which
+the given source has been unpacked to, and the `UserNSRunner` that can be used
+to launch commands within this workspace.
 """
 function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          src_hashes::Vector, platform::Platform,
@@ -449,7 +453,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     run(ur, `/bin/bash -c $(join(cmds, '\n'))`, ""; verbose=verbose, tee_stream=tee_stream)
 
     # Return the prefix and the runner
-    return Prefix(destdir), ur
+    return Prefix(destdir), srcdir, ur
 end
 
 """
@@ -612,7 +616,7 @@ function step3_retry(state::WizardState)
     mkpath(build_path)
     local ok = true
     cd(build_path) do
-        prefix, ur = setup_workspace(
+        prefix, srcdir, ur = setup_workspace(
             build_path,
             state.source_files,
             state.source_hashes,
@@ -691,7 +695,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
     mkpath(build_path)
     local ok = true
     cd(build_path) do
-        prefix, ur = setup_workspace(
+        prefix, srcdir, ur = setup_workspace(
             build_path,
             state.source_files,
             state.source_hashes,
@@ -799,7 +803,7 @@ function step5c(state::WizardState)
         mkpath(build_path)
         local ok = true
         cd(build_path) do
-            prefix, ur = setup_workspace(
+            prefix, srcdir, ur = setup_workspace(
                 build_path,
                 state.source_files,
                 state.source_hashes,

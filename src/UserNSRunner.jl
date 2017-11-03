@@ -1,6 +1,6 @@
 const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
-const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-01.tar.gz"
-const rootfs_sha256 = "c786f219095850bacadb89fafabb2909af6b8ee062c3fa9b30478a2ac006e6b8"
+const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-02.tar.gz"
+const rootfs_sha256 = "f01efc8cb6210190e9a6986bd1ec7706b4108de64bfccf2686f127816d3d8732"
 const rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "rootfs.tar.gz")
 const rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
@@ -17,25 +17,6 @@ within the crossbuild environment.
 type UserNSRunner
     sandbox_cmd::Cmd
     platform::Platform
-end
-
-TOOLS_UPDATED = false
-function should_update_tools()
-    # We only want to update once per session, at the most
-    global TOOLS_UPDATED
-
-    if TOOLS_UPDATED
-        return false
-    end
-
-    # If the user explicitly asks for this not to be checked, don't do it
-    const no_synonyms = ["n", "no", "false"]
-    if lowercase(get(ENV, "BINBUILD_AUTOUPDATE", "y")) in no_synonyms
-        return false
-    end
-
-    # Otherwise, do it!
-    return true
 end
 
 """
@@ -59,7 +40,7 @@ function update_rootfs(;verbose::Bool = true)
         # If download_verify failed, we need to clear out the old rootfs and
         # download the new rootfs image.  Start by removing the old rootfs: 
         rm(rootfs; force=true, recursive=true)
-        rm(rootfs_tar; force=true)
+        rm(rootfs_tar; force=true, recursive=true)
 
         # Then download and unpack again
         download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
@@ -96,6 +77,7 @@ function UserNSRunner(sandbox::String; overlay = true, cwd = nothing, platform::
     if should_update_tools()
         update_rootfs()
         update_sandbox_binary()
+        TOOLS_UPDATED = true
     end
 
     if overlay

@@ -1,0 +1,7 @@
+# Ignore rootfs artifacts
+root/
+rootfs.tar.gz
+rootfs.tar.gz.sha256
+
+# Ignore sandbox executable
+sandbox
