@@ -19,7 +19,7 @@ mutable struct WizardState
     ins::IO
     outs::IO
     # Filled in by step 1
-    platforms::Union{Void, Vector{Platform}}
+    platforms::Union{Void, Vector{P}} where {P <: Platform}
     # Filled in by step 2
     workspace::Union{Void, String}
     source_urls::Union{Void, Vector{String}}
