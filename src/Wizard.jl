@@ -984,7 +984,6 @@ function step7(state::WizardState)
     before_script:
       - docker pull \$DOCKER_IMAGE
       - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryProvider.jl")'
-      - julia -e 'Pkg.clone("https://github.com/staticfloat/ObjectFile.jl")'
       - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryBuilder.jl"); Pkg.build()'
 
     script:
