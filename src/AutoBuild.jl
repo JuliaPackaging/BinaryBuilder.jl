@@ -19,9 +19,6 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             # sources given to us with a relative path
             src_path = abspath(src_url)
 
-            # Save it back for later use
-            sources[idx] = (src_path, src_hash)
-
             # And if this is a locally-sourced tarball, just verify
             verify(src_path, src_hash; verbose=true)
         else
@@ -29,6 +26,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             src_path = joinpath(downloads_dir, basename(src_url))
             download_verify(src_url, src_hash, src_path; verbose=true)
         end
+        sources[idx] = (src_path => src_hash)
     end
 
     # Our build products will go into ./products

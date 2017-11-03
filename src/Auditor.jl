@@ -295,7 +295,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         return
     end
 
-    dr = DockerRunner(;prefix=prefix, platform=platform)
+    ur = UserNSRunner(prefix.path; platform=platform, overlay=false)
 
     add_rpath = x -> ``
     relink = (x, y) -> ``
@@ -315,7 +315,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         libname = basename(old_libpath)
         logpath = joinpath(logdir(prefix), "update_rpath_$(libname).log")
         cmd = add_rpath(relpath(dirname(new_libpath), dirname(path)))
-        run(dr, cmd, logpath; verbose=verbose)
+        run(ur, cmd, logpath; verbose=verbose)
     end
 
     # Create a new linkage that looks like $ORIGIN/../lib, or similar
@@ -323,7 +323,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     logpath = joinpath(logdir(prefix), "update_linkage_$(libname).log")
     origin_relpath = joinpath(origin, relpath(new_libpath, dirname(path)))
     cmd = relink(old_libpath, origin_relpath)
-    run(dr, cmd, logpath; verbose=verbose)
+    run(ur, cmd, logpath; verbose=verbose)
 
     return origin_relpath
 end

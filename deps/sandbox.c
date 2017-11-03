@@ -266,6 +266,13 @@ int main(int sandbox_argc, char **sandbox_argv) {
   check(pid == waitpid(pid, &status, 0));
   check(WIFEXITED(status));
 
+  // Delete (empty) work directory
+  {
+      char work_dir_path[PATH_MAX];
+      sprintf(&work_dir_path[0], "%s/work", overlay_workdir);
+      rmdir(&work_dir_path[0]);
+  }
+
   // Give back the terminal to the parent
   signal(SIGTTOU, SIG_IGN);
   tcsetpgrp(0, pgrp);

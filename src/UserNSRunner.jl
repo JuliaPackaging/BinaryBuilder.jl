@@ -11,7 +11,7 @@ const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
 A `UserNSRunner` represents an "execution context", an object that bundles all
 necessary information to run commands within the container that contains
 our crossbuild environment.  Use `run()` to actually run commands within the
-`DockerRunner`, and `runshell()` as a quick way to get an interactive shell
+`UserNSRunner`, and `runshell()` as a quick way to get an interactive shell
 within the crossbuild environment.
 """
 type UserNSRunner
@@ -63,6 +63,9 @@ Builds/updates the `sandbox` binary that launches all commands within the rootfs
 function update_sandbox_binary(;verbose::Bool = true)
     cd(joinpath(dirname(@__FILE__), "..", "deps")) do
         if !isfile("sandbox") || stat("sandbox").mtime < stat("sandbox.c").mtime
+            if verbose
+                info("Rebuilding sandbox binary...")
+            end
             oc = OutputCollector(`gcc -o sandbox sandbox.c`; verbose=verbose)
             wait(oc)
         end
@@ -73,7 +76,7 @@ function UserNSRunner(sandbox::String; overlay = true, cwd = nothing, platform::
     if overlay
         sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
     else
-        sandbox_cmd = `$sandbox_path --rootfs $rootfs $sandbox`
+        sandbox_cmd = `$sandbox_path --rootfs $rootfs --workspace $sandbox`
     end
 
     if cwd != nothing
@@ -85,7 +88,7 @@ end
 
 function show(io::IO, x::UserNSRunner)
     p = x.platform
-    # Displays as, e.g., Linux x86_64 (glibc) DockerRunner
+    # Displays as, e.g., Linux x86_64 (glibc) UserNSRunner
     write(io, typeof(p), " ", arch(p), " ",
           Compat.Sys.islinux(p) ? "($(p.libc)) " : "",
           "UserNSRunner")
@@ -99,7 +102,7 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
         did_succeed = wait(oc)
 
         if !isempty(logpath)
-            # Write out the logfile, regardless of whether it was successful or not
+            # Write out the logfile, regardless of whether it was successful
             mkpath(dirname(logpath))
             open(logpath, "w") do f
                 # First write out the actual command, then the command output
@@ -131,4 +134,8 @@ end
 
 function runshell(ur::UserNSRunner, args...)
     run_interactive(ur, `/bin/bash`, args...)
+end
+
+function runshell()
+    return runshell(UserNSRunner(pwd(); cwd="/workspace/", overlay=false))
 end

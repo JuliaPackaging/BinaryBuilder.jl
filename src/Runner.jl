@@ -27,7 +27,7 @@ function target_envs(target::AbstractString)
 
         # Autotools really appreciates being able to build stuff for the
         # host system, so we set this to ease its woes
-        "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
+        "CC_FOR_BUILD" => "/usr/bin/gcc",
     )
 
     return mapping

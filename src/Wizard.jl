@@ -226,7 +226,7 @@ function edit_script(state::WizardState, script::AbstractString)
     
         # Launch a sandboxed vim editor
         ur = UserNSRunner(
-            workspace = prefix.path,
+            prefix.path,
             cwd = "/workspace/",
             platform = Linux(:x86_64))
         run_interactive(ur, `/usr/bin/vi /workspace/script`,
@@ -554,7 +554,7 @@ function step3_audit(state::WizardState, prefix::Prefix)
     print_with_color(:bold, state.outs, "\n\t\t\tAnalyzing...\n\n")
 
     audit(prefix; io=state.outs,
-        platform=Linux(:x86_64), verbose=true, autofix=false)
+        platform=Linux(:x86_64), verbose=true, autofix=true)
 
     println(state.outs)
 end
@@ -723,7 +723,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
         print_with_color(:bold, state.outs, msg)
 
         audit(prefix; io=state.outs,
-            platform=platform, verbose=true, autofix=false)
+            platform=platform, verbose=true, autofix=true)
 
         ok = isempty(match_files(state, prefix, platform, state.files))
         if !ok
@@ -787,7 +787,7 @@ end
 
 function step5b(state::WizardState)
     if step5_internal(state, Linux(:aarch64),
-    ".\n This should uncover issues related\nto architecture differences.")
+    ".\n This should uncover issues related to architecture differences.")
         state.step = :step5c
     end
 end
@@ -832,7 +832,7 @@ function step5c(state::WizardState)
                 platform=platform,
                 verbose=false,
                 silent=true,
-                autofix=false
+                autofix=true
             )
 
             ok = isempty(match_files(
@@ -923,11 +923,11 @@ function step7(state::WizardState)
     name = readline(state.ins)
     println(state.outs, "Use this as your build_tarballs.jl:")
 
-    platforms_string = string("[\n",join(state.platforms,",\n"),"\n]\n")
+    platforms_string = string("[\n  ",join(state.platforms,",\n  "),"\n]\n")
     urlhashes = zip(state.source_urls, state.source_hashes)
     sources_string = string("[\n",join(map(urlhashes) do x
         (src, hash) = x
-        string(repr(src)," =>\n", repr(hash), ",\n")
+        string("  ", repr(src)," =>\n", repr(hash), ",\n")
     end,",\n"),"]")
 
     stuff = collect(zip(state.files, state.file_kinds))
