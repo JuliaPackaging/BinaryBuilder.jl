@@ -446,7 +446,6 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             end
         else
             # For consistency, we use the tar inside the sandbox to unpack
-            @show src_path
             cp(src_path, joinpath(srcdir, basename(src_path)))
             if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
                endswith(src_path, ".tar.bz") || endswith(src_path, ".tar.xz")
