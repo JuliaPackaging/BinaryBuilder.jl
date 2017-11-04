@@ -115,7 +115,7 @@ function download_source(state::WizardState)
 
         obj = LibGit2.GitObject(repo, treeish)
         source_hash = LibGit2.hex(LibGit2.GitHash(obj))
-        
+
         # Tell the user what we recorded the current commit as
         print(state.outs, "Recorded as ")
         print_with_color(:bold, state.outs, source_hash)
@@ -124,7 +124,7 @@ function download_source(state::WizardState)
     else
         # Download the source tarball
         source_path = joinpath(state.workspace, basename(url))
-    
+
         if isfile(source_path)
             name, ext = splitext(basename(source_path))
             n = 1
@@ -133,7 +133,7 @@ function download_source(state::WizardState)
             end
             source_path = joinpath(state.workspace, "$(name)_$n$ext")
         end
-        
+
         download_cmd = gen_download_cmd(url, source_path)
         oc = OutputCollector(download_cmd; verbose=true, tee_stream=state.outs)
         try
@@ -223,7 +223,7 @@ function edit_script(state::WizardState, script::AbstractString)
         open(path, "w") do f
             write(f, script)
         end
-    
+
         # Launch a sandboxed vim editor
         ur = UserNSRunner(
             overlay = false,
@@ -232,7 +232,7 @@ function edit_script(state::WizardState, script::AbstractString)
             platform = Linux(:x86_64))
         run_interactive(ur, `/usr/bin/vi /workspace/script`,
                         state.ins, state.outs, state.outs)
-    
+
         # Once the user is finished, read the script back in
         script = readstring(path)
     end
@@ -412,7 +412,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     try
         mkdir(joinpath(build_path, "workspace"))
     end
-    
+
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
     mkdir(joinpath(build_path, "workspace", nonce))
@@ -421,7 +421,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     srcdir = joinpath(build_path, "workspace", nonce, "srcdir")
     destdir = joinpath(build_path, "workspace", nonce, "destdir")
     mkdir(srcdir); mkdir(destdir)
-    
+
     # Create a runner to work inside this workspace with the nonce built-in
     ur = UserNSRunner(build_path,
         cwd = "/workspace/$nonce/srcdir",
@@ -496,17 +496,16 @@ function step4(state::WizardState, ur::UserNSRunner,
         isexecutable(h) ? :executable :
         islibrary(h) ? :library : :other
     end
-    
+
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
     if length(files) == 0
-        # TODO: Make this a regular error path
         print_with_color(:red, state.outs, "ERROR: ")
         println(state.outs, "The build has produced no binary artifacts.")
         println(state.outs, " "^7, "This is generally because an error occured during the build")
         println(state.outs, " "^7, "or because you forgot to `make install` or equivalent.")
         println(state.outs)
-        
+
         choice = request(terminal, "How would you like to proceed?",
             RadioMenu([
                 "Return to build enviornment",
@@ -514,7 +513,7 @@ function step4(state::WizardState, ur::UserNSRunner,
                 "Edit the script"
             ]))
         println(state.outs)
-        
+
         if choice == 1
             return step3_interactive(state, prefix, ur, build_path)
         elseif choice == 2
@@ -539,10 +538,10 @@ function step4(state::WizardState, ur::UserNSRunner,
         state.file_kinds = map(x->state.file_kinds[x], selected)
         state.files = map(x->state.files[x], selected)
     end
-    
+
     # Advance to next step
     state.step = :step5a
-    
+
     println(state.outs)
 end
 
@@ -561,46 +560,64 @@ function step3_audit(state::WizardState, prefix::Prefix)
 end
 
 """
+    interactive_build(state::WizardState, prefix::Prefix,
+                      ur::UserNSRunner, build_path::AbstractString)
+
+    Runs the interactive shell for building, then captures bash history to save
+    reproducible steps for building this source. Shared between steps 3 and 5
+"""
+function interactive_build(state::WizardState, prefix::Prefix,
+                           ur::UserNSRunner, build_path::AbstractString;
+                           hist_modify = string)
+   histfile = joinpath(build_path, "workspace", ".bash_history")
+   runshell(ur, state.ins, state.outs, state.outs)
+   # This is an extremely simplistic way to capture the history,
+   # but ok for now. Obviously doesn't include any interactive
+   # programs, etc.
+   if isfile(histfile)
+       state.history = hist_modify(state.history,
+           # This is a bit of a hack for now to get around the fact
+           # that we don't know cwd when we get back from bash, but
+           # always start in the WORKSPACE. This makes sure the script
+           # accurately reflects that.
+           string("cd \$WORKSPACE/srcdir\n",
+           readstring(histfile)))
+       rm(histfile)
+   end
+
+   print_with_color(:bold, state.outs, "\n\t\t\tBuild complete\n\n")
+   print(state.outs, "Your build script was:\n\n\t")
+   print(state.outs, replace(state.history, "\n", "\n\t"))
+   println(state.outs)
+
+   if yn_prompt(state, "Would you like to edit this script now?", :n) == :y
+       state.history = edit_script(state, state.history)
+
+       println(state.outs)
+       msg = strip("""
+       We will now rebuild with your new script to make sure it still works.
+       """)
+       println(state.outs, msg)
+       println(state.outs)
+
+       return false
+   else
+
+       return true
+   end
+end
+
+"""
     step3_interactive(state::WizardState, prefix::Prefix,
                       ur::UserNSRunner, build_path::AbstractString)
 
-Runs the interactive shell for building, then captures bash history to save
-reproducible steps for building this source.
+The interactive portion of step3, moving on to either rebuild with an edited
+script or proceed to step 4.
 """
 function step3_interactive(state::WizardState, prefix::Prefix,
                            ur::UserNSRunner, build_path::AbstractString)
-    histfile = joinpath(build_path, "workspace", ".bash_history")
-    runshell(ur, state.ins, state.outs, state.outs)
 
-    # This is an extremely simplistic way to capture the history,
-    # but ok for now. Obviously doesn't include any interactive
-    # programs, etc.
-    if isfile(histfile)
-        state.history = string(state.history,
-            # This is a bit of a hack for now to get around the fact
-            # that we don't know cwd when we get back from bash, but
-            # always start in the WORKSPACE. This makes sure the script
-            # accurately reflects that.
-            "cd \$WORKSPACE/srcdir\n",
-            readstring(histfile))
-        rm(histfile)
-    end
-
-    print_with_color(:bold, state.outs, "\n\t\t\tBuild complete\n\n")
-    print(state.outs, "Your build script was:\n\n\t")
-    print(state.outs, replace(state.history, "\n", "\n\t"))
-    println(state.outs)
-
-    if yn_prompt(state, "Would you like to edit this script now?", :n) == :y
-        state.history = edit_script(state, state.history)
-        
-        println(state.outs)
-        msg = strip("""
-        We will now rebuild with your new script to make sure it still works.
-        """)
-        println(state.outs, msg)
-        println(state.outs)
-        
+    if interactive_build(state, prefix, ur, build_path)
         state.step = :step3_retry
     else
         step3_audit(state, prefix)
@@ -617,7 +634,7 @@ file manually, etc...
 """
 function step3_retry(state::WizardState)
     platform = Linux(:x86_64)
-    
+
     msg = "\t\t\t\# Attempting to build for $platform\n\n"
     print_with_color(:bold, state.ins, msg)
 
@@ -642,7 +659,7 @@ function step3_retry(state::WizardState)
         )
 
         step3_audit(state, prefix)
-        
+
         return step4(state, ur, build_path, prefix)
     end
 end
@@ -708,7 +725,8 @@ function step5_internal(state::WizardState, platform::Platform, message)
             build_path,
             state.source_files,
             state.source_hashes,
-            platform;
+            platform,
+            Dict("HISTFILE"=>"/workspace/.bash_history");
             verbose=true,
             tee_stream=state.outs
         )
@@ -720,48 +738,92 @@ function step5_internal(state::WizardState, platform::Platform, message)
             tee_stream=state.outs
         )
 
-        msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
-        print_with_color(:bold, state.outs, msg)
+        while true
+            msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
+            print_with_color(:bold, state.outs, msg)
 
-        audit(prefix; io=state.outs,
-            platform=platform, verbose=true, autofix=true)
+            audit(prefix; io=state.outs,
+                platform=platform, verbose=true, autofix=true)
 
-        ok = isempty(match_files(state, prefix, platform, state.files))
-        if !ok
-            println(state.outs)
-            print_with_color(:red, state.outs, "ERROR: ")
-            msg = "Some build products could not be found (see above)."
-            println(state.outs, msg)
-            println(state.outs)
-            
-            # N.B.: This is a Star Trek reference (TNG Season 1, Episode 25,
-            # 25:00).
-            choice = request(terminal,
-                "Please specify how you would like to proceed, sir.",
-                RadioMenu([
-                    "Drop into build environment",
-                    "Open a clean session for this platform",
-                    "Disable this platform",
-                    "Edit build script",
-                ])
-            )
-                
-            if choice == 1
-                runshell(ur, state.ins, state.outs, state.outs)
-                # TODO: Append this as platform_only to the build script
-            elseif choice == 2
-                error("Not implemented yet")
-            elseif choice == 3
-                filter!(p->p != platform, state.platforms)
-                ok = true
-            elseif choice == 4
-                state.history = edit_script(state, state.history)
-                # Well go around again after this
+            ok = isempty(match_files(state, prefix, platform, state.files))
+            if !ok
+                println(state.outs)
+                print_with_color(:red, state.outs, "ERROR: ")
+                msg = "Some build products could not be found (see above)."
+                println(state.outs, msg)
+                println(state.outs)
+
+                # N.B.: This is a Star Trek reference (TNG Season 1, Episode 25,
+                # 25:00).
+                choice = request(terminal,
+                    "Please specify how you would like to proceed, sir.",
+                    RadioMenu([
+                        "Drop into build environment",
+                        "Open a clean session for this platform",
+                        "Disable this platform",
+                        "Edit build script",
+                    ])
+                )
+
+                if choice == 1
+                    if interactive_build(state, prefix, ur, build_path;
+                                      hist_modify = function(olds, s)
+                        """
+                        $olds
+                        if [ \$target = "$(triplet(platform))" ]; then
+                        $s
+                        fi
+                        """
+                        end)
+                        # We'll go around again after this
+                        break
+                    else
+                        # Go back to analysis of the newly environment
+                        continue
+                    end
+                elseif choice == 2
+                    rmdir(build_path; recursive = true)
+                    mkpath(build_path)
+                    prefix, ur = setup_workspace(
+                        build_path,
+                        state.source_files,
+                        state.source_hashes,
+                        platform,
+                        Dict("HISTFILE"=>"/workspace/.bash_history");
+                        verbose=true,
+                        tee_stream=state.outs
+                    )
+                    if interactive_build(state, prefix, ur, build_path;
+                                      hist_modify = function(olds, s)
+                        """
+                        if [ \$target != "$(triplet(platform))" ]; then
+                        $olds
+                        else
+                        $s
+                        fi
+                        """
+                        end)
+                        # We'll go around again after this
+                        break
+                    else
+                        # Go back to analysis of the newly environment
+                        continue
+                    end
+                elseif choice == 3
+                    filter!(p->p != platform, state.platforms)
+                    ok = true
+                    break
+                elseif choice == 4
+                    state.history = edit_script(state, state.history)
+                    break
+                    # Well go around again after this
+                end
+            else
+                println(state.outs, "")
+                msg = "You have successfully built for $platform. Congratulations!"
+                println(state.outs, msg)
+                break
             end
-        else
-            println(state.outs, "")
-            msg = "You have successfully built for $platform. Congratulations!"
-            println(state.outs, msg)
         end
 
         println(state.outs)
@@ -853,7 +915,7 @@ function step5c(state::WizardState)
         end
         println(state.outs, "]")
     end
-    
+
     println(state.outs)
 end
 
@@ -862,19 +924,19 @@ function step6(state::WizardState)
         state.step = :step7
         return
     end
-    
+
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
-    
+
     msg = "\t\t\t\# Step 6: Revisit failed platforms\n\n"
     print_with_color(:bold, state.outs, msg)
-    
+
     println(state.outs, "Several platforms failed to build:")
     for plat in state.failed_platforms
         println(state.outs, " - ", plat)
     end
-    
+
     println(state.outs)
-    
+
     choice = request(terminal,
         "What would you like to do?",
         RadioMenu([
@@ -885,7 +947,7 @@ function step6(state::WizardState)
     )
 
     println(state.outs)
-    
+
     if choice == 1
         filter!(p->!(p in state.failed_platforms), state.platforms)
         state.step = :step7
@@ -1033,7 +1095,7 @@ end
 
 function run_wizard(state::WizardState = WizardState())
     print_wizard_logo(state.outs)
-    
+
     println(state.outs,
             "Welcome to the BinaryBuilder wizard.\n"*
             "We'll get you set up in no time.\n")
