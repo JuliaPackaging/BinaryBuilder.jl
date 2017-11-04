@@ -522,7 +522,7 @@ function step4(state::WizardState, ur::UserNSRunner, platform::Platform,
         println(state.outs)
 
         if choice == 1
-            return step3_interactive(state, prefix, ur, build_path)
+            return step3_interactive(state, prefix, platform, ur, build_path)
         elseif choice == 2
             state.step = :step3
             return

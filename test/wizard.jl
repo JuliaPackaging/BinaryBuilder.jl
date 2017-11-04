@@ -8,6 +8,7 @@ function BinaryBuilder.WizardState(ins::Base.TTY, outs::Base.TTY)
     state = BinaryBuilder.WizardState()
     state.ins = ins
     state.outs = outs
+    state.platforms = supported_platforms()
     state
 end
 
