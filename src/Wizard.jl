@@ -226,6 +226,7 @@ function edit_script(state::WizardState, script::AbstractString)
     
         # Launch a sandboxed vim editor
         ur = UserNSRunner(
+            overlay = false,
             prefix.path,
             cwd = "/workspace/",
             platform = Linux(:x86_64))
