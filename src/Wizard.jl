@@ -31,6 +31,11 @@ mutable struct WizardState
     file_kinds::Union{Void, Vector{Symbol}}
     # Filled in by step 5c
     failed_platforms::Set{Any}
+    # Used to keep track of which platforms we already visited
+    visited_platforms::Set{Any}
+    # Used to keep track of which platforms we have shown to work
+    # with the current script. This gets reset if the script is edited.
+    validated_platforms::Set{Any}
 end
 
 function WizardState()
@@ -46,7 +51,9 @@ function WizardState()
         nothing,
         nothing,
         nothing,
-        Set{Any}()
+        Set{Any}(),
+        Set{Any}(),
+        Set{Any}(),
     )
 end
 
@@ -466,12 +473,12 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
 end
 
 """
-    step4(state::WizardState, ur::UserNSRunner,
+    step4(state::WizardState, ur::UserNSRunner, platform::Platform,
           build_path::AbstractString, prefix::Prefix)
 
-The fourth step selects build products after the build is done for Linux x86_64
+The fourth step selects build products after the first build is done
 """
-function step4(state::WizardState, ur::UserNSRunner,
+function step4(state::WizardState, ur::UserNSRunner, platform::Platform,
                build_path::AbstractString, prefix::Prefix)
     print_with_color(:bold, state.outs, "\t\t\t\# Step 4: Select build products\n\n")
 
@@ -482,7 +489,7 @@ function step4(state::WizardState, ur::UserNSRunner,
     files = filter(files) do f
         try
             h = readmeta(f)
-            is_for_platform(h, Linux(:x86_64)) || return false
+            is_for_platform(h, platform) || return false
             return true
         catch
             return false
@@ -539,6 +546,7 @@ function step4(state::WizardState, ur::UserNSRunner,
         state.files = map(x->state.files[x], selected)
     end
 
+    push!(state.validated_platforms, platform)
     # Advance to next step
     state.step = :step5a
 
@@ -546,15 +554,15 @@ function step4(state::WizardState, ur::UserNSRunner,
 end
 
 """
-    step3_audit(state::WizardState, prefix::Prefix)
+    step3_audit(state::WizardState, platform::Platform, prefix::Prefix)
 
 Audit the `prefix`.
 """
-function step3_audit(state::WizardState, prefix::Prefix)
+function step3_audit(state::WizardState, platform::Platform, prefix::Prefix)
     print_with_color(:bold, state.outs, "\n\t\t\tAnalyzing...\n\n")
 
     audit(prefix; io=state.outs,
-        platform=Linux(:x86_64), verbose=true, autofix=true)
+        platform=platform, verbose=true, autofix=true)
 
     println(state.outs)
 end
@@ -600,29 +608,30 @@ function interactive_build(state::WizardState, prefix::Prefix,
        println(state.outs, msg)
        println(state.outs)
 
-       return false
+       return true
    else
 
-       return true
+       return false
    end
 end
 
 """
-    step3_interactive(state::WizardState, prefix::Prefix,
+    step3_interactive(state::WizardState, prefix::Prefix, platform::Platform,
                       ur::UserNSRunner, build_path::AbstractString)
 
 The interactive portion of step3, moving on to either rebuild with an edited
 script or proceed to step 4.
 """
 function step3_interactive(state::WizardState, prefix::Prefix,
+                           platform::Platform,
                            ur::UserNSRunner, build_path::AbstractString)
 
     if interactive_build(state, prefix, ur, build_path)
         state.step = :step3_retry
     else
-        step3_audit(state, prefix)
+        step3_audit(state, platform, prefix)
 
-        return step4(state, ur, build_path, prefix)
+        return step4(state, ur, platform, build_path, prefix)
     end
 end
 
@@ -633,7 +642,7 @@ Rebuilds the initial Linux x86_64 build after things like editing the script
 file manually, etc...
 """
 function step3_retry(state::WizardState)
-    platform = Linux(:x86_64)
+    platform = pick_preferred_platform(state.platforms)
 
     msg = "\t\t\t\# Attempting to build for $platform\n\n"
     print_with_color(:bold, state.ins, msg)
@@ -658,10 +667,46 @@ function step3_retry(state::WizardState)
             tee_stream=state.outs
         )
 
-        step3_audit(state, prefix)
+        step3_audit(state, platform, prefix)
 
-        return step4(state, ur, build_path, prefix)
+        return step4(state, ur, platform, build_path, prefix)
     end
+end
+
+"""
+    Change the script. This will invalidate all platforms to make sure we later
+    verify that they still build with the new script.
+"""
+function change_script!(state, script)
+    state.history = script
+    empty!(state.validated_platforms)
+end
+
+"""
+    Pick the first platform for use to run on. We prefer Linux x86_64 because
+    that's generally the host platform, so it's usually easiest. After that we
+    go by the following preferences:
+        - OS (in order): Linux, Windows, OSX
+        - Architecture: x86_64, i686, aarch64, powerpc64le, armv7l
+        - The first remaining after this selection
+"""
+function pick_preferred_platform(platforms)
+    if Linux(:x86_64) in platforms
+        return Linux(:x86_64)
+    end
+    for os in (Linux, Windows, MacOS)
+        plats = filter(p->p isa os, platforms)
+        if !isempty(plats)
+            platforms = plats
+        end
+    end
+    for arch in (:x86_64, :i686, :aarch64, :powerpc64le, :armv7l)
+        plats = filter(p->p.arch == arch, platforms)
+        if !isempty(plats)
+            platforms = plats
+        end
+    end
+    first(platforms)
 end
 
 """
@@ -672,11 +717,14 @@ platform.  Sources that build properly for this platform continue on to attempt
 builds for more complex platforms.
 """
 function step34(state::WizardState)
-    print_with_color(:bold, state.outs, "\t\t\t\# Step 3: Build for Linux x86_64\n\n")
+    platform = pick_preferred_platform(state.platforms)
+    push!(state.visited_platforms, platform)
+
+    print_with_color(:bold, state.outs, "\t\t\t\# Step 3: Build for $(platform)\n\n")
 
     msg = strip("""
     You will now be dropped into the cross-compilation environment.
-    Please compile the library. Your initial compilation target is Linux x86_64.
+    Please compile the library. Your initial compilation target is $(platform).
     The \$DESTDIR environment variable contains the target directory.
     Many build systems will respect this variable automatically.
     Once you are done, exit by typing `exit` or `^D`
@@ -693,14 +741,14 @@ function step34(state::WizardState)
             build_path,
             state.source_files,
             state.source_hashes,
-            Linux(:x86_64),
+            platform,
             Dict("HISTFILE"=>"/workspace/.bash_history");
             verbose=true,
             tee_stream=state.outs
         )
         provide_hints(state, joinpath(prefix.path, "..", "srcdir"))
 
-        return step3_interactive(state, prefix, ur, build_path)
+        return step3_interactive(state, prefix, platform, ur, build_path)
     end
 end
 
@@ -814,11 +862,12 @@ function step5_internal(state::WizardState, platform::Platform, message)
                     ok = true
                     break
                 elseif choice == 4
-                    state.history = edit_script(state, state.history)
+                    change_script!(state, edit_script(state, state.history))
                     break
                     # Well go around again after this
                 end
             else
+                push!(state.validated_platforms, platform)
                 println(state.outs, "")
                 msg = "You have successfully built for $platform. Congratulations!"
                 println(state.outs, msg)
@@ -834,31 +883,62 @@ end
 function step5a(state::WizardState)
     print_with_color(:bold, state.outs, "\t\t\t\# Step 5: Generalize the build script\n\n")
 
+    # We will try to pick a platform for a different operating system
+    possible_platforms = filter(state.platforms) do plat
+        !(any(state.visited_platforms) do p
+            plat isa typeof(p)
+        end)
+    end
+    if isempty(possible_platforms)
+        state.step = :step5b
+        return
+    end
+    platform = pick_preferred_platform(possible_platforms)
+
     msg = strip("""
-    You have successfully built for Linux x86_64 (yay!).
-    We will now attempt to use the same script to build for other architectures.
+    We will now attempt to use the same script to build for other operating systems.
     This will likely fail, but the failure mode will help us understand why.
     """)
     println(state.outs, msg)
 
     msg = ".\n This will help iron out any issues\nwith the cross compiler"
-    if step5_internal(state, Windows(:x86_64), msg)
+    if step5_internal(state, platform, msg)
+        push!(state.visited_platforms, platform)
         state.step = :step5b
         # Otherwise go around again
     end
 end
 
 function step5b(state::WizardState)
-    if step5_internal(state, Linux(:aarch64),
+    
+    # We will try to pick a platform for a different architeture
+    possible_platforms = filter(state.platforms) do plat
+        !(any(state.visited_platforms) do p
+            plat.arch == p.arch ||
+            # Treat the x86 variants equivalently
+            (p.arch in (:x86_64, :i686) &&
+             plat.arch in (:x86_64, :i686))
+        end)
+    end
+    if isempty(possible_platforms)
+        state.step = :step5c
+        return
+    end
+    platform = pick_preferred_platform(possible_platforms)
+    
+    if step5_internal(state, platform,
     ".\n This should uncover issues related to architecture differences.")
         state.step = :step5c
+        push!(state.visited_platforms, platform)
     end
 end
 
 function step5c(state::WizardState)
     msg = strip("""
-    We will now attempt to build all remaining architectures.
+    We will now attempt to build all remaining platform.
     Note that these builds are not verbose.
+    If you have edited the script since we attempted to build for any given
+    platform, we will verify that the new script still works now.
     This will probably take a while.
 
     Press any key to continue...
@@ -867,7 +947,7 @@ function step5c(state::WizardState)
     read(state.ins, Char)
     println(state.outs)
 
-    pred = x -> !(x in (Linux(:x86_64), Linux(:aarch64), Windows(:x86_64)))
+    pred = x -> !(x in state.validated_platforms)
     for platform in filter(pred, state.platforms)
         print(state.outs, "Building $platform ")
         build_path = tempname()
@@ -909,6 +989,7 @@ function step5c(state::WizardState)
         print(state.outs, "[")
         if ok
             print_with_color(:green, state.outs, "✓")
+            push!(state.validated_platforms, platform)
         else
             print_with_color(:red, state.outs, "✗")
             push!(state.failed_platforms, platform)
@@ -921,7 +1002,13 @@ end
 
 function step6(state::WizardState)
     if isempty(state.failed_platforms)
-        state.step = :step7
+        if any(p->!(p in state.validated_platforms), state.platforms)
+            # Some platforms weren't validated, we probably edited the script.
+            # Go back to 5c to recompute failed platforms
+            state.step = :step5c
+        else
+            state.step = :step7
+        end
         return
     end
 
@@ -966,8 +1053,9 @@ function step6(state::WizardState)
         end
         # Will wrap back around to step 6
     elseif choice == 3
-        state.history = edit_script(state, state.history)
-        # Will wrap back around to step 6
+        change_script!(state, edit_script(state, state.history))
+        empty!(state.failed_platforms)
+        # Will wrap back around to step 6 (which'll go back to 5c)
     end
 end
 
