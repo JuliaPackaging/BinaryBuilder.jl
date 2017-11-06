@@ -258,7 +258,7 @@ This step selets the relevant platform(s) for the built binaries.
 """
 function step1(state::WizardState)
     # Select a platform
-    msg = "\t\t\t\# Step 1: Select your platforms\n\n"
+    msg = "\t\t\t# Step 1: Select your platforms\n\n"
     print_with_color(:bold, state.outs, msg)
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
     platform_select = request(terminal,
@@ -311,7 +311,7 @@ end
 This step obtains the source code to be built.
 """
 function step2(state::WizardState)
-    msg = "\t\t\t\# Step 2: Obtain the source code\n\n"
+    msg = "\t\t\t# Step 2: Obtain the source code\n\n"
     print_with_color(:bold, state.outs, msg)
 
     # Create the workspace that we'll stash everything within
@@ -480,7 +480,7 @@ The fourth step selects build products after the first build is done
 """
 function step4(state::WizardState, ur::UserNSRunner, platform::Platform,
                build_path::AbstractString, prefix::Prefix)
-    print_with_color(:bold, state.outs, "\t\t\t\# Step 4: Select build products\n\n")
+    print_with_color(:bold, state.outs, "\t\t\t# Step 4: Select build products\n\n")
 
     # Collect all executable/library files
     files = collapse_symlinks(collect_files(prefix))
@@ -644,7 +644,7 @@ file manually, etc...
 function step3_retry(state::WizardState)
     platform = pick_preferred_platform(state.platforms)
 
-    msg = "\t\t\t\# Attempting to build for $platform\n\n"
+    msg = "\t\t\t# Attempting to build for $platform\n\n"
     print_with_color(:bold, state.ins, msg)
 
     build_path = tempname()
@@ -720,7 +720,7 @@ function step34(state::WizardState)
     platform = pick_preferred_platform(state.platforms)
     push!(state.visited_platforms, platform)
 
-    print_with_color(:bold, state.outs, "\t\t\t\# Step 3: Build for $(platform)\n\n")
+    print_with_color(:bold, state.outs, "\t\t\t# Step 3: Build for $(platform)\n\n")
 
     msg = strip("""
     You will now be dropped into the cross-compilation environment.
@@ -763,7 +763,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
 
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
-    print_with_color(:bold, state.ins, "\t\t\t\# Attempting to build for $platform\n\n")
+    print_with_color(:bold, state.ins, "\t\t\t# Attempting to build for $platform\n\n")
 
     build_path = tempname()
     mkpath(build_path)
@@ -881,7 +881,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
 end
 
 function step5a(state::WizardState)
-    print_with_color(:bold, state.outs, "\t\t\t\# Step 5: Generalize the build script\n\n")
+    print_with_color(:bold, state.outs, "\t\t\t# Step 5: Generalize the build script\n\n")
 
     # We will try to pick a platform for a different operating system
     possible_platforms = filter(state.platforms) do plat
@@ -1014,7 +1014,7 @@ function step6(state::WizardState)
 
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
-    msg = "\t\t\t\# Step 6: Revisit failed platforms\n\n"
+    msg = "\t\t\t# Step 6: Revisit failed platforms\n\n"
     print_with_color(:bold, state.outs, msg)
 
     println(state.outs, "Several platforms failed to build:")
@@ -1065,7 +1065,7 @@ function step7(state::WizardState)
     print(state.outs, "Your build script was:\n\n\t")
     print(state.outs, replace(state.history, "\n", "\n\t"))
 
-    print_with_color(:bold, state.outs, "\t\t\t\# Step 7: Deployment\n\n")
+    print_with_color(:bold, state.outs, "\t\t\t# Step 7: Deployment\n\n")
 
     msg = strip("""
     Pick a name for this project.  This will be used for filenames:
