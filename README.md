@@ -4,7 +4,7 @@ The code monkeys are still hard at work tinkering to develop the best possible b
 
 # BinaryBuilder
 
-[![Build Status](https://travis-ci.org/JuliaPackaging/BinaryBuilder.jl.svg?branch=master)](https://travis-ci.org/JuliaPackaging/BinaryBuilder.jl)  [![Build status](https://ci.appveyor.com/api/projects/status/feqn75vl4k5ia6nj?svg=true)](https://ci.appveyor.com/project/JuliaPackaging/binarybuilder-jl)  [![codecov.io](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl?branch=master)
+[![Build Status](https://travis-ci.org/JuliaPackaging/BinaryBuilder.jl.svg?branch=master)](https://travis-ci.org/JuliaPackaging/BinaryBuilder.jl)  [![codecov.io](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl?branch=master)
 
 "Yea, though I walk through the valley of the shadow of death, I will fear no evil"
 
