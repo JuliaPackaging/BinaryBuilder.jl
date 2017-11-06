@@ -12,12 +12,14 @@ notifications:
 git:
   depth: 99999999
 sudo: required
-services:
-  - docker
 
 matrix:
   allow_failures:
     - julia: nightly
+
+cache:
+  directories:
+    - deps/downloads
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
@@ -30,10 +32,9 @@ addons:
       - gzip
 
 before_install:
-  # If we're running the builder tests, go ahead and pull the latest crossbuild image
-  - docker pull staticfloat/julia_crossbuild:x64
   # We need the bleeding edge of BinaryProvider.jl, just install that here now
   - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryProvider.jl")'
+  - julia -e 'Pkg.clone("https://github.com/nick-paul/TerminalMenus.jl")'
 
 after_success:
   # push coverage results to Codecov

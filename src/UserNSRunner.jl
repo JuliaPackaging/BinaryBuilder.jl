@@ -1,7 +1,7 @@
 const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
 const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-02.tar.gz"
 const rootfs_sha256 = "f01efc8cb6210190e9a6986bd1ec7706b4108de64bfccf2686f127816d3d8732"
-const rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "rootfs.tar.gz")
+const rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "downloads", "rootfs.tar.gz")
 const rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
 
@@ -31,6 +31,7 @@ function update_rootfs(;verbose::Bool = true)
         if verbose
             info("Verifying rootfs download...")
         end
+        mkpath(dirname(rootfs_tar))
         download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
     catch
         if verbose
@@ -41,6 +42,7 @@ function update_rootfs(;verbose::Bool = true)
         # download the new rootfs image.  Start by removing the old rootfs: 
         rm(rootfs; force=true, recursive=true)
         rm(rootfs_tar; force=true, recursive=true)
+        mkpath(dirname(rootfs_tar))
 
         # Then download and unpack again
         download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
