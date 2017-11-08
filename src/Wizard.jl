@@ -700,8 +700,8 @@ function pick_preferred_platform(platforms)
             platforms = plats
         end
     end
-    for arch in (:x86_64, :i686, :aarch64, :powerpc64le, :armv7l)
-        plats = filter(p->p.arch == arch, platforms)
+    for a in (:x86_64, :i686, :aarch64, :powerpc64le, :armv7l)
+        plats = filter(p->arch(p) == a, platforms)
         if !isempty(plats)
             platforms = plats
         end
@@ -914,10 +914,10 @@ function step5b(state::WizardState)
     # We will try to pick a platform for a different architeture
     possible_platforms = filter(state.platforms) do plat
         !(any(state.visited_platforms) do p
-            plat.arch == p.arch ||
+            arch(plat) == arch(p) ||
             # Treat the x86 variants equivalently
-            (p.arch in (:x86_64, :i686) &&
-             plat.arch in (:x86_64, :i686))
+            (arch(p) in (:x86_64, :i686) &&
+             arch(plat) in (:x86_64, :i686))
         end)
     end
     if isempty(possible_platforms)
