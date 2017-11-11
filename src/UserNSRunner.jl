@@ -1,6 +1,6 @@
 const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
-const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-02.tar.gz"
-const rootfs_sha256 = "f01efc8cb6210190e9a6986bd1ec7706b4108de64bfccf2686f127816d3d8732"
+const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-10.tar.gz"
+const rootfs_sha256 = "81a233118b0e456eecd568483571796cc78ebab5fa8585b8d218d81449a68dee"
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
 
 # Note that rootfs_tar and rootfs can be overridden by the environment variables shown in __init__()
