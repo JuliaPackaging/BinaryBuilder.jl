@@ -167,11 +167,16 @@ end
 Given a filename, normalize it, stripping out extensions.  E.g. the file path
 `"foo/libfoo.tar.gz"` would get mapped to `"libfoo"`.
 """
-function normalize_name(file::AbstractString)
+function normalize_name(file::AbstractString, )
     file = basename(file)
     idx = findfirst(file, '.')
     if idx != 0
-        return file[1:prevind(file, idx)]
+        file = file[1:prevind(file, idx)]
+    end
+    # String -123, which is a common thing for libraries on windows
+    idx = findlast(file, '-')
+    if idx != 0 && all(isnumber, file[nextind(file, idx):end])
+        file = file[1:prevind(file, idx)]
     end
     return file
 end
