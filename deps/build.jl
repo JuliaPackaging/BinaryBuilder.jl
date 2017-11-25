@@ -6,10 +6,15 @@ using BinaryBuilder
 # in future kernel versions, we'll be able to get rid of the .tar.gz version.
 squashfs = get(ENV, "TRAVIS", "") == "true" &&
            !(get(ENV, "TESTING_BINARYBUILDER_TAR_GZ", "false") == "true")
+automatic = get(ENV, "TRAVIS", "") == "true"
 
-# Initialize our rootfs and sandbox blobs
-BinaryBuilder.update_rootfs(; squashfs=squashfs)
+# Build the sandbox binary
 BinaryBuilder.update_sandbox_binary()
+
+# Initialize just a few platforms here, let the others get brought in on demand
+for pt in triplet.([Linux(:x86_64), MacOS(:x86_64), Windows(:x86_64)])
+    BinaryBuilder.update_rootfs(pt; automatic=automatic, squashfs=squashfs)
+end
 
 # Automatically mount the squashfs image (requires root priviliges)
 if squashfs

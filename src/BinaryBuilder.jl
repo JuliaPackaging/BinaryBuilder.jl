@@ -8,22 +8,35 @@ using Reexport
 
 include("Auditor.jl")
 include("Runner.jl")
+include("RootFS.jl")
 include("UserNSRunner.jl")
 include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
 function __init__()
-    global rootfs_base, rootfs
+    global downloads_cache, rootfs_cache, use_squashfs
     
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
     downloads_cache = get(ENV, "BINARYBUILDER_DOWNLOADS_CACHE", def_dl_cache)
-    rootfs_base = joinpath(downloads_cache, "rootfs")
 
     # If the user has overridden our rootfs unpack location, reflect that here:
-    def_rootfs_dir = joinpath(dirname(@__FILE__),  "..", "deps", "root")
-    rootfs = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_rootfs_dir)
+    def_rootfs_cache = joinpath(dirname(@__FILE__),  "..", "deps", "root")
+    rootfs_cache = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_rootfs_cache)
+
+    # If the user has asked for squashfs mounting instead of tarball mounting,
+    # use that here.  Note that on Travis, we default to using squashfs, unless
+    # BINARYBUILDER_USE_SQUASHFS is set to "false", which overrides this
+    # default. If we are not on Travis, we default to using tarballs and not
+    # squashfs images as using them requires `sudo` access.
+    if get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "false"
+        use_squashfs = false
+    else
+        if get(ENV, "TRAVIS", "") == "true"
+            use_squashfs = true
+        end
+    end
 end
 
 end # module
