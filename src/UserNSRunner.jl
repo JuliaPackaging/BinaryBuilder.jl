@@ -4,7 +4,7 @@ const rootfs_sha256 = "0ea0925c022e8dc6834906ac6edecd668d66e9cecb9667c39cce7d278
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
 
 # Note that rootfs_tar and rootfs can be overridden by the environment variables shown in __init__()
-rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "downloads", "rootfs.tar.gz")
+rootfs_base = joinpath(dirname(@__FILE__), "..", "deps", "downloads", "rootfs")
 rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
 
 """
@@ -21,20 +21,25 @@ type UserNSRunner
     platform::Platform
 end
 
+add_ext(base, squashfs) = string(base, squashfs ? ".squash" : ".tar.gz")
+
 """
     update_rootfs(;verbose::Bool = true)
 
 Updates the stored rootfs containing all cross-compilers and other compilation
 machinery for the builder.
 """
-function update_rootfs(;verbose::Bool = true)
+function update_rootfs(;verbose::Bool = true, squashfs::Bool = false)
     # Check to make sure we have the latest version downloaded properly
+    rootfs_sha256 = squashfs ? rootfs_squash_sha256 : rootfs_targz_sha256
+    rootfs_url = add_ext(rootfs_base_url, squashfs)
+    rootfs_path = add_ext(rootfs_base, squashfs)
     try
         if verbose
             info("Verifying rootfs download...")
         end
-        mkpath(dirname(rootfs_tar))
-        download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
+        mkpath(dirname(rootfs_base))
+        download_verify(rootfs_url, rootfs_sha256, rootfs_path; verbose=verbose)
     catch
         if verbose
             info("rootfs image verification failed, downloading new rootfs...")
@@ -43,15 +48,15 @@ function update_rootfs(;verbose::Bool = true)
         # If download_verify failed, we need to clear out the old rootfs and
         # download the new rootfs image.  Start by removing the old rootfs: 
         rm(rootfs; force=true, recursive=true)
-        rm(rootfs_tar; force=true, recursive=true)
-        mkpath(dirname(rootfs_tar))
+        rm(rootfs_path; force=true, recursive=true)
+        mkpath(dirname(rootfs_base))
 
         # Then download and unpack again
-        download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
+        download_verify(rootfs_url, rootfs_sha256, rootfs_path; verbose=verbose)
     end
 
     # Next, if the rootfs does not already exist, unpack it
-    if !isdir(rootfs)
+    if !isdir(rootfs) && !squashfs
         if verbose
             info("Unpacking rootfs...")
         end
