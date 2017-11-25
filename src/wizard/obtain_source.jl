@@ -139,13 +139,74 @@ function step1(state::WizardState)
     println(state.outs)
 end
 
-"""
-    step2(state::WizardState)
+const blob_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)"
 
-This step obtains the source code to be built.
-"""
-function step2(state::WizardState)
-    msg = "\t\t\t# Step 2: Obtain the source code\n\n"
+function canonicalize_url(url)
+    m = match(blob_regex, url)
+    if m !== nothing
+        _, user, repo, ref, filepath = m.captures
+        if length(ref) != 40 || !all(c->isnumber(c) || c in 'a':'f' || c in 'A':'F', ref)
+            # Ask github to resolve this ref for us
+            ref = get(GitHub.reference(GitHub.Repo("$user/$repo"), "heads/$ref").object)["sha"]
+        end
+        return "https://raw.githubusercontent.com/$user/$repo/$ref/$(filepath)"
+    end
+    url
+end
+
+function obtain_binary_deps(state::WizardState)
+    msg = "\t\t\t# Step 2b: Obtain binary dependencies (if any)\n\n"
+    print_with_color(:bold, state.outs, msg)
+
+    q = "Do you require any (binary) dependencies? "
+    if yn_prompt(state, q, :n) == :y
+        empty!(state.dependencies)
+        terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
+        while true
+            bindep_select = request(terminal,
+                "How would you like to specify this dependency?",
+                RadioMenu([
+                    "Provide remote build.jl file",
+                    "Paste in a build.jl file",
+                    "Never mind",
+                ])
+            )
+            println(state.outs)
+
+            if bindep_select == 1
+                println(state.outs, "Enter the URL to use: ")
+                print(state.outs, "> ")
+                url = readline(state.ins)
+                println(state.outs)
+                canon_url = canonicalize_url(url)
+                if url != canon_url
+                    print(state.outs, "The entered URL has been canonicalized to\n")
+                    print_with_color(:bold, state.outs, canon_url)
+                    println(state.outs)
+                    println(state.outs)
+                end
+                push!(state.dependencies, RemoteBuildDependency(canon_url,
+                    String(HTTP.get(canon_url).body)))
+            elseif bindep_select == 2
+                println(state.outs, "Please provide the build.jl file. Press ^D when you're done")
+                script = String(read(STDIN))
+                Base.reseteof(terminal)
+                push!(state.dependencies, InlineBuildDependency(script))
+            elseif bindep_select == 3
+                break
+            end
+            
+            q = "Would you like to provide additional dependencies? "
+            if yn_prompt(state, q, :n) != :y
+                println(state.outs)
+                break
+            end
+        end
+    end
+end
+
+function obtain_source(state::WizardState)
+    msg = "\t\t\t# Step 2a: Obtain the source code\n\n"
     print_with_color(:bold, state.outs, msg)
 
     # Create the workspace that we'll stash everything within
@@ -171,4 +232,14 @@ function step2(state::WizardState)
         end
     end
     println(state.outs)
+end
+
+"""
+    step2(state::WizardState)
+
+This step obtains the source code to be built and required binary dependencies.
+"""
+function step2(state::WizardState)
+    obtain_source(state)
+    obtain_binary_deps(state)
 end

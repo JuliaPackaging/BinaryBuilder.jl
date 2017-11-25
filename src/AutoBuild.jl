@@ -8,7 +8,8 @@ Runs the boiler plate code to download, build, and package a source package
 for multiple platforms.  `src_name`
 """
 function autobuild(dir::AbstractString, src_name::AbstractString,
-                   platforms::Vector, sources::Vector, script, products;
+                   platforms::Vector, sources::Vector, script, products,
+                   dependencies::Vector = AbstractDependency[];
                    verbose::Bool = true)
     # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
     if haskey(ENV, "TRAVIS") && !verbose
@@ -72,7 +73,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             # Convert from tuples to arrays, if need be
             src_paths = collect(src_paths)
             src_hashes = collect(src_hashes)
-            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, platform; verbose=verbose)
+            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, dependencies, platform; verbose=true)
 
             dep = Dependency(src_name, products(prefix), script, platform, prefix)
             if !build(ur, dep; verbose=verbose, autofix=true)

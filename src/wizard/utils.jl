@@ -126,7 +126,8 @@ This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
 function setup_workspace(build_path::AbstractString, src_paths::Vector,
-                         src_hashes::Vector, platform::Platform,
+                         src_hashes::Vector, dependencies::Vector,
+                         platform::Platform,
                          extra_env::Dict{String, String} =
                              Dict{String, String}();
                          verbose::Bool = false, tee_stream::IO = STDOUT)
@@ -176,6 +177,30 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             end
             push!(cmds, "rm $(basename(src_path))")
         end
+    end
+
+    # For each dependency, install it into the prefix
+    for dep in dependencies
+        # Since remote dependencies are most common, we default plain strings to
+        # this in order to keep the build scripts small
+        if isa(dep, String)
+            dep = RemoteBuildDependency(dep, nothing)
+        end
+        if isa(dep, InlineBuildDependency)
+            script = dep.script
+        elseif isa(dep, RemoteBuildDependency)
+            script = dep.script === nothing ? String(HTTP.get(dep.url).body) :
+                dep.script
+        end
+        m = Module(:__anon__)
+        eval(m, quote
+            using BinaryProvider
+            platform_key() = $platform
+            macro write_deps_file(args...); end
+            install(args...; kwargs...) = BinaryProvider.install(args...; kwargs..., ignore_platform=true, verbose=$verbose)
+            ARGS = [$destdir]
+            include_string($(script))
+        end)
     end
 
     # Run the cmds defined above

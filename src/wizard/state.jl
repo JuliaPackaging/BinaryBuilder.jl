@@ -1,5 +1,14 @@
 import Base: show
 
+abstract type AbstractDependency; end
+struct InlineBuildDependency <: AbstractDependency
+    script::String
+end
+struct RemoteBuildDependency <: AbstractDependency
+    url::String
+    script::Union{String, Void}
+end
+
 """
     WizardState
 
@@ -19,8 +28,10 @@ mutable struct WizardState
     source_urls::Union{Void, Vector{String}}
     source_files::Union{Void, Vector{String}}
     source_hashes::Union{Void, Vector{String}}
+    dependencies::Vector{AbstractDependency}
     # Filled in by step 3
     history::Union{Void, String}
+    dependency_files::Union{Void, Set{String}}
     files::Union{Void, Vector{String}}
     file_kinds::Union{Void, Vector{Symbol}}
     # Filled in by step 5c
@@ -43,6 +54,8 @@ function WizardState()
         nothing,
         nothing,
         nothing,
+        nothing,
+        Vector{AbstractDependency}(),
         nothing,
         nothing,
         nothing,
