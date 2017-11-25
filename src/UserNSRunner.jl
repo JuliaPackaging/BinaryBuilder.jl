@@ -1,6 +1,6 @@
 const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
-const rootfs_base_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-02"
-const rootfs_targz_sha256 = "f01efc8cb6210190e9a6986bd1ec7706b4108de64bfccf2686f127816d3d8732"
+const rootfs_base_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-20"
+const rootfs_targz_sha256 = "0ea0925c022e8dc6834906ac6edecd668d66e9cecb9667c39cce7d278467c6f2"
 const rootfs_squash_sha256 = "4af9c8812af78ee1f8b6b4fab395fb67f49dc6401a2cfdb0f7452e9842f6b830"
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
 

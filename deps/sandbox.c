@@ -40,7 +40,6 @@
 static void _check(int ok, int line) {
   if (!ok) {
     printf("At line %d, ABORTED (%s)!\n", line, strerror(errno));
-    sleep(1000);
     abort();
   }
 }

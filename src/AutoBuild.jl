@@ -31,8 +31,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
 
     # Our build products will go into ./products
     out_path = joinpath(dir, "products")
-    rm(out_path; force=true, recursive=true)
-    mkpath(out_path)
+    try mkpath(out_path) end
 
     product_hashes = Dict()
     for platform in platforms
@@ -59,7 +58,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             build(ur, dep; verbose=true, autofix=true)
 
             # Once we're built up, go ahead and package this prefix out
-            tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=true)
+            tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=true, force=true)
             product_hashes[target] = (basename(tarball_path), tarball_hash)
         end
 

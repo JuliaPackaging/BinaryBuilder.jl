@@ -30,5 +30,11 @@ function target_envs(target::AbstractString)
         "CC_FOR_BUILD" => "/usr/bin/gcc",
     )
 
+    # If we're on OSX, default to clang instead of gcc for CC and CXX
+    if contains(target, "-apple-")
+        mapping["CC"] = "/opt/$(target)/bin/clang"
+        mapping["CXX"] = "/opt/$(target)/bin/clang++"
+    end
+
     return mapping
 end
