@@ -1,7 +1,6 @@
 # Ignore rootfs artifacts
 root/
-rootfs.tar.gz
-rootfs.tar.gz.sha256
+downloads/
 
 # Ignore sandbox executable
 sandbox
