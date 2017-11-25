@@ -17,6 +17,11 @@ matrix:
   allow_failures:
     - julia: nightly
 
+env:
+  matrix:
+    - TESTING_BINARYBUILDER_TAR_GZ=true
+    - TESTING_BINARYBUILDER_TAR_GZ=false
+
 cache:
   directories:
     - deps/downloads
