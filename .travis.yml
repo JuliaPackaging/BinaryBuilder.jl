@@ -19,8 +19,8 @@ matrix:
 
 env:
   matrix:
-    - TESTING_BINARYBUILDER_TAR_GZ=true
-    - TESTING_BINARYBUILDER_TAR_GZ=false
+    - BINARYBUILDER_USE_SQUASHFS=true
+    - BINARYBUILDER_USE_SQUASHFS=false
 
 cache:
   directories:
