@@ -180,6 +180,9 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
 
     # If it already exists, return out
     if isdir(dest)
+        if verbose
+            info("macOS SDK $(dest) already exists")
+        end
         return
     end
 
@@ -206,6 +209,10 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
             else
                 println("Unrecognized answer. Answer `y` or `n`.")
             end
+        end
+    else
+        if verbose
+            info("Automatic macOS SDK install initiated")
         end
     end
     
