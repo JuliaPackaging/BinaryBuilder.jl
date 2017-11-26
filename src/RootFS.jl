@@ -54,7 +54,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     # You can get these dictionaries spat out by running `make print-hashes`
     # in `julia-docker/crossbuild`, after running `make shards`.
     squashfs_hashes = Dict(
-        "base" => "fceb9b17f74ad2983aca0b029464e6c9015e5b8d0d30ea75ec344787dce3b0c5"
+        "base" => "fceb9b17f74ad2983aca0b029464e6c9015e5b8d0d30ea75ec344787dce3b0c5",
         "aarch64-linux-gnu" => "c08b0fd297cefb2881427dd315651d2b63023717d280f49938980a736579f5e4",
         "arm-linux-gnueabihf" => "f8316607b805eaf8366b343bdcf7547a016a23c17d4ba015a18a3acdaec13490",
         "i686-linux-gnu" => "01151e6a612ed9416089619b6cea90b0eeac3299663dec9ab0c99b093c3ca5d6",
@@ -66,7 +66,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     )
 
     tarball_hashes = Dict(
-        "base" => "e5ee4bbcf56c99465615ce7e5f197b9323563ce81c1f962d35c2e599619a0df0"
+        "base" => "e5ee4bbcf56c99465615ce7e5f197b9323563ce81c1f962d35c2e599619a0df0",
         "aarch64-linux-gnu" => "c2a561fbffbbf9ded848506ce09e763c54d88a3c1fcd246a5e7fd3134e4a26d8",
         "arm-linux-gnueabihf" => "9fe189893d3c1c7edd41c8617aaae0baa10b70ce4330239fc6ce32d94671c350",
         "i686-linux-gnu" => "94b67c132c0b0b56bc3d332fda9307758a18f4d4e547ea001fdddc0fe6e90d05",
