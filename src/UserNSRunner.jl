@@ -12,11 +12,29 @@ type UserNSRunner
     platform::Platform
 end
 
-function UserNSRunner(sandbox::String; overlay = true, cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
+function UserNSRunner(workspace_root::String; overlay = true, cwd = nothing,
+                      platform::Platform = platform_key(),
+                      extra_env=Dict{String, String}(),
+                      verbose::Bool = true)
+    global sandbox_path
+
+    # Ensure the rootfs for this platform is downloaded and up to date
+    update_rootfs(triplet(platform); verbose=verbose)
+
+    # Construct sandbox command
+    sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`
+
+    # If `overlay` is `true`, we are using overlayfs to create a temporary
+    # layer on top of an underyling read-only filesystem image.  Otherwise,
+    # we can actually edit the `$workspace_root` folder.  The only case where
+    # we set `overlay` to `false` right now is when launching the `vim` editor
+    # inside of the userns to edit a script outside of the userns.
     if overlay
-        sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
+        sandbox_cmd = `$sandbox_cmd --overlay $workspace_root/overlay_root`
+        sandbox_cmd = `$sandbox_cmd --overlay_workdir $workspace_root/overlay_workdir`
+        sandbox_cmd = `$sandbox_cmd --workspace $workspace_root/workspace`
     else
-        sandbox_cmd = `$sandbox_path --rootfs $rootfs --workspace $sandbox`
+        sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
     end
 
     if cwd != nothing

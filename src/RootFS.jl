@@ -1,9 +1,10 @@
 # These globals store important information such as where we're downloading
-# the rootfs to, and where we're unpacking it.  Constants that are initialized
-# to `""` are initialized by `__init__()` to allow for environment-variable
-# overrides from the user.
+# the rootfs to, and where we're unpacking it.  These constants are initialized
+# by `__init__()` to allow for environment variable overrides from the user.
 downloads_cache = ""
 rootfs_cache = ""
+automatic_apple = false
+use_squashfs = false
 
 # This is where the `sandbox` binary lives
 const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
@@ -85,20 +86,21 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
 end
 
 """
-    update_rootfs(triplet::String; automatic::Bool = false,
-                  verbose::Bool = true, squashfs::Bool = use_squashfs)
+    update_rootfs(triplets::Vector{AbstractString};
+                  automatic::Bool = automatic_apple, verbose::Bool = true,
+                  squashfs::Bool = use_squashfs)
 
 Updates the stored rootfs containing all cross-compilers and other compilation
-machinery for the builder.  If `automatic` is set, when downloading Apple SDKs,
-you will automatically accept the Apple license agreement and download the
+machinery for the given triplets.  If `automatic` is set, when downloading Apple
+SDKs, you will automatically accept the Apple license agreement and download the
 macOS SDK for usage in targeting macOS.  See the help for `download_osx_sdk()`
 for more details on this.
 """
-function update_rootfs(triplet::String; automatic::Bool = false,
-                       verbose::Bool = true, squashfs::Bool = use_squashfs)
+function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
+                       verbose::Bool = true, squashfs::Bool = use_squashfs) where {S <: AbstractString}
     # Check to make sure we have the latest version of both the base and the
     # given shard downloaded properly, and extracted if it's not a squashfs.
-    for shard_name in ["base", triplet]
+    for shard_name in ["base", triplets...]
         url = get_shard_url(shard_name; squashfs=squashfs)
         hash = get_shard_hash(shard_name; squashfs=squashfs)
 
@@ -132,13 +134,16 @@ function update_rootfs(triplet::String; automatic::Bool = false,
     end
 
     # If we're targeting the macOS SDK here, make sure it's ready to go.
-    if triplet == "x86_64-apple-darwin14"
+    if any(triplets .== "x86_64-apple-darwin14")
         download_osk_sdk(;automatic=automatic, verbose=verbose)
     end
 end
 
+# Helper for when you're only asking for a single triplet
+update_rootfs(triplet::AbstractString; kwargs...) = update_rootfs([triplet]; kwargs...)
+
 """
-    download_osx_sdk(;automatic::Bool = false, verbose::Bool = false,
+    download_osx_sdk(;automatic::Bool = automatic_apple, verbose::Bool = false,
                       version::AbstractString = "10.10")
 
 Apple restricts distribution and usage of the macOS SDK, a necessary component
@@ -150,8 +155,9 @@ https://images.apple.com/legal/sla/docs/xcode.pdf.
 If `automatic` is set, this method will automatically agree to the Apple usage
 terms and download the macOS SDK, enabling building for macOS.
 """
-function download_osx_sdk(;automatic::Bool = false, verbose::Bool = false,
-                          version::AbstractString = "10.10")
+function download_osx_sdk(;automatic::Bool = automatic_apple,
+                           verbose::Bool = false,
+                           version::AbstractString = "10.10")
     urlbase = "https://github.com/phracker/MacOSX-SDKs/releases/download/10.13"
     
     # Right now, we only support one version, but in the future, we may need
