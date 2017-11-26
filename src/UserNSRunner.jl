@@ -22,7 +22,7 @@ function UserNSRunner(workspace_root::String; overlay = true, cwd = nothing,
     update_rootfs(triplet(platform); verbose=verbose)
 
     # Construct sandbox command
-    sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir()) --rootfs`
+    sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`
 
     # If `overlay` is `true`, we are using overlayfs to create a temporary
     # layer on top of an underyling read-only filesystem image.  Otherwise,
