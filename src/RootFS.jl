@@ -135,7 +135,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
 
     # If we're targeting the macOS SDK here, make sure it's ready to go.
     if any(triplets .== "x86_64-apple-darwin14")
-        download_osk_sdk(;automatic=automatic, verbose=verbose)
+        download_osx_sdk(;automatic=automatic, verbose=verbose)
     end
 end
 
@@ -164,8 +164,8 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
     # to support multiple macOS SDK versions
     sdk_metadata = Dict(
         "10.10" => (
-            "4a08de46b8e96f6db7ad3202054e28d7b3d60a3d38cd56e61f08fb4863c488ce",
             "$(urlbase)/MacOSX10.10.sdk.tar.xz",
+            "4a08de46b8e96f6db7ad3202054e28d7b3d60a3d38cd56e61f08fb4863c488ce",
             rootfs_dir("MacOSX10.10.sdk"),
         ),
     )
