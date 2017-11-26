@@ -20,10 +20,12 @@ function __init__()
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
     downloads_cache = get(ENV, "BINARYBUILDER_DOWNLOADS_CACHE", def_dl_cache)
+    downloads_cache = abspath(downloads_cache)
 
     # If the user has overridden our rootfs unpack location, reflect that here:
     def_rootfs_cache = joinpath(dirname(@__FILE__),  "..", "deps", "root")
     rootfs_cache = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_rootfs_cache)
+    rootfs_cache = abspath(rootfs_cache)
 
     # If the user has asked for squashfs mounting instead of tarball mounting,
     # use that here.  Note that on Travis, we default to using squashfs, unless
