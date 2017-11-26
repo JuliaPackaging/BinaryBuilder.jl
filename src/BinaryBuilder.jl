@@ -15,7 +15,7 @@ include("AutoBuild.jl")
 include("Wizard.jl")
 
 function __init__()
-    global downloads_cache, rootfs_cache, use_squashfs
+    global downloads_cache, rootfs_cache, use_squashfs, automatic_apple
     
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
@@ -39,6 +39,13 @@ function __init__()
             use_squashfs = true
         end
     end
+
+    # If the user has signalled that they really want us to automatically
+    # accept apple EULAs, do that.
+    if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
+        automatic_apple = true
+    end
+
 end
 
 end # module
