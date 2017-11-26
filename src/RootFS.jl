@@ -216,7 +216,14 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
         end
     end
     
-    download_verify_unpack(url, hash, dest, verbose=verbose, force=true)
+    download_verify_unpack(
+        url,
+        hash,
+        dest;
+        tarball_path=downloads_dir(basename(url)),
+        verbose=verbose,
+        force=true
+    )
 
     # These macOS tarballs have a nasty habit of nesting, let's fix that:
     dir_in_dir = joinpath(dest, basename(dest))
