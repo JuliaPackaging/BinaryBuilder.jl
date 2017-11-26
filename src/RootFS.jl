@@ -110,7 +110,6 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
         else
             dest_dir = rootfs_dir("opt/$(shard_name)")
         end
-        mkpath(dest_dir)
 
         if squashfs
             # If squashfs, verify/redownload the squashfs image
