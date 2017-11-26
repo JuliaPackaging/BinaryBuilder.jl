@@ -13,11 +13,5 @@ BinaryBuilder.update_sandbox_binary()
 
 # Initialize just a few platforms here, let the others get brought in on demand
 for pt in triplet.([Linux(:x86_64), MacOS(:x86_64), Windows(:x86_64)])
-    BinaryBuilder.update_rootfs(pt; automatic=automatic, squashfs=squashfs)
-end
-
-# Automatically mount the squashfs image (requires root priviliges)
-if squashfs
-    mkpath(BinaryBuilder.rootfs)
-    run(`sudo mount $(BinaryBuilder.rootfs_base).squash $(BinaryBuilder.rootfs) -o ro,loop`)
+    BinaryBuilder.update_rootfs(pt; automatic=automatic, squashfs=squashfs, verbose=true)
 end
