@@ -94,6 +94,19 @@ function runshell(ur::UserNSRunner, args...)
     run_interactive(ur, `/bin/bash`, args...)
 end
 
-function runshell()
-    return runshell(UserNSRunner(pwd(); cwd="/workspace/", overlay=false))
+
+"""
+    runshell(platform::Platform = platform_key())
+
+Launch an interactive shell session within the user namespace, with environment
+setup to target the given `platform`.
+"""
+function runshell(platform::Platform = platform_key())
+    ur = UserNSRunner(
+        pwd();
+        cwd="/workspace/",
+        overlay=false,
+        platform=platform
+    )
+    return runshell(ur)
 end
