@@ -37,7 +37,7 @@ Returns the URL from which a rootfs image (tarball/squashfs) can be downloaded
 function get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
     # These constants are what should be updated for a new rootfs build:
     rootfs_urlroot = "https://julialangmirror.s3.amazonaws.com/binarybuilder"
-    rootfs_version = "2017-11-25"
+    rootfs_version = "2017-11-26"
 
     shard_name = "rootfs-$(target)"
     ext = squashfs ? "squashfs" : "tar.gz"
@@ -55,27 +55,26 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     # You can get these dictionaries spat out by running `make print-hashes`
     # in `julia-docker/crossbuild`, after running `make shards`.
     squashfs_hashes = Dict(
-        "base" => "fceb9b17f74ad2983aca0b029464e6c9015e5b8d0d30ea75ec344787dce3b0c5",
-        "aarch64-linux-gnu" => "c08b0fd297cefb2881427dd315651d2b63023717d280f49938980a736579f5e4",
-        "arm-linux-gnueabihf" => "f8316607b805eaf8366b343bdcf7547a016a23c17d4ba015a18a3acdaec13490",
-        "i686-linux-gnu" => "01151e6a612ed9416089619b6cea90b0eeac3299663dec9ab0c99b093c3ca5d6",
-        "i686-w64-mingw32" => "085872f45e7af5d446e6ddb49ff80a8ec2e651f1bfddae26523f1facdfb06ea6",
-        "powerpc64le-linux-gnu" => "d06f195109d472111e09a25bf39b8671f0a30e5c13c0ec8a94acb3a86e925b0d",
-        "x86_64-apple-darwin14" => "7cf96e3afe07e8a5a10afa2239ad6b4eb23bee8606e003019579c02fe3d305d2",
-        "x86_64-linux-gnu" => "edc5bf34671af97890da4b8541b0b2acc30bb8a6da2b4a9953fb6ce07f8142c9",
-        "x86_64-w64-mingw32" => "e0ada28ed6bdadef31983bbaea3e9dc8b7073345f02b64d63f90bad3ca3c5ce2",
+        "aarch64-linux-gnu" => "28bcd50d957827d209f0275be23e8ea020b25223f890c43fd823a5b77ecac524",
+        "arm-linux-gnueabihf" => "74e2e8b49c0eccc088024cbfa0fbe10cdb82b203ff965ce205c96d48e5ca33e9",
+        "base" => "ea477e0ff7e57986c36af8a092a80aefb45840f15b27d9528842ea09d7979f02",
+        "i686-linux-gnu" => "efc56b8dd407adb8b329fb834ce3784e6e9d99e910b86bda3f5b71732183139a",
+        "i686-w64-mingw32" => "0a6b585f4a64a637fea05a27f2543cbd3f59fa3ce325016044310a8c6001b88b",
+        "powerpc64le-linux-gnu" => "761397db415d0a76228324a80e11d1befdecb6562dab11fdd153c071c6029b83",
+        "x86_64-apple-darwin14" => "3c7dfd90eb7c27019c276bbe1053e9a0484c86b1963a8812e0d99f6ffc328d69",
+        "x86_64-linux-gnu" => "2c5d5faf5896230af1e0048422baf27692946c1aa3bd9403c071f97d5c223b66",
+        "x86_64-w64-mingw32" => "67db51ad61a1d59ccc35d31d4862781bfa00baa59207feaacb1cf84677b207d5",
     )
-
     tarball_hashes = Dict(
-        "base" => "e5ee4bbcf56c99465615ce7e5f197b9323563ce81c1f962d35c2e599619a0df0",
-        "aarch64-linux-gnu" => "c2a561fbffbbf9ded848506ce09e763c54d88a3c1fcd246a5e7fd3134e4a26d8",
-        "arm-linux-gnueabihf" => "9fe189893d3c1c7edd41c8617aaae0baa10b70ce4330239fc6ce32d94671c350",
-        "i686-linux-gnu" => "94b67c132c0b0b56bc3d332fda9307758a18f4d4e547ea001fdddc0fe6e90d05",
-        "i686-w64-mingw32" => "2298fe2c53b3ff3b24e633bbce1520d0b3c729d18230c6ce8440adeec567df30",
-        "powerpc64le-linux-gnu" => "aa8a1f2d7bd9c2cad41bac9dc157a1797441c71cc187970f2062bfd401b46a6d",
-        "x86_64-apple-darwin14" => "3c970a63e9036d1a2a626ba5e9fe09cf04c3e2a97c889ea825e4541869b321da",
-        "x86_64-linux-gnu" => "515de90254f3f7931b26100cd25158154c6a3c9ade36bd09639ffcfbe2e45c71",
-        "x86_64-w64-mingw32" => "c1ec079e22cfcd42181c75ca7fad2119daa36b9444f7375ef1d1f0f8af556e15",
+        "aarch64-linux-gnu" => "62d16d4e2c7af85751d9c6eabb4f0753c3e941cad4240a9057e20dce45436ccb",
+        "arm-linux-gnueabihf" => "c0c899af8dab8ac9ebd4f5af69d9187a849adbf952f9088fc5d8a2302a6b0856",
+        "base" => "f8833727de887934c9fd5fb00027a188529e9c1a6c6de57cb0b75ba76b9c53d4",
+        "i686-linux-gnu" => "7fb21a34b5f573429646325dbab9b71a68db468e56ba8da3d29c66e408e32dbc",
+        "i686-w64-mingw32" => "e9863d2658a73260f5deac50f7015023c97fda45b76ff3d2ac6c52f72c121b71",
+        "powerpc64le-linux-gnu" => "fd9119324e03c6a007a336351893f0fa208a836b08a1cd9a4756bcb04209a8a6",
+        "x86_64-apple-darwin14" => "ed5c1d2ba8cc0fd7840dc63918d00d18b812a80d68652420a4104a35af9109b9",
+        "x86_64-linux-gnu" => "fc7ff95071a91ed879713717524fe20781db6f171e9711f21b827a4515835c77",
+        "x86_64-w64-mingw32" => "2eebe8ad409c85d627ba74cfea680dfe46112a681c17c32b495f6cc32d962182",
     )
     
     if squashfs
@@ -160,6 +159,9 @@ https://images.apple.com/legal/sla/docs/xcode.pdf.
 
 If `automatic` is set, this method will automatically agree to the Apple usage
 terms and download the macOS SDK, enabling building for macOS.
+
+To set this on an environment level, set the `BINARYBUILDER_AUTOMATIC_APPLE`
+environment variable to `"true"`.
 """
 function download_osx_sdk(;automatic::Bool = automatic_apple,
                            verbose::Bool = false,
@@ -191,6 +193,15 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
 
     # Ask if we should download it, unless we're automated
     if !automatic
+        if !isinteractive()
+            msg = strip("""
+            This is not an interactive Julia session, so we will not prompt you
+            to download and install the macOS SDK, see the docstring for the
+            `download_osx_sdk()` method for more details.
+            """)
+            warn(msg)
+            return
+        end
         msg = strip("""
         macOS SDK not yet downloaded!
 
