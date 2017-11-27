@@ -1,13 +1,3 @@
-const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
-const rootfs_base_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-20"
-const rootfs_targz_sha256 = "0ea0925c022e8dc6834906ac6edecd668d66e9cecb9667c39cce7d278467c6f2"
-const rootfs_squash_sha256 = "4af9c8812af78ee1f8b6b4fab395fb67f49dc6401a2cfdb0f7452e9842f6b830"
-const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
-
-# Note that rootfs_tar and rootfs can be overridden by the environment variables shown in __init__()
-rootfs_base = joinpath(dirname(@__FILE__), "..", "deps", "downloads", "rootfs")
-rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
-
 """
     UserNSRunner
 
@@ -22,71 +12,29 @@ type UserNSRunner
     platform::Platform
 end
 
-add_ext(base, squashfs) = string(base, squashfs ? ".squash" : ".tar.gz")
+function UserNSRunner(workspace_root::String; overlay = true, cwd = nothing,
+                      platform::Platform = platform_key(),
+                      extra_env=Dict{String, String}(),
+                      verbose::Bool = true)
+    global sandbox_path
 
-"""
-    update_rootfs(;verbose::Bool = true)
+    # Ensure the rootfs for this platform is downloaded and up to date
+    update_rootfs(triplet(platform); verbose=verbose)
 
-Updates the stored rootfs containing all cross-compilers and other compilation
-machinery for the builder.
-"""
-function update_rootfs(;verbose::Bool = true, squashfs::Bool = false)
-    # Check to make sure we have the latest version downloaded properly
-    rootfs_sha256 = squashfs ? rootfs_squash_sha256 : rootfs_targz_sha256
-    rootfs_url = add_ext(rootfs_base_url, squashfs)
-    rootfs_path = add_ext(rootfs_base, squashfs)
-    try
-        if verbose
-            info("Verifying rootfs download...")
-        end
-        mkpath(dirname(rootfs_base))
-        download_verify(rootfs_url, rootfs_sha256, rootfs_path; verbose=verbose)
-    catch
-        if verbose
-            info("rootfs image verification failed, downloading new rootfs...")
-        end
+    # Construct sandbox command
+    sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`
 
-        # If download_verify failed, we need to clear out the old rootfs and
-        # download the new rootfs image.  Start by removing the old rootfs: 
-        rm(rootfs; force=true, recursive=true)
-        rm(rootfs_path; force=true, recursive=true)
-        mkpath(dirname(rootfs_base))
-
-        # Then download and unpack again
-        download_verify(rootfs_url, rootfs_sha256, rootfs_path; verbose=verbose)
-    end
-
-    # Next, if the rootfs does not already exist, unpack it
-    if !isdir(rootfs) && !squashfs
-        if verbose
-            info("Unpacking rootfs...")
-        end
-        unpack(rootfs_tar, rootfs; verbose=verbose)
-    end
-end
-
-"""
-    update_sandbox_binary(;verbose::Bool = true)
-
-Builds/updates the `sandbox` binary that launches all commands within the rootfs
-"""
-function update_sandbox_binary(;verbose::Bool = true)
-    cd(joinpath(dirname(@__FILE__), "..", "deps")) do
-        if !isfile("sandbox") || stat("sandbox").mtime < stat("sandbox.c").mtime
-            if verbose
-                info("Rebuilding sandbox binary...")
-            end
-            oc = OutputCollector(`gcc -o sandbox sandbox.c`; verbose=verbose)
-            wait(oc)
-        end
-    end
-end
-
-function UserNSRunner(sandbox::String; overlay = true, cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
+    # If `overlay` is `true`, we are using overlayfs to create a temporary
+    # layer on top of an underyling read-only filesystem image.  Otherwise,
+    # we can actually edit the `$workspace_root` folder.  The only case where
+    # we set `overlay` to `false` right now is when launching the `vim` editor
+    # inside of the userns to edit a script outside of the userns.
     if overlay
-        sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
+        sandbox_cmd = `$sandbox_cmd --overlay $workspace_root/overlay_root`
+        sandbox_cmd = `$sandbox_cmd --overlay_workdir $workspace_root/overlay_workdir`
+        sandbox_cmd = `$sandbox_cmd --workspace $workspace_root/workspace`
     else
-        sandbox_cmd = `$sandbox_path --rootfs $rootfs --workspace $sandbox`
+        sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
     end
 
     if cwd != nothing
@@ -146,6 +94,19 @@ function runshell(ur::UserNSRunner, args...)
     run_interactive(ur, `/bin/bash`, args...)
 end
 
-function runshell()
-    return runshell(UserNSRunner(pwd(); cwd="/workspace/", overlay=false))
+
+"""
+    runshell(platform::Platform = platform_key())
+
+Launch an interactive shell session within the user namespace, with environment
+setup to target the given `platform`.
+"""
+function runshell(platform::Platform = platform_key())
+    ur = UserNSRunner(
+        pwd();
+        cwd="/workspace/",
+        overlay=false,
+        platform=platform
+    )
+    return runshell(ur)
 end
