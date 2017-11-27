@@ -34,7 +34,10 @@ function __init__()
     # squashfs images as using them requires `sudo` access.
     if get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "false"
         use_squashfs = false
+    elseif get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "true"
+        use_squashfs = true
     else
+        # If it hasn't been specified, but we're on Travis, default to "on"
         if get(ENV, "TRAVIS", "") == "true"
             use_squashfs = true
         end

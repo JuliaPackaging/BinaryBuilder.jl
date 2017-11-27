@@ -121,8 +121,11 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 verbose = verbose,
             )
 
-            # Then mount it
-            run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
+            # Then mount it, if it hasn't already been mounted:
+            if !success(`mountpoint $(dest_dir)`)
+                mkpath(dest_dir)
+                run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
+            end
         else
             # If tarball, verify/redownload/reunpack the tarball
             download_verify_unpack(
