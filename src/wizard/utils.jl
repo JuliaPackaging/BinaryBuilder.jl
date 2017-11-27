@@ -75,7 +75,6 @@ function edit_script(state::WizardState, script::AbstractString)
 
         # Launch a sandboxed vim editor
         ur = UserNSRunner(
-            overlay = false,
             prefix.path,
             cwd = "/workspace/",
             platform = Linux(:x86_64))
@@ -131,26 +130,14 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          extra_env::Dict{String, String} =
                              Dict{String, String}();
                          verbose::Bool = false, tee_stream::IO = STDOUT)
-    # Upper dir for the root overlay
-    try
-        mkdir(joinpath(build_path, "overlay_root"))
-    end
-    # Working directory for the root overlay
-    try
-        mkdir(joinpath(build_path, "overlay_workdir"))
-    end
-    # Workspace root
-    try
-        mkdir(joinpath(build_path, "workspace"))
-    end
 
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
-    mkdir(joinpath(build_path, "workspace", nonce))
+    mkdir(joinpath(build_path, nonce))
 
     # We now set up two directories, one as a source dir, one as a dest dir
-    srcdir = joinpath(build_path, "workspace", nonce, "srcdir")
-    destdir = joinpath(build_path, "workspace", nonce, "destdir")
+    srcdir = joinpath(build_path, nonce, "srcdir")
+    destdir = joinpath(build_path, nonce, "destdir")
     mkdir(srcdir); mkdir(destdir)
 
     # Create a runner to work inside this workspace with the nonce built-in

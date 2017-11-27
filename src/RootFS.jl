@@ -3,6 +3,7 @@
 # by `__init__()` to allow for environment variable overrides from the user.
 downloads_cache = ""
 rootfs_cache = ""
+shards_cache = ""
 automatic_apple = false
 use_squashfs = false
 
@@ -28,6 +29,18 @@ function rootfs_dir(postfix::String = "")
     global rootfs_cache
     return joinpath(rootfs_cache, postfix)
 end
+
+
+"""
+    shards_dir(postfix::String = "")
+
+Builds a path relative to the `shards_cache`.
+"""
+function shards_dir(postfix::String = "")
+    global shards_dir
+    return joinpath(shards_cache, postfix)
+end
+
 
 """
     get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
@@ -107,7 +120,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
         if shard_name == "base"
             dest_dir = rootfs_dir()
         else
-            dest_dir = rootfs_dir("opt/$(shard_name)")
+            dest_dir = shards_dir(shard_name)
         end
 
         if squashfs
@@ -272,4 +285,3 @@ function update_sandbox_binary(;verbose::Bool = true)
         end
     end
 end
-
