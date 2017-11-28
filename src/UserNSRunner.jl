@@ -28,6 +28,9 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     # Ensure the rootfs for this platform is downloaded and up to date
     update_rootfs(triplet(platform); verbose=verbose)
 
+    # Ensure that sandbox is ready to go
+    update_sandbox_binary(;verbose=verbose)
+
     # Construct sandbox command
     sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`
 
