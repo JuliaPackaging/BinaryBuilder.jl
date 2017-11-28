@@ -1,6 +1,7 @@
 # Ignore rootfs artifacts
 root/
 downloads/
+shards/
 
 # Ignore sandbox executable
 sandbox
