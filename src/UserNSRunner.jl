@@ -12,10 +12,17 @@ type UserNSRunner
     platform::Platform
 end
 
-function UserNSRunner(workspace_root::String; overlay = true, cwd = nothing,
+function platform_def_mapping(platform)
+    Dict{String, String}(
+        joinpath(shards_cache, triplet(platform)) => joinpath("/opt", triplet(platform))
+    )
+end
+
+function UserNSRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
-                      verbose::Bool = true)
+                      verbose::Bool = true,
+                      mappings = platform_def_mapping(platform))
     global sandbox_path
 
     # Ensure the rootfs for this platform is downloaded and up to date
@@ -24,22 +31,16 @@ function UserNSRunner(workspace_root::String; overlay = true, cwd = nothing,
     # Construct sandbox command
     sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`
 
-    # If `overlay` is `true`, we are using overlayfs to create a temporary
-    # layer on top of an underyling read-only filesystem image.  Otherwise,
-    # we can actually edit the `$workspace_root` folder.  The only case where
-    # we set `overlay` to `false` right now is when launching the `vim` editor
-    # inside of the userns to edit a script outside of the userns.
-    if overlay
-        sandbox_cmd = `$sandbox_cmd --overlay $workspace_root/overlay_root`
-        sandbox_cmd = `$sandbox_cmd --overlay_workdir $workspace_root/overlay_workdir`
-        sandbox_cmd = `$sandbox_cmd --workspace $workspace_root/workspace`
-    else
-        sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
-    end
+    sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
 
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
+
+    for (outside, inside) in mappings
+        sandbox_cmd = `$sandbox_cmd --map $outside:$inside`
+    end
+
     sandbox_cmd = setenv(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env))
     UserNSRunner(sandbox_cmd, platform)
 end
@@ -105,7 +106,6 @@ function runshell(platform::Platform = platform_key())
     ur = UserNSRunner(
         pwd();
         cwd="/workspace/",
-        overlay=false,
         platform=platform
     )
     return runshell(ur)

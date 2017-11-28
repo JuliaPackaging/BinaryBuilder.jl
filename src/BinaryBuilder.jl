@@ -15,7 +15,7 @@ include("AutoBuild.jl")
 include("Wizard.jl")
 
 function __init__()
-    global downloads_cache, rootfs_cache, use_squashfs, automatic_apple
+    global downloads_cache, rootfs_cache, use_squashfs, automatic_apple, shards_cache
     
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
@@ -26,6 +26,11 @@ function __init__()
     def_rootfs_cache = joinpath(dirname(@__FILE__),  "..", "deps", "root")
     rootfs_cache = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_rootfs_cache)
     rootfs_cache = abspath(rootfs_cache)
+
+    # If the user has overridden our shards unpack location, reflect that here:
+    def_shards_cache = joinpath(dirname(@__FILE__),  "..", "deps", "shards")
+    shards_cache = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_shards_cache)
+    shards_cache = abspath(shards_cache)
 
     # If the user has asked for squashfs mounting instead of tarball mounting,
     # use that here.  Note that on Travis, we default to using squashfs, unless

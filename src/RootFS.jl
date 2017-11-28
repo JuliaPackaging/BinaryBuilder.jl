@@ -3,6 +3,7 @@
 # by `__init__()` to allow for environment variable overrides from the user.
 downloads_cache = ""
 rootfs_cache = ""
+shards_cache = ""
 automatic_apple = false
 use_squashfs = false
 
@@ -28,6 +29,18 @@ function rootfs_dir(postfix::String = "")
     global rootfs_cache
     return joinpath(rootfs_cache, postfix)
 end
+
+
+"""
+    shards_dir(postfix::String = "")
+
+Builds a path relative to the `shards_cache`.
+"""
+function shards_dir(postfix::String = "")
+    global shards_dir
+    return joinpath(shards_cache, postfix)
+end
+
 
 """
     get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
@@ -84,6 +97,61 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     end
 end
 
+# Note: produce these values by #including squashfs_fs.h from linux in a Cxx
+# and running the indicated command
+const offsetof_id_table_start = 0x30    # offsetof(struct suqashfs_super_block, id_table_start)
+const offsetof_no_ids = 0x1a            # offsetof(struct suqashfs_super_block, no_ids)
+
+# From squashfs_fs.h
+const SQUASHFS_COMPRESSED_BIT = UInt16(1) << 15
+const SQUASHFS_MAGIC = 0x73717368
+
+"""
+    rewrite_squashfs_uids(path, new_uid)
+    
+In order for the sandbox to work well, we need to have the uids of the squashfs
+images match the uid of the current unpriviledged user. Unfortunately there is
+no mount-time option to do this for us. However, fortunately, squashfs is simple
+enough that if the id table is uncompressed, we can just manually patch the uids
+to be what we need. This functions performs this operation, by rewriting all
+uids/gids to new_uid.
+"""
+function rewrite_squashfs_uids(path, new_uid)
+    open(path, "r+") do file
+       # Check magic
+       if read(file, UInt32) != SQUASHFS_MAGIC
+           error("`$path` is not a squashfs file")
+       end
+       # Check that the image contains only one id (which we will rewrite)
+       seek(file, offsetof_no_ids)
+       if read(file, UInt16) != 1
+           error("`$path` uses more than one uid/gid")
+       end
+       # Find the index table
+       seek(file, offsetof_id_table_start)
+       offset = read(file, UInt64)
+       seek(file, offset)
+       # Find the correct metdata block
+       index = read(file, UInt64)
+       seek(file, index)
+       # Read the metadata block
+       size = read(file, UInt16)
+       # Make sure it's uncompressed (yes, I know that flag is terribly
+       # named - it indicates that the data is uncompressed)
+       if ((size & SQUASHFS_COMPRESSED_BIT) == 0)
+           error("Metadata block is compressed")
+       end
+       p = position(file)
+       uid = read(file, UInt32)
+       # TODO: We should distribute these files with uid 0
+       # if uid != 0
+       #    error("Expected all uids to be 0 inside the image")
+       # end
+       seek(file, p)
+       write(file, UInt32(new_uid))
+    end
+end
+
 """
     update_rootfs(triplets::Vector{AbstractString};
                   automatic::Bool = automatic_apple, verbose::Bool = true,
@@ -107,19 +175,37 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
         if shard_name == "base"
             dest_dir = rootfs_dir()
         else
-            dest_dir = rootfs_dir("opt/$(shard_name)")
+            dest_dir = shards_dir(shard_name)
         end
 
         if squashfs
-            # If squashfs, verify/redownload the squashfs image
             squashfs_path = downloads_dir("rootfs-$(shard_name).squashfs")
-            download_verify(
+            
+            
+            file_existed = isfile(squashfs_path)
+            
+            # If squashfs, verify/redownload the squashfs image
+            if !(download_verify(
                 url,
                 hash,
                 squashfs_path;
                 verbose = verbose,
-            )
+                force = true
+            ) && file_existed)
+                # Unmount the mountpoint. It may point to a previous version
+                # of the file. Also, we're about to mess with it
+                if success(`mountpoint $(dest_dir)`)
+                    run(`sudo umount $(dest_dir)`)
+                end
 
+                # Patch squashfs files for current uid
+                rewrite_squashfs_uids(squashfs_path, ccall(:getuid, Cint, ()))
+                
+                # Touch SHA file to prevent re-verifcation from blowing the
+                # fs away
+                touch(string(squashfs_path,".sha256"))
+            end
+            
             # Then mount it, if it hasn't already been mounted:
             if !success(`mountpoint $(dest_dir)`)
                 mkpath(dest_dir)
@@ -272,4 +358,3 @@ function update_sandbox_binary(;verbose::Bool = true)
         end
     end
 end
-
