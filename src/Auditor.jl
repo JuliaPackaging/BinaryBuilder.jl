@@ -295,7 +295,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         return
     end
 
-    ur = UserNSRunner(prefix.path; platform=platform, overlay=false)
+    ur = UserNSRunner(prefix.path; platform=platform)
 
     add_rpath = x -> ``
     relink = (x, y) -> ``
