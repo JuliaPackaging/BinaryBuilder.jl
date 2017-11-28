@@ -110,35 +110,61 @@ char *overlay_workdir = NULL;
 char *workspace = NULL;
 char *new_cd = NULL;
 
+struct map_list {
+    char *map_path;
+    char *outside_path;
+    struct map_list *prev;
+};
+
+struct map_list *maps;
+
 /* Sets up the jail, prepares the initial linux environment,
    then execs busybox */
 static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   pid_t pid;
   int status;
   check(sandbox_root != NULL);
+
+  /// Set up a temporary file system to use as the upper dir for our overlay
+  /// We re-use /proc outside the chroot for this purpose, because it's a
+  /// directory that is required to exist for the sandbox to work and is not
+  /// otherwise accessed.
+  check(0 == mount("tmpfs", "/proc", "tmpfs", 0, "size=1G"));
+  check(0 == mkdir("/proc/upper", 0777));
+  check(0 == mkdir("/proc/work", 0777));
+
   /// Mount the overlay filesystem
   {
-      if (overlay) {
-          check(overlay_workdir != NULL);
-          char mount_opts[3*PATH_MAX+40];
-          snprintf(mount_opts, sizeof(mount_opts),
-            "lowerdir=%s,upperdir=%s,workdir=%s",
-            sandbox_root, overlay, overlay_workdir);
-          check(0 == mount("overlay", sandbox_root, "overlay", 0, mount_opts));
-      } else {
-          // For consistency, still make this an overlay fs if no upper directory
-          // is specified. The resulting fs will be read only.
-          char mount_opts[PATH_MAX+40];
-          snprintf(mount_opts, sizeof(mount_opts),
-            "lowerdir=%s:%s", sandbox_root, sandbox_root);
-          check(0 == mount("overlay", sandbox_root, "overlay", MS_RDONLY, mount_opts));
-      }
+    char mount_opts[3*PATH_MAX+40];
+    snprintf(mount_opts, sizeof(mount_opts),
+      "lowerdir=%s,upperdir=/proc/upper,workdir=/proc/work",
+      sandbox_root);
+    check(0 == mount("overlay", sandbox_root, "overlay", 0, mount_opts));
   }
+
   chdir(sandbox_root);
   /// Setup the workspace
   if (workspace) {
-    check(0 == mount(workspace, "workspace", "", MS_BIND, NULL));
+    // We don't expect workspace to have any submounts in normal operation.
+    // However, for runshell(), workspace could be an arbitrary directory,
+    // including one with sub-mounts, so allow that situation.
+    check(0 == mount(workspace, "workspace", "", MS_BIND|MS_REC, NULL));
   }
+
+  /// Apply command-line specified mounts
+  struct map_list *current_entry = maps;
+  while (current_entry != NULL) {
+      char *inside = current_entry->map_path;
+      // Take the path relative to sandbox root (i.e. cwd)
+      if (inside[0] == '/') {
+          inside = inside + 1;
+      }
+      check(current_entry->outside_path[0] == '/' && "Outside path must be absolute");
+      check(0 == mkdir(inside, 0777));
+      check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
+      current_entry = current_entry->prev;
+  }
+
   /// Bind host /dev/null in the sandbox
   check(0 == mount("/dev/null", "dev/null", "", MS_BIND, NULL));
   /// Enter chroot
@@ -189,18 +215,6 @@ int main(int sandbox_argc, char **sandbox_argv) {
     sandbox_argv += 2;
     sandbox_argc -= 2;
   }
-  
-  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--overlay") == 0) {
-    overlay = strdup(sandbox_argv[1]);
-    sandbox_argv += 2;
-    sandbox_argc -= 2;
-  }  
-
-  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--overlay_workdir") == 0) {
-    overlay_workdir = strdup(sandbox_argv[1]);
-    sandbox_argv += 2;
-    sandbox_argc -= 2;
-  }  
 
   if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--workspace") == 0) {
     workspace = strdup(sandbox_argv[1]);
@@ -210,6 +224,19 @@ int main(int sandbox_argc, char **sandbox_argv) {
 
   if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--cd") == 0) {
     new_cd = strdup(sandbox_argv[1]);
+    sandbox_argv += 2;
+    sandbox_argc -= 2;
+  }
+
+  /* Syntax: --map outside:inside */
+  while (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--map") == 0) {
+    char *colon = strchr(sandbox_argv[1], ':');
+    check(colon != NULL);
+    struct map_list *entry = (struct map_list*)malloc(sizeof(struct map_list));
+    entry->map_path = strdup(colon+1);
+    entry->outside_path = strndup(sandbox_argv[1], (colon-sandbox_argv[1]));
+    entry->prev = maps;
+    maps = entry;
     sandbox_argv += 2;
     sandbox_argc -= 2;
   }

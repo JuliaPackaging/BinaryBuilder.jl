@@ -1,12 +1,3 @@
-const rootfs_url_root = "https://julialangmirror.s3.amazonaws.com"
-const rootfs_url = "$rootfs_url_root/binarybuilder-rootfs-2017-11-20.tar.gz"
-const rootfs_sha256 = "0ea0925c022e8dc6834906ac6edecd668d66e9cecb9667c39cce7d278467c6f2"
-const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
-
-# Note that rootfs_tar and rootfs can be overridden by the environment variables shown in __init__()
-rootfs_tar = joinpath(dirname(@__FILE__), "..", "deps", "downloads", "rootfs.tar.gz")
-rootfs = joinpath(dirname(@__FILE__), "..", "deps", "root")
-
 """
     UserNSRunner
 
@@ -21,71 +12,35 @@ type UserNSRunner
     platform::Platform
 end
 
-"""
-    update_rootfs(;verbose::Bool = true)
-
-Updates the stored rootfs containing all cross-compilers and other compilation
-machinery for the builder.
-"""
-function update_rootfs(;verbose::Bool = true)
-    # Check to make sure we have the latest version downloaded properly
-    try
-        if verbose
-            info("Verifying rootfs download...")
-        end
-        mkpath(dirname(rootfs_tar))
-        download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
-    catch
-        if verbose
-            info("rootfs image verification failed, downloading new rootfs...")
-        end
-
-        # If download_verify failed, we need to clear out the old rootfs and
-        # download the new rootfs image.  Start by removing the old rootfs: 
-        rm(rootfs; force=true, recursive=true)
-        rm(rootfs_tar; force=true, recursive=true)
-        mkpath(dirname(rootfs_tar))
-
-        # Then download and unpack again
-        download_verify(rootfs_url, rootfs_sha256, rootfs_tar; verbose=verbose)
-    end
-
-    # Next, if the rootfs does not already exist, unpack it
-    if !isdir(rootfs)
-        if verbose
-            info("Unpacking rootfs...")
-        end
-        unpack(rootfs_tar, rootfs; verbose=verbose)
-    end
+function platform_def_mapping(platform)
+    Dict{String, String}(
+        joinpath(shards_cache, triplet(platform)) => joinpath("/opt", triplet(platform))
+    )
 end
 
-"""
-    update_sandbox_binary(;verbose::Bool = true)
+function UserNSRunner(workspace_root::String; cwd = nothing,
+                      platform::Platform = platform_key(),
+                      extra_env=Dict{String, String}(),
+                      verbose::Bool = true,
+                      mappings = platform_def_mapping(platform))
+    global sandbox_path
 
-Builds/updates the `sandbox` binary that launches all commands within the rootfs
-"""
-function update_sandbox_binary(;verbose::Bool = true)
-    cd(joinpath(dirname(@__FILE__), "..", "deps")) do
-        if !isfile("sandbox") || stat("sandbox").mtime < stat("sandbox.c").mtime
-            if verbose
-                info("Rebuilding sandbox binary...")
-            end
-            oc = OutputCollector(`gcc -o sandbox sandbox.c`; verbose=verbose)
-            wait(oc)
-        end
-    end
-end
+    # Ensure the rootfs for this platform is downloaded and up to date
+    update_rootfs(triplet(platform); verbose=verbose)
 
-function UserNSRunner(sandbox::String; overlay = true, cwd = nothing, platform::Platform = platform_key(), extra_env=Dict{String, String}())
-    if overlay
-        sandbox_cmd = `$sandbox_path --rootfs $rootfs --overlay $sandbox/overlay_root --overlay_workdir $sandbox/overlay_workdir --workspace $sandbox/workspace`
-    else
-        sandbox_cmd = `$sandbox_path --rootfs $rootfs --workspace $sandbox`
-    end
+    # Construct sandbox command
+    sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`
+
+    sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
 
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
+
+    for (outside, inside) in mappings
+        sandbox_cmd = `$sandbox_cmd --map $outside:$inside`
+    end
+
     sandbox_cmd = setenv(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env))
     UserNSRunner(sandbox_cmd, platform)
 end
@@ -140,6 +95,18 @@ function runshell(ur::UserNSRunner, args...)
     run_interactive(ur, `/bin/bash`, args...)
 end
 
-function runshell()
-    return runshell(UserNSRunner(pwd(); cwd="/workspace/", overlay=false))
+
+"""
+    runshell(platform::Platform = platform_key())
+
+Launch an interactive shell session within the user namespace, with environment
+setup to target the given `platform`.
+"""
+function runshell(platform::Platform = platform_key())
+    ur = UserNSRunner(
+        pwd();
+        cwd="/workspace/",
+        platform=platform
+    )
+    return runshell(ur)
 end

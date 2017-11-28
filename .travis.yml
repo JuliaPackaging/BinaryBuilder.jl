@@ -17,6 +17,11 @@ matrix:
   allow_failures:
     - julia: nightly
 
+env:
+  matrix:
+    - BINARYBUILDER_USE_SQUASHFS=true
+    - BINARYBUILDER_USE_SQUASHFS=false
+
 cache:
   directories:
     - deps/downloads
