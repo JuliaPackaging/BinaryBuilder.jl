@@ -260,7 +260,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
         "10.10" => (
             "$(urlbase)/MacOSX10.10.sdk.tar.xz",
             "4a08de46b8e96f6db7ad3202054e28d7b3d60a3d38cd56e61f08fb4863c488ce",
-            rootfs_dir("opt/x86_64-apple-darwin14/MacOSX10.10.sdk"),
+            shards_dir("MacOSX10.10.sdk"),
         ),
     )
     
