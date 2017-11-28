@@ -160,7 +160,14 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
           inside = inside + 1;
       }
       check(current_entry->outside_path[0] == '/' && "Outside path must be absolute");
-      check(0 == mkdir(inside, 0777));
+
+      // Create the inside directory, if we need to
+      DIR *d = opendir(inside);
+      if (d == NULL) {
+          check(0 == mkdir(inside, 0777));
+      } else {
+          closedir(d);
+      }
       check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
       current_entry = current_entry->prev;
   }
