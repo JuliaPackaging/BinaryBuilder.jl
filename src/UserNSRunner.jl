@@ -13,9 +13,28 @@ type UserNSRunner
 end
 
 function platform_def_mapping(platform)
-    Dict{String, String}(
-        joinpath(shards_cache, triplet(platform)) => joinpath("/opt", triplet(platform))
-    )
+    tp = triplet(platform)
+    mapping = Pair{String,String}[
+        joinpath(shards_cache, tp) => joinpath("/opt", tp)
+    ]
+
+    # We might also need the x86_64-linux-gnu platform for bootstrapping,
+    # so make sure that's always included
+    if platform != Linux(:x86_64)
+        ltp = triplet(Linux(:x86_64))
+        push!(mapping, joinpath(shards_cache, ltp) => joinpath("/opt", ltp))
+    end
+
+    # If we're trying to run macOS and we have an SDK directory, mount that!
+    if platform == MacOS()
+        sdk_version = "MacOSX10.10.sdk"
+        sdk_shard_path = joinpath(shards_cache, sdk_version)
+        push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
+    end
+
+    # Reverse mapping order, because `sandbox` reads them backwards
+    reverse!(mapping)
+    return mapping
 end
 
 function UserNSRunner(workspace_root::String; cwd = nothing,
@@ -27,6 +46,9 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
 
     # Ensure the rootfs for this platform is downloaded and up to date
     update_rootfs(triplet(platform); verbose=verbose)
+
+    # Ensure that sandbox is ready to go
+    update_sandbox_binary(;verbose=verbose)
 
     # Construct sandbox command
     sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`

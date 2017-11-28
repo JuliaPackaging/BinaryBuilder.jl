@@ -11,8 +11,11 @@ function target_envs(target::AbstractString)
     lib_path = "/opt/$(target)/lib64:/opt/$(target)/lib"
     lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
     mapping = Dict(
+        # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
         "PATH" => "/opt/$(target)/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
         "LD_LIBRARY_PATH" => lib_path,
+
+        # Define toolchain envvars
         "AR" => target_tool("ar"),
         "CC" => target_tool("gcc"),
         "CXX" => target_tool("g++"),
@@ -26,8 +29,11 @@ function target_envs(target::AbstractString)
         "LIBTOOL" => target_tool("libtool"),
         "LIPO" => target_tool("lipo"),
         "OTOOL" => target_tool("otool"),
+
+        # Useful tools
         "target" => target,
         "nproc" => Sys.CPU_CORES,
+        "TERM" => "screen",
 
         # Autotools really appreciates being able to build stuff for the
         # host system, so we set this to ease its woes
