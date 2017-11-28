@@ -169,6 +169,8 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
           closedir(d);
       }
       check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
+      // Remount to read-only
+      check(0 == mount(current_entry->outside_path, inside, "", MS_BIND|MS_REMOUNT|MS_RDONLY, NULL));
       current_entry = current_entry->prev;
   }
 
