@@ -8,12 +8,23 @@ things like `target`.
 """
 function target_envs(target::AbstractString)
     target_tool = tool -> "/opt/$(target)/bin/$(target)-$(tool)"
-    lib_path = "/opt/$(target)/lib64:/opt/$(target)/lib"
+
+    # Start with the default musl ld path:
+    lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
+
+    # Then add on our target-specific locations
+    lib_path *= ":/opt/$(target)/lib64:/opt/$(target)/lib"
     lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
-    standard_path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
+
+    # Start with the standard PATH:
+    path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
+
+    # Slip our tools into the front
+    path = "/opt/super_binutils/bin:/opt/$(target)/bin:" * path
+
     mapping = Dict(
         # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
-        "PATH" => "/opt/super_binutils/bin:/opt/$(target)/bin:$(standard_path)",
+        "PATH" => path,
         "LD_LIBRARY_PATH" => lib_path,
 
         # Define toolchain envvars
