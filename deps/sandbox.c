@@ -109,6 +109,7 @@ char *overlay = NULL;
 char *overlay_workdir = NULL;
 char *workspace = NULL;
 char *new_cd = NULL;
+unsigned char verbose = 0;
 
 struct map_list {
     char *map_path;
@@ -159,6 +160,9 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
       if (inside[0] == '/') {
           inside = inside + 1;
       }
+      if (verbose) {
+          printf("Mapping %s to %s\n", inside, current_entry->outside_path);
+      }
       check(current_entry->outside_path[0] == '/' && "Outside path must be absolute");
 
       // Create the inside directory, if we need to
@@ -196,9 +200,11 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
     fputs("ERROR: Busybox not installed!\n", stderr);
     _exit(1);
   } else {
-    fprintf(stderr, "About to run %s\n", sandbox_argv[0]);
+    if (verbose) {
+      printf("About to run %s\n", sandbox_argv[0]);
+    }
     execve(sandbox_argv[0], sandbox_argv, environ);
-    fputs("ERROR: Failed to run specified command!\n", stderr);
+    fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
     _exit(1);
   }
 }
@@ -250,8 +256,15 @@ int main(int sandbox_argc, char **sandbox_argv) {
     sandbox_argc -= 2;
   }
 
+  if( sandbox_argc >= 1 && strcmp(sandbox_argv[0], "--verbose") == 0) {
+    verbose = 1;
+    sandbox_argv += 1;
+    sandbox_argc -= 1;
+  }
+
   if (sandbox_argc == 0 || !sandbox_root) {
-    fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] [--cd <dir>] <cmd>\n", stderr);
+    fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] ", stderr);
+    fputs("[--cd <dir>] [--map <from>:<to>, ...] [--verbose] <cmd>\n", stderr);
     return 1;
   }
 
@@ -291,7 +304,10 @@ int main(int sandbox_argc, char **sandbox_argv) {
 
   // Wait until the child is ready to be configured.
   check(0 == read(parent_block[0], NULL, 1));
-  printf("Child Process PID is %d\n", pid);
+
+  if (verbose) {
+    printf("Child Process PID is %d\n", pid);
+  }
 
   configure_user_namespace(pid);
 

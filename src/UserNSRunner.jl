@@ -63,6 +63,10 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
         sandbox_cmd = `$sandbox_cmd --map $outside:$inside`
     end
 
+    if verbose
+        sandbox_cmd = `$sandbox_cmd --verbose`
+    end
+
     sandbox_cmd = setenv(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env))
     UserNSRunner(sandbox_cmd, platform)
 end
