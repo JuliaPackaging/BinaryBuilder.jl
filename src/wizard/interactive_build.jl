@@ -105,7 +105,7 @@ end
 function interactive_build(state::WizardState, prefix::Prefix,
                            ur::UserNSRunner, build_path::AbstractString;
                            hist_modify = string)
-   histfile = joinpath(build_path, "workspace", ".bash_history")
+   histfile = joinpath(build_path, ".bash_history")
    runshell(ur, state.ins, state.outs, state.outs)
    # This is an extremely simplistic way to capture the history,
    # but ok for now. Obviously doesn't include any interactive
@@ -256,7 +256,7 @@ function step34(state::WizardState)
     mkpath(build_path)
     state.history = ""
     cd(build_path) do
-        histfile = joinpath(build_path, "workspace", ".bash_history")
+        histfile = joinpath(build_path, ".bash_history")
         prefix, ur = setup_workspace(
             build_path,
             state.source_files,
