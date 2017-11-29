@@ -10,9 +10,10 @@ function target_envs(target::AbstractString)
     target_tool = tool -> "/opt/$(target)/bin/$(target)-$(tool)"
     lib_path = "/opt/$(target)/lib64:/opt/$(target)/lib"
     lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
+    standard_path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
     mapping = Dict(
         # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
-        "PATH" => "/opt/$(target)/bin:/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
+        "PATH" => "/opt/super_binutils/bin:/opt/$(target)/bin:$(standard_path)",
         "LD_LIBRARY_PATH" => lib_path,
 
         # Define toolchain envvars
