@@ -302,20 +302,23 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         return
     end
 
-    ur = UserNSRunner(prefix.path; platform=platform)
+    ur = UserNSRunner(prefix.path; cwd="/workspace/", platform=platform, verbose=true)
+    rel_path = relpath(path, prefix.path)
 
     add_rpath = x -> ``
     relink = (x, y) -> ``
     origin = ""
+    patchelf = "/usr/local/bin/patchelf"
+    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
     if Compat.Sys.isapple(platform)
         origin = "@loader_path"
-        add_rpath = rp -> `install_name_tool -add_rpath $(rp) $(path)`
-        relink = (op, np) -> `install_name_tool -change $(op) $(np) $(path)`
+        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
+        relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Compat.Sys.islinux(platform)
         origin = "\$ORIGIN"
         full_rpath = join(':', rpaths(RPath(readmeta(path))))
-        add_rpath = rp -> `patchelf --set-rpath $(full_rpath):$(rp) $(path)`
-        relink = (op, np) -> `patchelf --replace-needed $(op) $(np) $(path)`
+        add_rpath = rp -> `$patchelf --set-rpath $(full_rpath):$(rp) $(rel_path)`
+        relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
     end
 
     if !(dirname(new_libpath) in canonical_rpaths(RPath(readmeta(path))))
