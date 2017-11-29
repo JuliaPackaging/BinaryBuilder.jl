@@ -256,6 +256,9 @@ function should_ignore_lib(lib, ::ELFHandle)
         # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
         "libgcc_s.so.1",
+        "libm.so.6",
+        "libgfortran.so.3",
+        "libgfortran.so.4",
     ]
     return lowercase(basename(lib)) in default_libs
 end
@@ -264,6 +267,8 @@ function should_ignore_lib(lib, ::MachOHandle)
     default_libs = [
         "libsystem.b.dylib",
         "libgcc_s.1.dylib",
+        "libgfortran.3.dylib",
+        "libgfortran.4.dylib",
     ]
     return lowercase(basename(lib)) in default_libs
 end
@@ -274,6 +279,8 @@ function should_ignore_lib(lib, ::COFFHandle)
         "kernel32.dll",
         "user32.dll",
         "libgcc_s_sjlj-1.dll",
+        "libgfortran-3.dll",
+        "libgfortran-4.dll",
     ]
     return lowercase(basename(lib)) in default_libs
 end
