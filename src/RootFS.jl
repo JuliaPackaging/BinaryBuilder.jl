@@ -170,7 +170,6 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
         url = get_shard_url(shard_name; squashfs=squashfs)
         hash = get_shard_hash(shard_name; squashfs=squashfs)
 
-        # Actually make the destination directory
         if shard_name == "base"
             dest_dir = rootfs_dir()
         else
@@ -179,7 +178,6 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
 
         if squashfs
             squashfs_path = downloads_dir("rootfs-$(shard_name).squashfs")
-            
             
             file_existed = isfile(squashfs_path)
             
@@ -211,7 +209,12 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
             end
         else
-            # If tarball, verify/redownload/reunpack the tarball
+            # If it has been mounted previously, unmount here
+            if success(`mountpoint $(dest_dir)`)
+                run(`sudo umount $(dest_dir)`)
+            end
+
+             # If tarball, verify/redownload/reunpack the tarball
             download_verify_unpack(
                 url,
                 hash,
