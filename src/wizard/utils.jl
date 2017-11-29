@@ -149,7 +149,8 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                 "DESTDIR" => "/workspace/$nonce/destdir",
                 "WORKSPACE" => "/workspace/$nonce",
             )
-        )
+        ),
+        verbose = verbose,
     )
 
     # Unpack the sources into the srcdir

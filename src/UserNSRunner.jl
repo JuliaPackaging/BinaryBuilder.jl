@@ -40,7 +40,7 @@ end
 function UserNSRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
-                      verbose::Bool = true,
+                      verbose::Bool = false,
                       mappings = platform_def_mapping(platform))
     global sandbox_path
 
@@ -123,16 +123,17 @@ end
 
 
 """
-    runshell(platform::Platform = platform_key())
+    runshell(platform::Platform = platform_key(); verbose::Bool = false)
 
 Launch an interactive shell session within the user namespace, with environment
 setup to target the given `platform`.
 """
-function runshell(platform::Platform = platform_key())
+function runshell(platform::Platform = platform_key(); verbose::Bool = false)
     ur = UserNSRunner(
         pwd();
         cwd="/workspace/",
-        platform=platform
+        platform=platform,
+        verbose=verbose
     )
     return runshell(ur)
 end

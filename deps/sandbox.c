@@ -161,7 +161,7 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
           inside = inside + 1;
       }
       if (verbose) {
-          printf("Mapping %s to %s\n", inside, current_entry->outside_path);
+          printf("--> Mapping %s to %s\n", inside, current_entry->outside_path);
       }
       check(current_entry->outside_path[0] == '/' && "Outside path must be absolute");
 
