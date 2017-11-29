@@ -29,7 +29,10 @@ function print_build_tarballs(io::IO, state::WizardState)
     $products_string
     ]
 
-    autobuild(pwd(), "$(state.name)", platforms, sources, script, products)
+    product_hashes = Dict()
+    autobuild(pwd(), "$(state.name)", platforms, sources, script, products, product_hashes)
+
+    print_buildjl(product_hashes)
     """)
 end
 

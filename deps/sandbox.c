@@ -109,6 +109,7 @@ char *overlay = NULL;
 char *overlay_workdir = NULL;
 char *workspace = NULL;
 char *new_cd = NULL;
+unsigned char verbose = 0;
 
 struct map_list {
     char *map_path;
@@ -118,6 +119,28 @@ struct map_list {
 
 struct map_list *maps;
 
+/* Mount an overlayfs on "overlayfs_root", anchoring the changes within the
+ * temporary folders within /proc/upper and /proc/work created by
+ * sandbox_main()
+ */
+static void create_overlay(const char * overlay_root) {
+    char upper_dir[PATH_MAX], work_dir[PATH_MAX], opts[3*PATH_MAX+40];
+    const char * bname = basename(overlay_root);
+
+    snprintf(upper_dir, sizeof(upper_dir), "/proc/upper/%s", bname);
+    snprintf(work_dir, sizeof(work_dir), "/proc/work/%s", bname);
+    snprintf(opts, sizeof(opts), "lowerdir=%s,upperdir=%s,workdir=%s",
+             overlay_root, upper_dir, work_dir);
+
+    if (verbose) {
+        printf("--> Mounting overlay %s at %s\n", overlay_root, upper_dir);
+    }
+
+    check(0 == mkdir(upper_dir, 0777));
+    check(0 == mkdir(work_dir, 0777));
+    check(0 == mount("overlay", overlay_root, "overlay", 0, opts));
+}
+
 /* Sets up the jail, prepares the initial linux environment,
    then execs busybox */
 static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
@@ -125,24 +148,18 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   int status;
   check(sandbox_root != NULL);
 
-  /// Set up a temporary file system to use as the upper dir for our overlay
-  /// We re-use /proc outside the chroot for this purpose, because it's a
-  /// directory that is required to exist for the sandbox to work and is not
-  /// otherwise accessed.
+  /// Set up a temporary file system to use to hold all the upper dirs for our
+  /// overlay.  We re-use /proc outside the chroot for this purpose, because
+  /// it's a directory that is required to exist for the sandbox to work and
+  /// is not otherwise accessed.
   check(0 == mount("tmpfs", "/proc", "tmpfs", 0, "size=1G"));
   check(0 == mkdir("/proc/upper", 0777));
   check(0 == mkdir("/proc/work", 0777));
 
-  /// Mount the overlay filesystem
-  {
-    char mount_opts[3*PATH_MAX+40];
-    snprintf(mount_opts, sizeof(mount_opts),
-      "lowerdir=%s,upperdir=/proc/upper,workdir=/proc/work",
-      sandbox_root);
-    check(0 == mount("overlay", sandbox_root, "overlay", 0, mount_opts));
-  }
-
+  /// Mount the overlay filesystem for the "base" shard
+  create_overlay(sandbox_root);
   chdir(sandbox_root);
+  
   /// Setup the workspace
   if (workspace) {
     // We don't expect workspace to have any submounts in normal operation.
@@ -159,6 +176,9 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
       if (inside[0] == '/') {
           inside = inside + 1;
       }
+      if (verbose) {
+          printf("--> Mapping %s to %s\n", inside, current_entry->outside_path);
+      }
       check(current_entry->outside_path[0] == '/' && "Outside path must be absolute");
 
       // Create the inside directory, if we need to
@@ -169,8 +189,13 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
           closedir(d);
       }
       check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
+
       // Remount to read-only
       check(0 == mount(current_entry->outside_path, inside, "", MS_BIND|MS_REMOUNT|MS_RDONLY, NULL));
+
+      // Slap an overlay on top to allow future changes
+      create_overlay(inside);
+
       current_entry = current_entry->prev;
   }
 
@@ -196,9 +221,11 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
     fputs("ERROR: Busybox not installed!\n", stderr);
     _exit(1);
   } else {
-    fprintf(stderr, "About to run %s\n", sandbox_argv[0]);
+    if (verbose) {
+      printf("About to run %s\n", sandbox_argv[0]);
+    }
     execve(sandbox_argv[0], sandbox_argv, environ);
-    fputs("ERROR: Failed to run specified command!\n", stderr);
+    fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
     _exit(1);
   }
 }
@@ -221,6 +248,10 @@ int main(int sandbox_argc, char **sandbox_argv) {
   // Probably should replace this by proper argument parsing (or just make this a library)
   if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--rootfs") == 0) {
     sandbox_root = strdup(sandbox_argv[1]);
+    size_t sandbox_root_len = strlen(sandbox_root);
+    if (sandbox_root[sandbox_root_len-1] == '/' ) {
+        sandbox_root[sandbox_root_len-1] = '\0';
+    }
     sandbox_argv += 2;
     sandbox_argc -= 2;
   }
@@ -250,8 +281,15 @@ int main(int sandbox_argc, char **sandbox_argv) {
     sandbox_argc -= 2;
   }
 
+  if( sandbox_argc >= 1 && strcmp(sandbox_argv[0], "--verbose") == 0) {
+    verbose = 1;
+    sandbox_argv += 1;
+    sandbox_argc -= 1;
+  }
+
   if (sandbox_argc == 0 || !sandbox_root) {
-    fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] [--cd <dir>] <cmd>\n", stderr);
+    fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] ", stderr);
+    fputs("[--cd <dir>] [--map <from>:<to>, ...] [--verbose] <cmd>\n", stderr);
     return 1;
   }
 
@@ -291,7 +329,10 @@ int main(int sandbox_argc, char **sandbox_argv) {
 
   // Wait until the child is ready to be configured.
   check(0 == read(parent_block[0], NULL, 1));
-  printf("Child Process PID is %d\n", pid);
+
+  if (verbose) {
+    printf("Child Process PID is %d\n", pid);
+  }
 
   configure_user_namespace(pid);
 

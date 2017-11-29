@@ -50,7 +50,7 @@ Returns the URL from which a rootfs image (tarball/squashfs) can be downloaded
 function get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
     # These constants are what should be updated for a new rootfs build:
     rootfs_urlroot = "https://julialangmirror.s3.amazonaws.com/binarybuilder"
-    rootfs_version = "2017-11-26"
+    rootfs_version = "2017-11-29"
 
     shard_name = "rootfs-$(target)"
     ext = squashfs ? "squashfs" : "tar.gz"
@@ -68,28 +68,28 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     # You can get these dictionaries spat out by running `make print-hashes`
     # in `julia-docker/crossbuild`, after running `make shards`.
     squashfs_hashes = Dict(
-        "aarch64-linux-gnu" => "28bcd50d957827d209f0275be23e8ea020b25223f890c43fd823a5b77ecac524",
-        "arm-linux-gnueabihf" => "74e2e8b49c0eccc088024cbfa0fbe10cdb82b203ff965ce205c96d48e5ca33e9",
-        "base" => "ea477e0ff7e57986c36af8a092a80aefb45840f15b27d9528842ea09d7979f02",
-        "i686-linux-gnu" => "efc56b8dd407adb8b329fb834ce3784e6e9d99e910b86bda3f5b71732183139a",
-        "i686-w64-mingw32" => "0a6b585f4a64a637fea05a27f2543cbd3f59fa3ce325016044310a8c6001b88b",
-        "powerpc64le-linux-gnu" => "761397db415d0a76228324a80e11d1befdecb6562dab11fdd153c071c6029b83",
-        "x86_64-apple-darwin14" => "3c7dfd90eb7c27019c276bbe1053e9a0484c86b1963a8812e0d99f6ffc328d69",
-        "x86_64-linux-gnu" => "2c5d5faf5896230af1e0048422baf27692946c1aa3bd9403c071f97d5c223b66",
-        "x86_64-w64-mingw32" => "67db51ad61a1d59ccc35d31d4862781bfa00baa59207feaacb1cf84677b207d5",
+        "aarch64-linux-gnu" => "4bc3ed1e8baf3ad242f113f207ece1b8f883c09abfd6fbd5cae1c5cb658c942e",
+        "arm-linux-gnueabihf" => "77f56e8419596d0cc2a537b51888ccdcce31be67a40d4b05bc98ad43c3707d7d",
+        "base" => "8fcef4d92d5554dc9293849bfda00e7c19987d8a7e06bb24c25c43c030021b0e",
+        "i686-linux-gnu" => "d18869e3dbbbae99599551ee55e2d02062244f4de4f77f162e1b97eb157a9cad",
+        "i686-w64-mingw32" => "36fc9bcd2ce0e2715a6f926ea5776d0c61f797d7766c35f2bb5076132dbdb9bb",
+        "powerpc64le-linux-gnu" => "4af7872e6b984884b22e0f609d9549080b234ce7737546d53ab52a510ae62111",
+        "x86_64-apple-darwin14" => "95c729308c1749ce6f07d5af81ef7e7553ebb940d44a034c374878e39766f0f1",
+        "x86_64-linux-gnu" => "4ee9e93b19e9df9d351b06bbead581df25e11fae3b4fe464735e522a83e3124e",
+        "x86_64-w64-mingw32" => "66e5d6647d9968ff5474ba672b231b046a49ee75adaeff73e3a3a2d84afa4868",
     )
     tarball_hashes = Dict(
-        "aarch64-linux-gnu" => "62d16d4e2c7af85751d9c6eabb4f0753c3e941cad4240a9057e20dce45436ccb",
-        "arm-linux-gnueabihf" => "c0c899af8dab8ac9ebd4f5af69d9187a849adbf952f9088fc5d8a2302a6b0856",
-        "base" => "f8833727de887934c9fd5fb00027a188529e9c1a6c6de57cb0b75ba76b9c53d4",
-        "i686-linux-gnu" => "7fb21a34b5f573429646325dbab9b71a68db468e56ba8da3d29c66e408e32dbc",
-        "i686-w64-mingw32" => "e9863d2658a73260f5deac50f7015023c97fda45b76ff3d2ac6c52f72c121b71",
-        "powerpc64le-linux-gnu" => "fd9119324e03c6a007a336351893f0fa208a836b08a1cd9a4756bcb04209a8a6",
-        "x86_64-apple-darwin14" => "ed5c1d2ba8cc0fd7840dc63918d00d18b812a80d68652420a4104a35af9109b9",
-        "x86_64-linux-gnu" => "fc7ff95071a91ed879713717524fe20781db6f171e9711f21b827a4515835c77",
-        "x86_64-w64-mingw32" => "2eebe8ad409c85d627ba74cfea680dfe46112a681c17c32b495f6cc32d962182",
+        "aarch64-linux-gnu" => "6aef48d32aec550598ac646193384752880620345b6012888abed3acd34f4aea",
+        "arm-linux-gnueabihf" => "7853b74137e416989130ccca211ebf3e4f54a50b8431ab131526c180a6238f91",
+        "base" => "5775bea9fa099dabc353070e54a87af501f239d702c686e5da6b53b12e2210bb",
+        "i686-linux-gnu" => "72b073102276fb13ebab243bcee01b4bd6d1119380a5c54b23ad3f0b9bb33ab8",
+        "i686-w64-mingw32" => "66620705d2f9cc3a750dc84f07570418c78c22730948ca5616796678e9b07083",
+        "powerpc64le-linux-gnu" => "02f5d0ddc9d9afec59fabc9687155166ec4ee9e55e59404d562ea83173344d8e",
+        "x86_64-apple-darwin14" => "7a53fa8ff02651a54a8ed0404e8c5332ea54a448a00c320df537acec6a080e90",
+        "x86_64-linux-gnu" => "0dbf9e1be7f7eb748ee41ba7159cd6001666cfb8ff83af4a5c7ca829b0537633",
+        "x86_64-w64-mingw32" => "d597387aeafa36a77c5933b3d897fd1e03d5b22c3006f8a28bba6bab095f8347",
     )
-    
+
     if squashfs
         return squashfs_hashes[triplet]
     else
@@ -143,10 +143,9 @@ function rewrite_squashfs_uids(path, new_uid)
        end
        p = position(file)
        uid = read(file, UInt32)
-       # TODO: We should distribute these files with uid 0
-       # if uid != 0
-       #    error("Expected all uids to be 0 inside the image")
-       # end
+       if uid != 0
+          error("Expected all uids to be 0 inside the image")
+       end
        seek(file, p)
        write(file, UInt32(new_uid))
     end
@@ -171,7 +170,6 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
         url = get_shard_url(shard_name; squashfs=squashfs)
         hash = get_shard_hash(shard_name; squashfs=squashfs)
 
-        # Actually make the destination directory
         if shard_name == "base"
             dest_dir = rootfs_dir()
         else
@@ -180,7 +178,6 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
 
         if squashfs
             squashfs_path = downloads_dir("rootfs-$(shard_name).squashfs")
-            
             
             file_existed = isfile(squashfs_path)
             
@@ -212,7 +209,12 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
             end
         else
-            # If tarball, verify/redownload/reunpack the tarball
+            # If it has been mounted previously, unmount here
+            if success(`mountpoint $(dest_dir)`)
+                run(`sudo umount $(dest_dir)`)
+            end
+
+             # If tarball, verify/redownload/reunpack the tarball
             download_verify_unpack(
                 url,
                 hash,

@@ -256,6 +256,9 @@ function should_ignore_lib(lib, ::ELFHandle)
         # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
         "libgcc_s.so.1",
+        "libm.so.6",
+        "libgfortran.so.3",
+        "libgfortran.so.4",
     ]
     return lowercase(basename(lib)) in default_libs
 end
@@ -264,6 +267,8 @@ function should_ignore_lib(lib, ::MachOHandle)
     default_libs = [
         "libsystem.b.dylib",
         "libgcc_s.1.dylib",
+        "libgfortran.3.dylib",
+        "libgfortran.4.dylib",
     ]
     return lowercase(basename(lib)) in default_libs
 end
@@ -274,6 +279,8 @@ function should_ignore_lib(lib, ::COFFHandle)
         "kernel32.dll",
         "user32.dll",
         "libgcc_s_sjlj-1.dll",
+        "libgfortran-3.dll",
+        "libgfortran-4.dll",
     ]
     return lowercase(basename(lib)) in default_libs
 end
@@ -295,20 +302,23 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         return
     end
 
-    ur = UserNSRunner(prefix.path; platform=platform)
+    ur = UserNSRunner(prefix.path; cwd="/workspace/", platform=platform, verbose=true)
+    rel_path = relpath(path, prefix.path)
 
     add_rpath = x -> ``
     relink = (x, y) -> ``
     origin = ""
+    patchelf = "/usr/local/bin/patchelf"
+    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
     if Compat.Sys.isapple(platform)
         origin = "@loader_path"
-        add_rpath = rp -> `install_name_tool -add_rpath $(rp) $(path)`
-        relink = (op, np) -> `install_name_tool -change $(op) $(np) $(path)`
+        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
+        relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Compat.Sys.islinux(platform)
         origin = "\$ORIGIN"
         full_rpath = join(':', rpaths(RPath(readmeta(path))))
-        add_rpath = rp -> `patchelf --set-rpath $(full_rpath):$(rp) $(path)`
-        relink = (op, np) -> `patchelf --replace-needed $(op) $(np) $(path)`
+        add_rpath = rp -> `$patchelf --set-rpath $(full_rpath):$(rp) $(rel_path)`
+        relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
     end
 
     if !(dirname(new_libpath) in canonical_rpaths(RPath(readmeta(path))))
