@@ -92,7 +92,7 @@ function print_buildjl(product_hashes::Dict)
     println("download_info = Dict(")
     for platform in sort(collect(keys(product_hashes)))
         fname, hash = product_hashes[platform]
-        println("    $(platform) => (\"\$bin_prefix/$(fname)\", \"$(hash)\")")
+        println("    $(platform) => (\"\$bin_prefix/$(fname)\", \"$(hash)\"),")
     end
     println(")")
 
