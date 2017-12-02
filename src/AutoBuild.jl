@@ -11,14 +11,14 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                    platforms::Vector, sources::Vector, script, products,
                    product_hashes::Dict = Dict();
                    verbose::Bool = true)
-    # If we're on Travis and we're not verbose, schedule a task to output a "." every minute so we don't die.
+    # If we're on Travis and we're not verbose, schedule a task to output a "." every 10 seconds
     if haskey(ENV, "TRAVIS") && !verbose
         run_travis_busytask = true
         @async begin
             # Don't let Travis think we're asleep...
             info("Brewing a pot of coffee for Travis")
             while run_travis_busytask
-                sleep(1)
+                sleep(10)
                 print(".")
             end
         end
