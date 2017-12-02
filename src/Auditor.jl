@@ -269,6 +269,7 @@ function should_ignore_lib(lib, ::MachOHandle)
         "libgcc_s.1.dylib",
         "libgfortran.3.dylib",
         "libgfortran.4.dylib",
+        "libquadmath.0.dylib",
     ]
     return lowercase(basename(lib)) in default_libs
 end
