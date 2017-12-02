@@ -206,8 +206,11 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   if (new_cd) {
     check(0 == chdir(new_cd));
   }
+
+
   // Set up the environment
   if ((pid = fork()) == 0) {
+    fflush(stdout);
     char *ie_argv[] = {"/bin/busybox", "sh", "-c", initial_script, 0};
     execve("/bin/busybox", ie_argv, environ);
     _exit(0);
@@ -216,14 +219,20 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   check(pid == waitpid(pid, &status, 0));
   check(WIFEXITED(status));
   if (sandbox_argc == 0) {
+    fflush(stdout);
     char *argv[] = {"/bin/busybox", "sh", 0};
     execve("/bin/busybox", argv, environ);
     fputs("ERROR: Busybox not installed!\n", stderr);
     _exit(1);
   } else {
     if (verbose) {
-      printf("About to run %s\n", sandbox_argv[0]);
+      printf("About to run `%s` ", sandbox_argv[0]);
+      for( int argc_i=1; argc_i<sandbox_argc; ++argc_i) {
+        printf("`%s` ", sandbox_argv[argc_i]);
+      }
+      printf("\n");
     }
+    fflush(stdout);
     execve(sandbox_argv[0], sandbox_argv, environ);
     fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
     _exit(1);
