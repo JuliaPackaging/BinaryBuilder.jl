@@ -9,7 +9,8 @@ for multiple platforms.  `src_name`
 """
 function autobuild(dir::AbstractString, src_name::AbstractString,
                    platforms::Vector, sources::Vector, script, products,
-                   product_hashes::Dict = Dict())
+                   product_hashes::Dict = Dict();
+                   verbose::Bool = true)
     # First, download the source(s), store in ./downloads/
     downloads_dir = joinpath(dir, "downloads")
     try mkpath(downloads_dir) end
@@ -21,11 +22,11 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             src_path = abspath(src_url)
 
             # And if this is a locally-sourced tarball, just verify
-            verify(src_path, src_hash; verbose=true)
+            verify(src_path, src_hash; verbose=verbose)
         else
             # Otherwise, download and verify
             src_path = joinpath(downloads_dir, basename(src_url))
-            download_verify(src_url, src_hash, src_path; verbose=true)
+            download_verify(src_url, src_hash, src_path; verbose=verbose)
         end
         sources[idx] = (src_path => src_hash)
     end
@@ -47,7 +48,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             # Convert from tuples to arrays, if need be
             src_paths = collect(src_paths)
             src_hashes = collect(src_hashes)
-            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, platform; verbose=true)
+            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, platform; verbose=verbose)
 
             prdcts = products(prefix)
 
@@ -55,10 +56,10 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             steps = [`/bin/bash -c $script`]
 
             dep = Dependency(src_name, prdcts, steps, platform, prefix)
-            build(ur, dep; verbose=true, autofix=true)
+            build(ur, dep; verbose=verbose, autofix=true)
 
             # Once we're built up, go ahead and package this prefix out
-            tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=true, force=true)
+            tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=verbose, force=true)
             product_hashes[target] = (basename(tarball_path), tarball_hash)
         end
 
