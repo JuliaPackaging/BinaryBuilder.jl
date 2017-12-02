@@ -11,6 +11,7 @@ within the crossbuild environment.
 """
 type UserNSRunner
     sandbox_cmd::Cmd
+    env::Dict{String, String}
     platform::Platform
 end
 
@@ -70,8 +71,7 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
 
-    sandbox_cmd = setenv(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env))
-    UserNSRunner(sandbox_cmd, platform)
+    UserNSRunner(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
 end
 
 function show(io::IO, x::UserNSRunner)
@@ -85,7 +85,7 @@ end
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
     did_succeed = true
     cd(dirname(sandbox_path)) do
-        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $cmd`, ur.sandbox_cmd.env); verbose=verbose, tee_stream=tee_stream)
+        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $cmd`, ur.env); verbose=verbose, tee_stream=tee_stream)
 
         did_succeed = wait(oc)
 

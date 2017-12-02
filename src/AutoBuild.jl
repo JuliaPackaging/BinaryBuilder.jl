@@ -11,14 +11,14 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                    platforms::Vector, sources::Vector, script, products,
                    product_hashes::Dict = Dict();
                    verbose::Bool = true)
-    # If we're on Travis and we're not verbose, schedule a task to output a "." every 10 seconds
+    # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
     if haskey(ENV, "TRAVIS") && !verbose
         run_travis_busytask = true
-        @async begin
+        travis_busytask = @async begin
             # Don't let Travis think we're asleep...
             info("Brewing a pot of coffee for Travis")
             while run_travis_busytask
-                sleep(10)
+                sleep(4)
                 print(".")
             end
         end
@@ -77,7 +77,10 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
         rm(build_path; recursive=true)
     end
 
-    run_travis_busytask = false
+    if haskey(ENV, "TRAVIS") && !verbose
+        run_travis_busytask = false
+        wait(travis_busytask)
+    end
 end
 
 function print_buildjl(product_hashes::Dict)

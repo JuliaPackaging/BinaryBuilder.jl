@@ -44,7 +44,7 @@ function target_envs(target::AbstractString)
 
         # Useful tools
         "target" => target,
-        "nproc" => Sys.CPU_CORES,
+        "nproc" => "$(Sys.CPU_CORES)",
         "TERM" => "screen",
 
         # Autotools really appreciates being able to build stuff for the
