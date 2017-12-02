@@ -227,7 +227,8 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   } else {
     if (verbose) {
       printf("About to run `%s` ", sandbox_argv[0]);
-      for( int argc_i=1; argc_i<sandbox_argc; ++argc_i) {
+      int argc_i;
+      for( argc_i=1; argc_i<sandbox_argc; ++argc_i) {
         printf("`%s` ", sandbox_argv[argc_i]);
       }
       printf("\n");
