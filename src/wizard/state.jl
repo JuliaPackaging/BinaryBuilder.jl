@@ -1,3 +1,5 @@
+import Base: show
+
 """
     WizardState
 
@@ -50,4 +52,8 @@ function WizardState()
         Set{Any}(),
         nothing
     )
+end
+
+function show(io::IO, x::WizardState)
+    print(io, "WizardState [$(x.step)]")
 end
