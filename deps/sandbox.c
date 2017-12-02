@@ -342,6 +342,10 @@ int main(int sandbox_argc, char **sandbox_argv) {
   check(pid == waitpid(pid, &status, 0));
   check(WIFEXITED(status));
 
+  if (verbose) {
+      printf("Child Process exited, exit code %d\n", WEXITSTATUS(status));
+  }
+
   // Delete (empty) work directory
   {
       char work_dir_path[PATH_MAX];
@@ -353,5 +357,6 @@ int main(int sandbox_argc, char **sandbox_argv) {
   signal(SIGTTOU, SIG_IGN);
   tcsetpgrp(0, pgrp);
 
-  return 0;
+  // Return the error code of the child
+  return WEXITSTATUS(status);
 }
