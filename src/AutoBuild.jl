@@ -16,7 +16,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
         run_travis_busytask = true
         travis_busytask = @async begin
             # Don't let Travis think we're asleep...
-            info("Brewing a pot of coffee for Travis")
+            info("Brewing a pot of coffee for Travis...")
             while run_travis_busytask
                 sleep(4)
                 print(".")
@@ -80,6 +80,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
     if haskey(ENV, "TRAVIS") && !verbose
         run_travis_busytask = false
         wait(travis_busytask)
+        println()
     end
 end
 
