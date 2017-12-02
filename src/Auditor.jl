@@ -237,7 +237,14 @@ within the list.
 """
 function collapse_symlinks(files::Vector{String})
     abs_files = abspath.(files)
-    return filter(f -> !(islink(f) && realpath(f) in abs_files), files)
+    predicate = f -> begin
+        try
+            return !(islink(f) && realpath(f) in abs_files)
+        catch
+            return false
+        end
+    end
+    return filter(predicate, files)
 end
 
 """
