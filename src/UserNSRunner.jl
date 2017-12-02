@@ -85,7 +85,7 @@ end
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
     did_succeed = true
     cd(dirname(sandbox_path)) do
-        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $cmd`, ur.env); verbose=verbose, tee_stream=tee_stream)
+        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
 
         did_succeed = wait(oc)
 
@@ -106,7 +106,7 @@ end
 
 function run_interactive(ur::UserNSRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
     cd(dirname(sandbox_path)) do
-        cmd = setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.sandbox_cmd.env)
+        cmd = setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.env)
         if stdin != nothing
             cmd = pipeline(cmd, stdin=stdin)
         end
@@ -116,7 +116,11 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd, stdin = nothing, stdout = n
         if stderr != nothing
             cmd = pipeline(cmd, stderr=stderr)
         end
-        run(cmd)
+
+        # For interactive runs, we don't particularly care if there's an error
+        try
+            run(cmd)
+        end
     end
 end
 
