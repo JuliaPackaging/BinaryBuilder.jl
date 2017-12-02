@@ -9,7 +9,7 @@ our crossbuild environment.  Use `run()` to actually run commands within the
 `UserNSRunner`, and `runshell()` as a quick way to get an interactive shell
 within the crossbuild environment.
 """
-type UserNSRunner
+type UserNSRunner <: Runner
     sandbox_cmd::Cmd
     env::Dict{String, String}
     platform::Platform

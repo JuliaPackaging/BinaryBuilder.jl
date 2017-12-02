@@ -42,6 +42,9 @@ function shards_dir(postfix::String = "")
 end
 
 
+shard_path_squashfs(shard_name) = downloads_dir("rootfs-$(shard_name).squashfs")
+rootfs_path_squashfs() = shard_path_squashfs("base")
+
 """
     get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
 
@@ -108,7 +111,7 @@ const SQUASHFS_MAGIC = 0x73717368
 
 """
     rewrite_squashfs_uids(path, new_uid)
-    
+
 In order for the sandbox to work well, we need to have the uids of the squashfs
 images match the uid of the current unpriviledged user. Unfortunately there is
 no mount-time option to do this for us. However, fortunately, squashfs is simple
@@ -177,10 +180,9 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
         end
 
         if squashfs
-            squashfs_path = downloads_dir("rootfs-$(shard_name).squashfs")
-            
+            squashfs_path = shard_path_squashfs(shard_name)
             file_existed = isfile(squashfs_path)
-            
+
             # If squashfs, verify/redownload the squashfs image
             if !(download_verify(
                 url,
@@ -189,22 +191,24 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 verbose = verbose,
                 force = true
             ) && file_existed)
-                # Unmount the mountpoint. It may point to a previous version
-                # of the file. Also, we're about to mess with it
-                if success(`mountpoint $(dest_dir)`)
-                    run(`sudo umount $(dest_dir)`)
-                end
+                if Compat.Sys.islinux()
+                    # Unmount the mountpoint. It may point to a previous version
+                    # of the file. Also, we're about to mess with it
+                    if success(`mountpoint $(dest_dir)`)
+                        run(`sudo umount $(dest_dir)`)
+                    end
 
-                # Patch squashfs files for current uid
-                rewrite_squashfs_uids(squashfs_path, ccall(:getuid, Cint, ()))
-                
-                # Touch SHA file to prevent re-verifcation from blowing the
-                # fs away
-                touch(string(squashfs_path,".sha256"))
+                    # Patch squashfs files for current uid
+                    rewrite_squashfs_uids(squashfs_path, ccall(:getuid, Cint, ()))
+
+                    # Touch SHA file to prevent re-verifcation from blowing the
+                    # fs away
+                    touch(string(squashfs_path,".sha256"))
+                end
             end
-            
+
             # Then mount it, if it hasn't already been mounted:
-            if !success(`mountpoint $(dest_dir)`)
+            if Compat.Sys.islinux() && !success(`mountpoint $(dest_dir)`)
                 mkpath(dest_dir)
                 run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
             end
@@ -255,7 +259,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
                            verbose::Bool = false,
                            version::AbstractString = "10.10")
     urlbase = "https://github.com/phracker/MacOSX-SDKs/releases/download/10.13"
-    
+
     # Right now, we only support one version, but in the future, we may need
     # to support multiple macOS SDK versions
     sdk_metadata = Dict(
@@ -265,7 +269,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
             shards_dir("MacOSX10.10.sdk"),
         ),
     )
-    
+
     if !haskey(sdk_metadata, version)
         error("Unknown macOS version $(version); cannot download SDK!")
     end
@@ -317,7 +321,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
             info("Automatic macOS SDK install initiated")
         end
     end
-    
+
     download_verify_unpack(
         url,
         hash,
@@ -350,7 +354,7 @@ function update_sandbox_binary(;verbose::Bool = true)
         if verbose
             info("Rebuilding sandbox binary...")
         end
-        
+
         cd() do
             oc = OutputCollector(
                 `gcc -o $(sandbox_path) $(src_path)`;
