@@ -50,9 +50,14 @@ function run_wizard(state::WizardState = WizardState())
             end
         end
     catch err
-        bt = catch_backtrace()
-        Base.showerror(STDERR, err, bt)
-        println(state.outs, "\n")
+        if isa(err, InterruptException)
+            msg = "\n\nWizard stopped, use run_wizard(ans) to resume.\n\n"
+            print_with_color(:red, state.outs, msg, bold=true)
+        else
+            bt = catch_backtrace()
+            Base.showerror(STDERR, err, bt)
+            println(state.outs, "\n")
+        end
         return state
     end
 
