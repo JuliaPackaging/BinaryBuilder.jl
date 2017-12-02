@@ -50,13 +50,10 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             src_hashes = collect(src_hashes)
             prefix, ur = setup_workspace(build_path, src_paths, src_hashes, platform; verbose=verbose)
 
-            prdcts = products(prefix)
-
-            # Build the script
-            steps = [`/bin/bash -c $script`]
-
-            dep = Dependency(src_name, prdcts, steps, platform, prefix)
-            build(ur, dep; verbose=verbose, autofix=true)
+            dep = Dependency(src_name, products(prefix), script, platform, prefix)
+            if !build(ur, dep; verbose=verbose, autofix=true)
+                error("Failed to build $(target)")
+            end
 
             # Once we're built up, go ahead and package this prefix out
             tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=verbose, force=true)

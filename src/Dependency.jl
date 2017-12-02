@@ -2,23 +2,6 @@ import BinaryProvider: satisfied
 export BuildStep, Dependency, satisfied, build
 
 """
-    BuildStep
-
-A `BuildStep` is just a `Cmd` with some helper data bundled along, such as a
-unique (from within a `Dependency`) name, a link to its prefix for auto-
-calculating the `logpath()` for a `BuildStep`, etc....
-"""
-immutable BuildStep
-    name::String
-    cmd::Cmd
-    prefix::Prefix
-end
-
-function logpath(step::BuildStep)
-    return joinpath(logdir(step.prefix), "$(step.name).log")
-end
-
-"""
     Dependency
 
 A `Dependency` represents a set of `Product`s that must be satisfied before a
@@ -37,49 +20,35 @@ immutable Dependency
     # this dependency is satisfied
     results::Vector{Product}
 
-    # The build steps in order to build this dependency.
-    steps::Vector{BuildStep}
+    # The bash script to build this dependency
+    script::String
 
     # The platform this dependency is built for
     platform::Platform
 
     # The parent "prefix" this dependency must be installed within
     prefix::Prefix
-end
 
+    """
+        Dependency(name::AbstractString,
+                   results::Vector{Product},
+                   cmds::Vector{Cmd},
+                   platform::Platform,
+                   prefix::Prefix = global_prefix)
 
-"""
-    Dependency(name::AbstractString,
-               results::Vector{Product},
-               cmds::Vector{Cmd},
-               platform::Platform,
-               prefix::Prefix = global_prefix)
+    Defines a new dependency that must be built by its name, the binary objects
+    that will be built, the commands that must be run to build them, and the
+    prefix within which all of this will be installed.
 
-Defines a new dependency that must be built by its name, the binary objects
-that will be built, the commands that must be run to build them, and the prefix
-within which all of this will be installed.
-
-You may, alternately, provide a `Vector` of tuples containing the URLs and hashes
-"""
-function Dependency{P <: Product}(name::AbstractString,
+    You may also provide a `Vector` of tuples containing the URLs and hashes
+    """
+    function Dependency{P <: Product}(name::AbstractString,
                     results::Vector{P},
-                    cmds::Vector{Cmd},
+                    script::AbstractString,
                     platform::Platform,
                     prefix::Prefix = BinaryProvider.global_prefix)
-    name_idxs = Dict{String,Int64}()
-
-    function build_step(prefix, cmd)
-        step_name = basename(cmd.exec[1])
-        if !haskey(name_idxs, step_name)
-            name_idxs[step_name] = 0
-        end
-        postfixed_step_name = "$(name)/$(step_name)_$(name_idxs[step_name])"
-        name_idxs[step_name] += 1
-        return BuildStep(postfixed_step_name, cmd, prefix)
+        return new(name, results, script, platform, prefix)
     end
-
-    steps = [build_step(prefix, cmd) for cmd in cmds]
-    return Dependency(name, results, steps, platform, prefix)
 end
 
 
@@ -122,19 +91,12 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
             end
         end
 
-        # Run the build recipe one step at a time
-        for step in dep.steps
-            if verbose
-                info("[BuildStep $(step.name)]")
-                info("  $(step.cmd)")
-            end
-
-            did_succeed = run(runner, step.cmd, logpath(step); verbose=verbose)
-            # If we were not successful, fess up
-            if !did_succeed
-                msg = "Build step $(step.name) did not complete successfully\n"
-                error(msg)
-            end
+        # Run the build script
+        logpath = joinpath(logdir(dep.prefix), "$(dep.name).log")
+        did_succeed = run(runner, `/bin/bash -c $(dep.script)`, logpath; verbose=verbose)
+        if !did_succeed
+            msg = "Build for $(dep.name) did not complete successfully\n"
+            error(msg)
         end
 
         # Run an audit of the prefix to ensure it is properly relocatable

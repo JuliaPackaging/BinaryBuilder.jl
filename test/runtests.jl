@@ -66,12 +66,12 @@ end
 
             # Remember that we don't need to use `bash()` here because these commands
             # will be happening within the cross-compilation environment
-            cmds = Cmd[]
-            push!(cmds, `/bin/mkdir -p $(dirname(test_exe_sandbox_path))`)
-            push!(cmds, `/bin/bash -c "printf '#!/bin/bash\necho test' > $(test_exe_sandbox_path)"`)
-            push!(cmds, `/bin/chmod 775 $(test_exe_sandbox_path)`)
-
-            dep = Dependency("bash_test", results, cmds, platform, prefix)
+            script = """
+            /bin/mkdir -p $(dirname(test_exe_sandbox_path))
+            printf '#!/bin/bash\necho test' > $(test_exe_sandbox_path)
+            /bin/chmod 775 $(test_exe_sandbox_path)
+            """
+            dep = Dependency("bash_test", results, script, platform, prefix)
 
             @test build(ur, dep; verbose=true)
             @test satisfied(dep)
@@ -88,8 +88,11 @@ end
 
             libfoo = LibraryProduct(prefix, "libfoo")
             fooifier = ExecutableProduct(prefix, "fooifier")
-            steps = [`/usr/bin/make clean`, `/usr/bin/make install`]
-            dep = Dependency("foo", [libfoo, fooifier], steps, platform, prefix)
+            script="""
+            /usr/bin/make clean
+            /usr/bin/make install
+            """
+            dep = Dependency("foo", [libfoo, fooifier], script, platform, prefix)
 
             # Build it
             @test build(ur, dep; verbose=true)
@@ -135,8 +138,11 @@ end
             # First, build libfoo
             libfoo = LibraryProduct(prefix, "libfoo")
             fooifier = ExecutableProduct(prefix, "fooifier")
-            steps = [`/usr/bin/make clean`, `/usr/bin/make install`]
-            dep = Dependency("foo", [libfoo, fooifier], steps, platform, prefix)
+            script = """
+            /usr/bin/make clean
+            /usr/bin/make install
+            """
+            dep = Dependency("foo", [libfoo, fooifier], script, platform, prefix)
 
             @test build(ur, dep)
         end
