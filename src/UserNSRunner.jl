@@ -46,7 +46,7 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
 
     # Ensure the rootfs for this platform is downloaded and up to date.
     # Also, since we require the Linux(:x86_64) shard for HOST_CC....
-    update_rootfs(triplet.([platform, Linux(:x86_64)]; verbose=verbose)
+    update_rootfs(triplet.([platform, Linux(:x86_64)]); verbose=verbose)
 
     # Ensure that sandbox is ready to go
     update_sandbox_binary(;verbose=verbose)
