@@ -1,25 +1,35 @@
 function print_build_tarballs(io::IO, state::WizardState)
-    platforms_string = string("[\n  ",join(state.platforms,",\n  "),"\n]\n")
+    platforms_string = string("[\n    ",join(state.platforms,",\n  "),"\n]\n")
     urlhashes = zip(state.source_urls, state.source_hashes)
     sources_string = string("[\n",join(map(urlhashes) do x
         (src, hash) = x
-        string("  ", repr(src)," =>\n", repr(hash), ",\n")
+        string("    ", repr(src)," =>\n    ", repr(hash), ",\n")
     end,",\n"),"]")
 
     stuff = collect(zip(state.files, state.file_kinds))
     products_string = join(map(stuff) do x
         file, kind = x
         file = normalize_name(file)
-        kind == :executable ? "\tExecutableProduct(prefix,$(repr(file)))" :
-        kind == :library ? "\tLibraryProduct(prefix,$(repr(file)))" :
-        "\tFileProduct(prefix,$(repr(file)))"
+        kind == :executable ? "    ExecutableProduct(prefix,$(repr(file)))" :
+        kind == :library ? "    LibraryProduct(prefix,$(repr(file)))" :
+        "    FileProduct(prefix,$(repr(file)))"
     end,",\n")
 
     println(io, """
     using BinaryBuilder
 
-    platforms = $platforms_string
-    sources = $sources_string
+    # These are the platforms built inside the wizard
+    platforms = $(platforms_string)
+
+    # If the user passed in a platform (or a few, comma-separated) on the
+    # command-line, use that instead of our default platforms
+    if length(ARGS) > 0
+        platforms = platform_key.(split(ARGS[1], ","))
+    end
+    info("Building for $(join(triplet.(platforms), ", "))")
+
+    # Collection of sources required to build $(state.name)
+    sources = $(sources_string)
 
     script = raw\"\"\"
     $(state.history)
@@ -29,10 +39,8 @@ function print_build_tarballs(io::IO, state::WizardState)
     $products_string
     ]
 
-    product_hashes = Dict()
-    autobuild(pwd(), "$(state.name)", platforms, sources, script, products, product_hashes)
-
-    print_buildjl(product_hashes)
+    # Build the given platforms using the given sources
+    autobuild(pwd(), "$(state.name)", build_platforms, sources, script, products)
     """)
 end
 
@@ -54,6 +62,7 @@ function print_travis_file(io::IO, state::WizardState)
     env:
       global:
         - BINARYBUILDER_DOWNLOADS_CACHE=downloads
+        - BINARYBUILDER_AUTOMATIC_APPLE=false
     sudo: required
 
     # Before anything else, get the latest versions of things
