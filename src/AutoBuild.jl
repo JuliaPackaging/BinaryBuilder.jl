@@ -8,8 +8,7 @@ Runs the boiler plate code to download, build, and package a source package
 for multiple platforms.  `src_name`
 """
 function autobuild(dir::AbstractString, src_name::AbstractString,
-                   platforms::Vector, sources::Vector, script, products,
-                   product_hashes::Dict = Dict();
+                   platforms::Vector, sources::Vector, script, products;
                    verbose::Bool = true)
     # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
     if haskey(ENV, "TRAVIS") && !verbose
@@ -47,6 +46,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
     # Our build products will go into ./products
     out_path = joinpath(dir, "products")
     try mkpath(out_path) end
+    product_hashes = Dict()
 
     for platform in platforms
         target = triplet(platform)
@@ -82,6 +82,9 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
         wait(travis_busytask)
         println()
     end
+
+    # Finally, print out our awesome build.jl
+    print_buildjl(product_hashes)
 end
 
 function print_buildjl(product_hashes::Dict)
