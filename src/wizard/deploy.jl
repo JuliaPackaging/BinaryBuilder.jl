@@ -26,7 +26,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     if length(ARGS) > 0
         platforms = platform_key.(split(ARGS[1], ","))
     end
-    info("Building for $(join(triplet.(platforms), ", "))")
+    info("Building for \$(join(triplet.(platforms), ", "))")
 
     # Collection of sources required to build $(state.name)
     sources = $(sources_string)
