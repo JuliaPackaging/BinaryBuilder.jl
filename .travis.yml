@@ -18,6 +18,8 @@ matrix:
     - julia: nightly
 
 env:
+  global:
+    - BINARYBUILDER_AUTOMATIC_APPLE=true
   matrix:
     - BINARYBUILDER_USE_SQUASHFS=true
     - BINARYBUILDER_USE_SQUASHFS=false
