@@ -72,9 +72,6 @@ function print_travis_file(io::IO, state::WizardState)
 
     script:
       - julia build_tarballs.jl
-      
-    before_cache:
-      - rm -rf \$(julia -e 'println(Pkg.dir("BinaryBuilder","deps","root"))')
     """)
 end
 
