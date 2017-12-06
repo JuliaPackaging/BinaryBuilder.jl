@@ -115,6 +115,15 @@ end
     end
 end
 
+const libfoo_products = prefix->[
+    LibraryProduct(prefix, "libfoo")
+    ExecutableProduct(prefix, "fooifier")
+]
+const libfoo_script = """
+/usr/bin/make clean
+/usr/bin/make install
+"""
+
 @testset "Builder Packaging" begin
     # Clear out previous build products
     for f in readdir(".")
@@ -136,13 +145,7 @@ end
             run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
             # First, build libfoo
-            libfoo = LibraryProduct(prefix, "libfoo")
-            fooifier = ExecutableProduct(prefix, "fooifier")
-            script = """
-            /usr/bin/make clean
-            /usr/bin/make install
-            """
-            dep = Dependency("foo", [libfoo, fooifier], script, platform, prefix)
+            dep = Dependency("foo", libfoo_products(prefix), libfoo_script, platform, prefix)
 
             @test build(ur, dep)
         end
@@ -172,6 +175,33 @@ end
     end
 
     rm(tarball_path; force=true)
+end
+
+@testset "AutoBuild Git-Based" begin
+    build_path = tempname()
+    git_path = joinpath(build_path,"libfoo.git")
+    mkpath(git_path)
+
+    cd(build_path) do
+        repo = LibGit2.init(git_path)
+        LibGit2.commit(repo, "Initial empty commit")
+        libfoo_dir = joinpath(@__DIR__,"build_tests","libfoo")
+        run(`cp -r $(libfoo_dir)/$(readdir(libfoo_dir)) $git_path/`)
+        for file in ["fooifier.c", "libfoo.c", "Makefile"]
+            LibGit2.add!(repo, file)
+        end
+        commit = LibGit2.commit(repo, "Add libfoo files")
+
+        sources = [
+            git_path =>
+            LibGit2.hex(LibGit2.GitHash(commit)),
+        ]
+
+        autobuild(pwd(), "libfoo", supported_platforms(), sources,
+            "cd libfoo\n$libfoo_script", libfoo_products)
+    end
+
+    rm(build_path; force=true, recursive=true)
 end
 
 include("wizard.jl")

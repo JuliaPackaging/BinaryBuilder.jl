@@ -8,6 +8,7 @@ libdir ?= $(prefix)/lib
 CC ?= gcc
 
 ifeq ($(shell uname),Darwin)
+CFLAGS = -target x86_64-apple-macosx10.7
 INSTALL_NAME ?= -install_name '@rpath/libfoo.$(SHLIB_EXT)'
 SHLIB_EXT ?= dylib
 RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
@@ -29,13 +30,13 @@ $(libdir):
 # to make first libfoo and then `fooifier`, in order to properly test that
 # BinaryBuilder can build dependent objects
 fooifier$(EXE_EXT): fooifier.c Makefile | libfoo
-	$(CC) fooifier.c -g -o $@ -L"$(shell pwd)" $(RPATH) -lfoo
+	$(CC) $(CFLAGS) fooifier.c -g -o $@ -L"$(shell pwd)" $(RPATH) -lfoo
 install-fooifier: $(bindir) fooifier$(EXE_EXT)
 	cp fooifier$(EXE_EXT) $(bindir)/
 
 
 libfoo.$(SHLIB_EXT): libfoo.c Makefile
-	$(CC) libfoo.c -g -o $@ $(INSTALL_NAME) -shared
+	$(CC) $(CFLAGS) libfoo.c -g -o $@ $(INSTALL_NAME) -shared
 libfoo: libfoo.$(SHLIB_EXT)
 install-libfoo: $(libdir) libfoo.$(SHLIB_EXT)
 	cp libfoo.$(SHLIB_EXT) $(libdir)/

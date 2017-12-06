@@ -28,17 +28,22 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
     try mkpath(downloads_dir) end
     for idx in 1:length(sources)
         src_url, src_hash = sources[idx]
-        if isfile(src_url)
-            # Immediately abspath() a src_url so we don't lose track of
-            # sources given to us with a relative path
-            src_path = abspath(src_url)
-
-            # And if this is a locally-sourced tarball, just verify
-            verify(src_path, src_hash; verbose=verbose)
-        else
-            # Otherwise, download and verify
+        if endswith(src_url, ".git")
             src_path = joinpath(downloads_dir, basename(src_url))
-            download_verify(src_url, src_hash, src_path; verbose=verbose)
+            repo = LibGit2.clone(src_url, src_path; isbare=true)
+        else
+            if isfile(src_url)
+                # Immediately abspath() a src_url so we don't lose track of
+                # sources given to us with a relative path
+                src_path = abspath(src_url)
+
+                # And if this is a locally-sourced tarball, just verify
+                verify(src_path, src_hash; verbose=verbose)
+            else
+                # Otherwise, download and verify
+                src_path = joinpath(downloads_dir, basename(src_url))
+                download_verify(src_url, src_hash, src_path; verbose=verbose)
+            end
         end
         sources[idx] = (src_path => src_hash)
     end
