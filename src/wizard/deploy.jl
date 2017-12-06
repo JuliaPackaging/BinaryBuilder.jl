@@ -40,7 +40,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     ]
 
     # Build the given platforms using the given sources
-    autobuild(pwd(), "$(state.name)", build_platforms, sources, script, products)
+    autobuild(pwd(), "$(state.name)", platforms, sources, script, products)
     """)
 end
 
@@ -72,9 +72,6 @@ function print_travis_file(io::IO, state::WizardState)
 
     script:
       - julia build_tarballs.jl
-      
-    before_cache:
-      - rm -rf \$(julia -e 'println(Pkg.dir("BinaryBuilder","deps","root"))')
     """)
 end
 

@@ -40,6 +40,7 @@ before_install:
   # We need the bleeding edge of BinaryProvider.jl, just install that here now
   - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryProvider.jl")'
   - julia -e 'Pkg.clone("https://github.com/nick-paul/TerminalMenus.jl")'
+  - julia -e 'Pkg.add("ObjectFile"); Pkg.checkout("ObjectFile")'
 
 after_success:
   # push coverage results to Codecov
