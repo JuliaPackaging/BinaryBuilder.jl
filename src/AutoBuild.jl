@@ -30,7 +30,13 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
         src_url, src_hash = sources[idx]
         if endswith(src_url, ".git")
             src_path = joinpath(downloads_dir, basename(src_url))
-            repo = LibGit2.clone(src_url, src_path; isbare=true)
+            if !isdir(src_path)
+                repo = LibGit2.clone(src_url, src_path; isbare=true)
+            else
+                LibGit2.with(LibGit2.GitRepo(src_path)) do repo
+                    LibGit2.fetch(repo)
+                end
+            end
         else
             if isfile(src_url)
                 # Immediately abspath() a src_url so we don't lose track of
