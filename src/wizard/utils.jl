@@ -145,10 +145,10 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         cwd = "/workspace/$nonce/srcdir",
         platform = platform,
         extra_env = merge(extra_env,
-            Dict(
-                "DESTDIR" => "/workspace/$nonce/destdir",
-                "WORKSPACE" => "/workspace/$nonce",
-            )
+            merge(destdir_envs("/workspace/$nonce/destdir"),
+                Dict(
+                    "WORKSPACE" => "/workspace/$nonce",
+                ))
         ),
         verbose = verbose,
     )
