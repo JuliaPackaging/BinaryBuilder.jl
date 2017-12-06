@@ -97,6 +97,8 @@ function audit(prefix::Prefix; io=STDERR,
             end
             continue
         end
+
+        !isdynamic(oh) && continue
         rp = RPath(oh)
 
         if verbose
