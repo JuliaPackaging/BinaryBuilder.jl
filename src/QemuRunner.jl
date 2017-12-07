@@ -11,6 +11,7 @@ type QemuRunner <: Runner
     qemu_cmd::Cmd
     append_line::String
     sandbox_cmd::Cmd
+    env::Dict{String, String}
     platform::Platform
 end
 
@@ -104,8 +105,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         c = Char(Int(c) + 1)
     end
 
-    sandbox_cmd = setenv(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env))
-    QemuRunner(qemu_cmd, append_line, sandbox_cmd, platform)
+    QemuRunner(qemu_cmd, append_line, sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
 end
 
 
@@ -125,12 +125,12 @@ function generate_cmd(ur::QemuRunner, cmd)
         # complicated encoding. Base64 is much simpler.
         base64encode(arg)
     end, ' ')
-    env_string = join(map(ur.sandbox_cmd.env) do x
+    env_string = join(map(ur.env) do x
         base64encode(x)
     end, ' ')
     append_line = string(ur.append_line, " sandboxargs=\"$cmd_string\" sandboxenv=\"$env_string\"")
     bootline = `-append $append_line`
-    setenv(`$(ur.qemu_cmd) $(bootline)`, ur.sandbox_cmd.env)
+    `$(ur.qemu_cmd) $(bootline)`
 end
 
 function Base.run(ur::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
