@@ -227,7 +227,8 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
       if (verbose) {
           printf("--> Mapping %s to %s\n", inside, current_entry->outside_path);
       }
-      check(current_entry->outside_path[0] == '/' && "Outside path must be absolute");
+      check((current_entry->outside_path[0] == '/' ||
+            strncmp(current_entry->outside_path, "9p/", 3) == 0) && "Outside path must be absolute or 9p");
 
       // Create the inside directory, if we need to
       DIR *d = opendir(inside);
@@ -240,6 +241,8 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
       // If specified as a device, mount as squashfs
       if (strncmp(current_entry->outside_path, "/dev", 4) == 0) {
           check(0 == mount(current_entry->outside_path, inside, "squashfs", 0, ""));
+      } else if (strncmp(current_entry->outside_path, "9p/", 3) == 0) {
+          check(0 == mount(current_entry->outside_path+3, inside, "9p", MS_RDONLY, "trans=virtio,version=9p2000.L"));
       } else {
           check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
           // Remount to read-only

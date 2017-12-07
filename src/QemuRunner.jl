@@ -41,18 +41,21 @@ function platform_def_mounts(platform)
         push!(mapping, shard_path_squashfs(ltp) => joinpath("/opt", ltp))
     end
 
+    # Reverse mapping order, because `sandbox` reads them backwards
+    reverse!(mapping)
+    return mapping
+end
+
+function platform_def_9p_mappings(platform)
+    tp = triplet(platform)
+    mapping = Pair{String,String}[]
+
     # If we're trying to run macOS and we have an SDK directory, mount that!
-    #=
     if platform == MacOS()
         sdk_version = "MacOSX10.10.sdk"
         sdk_shard_path = joinpath(shards_cache, sdk_version)
         push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
     end
-    =#
-
-    # Reverse mapping order, because `sandbox` reads them backwards
-    reverse!(mapping)
-    return mapping
 end
 
 platform_accelerator() = Compat.Sys.islinux() ? "kvm" : "hvf"
@@ -61,7 +64,8 @@ function QemuRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = true,
-                      mounts = platform_def_mounts(platform))
+                      mounts = platform_def_mounts(platform),
+                      mappings = platform_def_9p_mappings(platform))
     global sandbox_path
 
     # Ensure the rootfs for this platform is downloaded and up to date
@@ -85,6 +89,12 @@ function QemuRunner(workspace_root::String; cwd = nothing,
     sandbox_cmd = `--workspace 9p:workspace`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
+    end
+
+    num = 1
+    for (mapping, dir) in mappings
+        qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$num,path=$mapping,readonly -device virtio-9p-pci,id=fs$num,fsdev=fsdev$num,mount_tag=mapping$num`
+        sandbox_cmd = `$sandbox_cmd --map 9p/mapping$num:$dir`
     end
 
     c = 'b'
