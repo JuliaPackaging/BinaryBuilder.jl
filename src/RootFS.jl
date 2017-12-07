@@ -358,7 +358,7 @@ function update_sandbox_binary(;verbose::Bool = true)
 
         cd() do
             oc = OutputCollector(
-                `gcc -o $(sandbox_path) $(src_path)`;
+                `gcc -std=c99 -o $(sandbox_path) $(src_path)`;
                 verbose=verbose,
             )
             wait(oc)
