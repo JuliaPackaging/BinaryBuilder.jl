@@ -14,8 +14,19 @@ type QemuRunner <: Runner
     platform::Platform
 end
 
-qemu_path() = "/Users/kfischer/Projects/qemu-hvf/x86_64-softmmu/qemu-system-x86_64"
-kernel_path() = "/Users/kfischer/Projects/qemu-hvf/x86_64-softmmu/bzImage"
+const qemu_prefix = Prefix(joinpath(@__DIR__,"..","deps","usr"))
+const qemu_hash = "92fa439350970f673a7324b61ed5bc4894d6665543175f01135550cb4a458cde"
+const kernel_hash = "0d02413529e635d4af6d2122f6aba22d261f43616bb286da3855325988f9ac3b"
+
+function update_qemu()
+    install("https://github.com/Keno/QemuBuilder/releases/download/hvf/qemu.x86_64-apple-darwin14.tar.gz",
+        qemu_hash; prefix=qemu_prefix, force=true, verbose=true)
+    install("https://github.com/Keno/LinuxBuilder/releases/download/v4.15-rc2/linux.x86_64-linux-gnu.tar.gz",
+        kernel_hash; prefix=qemu_prefix, force=true, verbose=true, ignore_platform=true)
+end
+
+qemu_path() = joinpath(qemu_prefix, "usr/local/bin/qemu-system-x86_64")
+kernel_path() = joinpath(qemu_prefix, "bzImage")
 
 function platform_def_mounts(platform)
     tp = triplet(platform)
@@ -44,6 +55,8 @@ function platform_def_mounts(platform)
     return mapping
 end
 
+platform_accelerator() = Compat.Sys.islinux() ? "kvm" : "hvf"
+
 function QemuRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
@@ -55,11 +68,12 @@ function QemuRunner(workspace_root::String; cwd = nothing,
     update_rootfs(
         platform != Linux(:x86_64) ?
         [triplet(platform), triplet(Linux(:x86_64))] :
-        triplet(platform); verbose=verbose, squashfs=true)
+        triplet(platform); verbose=verbose, squashfs=true, mount=false)
+    update_qemu()
 
     qemu_cmd = ```
         $(qemu_path()) -kernel $(kernel_path())
-        -M accel=hvf -nographic
+        -M accel=$(platform_accelerator()) -nographic
         -drive if=virtio,file=$(rootfs_path_squashfs()),format=raw
         -nodefaults -rtc base=utc,driftfix=slew
         -device virtio-serial -chardev stdio,id=charconsole0

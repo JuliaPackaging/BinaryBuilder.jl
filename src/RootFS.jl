@@ -91,7 +91,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
         "x86_64-apple-darwin14" => "74c1147e9dcc9ed9430c1ac35118275fa3d77e08af3b06c466702b2737040f20",
         "x86_64-linux-gnu" => "b2ff666a2a785047f6c25f9fac4b69993e5da5438d0ef7fb0fc97eaa7392d365",
         "x86_64-w64-mingw32" => "30cb86a5edffad996e600ecdeb17f4da7f9e19a3853554afcf5d398407c4708a",
-    ) 
+    )
 
     if squashfs
         return squashfs_hashes[triplet]
@@ -166,7 +166,8 @@ macOS SDK for usage in targeting macOS.  See the help for `download_osx_sdk()`
 for more details on this.
 """
 function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
-                       verbose::Bool = true, squashfs::Bool = use_squashfs) where {S <: AbstractString}
+                       verbose::Bool = true, squashfs::Bool = use_squashfs,
+                       mount::Bool=false) where {S <: AbstractString}
     # Check to make sure we have the latest version of both the base and the
     # given shard downloaded properly, and extracted if it's not a squashfs.
     for shard_name in ["base", triplets...]
@@ -191,7 +192,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 verbose = verbose,
                 force = true
             ) && file_existed)
-                if Compat.Sys.islinux()
+                if mount && Compat.Sys.islinux()
                     # Unmount the mountpoint. It may point to a previous version
                     # of the file. Also, we're about to mess with it
                     if success(`mountpoint $(dest_dir)`)
@@ -208,13 +209,13 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             end
 
             # Then mount it, if it hasn't already been mounted:
-            if Compat.Sys.islinux() && !success(`mountpoint $(dest_dir)`)
+            if mount && Compat.Sys.islinux() && !success(`mountpoint $(dest_dir)`)
                 mkpath(dest_dir)
                 run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
             end
         else
             # If it has been mounted previously, unmount here
-            if success(`mountpoint $(dest_dir)`)
+            if Compat.Sys.islinux() && success(`mountpoint $(dest_dir)`)
                 run(`sudo umount $(dest_dir)`)
             end
 
