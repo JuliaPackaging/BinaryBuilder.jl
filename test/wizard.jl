@@ -24,7 +24,7 @@ function serve_tgz(req, resp)
 end
 HTTP.register!(r, "/*/source.tar.gz", HTTP.HandlerFunction(serve_tgz))
 server = HTTP.Server(r)
-@async HTTP.serve(server, ip"127.0.0.1", 14123; verbose=false)
+@async HTTP.serve(server, ip"127.0.0.1", 14444; verbose=false)
 
 do_try(f) = try
     f()
@@ -40,8 +40,10 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step2
     t = @async do_try(()->BinaryBuilder.step2(state))
     # URL
-    write(pty.master, "http://127.0.0.1:14123/a/source.tar.gz\n")
+    write(pty.master, "http://127.0.0.1:14444/a/source.tar.gz\n")
     # Would you like to download additional sources?
+    write(pty.master, "N\n")
+    # Do you require any (binary) dependencies ? 
     write(pty.master, "N\n")
     # Wait for that step to complete
     wait(t)
@@ -52,12 +54,14 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step2
     t = @async do_try(()->BinaryBuilder.step2(state))
     # URL
-    write(pty.master, "http://127.0.0.1:14123/a/source.tar.gz\n")
+    write(pty.master, "http://127.0.0.1:14444/a/source.tar.gz\n")
     # Would you like to download additional sources?
     write(pty.master, "y\n")
-    write(pty.master, "http://127.0.0.1:14123/b/source.tar.gz\n")
+    write(pty.master, "http://127.0.0.1:14444/b/source.tar.gz\n")
     # Would you like to download additional sources?
-    write(pty.master, "N\n")    
+    write(pty.master, "N\n")
+    # Do you require any (binary) dependencies ? 
+    write(pty.master, "N\n")
     # Wait for that step to complete
     wait(t)
 end
@@ -78,7 +82,7 @@ end
 # Test step3 success path
 let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step3
-    state.source_urls = ["http://127.0.0.1:14123/a/source.tar.gz\n"]
+    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
     state.source_hashes = [bytes2hex(tar_hash)]
     t = @async do_try(()->BinaryBuilder.step34(state))
@@ -102,7 +106,7 @@ wait_for_non_menu(pty) = sleep(1)
 # Step 3 failure path (no binary in destdir -> return to build)
 let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step3
-    state.source_urls = ["http://127.0.0.1:14123/a/source.tar.gz\n"]
+    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
     state.source_hashes = [bytes2hex(tar_hash)]
     t = @async do_try(()->BinaryBuilder.step34(state))
@@ -131,7 +135,7 @@ end
 # Step 3 failure path (no binary in destdir -> start over)
 let state = BinaryBuilder.WizardState(ins, outs)
     state.step = :step3
-    state.source_urls = ["http://127.0.0.1:14123/a/source.tar.gz\n"]
+    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
     state.source_hashes = [bytes2hex(tar_hash)]
     t = @async do_try(()->while state.step == :step3

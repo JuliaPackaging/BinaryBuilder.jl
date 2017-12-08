@@ -214,15 +214,13 @@ end
 Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
 """
-function collect_files(prefix::Prefix, predicate::Function = f -> true)
+function collect_files(prefix::Prefix, predicate::Function = f -> true; exculuded_files=Set{String}())
     collected = String[]
     for (root, dirs, files) in walkdir(prefix.path)
         for f in files
             f_path = joinpath(root, f)
 
-            # Only add this file into our list if it is not already contained.
-            # This removes duplicate symlinks
-            if predicate(f_path)
+            if predicate(f_path) && !(f_path in exculuded_files)
                 push!(collected, f_path)
             end
         end

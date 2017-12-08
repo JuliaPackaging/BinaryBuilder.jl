@@ -11,7 +11,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     print_with_color(:bold, state.outs, "\t\t\t# Step 4: Select build products\n\n")
 
     # Collect all executable/library files
-    files = collapse_symlinks(collect_files(prefix))
+    files = collapse_symlinks(collect_files(prefix; exculuded_files=state.dependency_files))
 
     # Check if we can load them as an object file
     files = filter(files) do f
@@ -183,10 +183,15 @@ function step3_retry(state::WizardState)
             build_path,
             state.source_files,
             state.source_hashes,
+            state.dependencies,
             platform;
             verbose=true,
             tee_stream=state.outs
         )
+
+        # Record which files were added by dependencies, so we don't offer
+        # these to the user as products.
+        state.dependency_files = Set{String}(collect_files(prefix))
 
         run(ur,
             `/bin/bash -c $(state.history)`,
@@ -261,12 +266,17 @@ function step34(state::WizardState)
             build_path,
             state.source_files,
             state.source_hashes,
+            state.dependencies,
             platform,
             Dict("HISTFILE"=>"/workspace/.bash_history");
             verbose=true,
             tee_stream=state.outs
         )
         provide_hints(state, joinpath(prefix.path, "..", "srcdir"))
+
+        # Record which files were added by dependencies, so we don't offer
+        # these to the user as products.
+        state.dependency_files = Set{String}(collect_files(prefix))
 
         return step3_interactive(state, prefix, platform, ur, build_path)
     end
@@ -293,6 +303,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
             build_path,
             state.source_files,
             state.source_hashes,
+            state.dependencies,
             platform,
             Dict("HISTFILE"=>"/workspace/.bash_history");
             verbose=true,
@@ -356,6 +367,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
                         build_path,
                         state.source_files,
                         state.source_hashes,
+                        state.dependencies,
                         platform,
                         Dict("HISTFILE"=>"/workspace/.bash_history");
                         verbose=true,
@@ -478,6 +490,7 @@ function step5c(state::WizardState)
                 build_path,
                 state.source_files,
                 state.source_hashes,
+                state.dependencies,
                 platform;
                 verbose=false,
                 tee_stream=state.outs
