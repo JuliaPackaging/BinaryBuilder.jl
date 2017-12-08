@@ -1,3 +1,16 @@
+const repo_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/?$"
+
+function canonicalize_source_url(url)
+    m = match(repo_regex, url)
+    if m !== nothing
+        _, user, repo = m.captures
+        if !endswith(repo, ".git")
+            return "https://github.com/$user/$repo.git"
+        end
+    end
+    url
+end
+
 """
     download_source(state::WizardState)
 
@@ -15,8 +28,16 @@ function download_source(state::WizardState)
     source code to build:
     """), "\n", " ")
     print(state.outs, msg, "\n> ")
-    url = readline(state.ins)
+    entered_url = readline(state.ins)
     println(state.outs)
+
+    url = canonicalize_source_url(entered_url)
+    if url != entered_url
+        print(state.outs, "The entered URL has been canonicalized to\n")
+        print_with_color(:bold, state.outs, url)
+        println(state.outs)
+        println(state.outs)
+    end
 
     # Record the source path and the source hash
     source_path = joinpath(state.workspace, basename(url))
@@ -26,12 +47,10 @@ function download_source(state::WizardState)
         # Clone the URL, record the current gitsha for the given branch
         repo = LibGit2.clone(url, source_path; isbare=true)
 
-        msg = replace(strip("""
-        You have selected a git repository. Please enter a branch, commit or
-        tag to use.  Please note that for reproducability, the exact commit
-        will be recorded, so updates to the remote resource will not be used
-        automatically; you will have to manually update the recorded commit.
-        """), "\n", " ")
+        msg = "You have selected a git repository. Please enter a branch, commit or tag to use.\n" *
+        "Please note that for reproducability, the exact commit will be recorded, \n" *
+        "so updates to the remote resource will not be used automatically; \n" *
+        "you will have to manually update the recorded commit."
         print(state.outs, msg, "\n> ")
         treeish = readline(state.ins)
         println(state.outs)
@@ -141,7 +160,7 @@ end
 
 const blob_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)"
 
-function canonicalize_url(url)
+function canonicalize_file_url(url)
     m = match(blob_regex, url)
     if m !== nothing
         _, user, repo, ref, filepath = m.captures

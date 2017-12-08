@@ -166,3 +166,7 @@ end
 rm(tempspace; force=true, recursive=true)
 
 end
+
+# Make sure canonicalization does what we expect
+zmq_url = "https://github.com/zeromq/zeromq3-x/releases/download/v3.2.5/zeromq-3.2.5.tar.gz"
+@test BinaryBuilder.canonicalize_source_url(zmq_url) == zmq_url
