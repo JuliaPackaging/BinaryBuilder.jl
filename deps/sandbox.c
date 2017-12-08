@@ -518,8 +518,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
     // This will block until the parent closes fds[1]
     check(0 == read(child_block[0], NULL, 1));
 
-    sandbox_main(sandbox_argc, sandbox_argv);
-    return -1;
+    return sandbox_main(sandbox_argc, sandbox_argv);
   }
   close(child_block[0]);
   close(parent_block[1]);
