@@ -74,7 +74,7 @@ function edit_script(state::WizardState, script::AbstractString)
         end
 
         # Launch a sandboxed vim editor
-        ur = UserNSRunner(
+        ur = preferred_runner()(
             prefix.path,
             cwd = "/workspace/",
             platform = Linux(:x86_64))
@@ -122,7 +122,7 @@ Sets up a workspace within `build_path`, creating the directory structure
 needed by further steps, unpacking the source within `build_path`, and defining
 the environment variables that will be defined within the sandbox environment.
 
-This method returns the `Prefix` to install things into, and the `UserNSRunner`
+This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
 function setup_workspace(build_path::AbstractString, src_paths::Vector,
@@ -141,7 +141,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     mkdir(srcdir); mkdir(destdir)
 
     # Create a runner to work inside this workspace with the nonce built-in
-    ur = UserNSRunner(build_path,
+    ur = preferred_runner()(build_path,
         cwd = "/workspace/$nonce/srcdir",
         platform = platform,
         extra_env = merge(extra_env,

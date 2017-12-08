@@ -10,13 +10,14 @@ include("Auditor.jl")
 include("Runner.jl")
 include("RootFS.jl")
 include("UserNSRunner.jl")
+include("QemuRunner.jl")
 include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
 function __init__()
     global downloads_cache, rootfs_cache, use_squashfs, automatic_apple, shards_cache
-    
+
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
     downloads_cache = get(ENV, "BINARYBUILDER_DOWNLOADS_CACHE", def_dl_cache)

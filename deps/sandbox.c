@@ -33,6 +33,8 @@
 #include <unistd.h>
 #include <dirent.h>
 #include <sys/stat.h>
+#include <sys/reboot.h>
+#include <linux/reboot.h>
 
 /**** General Utilities ***/
 
@@ -96,13 +98,6 @@ static void configure_user_namespace(pid_t pid) {
   check(write(gidmap_fd, gidmap, nbytes) == nbytes);
 }
 
-char *initial_script =
-    // Remount proc file system
-    "/bin/busybox mount -t proc proc /proc\n"
-    // Mount sandboxed pts devices
-    "/bin/busybox mount -t devpts -o newinstance jrunpts /dev/pts\n"
-    "/bin/busybox mount -o bind /dev/pts/ptmx /dev/ptmx\n";
-
 // Options (gets filled in by driver code)
 char *sandbox_root = NULL;
 char *overlay = NULL;
@@ -123,9 +118,15 @@ struct map_list *maps;
  * temporary folders within /proc/upper and /proc/work created by
  * sandbox_main()
  */
-static void create_overlay(const char * overlay_root) {
+static void create_overlay(const char * overlay_root, const char *mount_point,
+                           const char * bname) {
     char upper_dir[PATH_MAX], work_dir[PATH_MAX], opts[3*PATH_MAX+40];
-    const char * bname = basename(overlay_root);
+    if (!bname) {
+        bname = basename(overlay_root);
+    }
+    if (!mount_point) {
+        mount_point = overlay_root;
+    }
 
     snprintf(upper_dir, sizeof(upper_dir), "/proc/upper/%s", bname);
     snprintf(work_dir, sizeof(work_dir), "/proc/work/%s", bname);
@@ -133,20 +134,47 @@ static void create_overlay(const char * overlay_root) {
              overlay_root, upper_dir, work_dir);
 
     if (verbose) {
-        printf("--> Mounting overlay %s at %s\n", overlay_root, upper_dir);
+        printf("--> Mounting overlay of %s at %s (modifications in %s)\n", overlay_root, mount_point, upper_dir);
     }
 
     check(0 == mkdir(upper_dir, 0777));
     check(0 == mkdir(work_dir, 0777));
-    check(0 == mount("overlay", overlay_root, "overlay", 0, opts));
+    check(0 == mount("overlay", mount_point, "overlay", 0, opts));
+}
+    
+/* This is the main pid. We exit the sandbox once this pid dies */
+pid_t main_pid;
+
+/*
+ * We support running this binary either standalone (which will create a 
+ * user namespace sandbox) or as init inside a VM.
+ */
+static int is_init;
+
+static void early_fs_mount() {
+  check(0 == mount("proc", "/proc", "proc", 0, ""));
+}
+
+static void devtempfs_mount() {
+  check(0 == mount("devtmpfs", "dev", "devtmpfs", 0, ""));
+  check(0 == mkdir("dev/pts", 0600));
+  //int fd = open("dev/ptmx", O_CREAT);
+  //check(fd != -1); 
+  //check(0 == close(fd));
+}
+
+static void all_fs_mount() {
+  early_fs_mount();
+  //check(0 == mount("sandboxpts", "/dev/pts", "devpts", 0, "newinstance"));
+  //check(0 == mount("/dev/pts/ptmx", "/dev/ptmx", "", MS_BIND, NULL));
 }
 
 /* Sets up the jail, prepares the initial linux environment,
    then execs busybox */
-static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
+static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
   pid_t pid;
   int status;
-  check(sandbox_root != NULL);
+  check(is_init || sandbox_root != NULL);
 
   /// Set up a temporary file system to use to hold all the upper dirs for our
   /// overlay.  We re-use /proc outside the chroot for this purpose, because
@@ -156,16 +184,36 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
   check(0 == mkdir("/proc/upper", 0777));
   check(0 == mkdir("/proc/work", 0777));
 
-  /// Mount the overlay filesystem for the "base" shard
-  create_overlay(sandbox_root);
-  chdir(sandbox_root);
-  
+  char *rootfs_mount_point = sandbox_root;
+  if (is_init) {
+    sandbox_root = "/";
+    rootfs_mount_point = "/proc";
+    create_overlay("/", "/tmp", "root");
+    chdir("/tmp");
+  } else {
+    create_overlay(sandbox_root, NULL, NULL);
+    chdir(sandbox_root);
+  }
+
   /// Setup the workspace
   if (workspace) {
-    // We don't expect workspace to have any submounts in normal operation.
-    // However, for runshell(), workspace could be an arbitrary directory,
-    // including one with sub-mounts, so allow that situation.
-    check(0 == mount(workspace, "workspace", "", MS_BIND|MS_REC, NULL));
+    // If the workspace is specified as 9p:, try to mount it as a 9p share
+    if (strncmp("9p:", workspace, 3) == 0) {
+      check(0 == mount(workspace+3, "workspace", "9p", 0, "trans=virtio,version=9p2000.L"));
+    } else {    
+      // We don't expect workspace to have any submounts in normal operation.
+      // However, for runshell(), workspace could be an arbitrary directory,
+      // including one with sub-mounts, so allow that situation.
+      check(0 == mount(workspace, "workspace", "", MS_BIND|MS_REC, NULL));
+    }
+  }
+
+  // In a VM, we may have to mount devices
+  if (is_init) {
+     devtempfs_mount();
+  } else {
+     /// Bind host /dev/null in the sandbox
+     check(0 == mount("/dev/null", "dev/null", "", MS_BIND, NULL));
   }
 
   /// Apply command-line specified mounts
@@ -179,7 +227,8 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
       if (verbose) {
           printf("--> Mapping %s to %s\n", inside, current_entry->outside_path);
       }
-      check(current_entry->outside_path[0] == '/' && "Outside path must be absolute");
+      check((current_entry->outside_path[0] == '/' ||
+            strncmp(current_entry->outside_path, "9p/", 3) == 0) && "Outside path must be absolute or 9p");
 
       // Create the inside directory, if we need to
       DIR *d = opendir(inside);
@@ -188,55 +237,73 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
       } else {
           closedir(d);
       }
-      check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
-
-      // Remount to read-only
-      check(0 == mount(current_entry->outside_path, inside, "", MS_BIND|MS_REMOUNT|MS_RDONLY, NULL));
+      
+      // If specified as a device, mount as squashfs
+      if (strncmp(current_entry->outside_path, "/dev", 4) == 0) {
+          check(0 == mount(current_entry->outside_path, inside, "squashfs", 0, ""));
+      } else if (strncmp(current_entry->outside_path, "9p/", 3) == 0) {
+          check(0 == mount(current_entry->outside_path+3, inside, "9p", MS_RDONLY, "trans=virtio,version=9p2000.L"));
+      } else {
+          check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
+          // Remount to read-only
+          check(0 == mount(current_entry->outside_path, inside, "", MS_BIND|MS_REMOUNT|MS_RDONLY, NULL));
+      }
 
       // Slap an overlay on top to allow future changes
-      create_overlay(inside);
+      create_overlay(inside, NULL, NULL);
 
       current_entry = current_entry->prev;
   }
 
-  /// Bind host /dev/null in the sandbox
-  check(0 == mount("/dev/null", "dev/null", "", MS_BIND, NULL));
   /// Enter chroot
   check(0 == chroot("."));
+
   if (new_cd) {
     check(0 == chdir(new_cd));
   }
 
-
   // Set up the environment
-  if ((pid = fork()) == 0) {
-    fflush(stdout);
-    char *ie_argv[] = {"/bin/busybox", "sh", "-c", initial_script, 0};
-    execve("/bin/busybox", ie_argv, environ);
-    _exit(0);
-  }
-  check(pid > 1);
-  check(pid == waitpid(pid, &status, 0));
-  check(WIFEXITED(status));
-  if (sandbox_argc == 0) {
-    fflush(stdout);
-    char *argv[] = {"/bin/busybox", "sh", 0};
-    execve("/bin/busybox", argv, environ);
-    fputs("ERROR: Busybox not installed!\n", stderr);
-    _exit(1);
-  } else {
-    if (verbose) {
-      printf("About to run `%s` ", sandbox_argv[0]);
-      int argc_i;
-      for( argc_i=1; argc_i<sandbox_argc; ++argc_i) {
-        printf("`%s` ", sandbox_argv[argc_i]);
+  all_fs_mount();
+  fflush(stdout);
+
+  if ((main_pid = fork()) == 0) {
+    if (sandbox_argc == 0) {
+      char *argv[] = {"/bin/busybox", "sh", 0};
+      execve("/bin/busybox", argv, environ);
+      fputs("ERROR: Busybox not installed!\n", stderr);
+      _exit(1);
+    } else {
+      if (verbose) {
+        printf("About to run `%s` ", sandbox_argv[0]);
+        int argc_i;
+        for( argc_i=1; argc_i<sandbox_argc; ++argc_i) {
+          printf("`%s` ", sandbox_argv[argc_i]);
+        }
+        printf("\n");
       }
-      printf("\n");
+      fflush(stdout);
+      execve(sandbox_argv[0], sandbox_argv, environ);
+      fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
+      _exit(1);
     }
-    fflush(stdout);
-    execve(sandbox_argv[0], sandbox_argv, environ);
-    fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
-    _exit(1);
+  }
+  
+  // Let's perform normal init functions, handling signals from orphaned
+  // children, etc
+  sigset_t waitset;
+  sigemptyset(&waitset);
+  sigaddset(&waitset, SIGCHLD);
+  sigprocmask(SIG_BLOCK, &waitset, NULL);
+  for (;;) {
+    int sig;
+    sigwait(&waitset, &sig);
+    size_t reaped_pid;
+    while ((reaped_pid = waitpid(-1, &status, WNOHANG)) != -1) {
+      if (reaped_pid == main_pid) {
+        // If it was the main pid that exited, return as well.
+        return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
+      }
+    }
   }
 }
 
@@ -245,16 +312,127 @@ static void sandbox_main(int sandbox_argc, char **sandbox_argv) {
  */
 static void sigint_handler() { _exit(0); }
 
+uint8_t decode_char(uint8_t data) {
+    if ('A' <= data && data <= 'Z') {
+        return data - 'A';
+    } else if ('a' <= data && data <= 'z') {
+        return (data - 'a') + ('Z' - 'A') + 1;
+    } else if ('0' <= data && data <= '9') {
+        return (data - '0') + 2*(('Z' - 'A') + 1);
+    } else if (data == '+') {
+        return 62;
+    } else if (data == '/') {
+        return 63;
+    } else {
+        fprintf(stderr, "Bad char '%c'\n", data);
+        check(0);
+    }
+}
+
+// From stackoverflow
+// https://stackoverflow.com/questions/342409/how-do-i-base64-encode-decode-in-c
+unsigned char *base64_decode(const char *data,
+                             size_t input_length,
+                             size_t *output_length) {
+
+    if (input_length % 4 != 0) return NULL;
+
+    *output_length = input_length / 4 * 3;
+    if (data[input_length - 1] == '=') (*output_length)--;
+    if (data[input_length - 2] == '=') (*output_length)--;
+
+    unsigned char *decoded_data = malloc(*output_length+1);
+    if (decoded_data == NULL) return NULL;
+
+    for (int i = 0, j = 0; i < input_length;) {
+
+        uint32_t sextet_a = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
+        uint32_t sextet_b = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
+        uint32_t sextet_c = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
+        uint32_t sextet_d = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
+
+        uint32_t triple = (sextet_a << 3 * 6)
+        + (sextet_b << 2 * 6)
+        + (sextet_c << 1 * 6)
+        + (sextet_d << 0 * 6);
+
+        if (j < *output_length) decoded_data[j++] = (triple >> 2 * 8) & 0xFF;
+        if (j < *output_length) decoded_data[j++] = (triple >> 1 * 8) & 0xFF;
+        if (j < *output_length) decoded_data[j++] = (triple >> 0 * 8) & 0xFF;
+    }
+
+    return decoded_data;
+}
+
+const char sandboxarg_name[] = "sandboxargs";
+const char sandboxenv_name[] = "sandboxenv";
+
 int main(int sandbox_argc, char **sandbox_argv) {
   int status;
   pid_t pid;
 
+  pid_t mypid = getpid();
+  is_init = mypid == 1;
+
+  if (is_init) {
+    // Mount our file systems right away so we can start using them
+    early_fs_mount();
+    
+    // Extract our command line from the kernel's command line
+    int cmdline_fd = open("/proc/cmdline", O_RDONLY);
+    check(cmdline_fd != -1);
+    char cmdline[8192];
+    size_t nbytes = read(cmdline_fd, cmdline, sizeof(cmdline)-1);
+    check(nbytes != -1);
+    cmdline[nbytes] = '\0';
+    
+    //// Find our arguments
+    char *ours = strstr(cmdline, sandboxarg_name);
+    char *opening_quote = strchr(ours, '"');
+    char *closing_quote = strchr(opening_quote+1, '"');
+    
+    size_t max_argv = 5;
+    sandbox_argv = malloc(sizeof(char*) * (max_argv + 1));
+    sandbox_argc = 0;
+    char *cur = opening_quote + 1;
+    while (cur < closing_quote) {
+      if (sandbox_argc == max_argv) {
+        max_argv *= 2;
+        sandbox_argv = realloc(sandbox_argv, sizeof(char*) * (max_argv + 1));
+      }
+      char *end = cur;
+      while (*end != ' ' && *end != '"' && *end != '\0')
+        ++end;
+      size_t output_length;
+      sandbox_argv[sandbox_argc] = base64_decode(cur, end-cur, &output_length);
+      sandbox_argv[sandbox_argc++][output_length] = '\0';
+      cur = end + 1;
+    }
+    
+    // Set environment variables
+    clearenv();
+    ours = strstr(cmdline, sandboxenv_name);
+    opening_quote = strchr(ours, '"');
+    closing_quote = strchr(opening_quote + 1, '"');
+    
+    cur = opening_quote + 1;
+    while (cur < closing_quote) {
+      char *end = cur;
+      while (*end != ' ' && *end != '"' && *end != '\0')
+        ++end;
+      size_t output_length;
+      char *string = base64_decode(cur, end-cur, &output_length);
+      string[output_length] = '\0';
+      putenv(string);
+      cur = end + 1;
+    }
+  } else {
+    // Skip the wrapper
+    sandbox_argv += 1;
+    sandbox_argc -= 1;
+  }
+
   pid_t pgrp = getpgid(0);
-
-  // Skip the wrapper
-  sandbox_argv += 1;
-  sandbox_argc -= 1;
-
   // Probably should replace this by proper argument parsing (or just make this a library)
   if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--rootfs") == 0) {
     sandbox_root = strdup(sandbox_argv[1]);
@@ -297,11 +475,20 @@ int main(int sandbox_argc, char **sandbox_argv) {
     sandbox_argc -= 1;
   }
 
-  if (sandbox_argc == 0 || !sandbox_root) {
+  if (sandbox_argc == 0 || (!is_init && !sandbox_root)) {
     fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] ", stderr);
     fputs("[--cd <dir>] [--map <from>:<to>, ...] [--verbose] <cmd>\n", stderr);
     return 1;
   }
+
+  if (is_init) {
+    setsid();
+    ioctl(0, TIOCSCTTY, 1);
+    sandbox_main(sandbox_argc, sandbox_argv);
+	  sync();
+    check(0 == reboot(RB_POWER_OFF));
+  }
+
 
   // Use a pipe for synchronization. The regular SIGSTOP method does not work
   // because container-inits don't receive STOP or KILL signals from within
@@ -331,8 +518,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
     // This will block until the parent closes fds[1]
     check(0 == read(child_block[0], NULL, 1));
 
-    sandbox_main(sandbox_argc, sandbox_argv);
-    return -1;
+    return sandbox_main(sandbox_argc, sandbox_argv);
   }
   close(child_block[0]);
   close(parent_block[1]);

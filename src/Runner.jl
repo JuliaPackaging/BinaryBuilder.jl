@@ -1,3 +1,5 @@
+abstract type Runner; end
+
 """
     target_envs(target::String)
 Given a `target` (this term is used interchangeably with `triplet`), generate a
@@ -66,4 +68,18 @@ function destdir_envs(destdir::String)
         "DESTDIR" => destdir,
         "PKG_CONFIG_PATH" => "$destdir/lib/pkconfig",
         "PKG_CONFIG_SYSROOT" => destdir)
+end
+
+function preferred_runner()
+    Compat.Sys.islinux() ? UserNSRunner : QemuRunner
+end
+
+"""
+    runshell(platform::Platform = platform_key())
+
+Launch an interactive shell session within the user namespace, with environment
+setup to target the given `platform`.
+"""
+function runshell(platform::Platform = platform_key())
+    runshell(preferred_runner(), platform)
 end

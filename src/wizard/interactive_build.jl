@@ -1,12 +1,12 @@
 include("hints.jl")
 
 """
-    step4(state::WizardState, ur::UserNSRunner, platform::Platform,
+    step4(state::WizardState, ur::Runner, platform::Platform,
           build_path::AbstractString, prefix::Prefix)
 
 The fourth step selects build products after the first build is done
 """
-function step4(state::WizardState, ur::UserNSRunner, platform::Platform,
+function step4(state::WizardState, ur::Runner, platform::Platform,
                build_path::AbstractString, prefix::Prefix)
     print_with_color(:bold, state.outs, "\t\t\t# Step 4: Select build products\n\n")
 
@@ -97,13 +97,13 @@ end
 
 """
     interactive_build(state::WizardState, prefix::Prefix,
-                      ur::UserNSRunner, build_path::AbstractString)
+                      ur::Runner, build_path::AbstractString)
 
     Runs the interactive shell for building, then captures bash history to save
     reproducible steps for building this source. Shared between steps 3 and 5
 """
 function interactive_build(state::WizardState, prefix::Prefix,
-                           ur::UserNSRunner, build_path::AbstractString;
+                           ur::Runner, build_path::AbstractString;
                            hist_modify = string)
    histfile = joinpath(build_path, ".bash_history")
    runshell(ur, state.ins, state.outs, state.outs)
@@ -145,14 +145,14 @@ end
 
 """
     step3_interactive(state::WizardState, prefix::Prefix, platform::Platform,
-                      ur::UserNSRunner, build_path::AbstractString)
+                      ur::Runner, build_path::AbstractString)
 
 The interactive portion of step3, moving on to either rebuild with an edited
 script or proceed to step 4.
 """
 function step3_interactive(state::WizardState, prefix::Prefix,
                            platform::Platform,
-                           ur::UserNSRunner, build_path::AbstractString)
+                           ur::Runner, build_path::AbstractString)
 
     if interactive_build(state, prefix, ur, build_path)
         state.step = :step3_retry
@@ -430,7 +430,7 @@ function step5a(state::WizardState)
 end
 
 function step5b(state::WizardState)
-    
+
     # We will try to pick a platform for a different architeture
     possible_platforms = filter(state.platforms) do plat
         !(any(state.visited_platforms) do p
@@ -445,7 +445,7 @@ function step5b(state::WizardState)
         return
     end
     platform = pick_preferred_platform(possible_platforms)
-    
+
     if step5_internal(state, platform,
     ".\n This should uncover issues related to architecture differences.")
         state.step = :step5c
