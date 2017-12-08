@@ -8,8 +8,8 @@ Runs the boiler plate code to download, build, and package a source package
 for multiple platforms.  `src_name`
 """
 function autobuild(dir::AbstractString, src_name::AbstractString,
-                   platforms::Vector, sources::Vector, script, products,
-                   dependencies::Vector = AbstractDependency[];
+                   platforms::Vector, sources::Vector, script, products;
+                   dependencies::Vector = AbstractDependency[],
                    verbose::Bool = true)
     # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
     if haskey(ENV, "TRAVIS") && !verbose
@@ -75,9 +75,31 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             src_hashes = collect(src_hashes)
             prefix, ur = setup_workspace(build_path, src_paths, src_hashes, dependencies, platform; verbose=true)
 
+            # Don't keep the downloads directory around
+            rm(joinpath(prefix, "downloads"); force=true, recursive=true)
+
             dep = Dependency(src_name, products(prefix), script, platform, prefix)
             if !build(ur, dep; verbose=verbose, autofix=true)
                 error("Failed to build $(target)")
+            end
+
+            # Remove the files of any dependencies
+            for dependency in dependencies
+                dep_script = script_for_dep(dependency)
+                m = Module(:__anon__)
+                eval(m, quote
+                    using BinaryProvider
+                    platform_key() = $platform
+                    macro write_deps_file(args...); end
+                    function install(url, hash;
+                        prefix::Prefix = BinaryProvider.global_prefix,
+                        kwargs...)
+                        manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
+                        BinaryProvider.uninstall(manifest_path; verbose=$verbose)
+                    end
+                    ARGS = [$(prefix.path)]
+                    include_string($(dep_script))
+                end)
             end
 
             # Once we're built up, go ahead and package this prefix out

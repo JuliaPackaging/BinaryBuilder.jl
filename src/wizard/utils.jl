@@ -112,6 +112,21 @@ function yn_prompt(state::WizardState, question::AbstractString, default = :y)
     end
 end
 
+function script_for_dep(dep)
+    # Since remote dependencies are most common, we default plain strings to
+    # this in order to keep the build scripts small
+    if isa(dep, String)
+        dep = RemoteBuildDependency(dep, nothing)
+    end
+    if isa(dep, InlineBuildDependency)
+        script = dep.script
+    elseif isa(dep, RemoteBuildDependency)
+        script = dep.script === nothing ? String(HTTP.get(dep.url).body) :
+            dep.script
+    end
+    script
+end
+
 """
     setup_workspace(build_path::AbstractString, src_paths::Vector,
                     src_hashes::Vector, platform::Platform,
@@ -181,17 +196,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
 
     # For each dependency, install it into the prefix
     for dep in dependencies
-        # Since remote dependencies are most common, we default plain strings to
-        # this in order to keep the build scripts small
-        if isa(dep, String)
-            dep = RemoteBuildDependency(dep, nothing)
-        end
-        if isa(dep, InlineBuildDependency)
-            script = dep.script
-        elseif isa(dep, RemoteBuildDependency)
-            script = dep.script === nothing ? String(HTTP.get(dep.url).body) :
-                dep.script
-        end
+        script = script_for_dep(dep)
         m = Module(:__anon__)
         eval(m, quote
             using BinaryProvider
