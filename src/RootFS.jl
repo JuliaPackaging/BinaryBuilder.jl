@@ -167,7 +167,7 @@ for more details on this.
 """
 function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                        verbose::Bool = true, squashfs::Bool = use_squashfs,
-                       mount::Bool=false) where {S <: AbstractString}
+                       mount::Bool=use_squashfs && Compat.Sys.islinux()) where {S <: AbstractString}
     # Check to make sure we have the latest version of both the base and the
     # given shard downloaded properly, and extracted if it's not a squashfs.
     for shard_name in ["base", triplets...]

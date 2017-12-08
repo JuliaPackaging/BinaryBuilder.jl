@@ -177,14 +177,7 @@ function runshell(ur::QemuRunner, args...)
     run_interactive(ur, `/bin/bash`, args...)
 end
 
-
-"""
-    runshell(platform::Platform = platform_key())
-
-Launch an interactive shell session within the user namespace, with environment
-setup to target the given `platform`.
-"""
-function runshell(platform::Platform = platform_key())
+function runshell(::Type{QemuRunner}, platform::Platform = platform_key())
     ur = QemuRunner(
         pwd();
         cwd="/workspace/",

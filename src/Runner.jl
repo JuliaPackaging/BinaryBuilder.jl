@@ -73,3 +73,13 @@ end
 function preferred_runner()
     Compat.Sys.islinux() ? UserNSRunner : QemuRunner
 end
+
+"""
+    runshell(platform::Platform = platform_key())
+
+Launch an interactive shell session within the user namespace, with environment
+setup to target the given `platform`.
+"""
+function runshell(platform::Platform = platform_key())
+    runshell(preferred_runner(), platform)
+end
