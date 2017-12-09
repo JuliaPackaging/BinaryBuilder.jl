@@ -196,6 +196,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                     # Unmount the mountpoint. It may point to a previous version
                     # of the file. Also, we're about to mess with it
                     if success(`mountpoint $(dest_dir)`)
+                        println("Running `sudo umount $(dest_dir)`")
                         run(`sudo umount $(dest_dir)`)
                     end
 
@@ -211,11 +212,13 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             # Then mount it, if it hasn't already been mounted:
             if mount && Compat.Sys.islinux() && !success(`mountpoint $(dest_dir)`)
                 mkpath(dest_dir)
+                println("Running `sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`")
                 run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
             end
         else
             # If it has been mounted previously, unmount here
             if Compat.Sys.islinux() && success(`mountpoint $(dest_dir)`)
+                println("Running `sudo umount $(dest_dir)`")
                 run(`sudo umount $(dest_dir)`)
             end
 

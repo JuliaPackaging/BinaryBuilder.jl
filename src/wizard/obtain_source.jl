@@ -1,3 +1,60 @@
+using ProgressMeter
+
+const repo_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/?$"
+
+function canonicalize_source_url(url)
+    m = match(repo_regex, url)
+    if m !== nothing
+        _, user, repo = m.captures
+        if !endswith(repo, ".git")
+            return "https://github.com/$user/$repo.git"
+        end
+    end
+    url
+end
+
+struct GitTransferProgress
+    total_objects::Cuint
+    indexed_objects::Cuint
+    received_objects::Cuint
+    local_objects::Cuint
+    total_deltas::Cuint
+    indexed_deltas::Cuint
+    received_bytes::Csize_t
+end
+
+function transfer_progress(progress::Ptr{GitTransferProgress}, p::Any)
+    progress = unsafe_load(progress)
+    p.n = progress.total_objects
+    if progress.total_deltas != 0
+        p.desc = "Resolving Deltas: "
+        p.n = progress.total_deltas
+        update!(p, Int(max(1, progress.indexed_deltas)))
+    else
+        update!(p, Int(max(1, progress.received_objects)))
+    end
+    return Cint(0)
+end
+
+macro compat_gc_preserve(args...)
+    if VERSION >= v"0.7-"
+        esc(Expr(:macrocall, Symbol("@gc_preserve"), args...))
+    else
+        esc(args[end])
+    end
+end
+
+function clone(url, source_path)
+    p = Progress(0, 1, "Cloning: ")
+    @compat_gc_preserve p begin
+        callbacks = LibGit2.RemoteCallbacks(transfer_progress=cfunction(transfer_progress, Cint, Tuple{Ptr{GitTransferProgress}, Any}),
+            payload = pointer_from_objref(p))
+        fetch_opts = LibGit2.FetchOptions(callbacks = callbacks)
+        clone_opts = LibGit2.CloneOptions(fetch_opts=fetch_opts, bare = Cint(true))
+        return LibGit2.clone(url, source_path, clone_opts)
+    end
+end
+
 """
     download_source(state::WizardState)
 
@@ -15,8 +72,16 @@ function download_source(state::WizardState)
     source code to build:
     """), "\n", " ")
     print(state.outs, msg, "\n> ")
-    url = readline(state.ins)
+    entered_url = readline(state.ins)
     println(state.outs)
+
+    url = canonicalize_source_url(entered_url)
+    if url != entered_url
+        print(state.outs, "The entered URL has been canonicalized to\n")
+        print_with_color(:bold, state.outs, url)
+        println(state.outs)
+        println(state.outs)
+    end
 
     # Record the source path and the source hash
     source_path = joinpath(state.workspace, basename(url))
@@ -24,14 +89,12 @@ function download_source(state::WizardState)
 
     if endswith(url, ".git")
         # Clone the URL, record the current gitsha for the given branch
-        repo = LibGit2.clone(url, source_path; isbare=true)
+        repo = clone(url, source_path)
 
-        msg = replace(strip("""
-        You have selected a git repository. Please enter a branch, commit or
-        tag to use.  Please note that for reproducability, the exact commit
-        will be recorded, so updates to the remote resource will not be used
-        automatically; you will have to manually update the recorded commit.
-        """), "\n", " ")
+        msg = "You have selected a git repository. Please enter a branch, commit or tag to use.\n" *
+        "Please note that for reproducability, the exact commit will be recorded, \n" *
+        "so updates to the remote resource will not be used automatically; \n" *
+        "you will have to manually update the recorded commit."
         print(state.outs, msg, "\n> ")
         treeish = readline(state.ins)
         println(state.outs)
@@ -141,7 +204,7 @@ end
 
 const blob_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)"
 
-function canonicalize_url(url)
+function canonicalize_file_url(url)
     m = match(blob_regex, url)
     if m !== nothing
         _, user, repo, ref, filepath = m.captures
