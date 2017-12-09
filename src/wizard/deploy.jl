@@ -200,25 +200,32 @@ function obtain_token(state, repo_name, user)
         "note_url" => "https://github.com/JuliaPackaging/BinaryBuilder.jl",
         "fingerpint" => randstring(40)
     )
-    print(state.outs, "Please enter the github.com password for $(user): ")
-    terminal = Base.Terminals.TTYTerminal("xterm", state.ins, state.outs, state.outs)
-    old = set_terminal_echo(Base._fd(state.ins), false)
-    pass = try
-        readline(state.ins)
-    finally
-        set_terminal_echo(Base._fd(state.ins), old)
-    end
-    println(state.outs)
-    resp = HTTP.post("https://$user:$pass@api.github.com/authorizations"; body=JSON.json(params), statusraise=false)
-    if resp.status == 401 && startswith(strip(get(resp.headers, "X-Github-Otp", "")), "required")
-        println(state.outs, "Two factor authentication in use.  Enter auth code.")
-        print(state.outs, "> ")
-        otp_code = readline(state.ins)
-        resp = HTTP.post("https://$user:$pass@api.github.com/authorizations"; body=JSON.json(params), headers=Dict("X-GitHub-OTP"=>otp_code),
-            statusraise=false)
-    end
-    if resp.status != 200
-        GitHub.handle_response_error(resp)
+    while true
+        print(state.outs, "Please enter the github.com password for $(user): ")
+        terminal = Base.Terminals.TTYTerminal("xterm", state.ins, state.outs, state.outs)
+        old = set_terminal_echo(Base._fd(state.ins), false)
+        pass = try
+            readline(state.ins)
+        finally
+            set_terminal_echo(Base._fd(state.ins), old)
+        end
+        println(state.outs)
+        resp = HTTP.post("https://$user:$pass@api.github.com/authorizations"; body=JSON.json(params), statusraise=false)
+        if resp.status == 401 && startswith(strip(get(resp.headers, "X-Github-Otp", "")), "required")
+            println(state.outs, "Two factor authentication in use.  Enter auth code.")
+            print(state.outs, "> ")
+            otp_code = readline(state.ins)
+            resp = HTTP.post("https://$user:$pass@api.github.com/authorizations"; body=JSON.json(params), headers=Dict("X-GitHub-OTP"=>otp_code),
+                statusraise=false)
+        end
+        if resp.status == 401
+            print_with_color(:red, state.outs, "Invalid credentials!\n")
+            continue
+        end
+        if resp.status != 200
+            GitHub.handle_response_error(resp)
+        end
+        break
     end
     JSON.parse(resp.body)["token"]
 end
