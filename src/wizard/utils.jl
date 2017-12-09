@@ -164,6 +164,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             merge(destdir_envs("/workspace/$nonce/destdir"),
                 Dict(
                     "WORKSPACE" => "/workspace/$nonce",
+                    "PS1" => "sandbox:\${PWD//\$WORKSPACE/\\\\\$WORKSPACE}\\\$ "
                 ))
         ),
         verbose = verbose,
