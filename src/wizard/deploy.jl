@@ -1,4 +1,5 @@
-function print_build_tarballs(io::IO, state::WizardState)
+function print_build_tarballs(io::IO, state::WizardState;
+        with_travis_tags=false)
     platforms_string = string("[\n    ",join(state.platforms,",\n  "),"\n]\n")
     urlhashes = zip(state.source_urls, state.source_hashes)
     sources_string = string("[\n",join(map(urlhashes) do x
@@ -60,8 +61,17 @@ function print_build_tarballs(io::IO, state::WizardState)
 
     $dependencies_string
     # Build the given platforms using the given sources
-    autobuild(pwd(), "$(state.name)", platforms, sources, script, products$(
+    hashes = autobuild(pwd(), "$(state.name)", platforms, sources, script, products$(
         isempty(dependencies_string) ? "" : ", dependencies=dependencies"))
+    """)
+end
+
+function print_travis_buildjl(io::IO, repo)
+    println(io, """
+    if !isempty(get(ENV,"TRAVIS_TAG",""))
+        print_buildjl(pwd(), products, hashes,
+            "https://github.com/$(GitHub.name(repo))/releases/download/\$(ENV["TRAVIS_TAG"])")
+    end
     """)
 end
 
@@ -106,7 +116,7 @@ function print_travis_deploy(io, repo, secure_key)
             # to make your own: https://docs.travis-ci.com/user/deployment/releases/
             secure: $secure_key
         file_glob: true
-        file: products/*.tar.gz
+        file: products/*
         skip_cleanup: true
         on:
             repo: $(GitHub.name(repo))
@@ -338,6 +348,10 @@ function github_deploy(state::WizardState)
 
             This repository was created using [BinaryBuilder.jl](https://github.com/JuliaPackaging/BinaryBuilder.jl)
             """)
+        end
+        # Append the build.jl generation on travis
+        open(joinpath(repo_dir, "build_tarballs.jl"), "a") do f
+            print_travis_buildjl(f, repo)
         end
         # Create the GitHub repository
         gr = GitHub.create_repo(GitHub.Owner(PkgDev.GitHub.user()),
