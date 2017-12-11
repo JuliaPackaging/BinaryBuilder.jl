@@ -297,117 +297,120 @@ function step5_internal(state::WizardState, platform::Platform, message)
 
     build_path = tempname()
     mkpath(build_path)
-    local ok = true
-    cd(build_path) do
-        prefix, ur = setup_workspace(
-            build_path,
-            state.source_files,
-            state.source_hashes,
-            state.dependencies,
-            platform,
-            Dict("HISTFILE"=>"/workspace/.bash_history");
-            verbose=true,
-            tee_stream=state.outs
-        )
+    local ok = false
+    while !ok
+        cd(build_path) do
+            prefix, ur = setup_workspace(
+                build_path,
+                state.source_files,
+                state.source_hashes,
+                state.dependencies,
+                platform,
+                Dict("HISTFILE"=>"/workspace/.bash_history");
+                verbose=true,
+                tee_stream=state.outs
+            )
 
-        run(ur,
-            `/bin/bash -c $(state.history)`,
-            joinpath(build_path,"out.log");
-            verbose=true,
-            tee_stream=state.outs
-        )
+            run(ur,
+                `/bin/bash -c $(state.history)`,
+                joinpath(build_path,"out.log");
+                verbose=true,
+                tee_stream=state.outs
+            )
 
-        while true
-            msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
-            print_with_color(:bold, state.outs, msg)
+            while true
+                msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
+                print_with_color(:bold, state.outs, msg)
 
-            audit(prefix; io=state.outs,
-                platform=platform, verbose=true, autofix=true)
+                audit(prefix; io=state.outs,
+                    platform=platform, verbose=true, autofix=true)
 
-            ok = isempty(match_files(state, prefix, platform, state.files))
-            if !ok
-                println(state.outs)
-                print_with_color(:red, state.outs, "ERROR: ")
-                msg = "Some build products could not be found (see above)."
-                println(state.outs, msg)
-                println(state.outs)
+                ok = isempty(match_files(state, prefix, platform, state.files))
+                if !ok
+                    println(state.outs)
+                    print_with_color(:red, state.outs, "ERROR: ")
+                    msg = "Some build products could not be found (see above)."
+                    println(state.outs, msg)
+                    println(state.outs)
 
-                # N.B.: This is a Star Trek reference (TNG Season 1, Episode 25,
-                # 25:00).
-                choice = request(terminal,
-                    "Please specify how you would like to proceed, sir.",
-                    RadioMenu([
-                        "Drop into build environment",
-                        "Open a clean session for this platform",
-                        "Disable this platform",
-                        "Edit build script",
-                    ])
-                )
-
-                if choice == 1
-                    if interactive_build(state, prefix, ur, build_path;
-                                      hist_modify = function(olds, s)
-                        """
-                        $olds
-                        if [ \$target = "$(triplet(platform))" ]; then
-                        $s
-                        fi
-                        """
-                        end)
-                        # We'll go around again after this
-                        break
-                    else
-                        # Go back to analysis of the newly environment
-                        continue
-                    end
-                elseif choice == 2
-                    rmdir(build_path; recursive = true)
-                    mkpath(build_path)
-                    prefix, ur = setup_workspace(
-                        build_path,
-                        state.source_files,
-                        state.source_hashes,
-                        state.dependencies,
-                        platform,
-                        Dict("HISTFILE"=>"/workspace/.bash_history");
-                        verbose=true,
-                        tee_stream=state.outs
+                    # N.B.: This is a Star Trek reference (TNG Season 1, Episode 25,
+                    # 25:00).
+                    choice = request(terminal,
+                        "Please specify how you would like to proceed, sir.",
+                        RadioMenu([
+                            "Drop into build environment",
+                            "Open a clean session for this platform",
+                            "Disable this platform",
+                            "Edit build script",
+                        ])
                     )
-                    if interactive_build(state, prefix, ur, build_path;
-                                      hist_modify = function(olds, s)
-                        """
-                        if [ \$target != "$(triplet(platform))" ]; then
-                        $olds
-                        else
-                        $s
-                        fi
-                        """
-                        end)
-                        # We'll go around again after this
-                        break
-                    else
-                        # Go back to analysis of the newly environment
-                        continue
-                    end
-                elseif choice == 3
-                    filter!(p->p != platform, state.platforms)
-                    ok = true
-                    break
-                elseif choice == 4
-                    change_script!(state, edit_script(state, state.history))
-                    break
-                    # Well go around again after this
-                end
-            else
-                push!(state.validated_platforms, platform)
-                println(state.outs, "")
-                msg = "You have successfully built for $platform. Congratulations!"
-                println(state.outs, msg)
-                break
-            end
-        end
 
-        println(state.outs)
+                    if choice == 1
+                        if interactive_build(state, prefix, ur, build_path;
+                                          hist_modify = function(olds, s)
+                            """
+                            $olds
+                            if [ \$target = "$(triplet(platform))" ]; then
+                            $s
+                            fi
+                            """
+                            end)
+                            # We'll go around again after this
+                            break
+                        else
+                            # Go back to analysis of the newly environment
+                            continue
+                        end
+                    elseif choice == 2
+                        rmdir(build_path; recursive = true)
+                        mkpath(build_path)
+                        prefix, ur = setup_workspace(
+                            build_path,
+                            state.source_files,
+                            state.source_hashes,
+                            state.dependencies,
+                            platform,
+                            Dict("HISTFILE"=>"/workspace/.bash_history");
+                            verbose=true,
+                            tee_stream=state.outs
+                        )
+                        if interactive_build(state, prefix, ur, build_path;
+                                          hist_modify = function(olds, s)
+                            """
+                            if [ \$target != "$(triplet(platform))" ]; then
+                            $olds
+                            else
+                            $s
+                            fi
+                            """
+                            end)
+                            # We'll go around again after this
+                            break
+                        else
+                            # Go back to analysis of the newly environment
+                            continue
+                        end
+                    elseif choice == 3
+                        filter!(p->p != platform, state.platforms)
+                        ok = true
+                        break
+                    elseif choice == 4
+                        change_script!(state, edit_script(state, state.history))
+                        break
+                        # Well go around again after this
+                    end
+                else
+                    ok = true
+                    push!(state.validated_platforms, platform)
+                    println(state.outs, "")
+                    msg = "You have successfully built for $platform. Congratulations!"
+                    println(state.outs, msg)
+                    break
+                end
+            end
+
+            println(state.outs)
+        end
     end
     return ok
 end
@@ -437,7 +440,6 @@ function step5a(state::WizardState)
     if step5_internal(state, platform, msg)
         push!(state.visited_platforms, platform)
         state.step = :step5b
-        # Otherwise go around again
     end
 end
 

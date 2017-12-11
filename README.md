@@ -1,12 +1,44 @@
-# PRE-ALPHA SOFTWARE
+# BETA SOFTWARE
 
-The code monkeys are still hard at work tinkering to develop the best possible binary building solution for [Julia](https://julialang.org). Please **do not use this software** for any real work until this notice is removed.  This software is provided AS-IS with no warranty, implied or otherwise, and is not even guaranteed to be fit for a particular purpose.
+Though most of the design work has been completed, the code monkeys are still hard at work tinkering to develop the best possible binary building solution for [Julia](https://julialang.org). Feel free to use this software, but please note
+that there may be bugs and issues still being worked out. This software is provided AS-IS with no warranty, implied or otherwise, and is not even guaranteed to be fit for a particular purpose.
+
+The primary target platform of this package is Linux.
+Windows is currently not supported. Please note that although preliminary OS X
+support exists, it is experimental and recommended only to those wanting to help
+out with porting this package to new platforms.
 
 # BinaryBuilder
 
 [![Build Status](https://travis-ci.org/JuliaPackaging/BinaryBuilder.jl.svg?branch=master)](https://travis-ci.org/JuliaPackaging/BinaryBuilder.jl)  [![codecov.io](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl?branch=master)
 
 "Yea, though I walk through the valley of the shadow of death, I will fear no evil"
+
+# Usage
+
+This package will help you create a distribution of binary dependencies for your
+julia package. Generally this is accomplished using a dependency-specific,
+`build_tarballs.jl` file ([example](https://github.com/Keno/ReadStatBuilder/blob/master/build_tarballs.jl))
+that builds the binary for all platforms. These tarballs are then suitable for
+installation using `BinaryProvider.jl`. Currently we recommend creating a
+separate GitHub repository for the `build_tarballs.jl` script and using that
+repository's `GitHub Releases` page to host the binaries.
+
+The contents of the `build_tarballs.jl` file is relatively straightforward,
+but getting it right can be a little tricky. To ease the burden of creating
+said file, you may use the BinaryBuilder wizard:
+
+```
+using BinaryBuilder
+BinaryBuilder.run_wizard()
+```
+
+The wizard will take you through creating the `build_tarballs.jl` file and help
+you deploy the result to GitHub with Travis and GitHub releases set up properly.
+Once you complete the wizard and your repository is created on GitHub, create
+a new release on the `GitHub Releases` page and Travis will automatically add
+binaries for all platforms, as well as a build.jl file that you can use in your
+julia package to import the binaries you have just built.
 
 # Philosophy
 
@@ -18,28 +50,14 @@ We do not use system package managers.
 
 We do not provide multiple ways to install a dependency.  It's download and unpack tarball, or nothing.
 
+All packages are cross compiled. If a package does not support cross compilation, fix the package.
+
 # Implementation
 
-`BinaryBuilder.jl` utilizes a cross-compilation environment built into a [Docker](https://www.docker.com) image to compile binary objects for multiple operating systems and architectures.  The Dockerfiles for creating this cross-compilation environment are hosted in [the `staticfloat/julia-docker` repository](https://github.com/staticfloat/julia-docker/blob/master/crossbuild/crossbuild-x64.harbor).  The docker image contains cross-compilation toolchains stored in `/opt/<target triplet>`, see [`target_envs()`](https://github.com/JuliaPackaging/BinaryBuilder.jl/blob/76a3073753bd017aaf522ed068ea29418f1059c0/src/DockerRunner.jl#L108-L133) for an example of what kinds of environment variables are defined in order to run the proper tools for a particular cross-compilation task.
-
-A build is represented by a [`Dependency` object](https://github.com/JuliaPackaging/BinaryBuilder.jl/blob/76a3073753bd017aaf522ed068ea29418f1059c0/src/Dependency.jl#L17-L36), which is used to bundle together all the build steps required to actually build an object, perform the build, write out logs for each step, and finally package it all up as a nice big tarball.  At the end of a `build()`, a series of audit steps are run, checking for common problems such as missing libraries.  These checks typically do not stop a build, but you should pay attention to them, as they do their best to be helpful.  Occasionally, an error can be automatically fixed.  If you set the `autofix` parameter to `build()` to be `true`, this will be attempted.
-
-# Usage example
-
-Usage is as simple as defining a `Dependency`, `build()`'ing it, then packaging it up.  Example:
-
-```julia
-prefix = Prefix("/source_code")
-cd("/source_code") do
-    libfoo = LibraryProduct(prefix, "libfoo")
-    steps = [`make clean`, `make install`]
-    dep = Dependency("foo", [libfoo], steps, :linux64, prefix)
-    build(dep)
-end
-tarball_path = package(prefix, "/build_out/libfoo", platform=platform)
-```
-
-For a full example, see [`build_libfoo_tarballs.jl` in the test directory](test/build_libfoo_tarballs.jl).  For a more in-depth example, see [the NettleBuilder repository](https://github.com/staticfloat/NettleBuilder).
+`BinaryBuilder.jl` utilizes a cross-compilation environment exposed as a Linux container. 
+On Linux this makes use of a light-weight custom container engine, on OS X (and
+Windows in the future), we use qemu and hardware accelerated virtualization to
+provide the environment. The environment contains cross-compilation toolchains stored in `/opt/<target triplet>`. See [`target_envs()`](https://github.com/JuliaPackaging/BinaryBuilder.jl/blob/76a3073753bd017aaf522ed068ea29418f1059c0/src/DockerRunner.jl#L108-L133) for an example of what kinds of environment variables are defined in order to run the proper tools for a particular cross-compilation task.
 
 # Known issues
 
