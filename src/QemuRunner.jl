@@ -127,9 +127,7 @@ function generate_cmd(ur::QemuRunner, cmd)
         # complicated encoding. Base64 is much simpler.
         base64encode(arg)
     end, ' ')
-    env_string = join(map(ur.env) do x
-        base64encode(x)
-    end, ' ')
+    env_string = join([base64encode("$k=$v") for (k, v) in ur.env], ' ')
     append_line = string(ur.append_line, " sandboxargs=\"$cmd_string\" sandboxenv=\"$env_string\"")
     bootline = `-append $append_line`
     `$(ur.qemu_cmd) $(bootline)`
