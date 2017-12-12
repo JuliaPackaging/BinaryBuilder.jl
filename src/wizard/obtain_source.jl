@@ -38,7 +38,7 @@ end
 
 macro compat_gc_preserve(args...)
     if VERSION >= v"0.7-"
-        esc(Expr(:macrocall, Symbol("@gc_preserve"), args...))
+        esc(Expr(:macrocall, Expr(:., :Base, QuoteNode(Symbol("@gc_preserve"))), args...))
     else
         esc(args[end])
     end
