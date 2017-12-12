@@ -57,6 +57,8 @@ function platform_def_9p_mappings(platform)
         sdk_shard_path = joinpath(shards_cache, sdk_version)
         push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
     end
+    
+    return mapping
 end
 
 platform_accelerator() = Compat.Sys.islinux() ? "kvm" : "hvf"
