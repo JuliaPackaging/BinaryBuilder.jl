@@ -349,13 +349,13 @@ function github_deploy(state::WizardState)
             This repository was created using [BinaryBuilder.jl](https://github.com/JuliaPackaging/BinaryBuilder.jl)
             """)
         end
-        # Append the build.jl generation on travis
-        open(joinpath(repo_dir, "build_tarballs.jl"), "a") do f
-            print_travis_buildjl(f, repo)
-        end
         # Create the GitHub repository
         gr = GitHub.create_repo(GitHub.Owner(PkgDev.GitHub.user()),
                 github_name; auth=auth)
+        # Append the build.jl generation on travis
+        open(joinpath(repo_dir, "build_tarballs.jl"), "a") do f
+            print_travis_buildjl(f, gr)
+        end
         # Push the empty commit
         LibGit2.push(repo, remoteurl="https://github.com/$(user)/$(github_name).git",
             payload=Nullable(LibGit2.UserPasswordCredentials(deepcopy(user),deepcopy(token))),
