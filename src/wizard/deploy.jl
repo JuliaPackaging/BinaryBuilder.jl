@@ -235,9 +235,8 @@ function obtain_token(state, repo_name, user)
         if resp.status != 200
             GitHub.handle_response_error(resp)
         end
-        break
+        return JSON.parse(resp.body)["token"]
     end
-    JSON.parse(resp.body)["token"]
 end
 
 function common_git_repo_setup(repo_dir, repo, state)
