@@ -30,7 +30,7 @@ function __init__()
 
     # If the user has overridden our shards unpack location, reflect that here:
     def_shards_cache = joinpath(dirname(@__FILE__),  "..", "deps", "shards")
-    shards_cache = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_shards_cache)
+    shards_cache = get(ENV, "BINARYBUILDER_SHARDS_DIR", def_shards_cache)
     shards_cache = abspath(shards_cache)
 
     # If the user has asked for squashfs mounting instead of tarball mounting,
