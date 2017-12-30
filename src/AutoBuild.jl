@@ -154,7 +154,8 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
     println(io, "download_info = Dict(")
     for platform in sort(collect(keys(product_hashes)))
         fname, hash = product_hashes[platform]
-        println(io, "    $(platform) => (\"\$bin_prefix/$(fname)\", \"$(hash)\"),")
+        pkey = platform_key(platform)
+        println(io, "    $(pkey) => (\"\$bin_prefix/$(fname)\", \"$(hash)\"),")
     end
     println(io, ")")
 
