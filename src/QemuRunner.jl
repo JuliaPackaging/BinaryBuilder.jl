@@ -177,11 +177,11 @@ function runshell(qr::QemuRunner, args...)
     run_interactive(qr, `/bin/bash`, args...)
 end
 
-function runshell(::Type{QemuRunner}, platform::Platform = platform_key(), args...)
+function runshell(::Type{QemuRunner}, platform::Platform = platform_key())
     qr = QemuRunner(
         pwd();
         cwd="/workspace/",
         platform=platform
     )
-    return runshell(qr, args...)
+    return runshell(qr)
 end
