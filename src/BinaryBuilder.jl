@@ -30,7 +30,7 @@ function __init__()
 
     # If the user has overridden our shards unpack location, reflect that here:
     def_shards_cache = joinpath(dirname(@__FILE__),  "..", "deps", "shards")
-    shards_cache = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_shards_cache)
+    shards_cache = get(ENV, "BINARYBUILDER_SHARDS_DIR", def_shards_cache)
     shards_cache = abspath(shards_cache)
 
     # If the user has asked for squashfs mounting instead of tarball mounting,
@@ -54,7 +54,49 @@ function __init__()
     if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
         automatic_apple = true
     end
+end
 
+"""
+    versioninfo()
+
+Helper function to print out some debugging information
+"""
+function versioninfo()
+    info("Julia versioninfo(): ")
+    Base.versioninfo()
+
+    # Get BinaryBuilder.jl's git sha
+    repo = LibGit2.GitRepo(Pkg.dir("BinaryBuilder"))
+    gitsha = hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
+    info("BinaryBuilder.jl version: $(gitsha)")
+    info("Preferred runner: $(preferred_runner())")
+
+    # Dump any relevant environment variables:
+    info("Relevant envionment variables:")
+    env_var_suffixes = [
+        "DOWNLOADS_CACHE",
+        "ROOTFS_DIR",
+        "SHARDS_DIR",
+        "USE_SQUASHFS",
+        "AUTOMATIC_APPLE",
+    ]
+    for e in env_var_suffixes
+        envvar = "BINARYBUILDER_$(e)"
+        if haskey(ENV, envvar)
+            info("  $(envvar): \"$(ENV[envvar])\"")
+        end
+    end
+
+    # Try to run 'echo julia' in Linux x86_64 environment
+    info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
+
+    runner = preferred_runner()(
+        pwd();
+        cwd="/workspace/",
+        platform=Linux(:x86_64),
+        verbose=true
+    )
+    run_interactive(runner, `/bin/bash -c "echo hello julia"`)
 end
 
 end # module

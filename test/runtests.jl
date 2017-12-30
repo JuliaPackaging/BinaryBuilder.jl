@@ -177,28 +177,41 @@ const libfoo_script = """
     rm(tarball_path; force=true)
 end
 
+# Testset to make sure we can autobuild from a git repository
 @testset "AutoBuild Git-Based" begin
     build_path = tempname()
     git_path = joinpath(build_path,"libfoo.git")
     mkpath(git_path)
 
     cd(build_path) do
+        # Just like we package up libfoo into a tarball above, we'll create a fake
+        # git repo for it here, then build from that.
         repo = LibGit2.init(git_path)
         LibGit2.commit(repo, "Initial empty commit")
-        libfoo_dir = joinpath(@__DIR__,"build_tests","libfoo")
+        libfoo_dir = joinpath(@__DIR__, "build_tests", "libfoo")
         run(`cp -r $(libfoo_dir)/$(readdir(libfoo_dir)) $git_path/`)
         for file in ["fooifier.c", "libfoo.c", "Makefile"]
             LibGit2.add!(repo, file)
         end
         commit = LibGit2.commit(repo, "Add libfoo files")
 
+        # Now build that git repository for Linux x86_64
         sources = [
             git_path =>
             LibGit2.hex(LibGit2.GitHash(commit)),
         ]
 
-        autobuild(pwd(), "libfoo", supported_platforms(), sources,
-            "cd libfoo\n$libfoo_script", libfoo_products)
+        autobuild(
+            pwd(),
+            "libfoo",
+            [Linux(:x86_64, :glibc)],
+            sources,
+            "cd libfoo\n$libfoo_script",
+            libfoo_products
+        )
+
+        # Make sure that worked
+        @test isfile("products/libfoo.x86_64-linux-gnu.tar.gz")
     end
 
     rm(build_path; force=true, recursive=true)

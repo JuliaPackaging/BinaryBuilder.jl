@@ -100,7 +100,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     end
 end
 
-# Note: produce these values by #including squashfs_fs.h from linux in a Cxx
+# Note: produce these values by #including squashfs_fs.h from linux in Cxx.jl
 # and running the indicated command
 const offsetof_id_table_start = 0x30    # offsetof(struct suqashfs_super_block, id_table_start)
 const offsetof_no_ids = 0x1a            # offsetof(struct suqashfs_super_block, no_ids)
