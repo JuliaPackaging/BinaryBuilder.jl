@@ -8,6 +8,7 @@ makedocs(
         "Environment Variables" => "environment_variables.md",
         "FAQ" => "FAQ.md",
         "Tricksy Gotchas" => "tricksy_gotchas.md",
+        "Reference" => "reference.md",
     ],
 )
 
