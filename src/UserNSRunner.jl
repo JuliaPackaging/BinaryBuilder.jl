@@ -128,12 +128,12 @@ function runshell(ur::UserNSRunner, args...)
     run_interactive(ur, `/bin/bash`, args...)
 end
 
-function runshell(::Type{UserNSRunner}, platform::Platform = platform_key(); verbose::Bool = false)
+function runshell(::Type{UserNSRunner}, platform::Platform = platform_key(), args...; verbose::Bool = false)
     ur = UserNSRunner(
         pwd();
         cwd="/workspace/",
         platform=platform,
         verbose=verbose
     )
-    return runshell(ur)
+    return runshell(ur, args...)
 end

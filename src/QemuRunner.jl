@@ -119,24 +119,24 @@ function show(io::IO, x::QemuRunner)
           "QemuRunner")
 end
 
-function generate_cmd(ur::QemuRunner, cmd)
-    cmd = `$(ur.sandbox_cmd) $(cmd)`
+function generate_cmd(qr::QemuRunner, cmd)
+    cmd = `$(qr.sandbox_cmd) $(cmd)`
     cmd_string = join(map(cmd.exec) do arg
         # Could encode as human readable with shell escaping, but we'd just
         # have to do the decoding on the client side and it's a very, very
         # complicated encoding. Base64 is much simpler.
         base64encode(arg)
     end, ' ')
-    env_string = join([base64encode("$k=$v") for (k, v) in ur.env], ' ')
-    append_line = string(ur.append_line, " sandboxargs=\"$cmd_string\" sandboxenv=\"$env_string\"")
+    env_string = join([base64encode("$k=$v") for (k, v) in qr.env], ' ')
+    append_line = string(qr.append_line, " sandboxargs=\"$cmd_string\" sandboxenv=\"$env_string\"")
     bootline = `-append $append_line`
-    `$(ur.qemu_cmd) $(bootline)`
+    `$(qr.qemu_cmd) $(bootline)`
 end
 
-function Base.run(ur::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
+function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
     did_succeed = true
     cd(dirname(sandbox_path)) do
-        oc = OutputCollector(generate_cmd(ur, cmd); verbose=verbose, tee_stream=tee_stream)
+        oc = OutputCollector(generate_cmd(qr, cmd); verbose=verbose, tee_stream=tee_stream)
 
         did_succeed = wait(oc)
 
@@ -155,9 +155,9 @@ function Base.run(ur::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
     return did_succeed
 end
 
-function run_interactive(ur::QemuRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
+function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
     cd(dirname(sandbox_path)) do
-        cmd = generate_cmd(ur, cmd)
+        cmd = generate_cmd(qr, cmd)
         if stdin != nothing
             cmd = pipeline(cmd, stdin=stdin)
         end
@@ -173,15 +173,15 @@ function run_interactive(ur::QemuRunner, cmd::Cmd, stdin = nothing, stdout = not
     end
 end
 
-function runshell(ur::QemuRunner, args...)
-    run_interactive(ur, `/bin/bash`, args...)
+function runshell(qr::QemuRunner, args...)
+    run_interactive(qr, `/bin/bash`, args...)
 end
 
-function runshell(::Type{QemuRunner}, platform::Platform = platform_key())
-    ur = QemuRunner(
+function runshell(::Type{QemuRunner}, platform::Platform = platform_key(), args...)
+    qr = QemuRunner(
         pwd();
         cwd="/workspace/",
         platform=platform
     )
-    return runshell(ur)
+    return runshell(qr, args...)
 end
