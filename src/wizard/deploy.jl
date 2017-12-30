@@ -5,7 +5,7 @@ function print_build_tarballs(io::IO, state::WizardState;
     sources_string = string("[\n",join(map(urlhashes) do x
         (src, hash) = x
         string("    ", repr(src)," =>\n    ", repr(hash), ",\n")
-    end,",\n"),"]")
+    end,"\n"),"]")
 
     stuff = collect(zip(state.files, state.file_kinds))
     products_string = join(map(stuff) do x
