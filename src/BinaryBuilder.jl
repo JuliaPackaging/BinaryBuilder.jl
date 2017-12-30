@@ -88,7 +88,7 @@ function versioninfo()
     end
 
     # Try to run 'echo julia' in Linux x86_64 environment
-    info("Trying to run `echo julia` within a Linux x86_64 environment...")
+    info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
 
     runner = preferred_runner()(
         pwd();
@@ -96,7 +96,7 @@ function versioninfo()
         platform=Linux(:x86_64),
         verbose=true
     )
-    run_interactive(runner, `/bin/bash -c "echo test"`)
+    run_interactive(runner, `/bin/bash -c "echo hello julia"`)
 end
 
 end # module
