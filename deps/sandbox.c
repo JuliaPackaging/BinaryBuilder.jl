@@ -35,6 +35,7 @@
 #include <sys/stat.h>
 #include <sys/reboot.h>
 #include <linux/reboot.h>
+#include <linux/limits.h>
 
 /**** General Utilities ***/
 
