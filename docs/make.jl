@@ -14,4 +14,5 @@ makedocs(
 
 deploydocs(
     repo = "github.com/JuliaPackaging/BinaryBuilder.jl.git",
+    julia = "0.6",
 )
