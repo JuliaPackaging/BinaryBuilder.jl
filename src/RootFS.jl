@@ -7,9 +7,6 @@ shards_cache = ""
 automatic_apple = false
 use_squashfs = false
 
-# This is where the `sandbox` binary lives
-const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
-
 """
     downloads_dir(postfix::String = "")
 
@@ -40,7 +37,6 @@ function shards_dir(postfix::String = "")
     global shards_dir
     return joinpath(shards_cache, postfix)
 end
-
 
 shard_path_squashfs(shard_name) = downloads_dir("rootfs-$(shard_name).squashfs")
 rootfs_path_squashfs() = shard_path_squashfs("base")
@@ -340,31 +336,5 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
     if isdir(dir_in_dir)
         mv(dir_in_dir, "$(dirname(dir_in_dir))2")
         mv("$(dirname(dir_in_dir))2", dest; remove_destination=true)
-    end
-end
-
-
-"""
-    update_sandbox_binary(;verbose::Bool = true)
-
-Builds/updates the `sandbox` binary that launches all commands within the
-rootfs, storing the binary within the `deps` folder.
-"""
-function update_sandbox_binary(;verbose::Bool = true)
-    global sandbox_path
-
-    src_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox.c")
-    if !isfile(sandbox_path) || stat(sandbox_path).mtime < stat(src_path).mtime
-        if verbose
-            info("Rebuilding sandbox binary...")
-        end
-
-        cd() do
-            oc = OutputCollector(
-                `gcc -std=c99 -o $(sandbox_path) $(src_path)`;
-                verbose=verbose,
-            )
-            wait(oc)
-        end
     end
 end

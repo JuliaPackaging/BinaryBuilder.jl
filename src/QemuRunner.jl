@@ -69,8 +69,6 @@ function QemuRunner(workspace_root::String; cwd = nothing,
                       verbose::Bool = true,
                       mounts = platform_def_mounts(platform),
                       mappings = platform_def_9p_mappings(platform))
-    global sandbox_path
-
     # Ensure the rootfs for this platform is downloaded and up to date
     update_rootfs(
         platform != Linux(:x86_64) ?
@@ -134,20 +132,17 @@ function generate_cmd(qr::QemuRunner, cmd)
 end
 
 function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
-    did_succeed = true
-    cd(dirname(sandbox_path)) do
-        oc = OutputCollector(generate_cmd(qr, cmd); verbose=verbose, tee_stream=tee_stream)
+    oc = OutputCollector(generate_cmd(qr, cmd); verbose=verbose, tee_stream=tee_stream)
 
-        did_succeed = wait(oc)
+    did_succeed = wait(oc)
 
-        if !isempty(logpath)
-            # Write out the logfile, regardless of whether it was successful
-            mkpath(dirname(logpath))
-            open(logpath, "w") do f
-                # First write out the actual command, then the command output
-                println(f, cmd)
-                print(f, merge(oc))
-            end
+    if !isempty(logpath)
+        # Write out the logfile, regardless of whether it was successful
+        mkpath(dirname(logpath))
+        open(logpath, "w") do f
+            # First write out the actual command, then the command output
+            println(f, cmd)
+            print(f, merge(oc))
         end
     end
 
@@ -156,21 +151,19 @@ function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
 end
 
 function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
-    cd(dirname(sandbox_path)) do
-        cmd = generate_cmd(qr, cmd)
-        if stdin != nothing
-            cmd = pipeline(cmd, stdin=stdin)
-        end
-        if stdout != nothing
-            cmd = pipeline(cmd, stdout=stdout)
-        end
-        if stderr != nothing
-            cmd = pipeline(cmd, stderr=stderr)
-        end
-        run(cmd)
-        # Qemu appears to mess with our terminal
-        Base.reseteof(STDIN)
+    cmd = generate_cmd(qr, cmd)
+    if stdin != nothing
+        cmd = pipeline(cmd, stdin=stdin)
     end
+    if stdout != nothing
+        cmd = pipeline(cmd, stdout=stdout)
+    end
+    if stderr != nothing
+        cmd = pipeline(cmd, stderr=stderr)
+    end
+    run(cmd)
+    # Qemu appears to mess with our terminal
+    Base.reseteof(STDIN)
 end
 
 function runshell(qr::QemuRunner, args...)

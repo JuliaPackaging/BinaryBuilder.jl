@@ -45,17 +45,12 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
                       mappings = platform_def_mapping(platform))
-    global sandbox_path
-
     # Ensure the rootfs for this platform is downloaded and up to date.
     # Also, since we require the Linux(:x86_64) shard for HOST_CC....
     update_rootfs(triplet.([platform, Linux(:x86_64)]); verbose=verbose)
 
-    # Ensure that sandbox is ready to go
-    update_sandbox_binary(;verbose=verbose)
-
     # Construct sandbox command
-    sandbox_cmd = `$sandbox_path --rootfs $(rootfs_dir())`
+    sandbox_cmd = `$(rootfs_dir("sandbox")) --rootfs $(rootfs_dir())`
 
     sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
 
@@ -84,7 +79,7 @@ end
 
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
     did_succeed = true
-    cd(dirname(sandbox_path)) do
+    cd(rootfs_dir()) do
         oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
 
         did_succeed = wait(oc)
@@ -105,7 +100,7 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
 end
 
 function run_interactive(ur::UserNSRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
-    cd(dirname(sandbox_path)) do
+    cd(rootfs_dir()) do
         cmd = setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.env)
         if stdin != nothing
             cmd = pipeline(cmd, stdin=stdin)
