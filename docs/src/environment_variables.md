@@ -11,3 +11,5 @@
 * `BINARYBUILDER_ROOTFS_DIR`: When set to a path, the base root FS will be unpacked/mounted to this location, instead of the default location of `<binarybuilder_root>/deps/root`.
 
 * `BINARYBUILDER_SHARDS_DIR`: When set to a path, cross-compiler shards will be unpacked/mounted to this location, instead of the default location of `<binarybuilder_root>/deps/shards`.
+
+* `BINARYBUILDER_QEMU_DIR`: When set to a path, qemu/the linux kernel will be installed here (if using the `QemuRunner`) instead of the default location of `<binarybuilder_root>/deps/qemu`

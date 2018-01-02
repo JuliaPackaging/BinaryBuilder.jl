@@ -15,19 +15,38 @@ type QemuRunner <: Runner
     platform::Platform
 end
 
-const qemu_prefix = Prefix(joinpath(@__DIR__,"..","deps","usr"))
-const qemu_hash = "92fa439350970f673a7324b61ed5bc4894d6665543175f01135550cb4a458cde"
-const kernel_hash = "0d02413529e635d4af6d2122f6aba22d261f43616bb286da3855325988f9ac3b"
+qemu_url = "https://github.com/Keno/QemuBuilder/releases/download/hvf/qemu.x86_64-apple-darwin14.tar.gz"
+qemu_hash = "92fa439350970f673a7324b61ed5bc4894d6665543175f01135550cb4a458cde"
+kernel_url = "https://github.com/Keno/LinuxBuilder/releases/download/v4.15-rc2/linux.x86_64-linux-gnu.tar.gz"
+kernel_hash = "0d02413529e635d4af6d2122f6aba22d261f43616bb286da3855325988f9ac3b"
 
-function update_qemu()
-    install("https://github.com/Keno/QemuBuilder/releases/download/hvf/qemu.x86_64-apple-darwin14.tar.gz",
-        qemu_hash; prefix=qemu_prefix, force=true, verbose=true)
-    install("https://github.com/Keno/LinuxBuilder/releases/download/v4.15-rc2/linux.x86_64-linux-gnu.tar.gz",
-        kernel_hash; prefix=qemu_prefix, force=true, verbose=true, ignore_platform=true)
+"""
+    update_qemu(;verbose::Bool = false)
+
+Update our QEMU and Linux kernel installations, downloading and installing them
+into the `qemu_cache` directory that defaults to `deps/qemu`.
+"""
+function update_qemu(;verbose::Bool = false)
+    download_verify_unpack(
+        qemu_url,
+        qemu_hash,
+        qemu_cache;
+        tarball_path=downloads_dir(basename(qemu_url)),
+        verbose=verbose,
+        force=true
+    )
+    download_verify_unpack(
+        kernel_url,
+        kernel_hash,
+        qemu_cache;
+        tarball_path=downloads_dir(basename(kernel_url)),
+        verbose=verbose,
+        force=true
+    )
 end
 
-qemu_path() = joinpath(qemu_prefix, "usr/local/bin/qemu-system-x86_64")
-kernel_path() = joinpath(qemu_prefix, "bzImage")
+qemu_path() = joinpath(qemu_cache, "usr/local/bin/qemu-system-x86_64")
+kernel_path() = joinpath(qemu_cache, "bzImage")
 
 function platform_def_mounts(platform)
     tp = triplet(platform)
@@ -74,7 +93,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         platform != Linux(:x86_64) ?
         [triplet(platform), triplet(Linux(:x86_64))] :
         triplet(platform); verbose=verbose, squashfs=true, mount=false)
-    update_qemu()
+    update_qemu(;verbose=verbose)
 
     qemu_cmd = ```
         $(qemu_path()) -kernel $(kernel_path())

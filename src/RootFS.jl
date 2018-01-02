@@ -4,6 +4,7 @@
 downloads_cache = ""
 rootfs_cache = ""
 shards_cache = ""
+qemu_cache = ""
 automatic_apple = false
 use_squashfs = false
 
