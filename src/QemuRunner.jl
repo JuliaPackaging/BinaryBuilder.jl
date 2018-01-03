@@ -86,7 +86,7 @@ platform_accelerator() = Compat.Sys.islinux() ? "kvm" : "hvf"
 function QemuRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
-                      verbose::Bool = true,
+                      verbose::Bool = false,
                       mounts = platform_def_mounts(platform),
                       mappings = platform_def_9p_mappings(platform))
     # Ensure the rootfs for this platform is downloaded and up to date
@@ -150,13 +150,12 @@ end
 function pass_sandbox_args(qr::QemuRunner, cmd::Cmd)
     @async begin
         # This is what we'll send to `sandbox`
-        sandbox_args = String.(`$(qr.sandbox_cmd) $(cmd)`.exec)
+        sandbox_args = String.(`$(qr.sandbox_cmd) -- $(cmd)`.exec)
         sandbox_env = ["$k=$v" for (k, v) in qr.env]
 
         # Wait until QEMU starts up the communications channel
         while !issocket(qr.comm_socket_path)
             sleep(0.1)
-            info("waiting...")
         end
 
         # Once it has, open it up, 
@@ -183,7 +182,6 @@ function pass_sandbox_args(qr::QemuRunner, cmd::Cmd)
             write(commsock, sandbox_env[idx])
         end
 
-        info("Finished writing to commsock")
         close(commsock)
     end
 end
