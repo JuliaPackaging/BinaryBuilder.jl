@@ -11,6 +11,7 @@ type QemuRunner <: Runner
     qemu_cmd::Cmd
     append_line::String
     sandbox_cmd::Cmd
+    comm_socket_path::String
     env::Dict{String, String}
     platform::Platform
 end
@@ -95,6 +96,9 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         triplet(platform); verbose=verbose, squashfs=true, mount=false)
     update_qemu(;verbose=verbose)
 
+    # Create temporary filename for qemu serial communication
+    comm_socket_path = tempname()
+
     qemu_cmd = ```
         $(qemu_path()) -kernel $(kernel_path())
         -M accel=$(platform_accelerator()) -nographic
@@ -102,6 +106,8 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         -nodefaults -rtc base=utc,driftfix=slew
         -device virtio-serial -chardev stdio,id=charconsole0
         -device virtconsole,chardev=charconsole0,id=console0
+        -device virtio-serial -chardev socket,path=$(comm_socket_path),server,nowait,id=charcomm0
+        -device virtserialport,chardev=charcomm0,id=comm0
         -fsdev local,security_model=none,id=fsdev0,path=$workspace_root -device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=workspace
     ```
     append_line = "quiet console=hvc0 root=/dev/vda rootflags=ro rootfstype=squashfs noinitrd init=/sandbox"
@@ -124,7 +130,12 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         c = Char(Int(c) + 1)
     end
 
-    QemuRunner(qemu_cmd, append_line, sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
+    if verbose
+        # We put --verbose at the beginning here so that we can see argument parsing
+        sandbox_cmd = `--verbose $sandbox_cmd`
+    end
+
+    QemuRunner(qemu_cmd, append_line, sandbox_cmd, comm_socket_path, merge(target_envs(triplet(platform)), extra_env), platform)
 end
 
 
@@ -136,25 +147,58 @@ function show(io::IO, x::QemuRunner)
           "QemuRunner")
 end
 
-function generate_cmd(qr::QemuRunner, cmd)
-    cmd = `$(qr.sandbox_cmd) $(cmd)`
-    cmd_string = join(map(cmd.exec) do arg
-        # Could encode as human readable with shell escaping, but we'd just
-        # have to do the decoding on the client side and it's a very, very
-        # complicated encoding. Base64 is much simpler.
-        base64encode(arg)
-    end, ' ')
-    env_string = join([base64encode("$k=$v") for (k, v) in qr.env], ' ')
-    append_line = string(qr.append_line, " sandboxargs=\"$cmd_string\" sandboxenv=\"$env_string\"")
-    bootline = `-append $append_line`
-    `$(qr.qemu_cmd) $(bootline)`
+function pass_sandbox_args(qr::QemuRunner, cmd::Cmd)
+    @async begin
+        # This is what we'll send to `sandbox`
+        sandbox_args = String.(`$(qr.sandbox_cmd) $(cmd)`.exec)
+        sandbox_env = ["$k=$v" for (k, v) in qr.env]
+
+        # Wait until QEMU starts up the communications channel
+        while !issocket(qr.comm_socket_path)
+            sleep(0.1)
+            info("waiting...")
+        end
+
+        # Once it has, open it up, 
+        commsock = connect(qr.comm_socket_path)
+
+        # We're going to spit out:
+        #  [4 bytes] number of sandbox args
+        #    for each sandbox arg:
+        #      [4 bytes] length of arg
+        #      [N bytes] arg literal string
+        #  [4 bytes] number of environment mappings
+        #    for each environment mapping
+        #      [4 bytes] length of mapping
+        #      [N bytes] mapping literal string
+        write(commsock, UInt32(length(sandbox_args)))
+        for idx in 1:length(sandbox_args)
+            write(commsock, UInt32(length(sandbox_args[idx])))
+            write(commsock, sandbox_args[idx])
+        end
+
+        write(commsock, UInt32(length(sandbox_env)))
+        for idx in 1:length(sandbox_env)
+            write(commsock, UInt32(length(sandbox_env[idx])))
+            write(commsock, sandbox_env[idx])
+        end
+
+        info("Finished writing to commsock")
+        close(commsock)
+    end
 end
 
 function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
-    oc = OutputCollector(generate_cmd(qr, cmd); verbose=verbose, tee_stream=tee_stream)
+    # Write out our arguments to `sandbox` to the communication socket:
+    pass_sandbox_args(qr, cmd)
+
+    # Launch QEMU
+    oc = OutputCollector(`$(qr.qemu_cmd) -append $(qr.append_line)`; verbose=verbose, tee_stream=tee_stream)
+
+    # Always try to remove the comm socket path
+    rm(qr.comm_socket_path; force=true)
 
     did_succeed = wait(oc)
-
     if !isempty(logpath)
         # Write out the logfile, regardless of whether it was successful
         mkpath(dirname(logpath))
@@ -170,7 +214,8 @@ function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
 end
 
 function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
-    cmd = generate_cmd(qr, cmd)
+    pass_sandbox_args(qr, cmd)
+    cmd = `$(qr.qemu_cmd) -append $(qr.append_line)`
     if stdin != nothing
         cmd = pipeline(cmd, stdin=stdin)
     end
@@ -181,6 +226,10 @@ function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = not
         cmd = pipeline(cmd, stderr=stderr)
     end
     run(cmd)
+    
+    # Always try to remove the comm socket path
+    rm(qr.comm_socket_path; force=true)
+
     # Qemu appears to mess with our terminal
     Base.reseteof(STDIN)
 end
@@ -189,11 +238,12 @@ function runshell(qr::QemuRunner, args...)
     run_interactive(qr, `/bin/bash`, args...)
 end
 
-function runshell(::Type{QemuRunner}, platform::Platform = platform_key())
+function runshell(::Type{QemuRunner}, platform::Platform = platform_key(); verbose::Bool = false)
     qr = QemuRunner(
         pwd();
         cwd="/workspace/",
-        platform=platform
+        platform=platform,
+        verbose=verbose
     )
     return runshell(qr)
 end

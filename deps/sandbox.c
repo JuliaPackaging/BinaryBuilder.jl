@@ -36,6 +36,7 @@
 #include <sys/reboot.h>
 #include <linux/reboot.h>
 #include <linux/limits.h>
+#include <getopt.h>
 
 /**** General Utilities ***/
 
@@ -142,12 +143,12 @@ static void create_overlay(const char * overlay_root, const char *mount_point,
     check(0 == mkdir(work_dir, 0777));
     check(0 == mount("overlay", mount_point, "overlay", 0, opts));
 }
-    
+
 /* This is the main pid. We exit the sandbox once this pid dies */
 pid_t main_pid;
 
 /*
- * We support running this binary either standalone (which will create a 
+ * We support running this binary either standalone (which will create a
  * user namespace sandbox) or as init inside a VM.
  */
 static int is_init;
@@ -160,7 +161,7 @@ static void devtempfs_mount() {
   check(0 == mount("devtmpfs", "dev", "devtmpfs", 0, ""));
   check(0 == mkdir("dev/pts", 0600));
   //int fd = open("dev/ptmx", O_CREAT);
-  //check(fd != -1); 
+  //check(fd != -1);
   //check(0 == close(fd));
 }
 
@@ -201,7 +202,7 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
     // If the workspace is specified as 9p:, try to mount it as a 9p share
     if (strncmp("9p:", workspace, 3) == 0) {
       check(0 == mount(workspace+3, "workspace", "9p", 0, "trans=virtio,version=9p2000.L"));
-    } else {    
+    } else {
       // We don't expect workspace to have any submounts in normal operation.
       // However, for runshell(), workspace could be an arbitrary directory,
       // including one with sub-mounts, so allow that situation.
@@ -238,7 +239,7 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
       } else {
           closedir(d);
       }
-      
+
       // If specified as a device, mount as squashfs
       if (strncmp(current_entry->outside_path, "/dev", 4) == 0) {
           check(0 == mount(current_entry->outside_path, inside, "squashfs", 0, ""));
@@ -288,7 +289,7 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
       _exit(1);
     }
   }
-  
+
   // Let's perform normal init functions, handling signals from orphaned
   // children, etc
   sigset_t waitset;
@@ -308,186 +309,207 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
   }
 }
 
+static void print_help() {
+  fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] ", stderr);
+  fputs("[--cd <dir>] [--map <from>:<to>, --map <from>:<to>, ...] ", stderr);
+  fputs("[--verbose] [--help] <cmd>\n", stderr);
+}
+
+static void read_sandbox_args(int fd, int * argc, char *** argv) {
+  // First, read the number of sandbox args:
+  *argc = 0;
+  check(4 == read(fd, argc, sizeof(int)));
+  check(*argc > 0);
+
+  // We need to pretend that argv[0] is "sandbox"
+  *argc += 1;
+
+  // Allocate and read in those args
+  *argv = malloc(sizeof(char *) * (*argc));
+  (*argv)[0] = "/sandbox";
+  int arg_idx;
+  for( arg_idx=1; arg_idx<(*argc); ++arg_idx ) {
+    int arg_len = 0;
+    check(4 == read(fd, &arg_len, sizeof(int)));
+
+    (*argv)[arg_idx] = malloc(arg_len + 1);
+    check(arg_len == read(fd, (*argv)[arg_idx], arg_len));
+    (*argv)[arg_idx][arg_len] = '\0';
+  }
+}
+
+static void read_sandbox_env(int fd) {
+  clearenv();
+  int num_env_mappings = 0;
+  check(4 == read(fd, &num_env_mappings, sizeof(int)));
+
+  if (verbose) {
+    printf("Reading %d environment mappings\n", num_env_mappings);
+  }
+
+  int env_buff_len = 1024;
+  char * env_buff = malloc(env_buff_len + 1);
+  int arg_idx;
+  for( arg_idx=0; arg_idx<num_env_mappings; ++arg_idx ) {
+    int arg_len = 0;
+    check(4 == read(fd, &arg_len, sizeof(int)));
+
+    // We guess that each environment mapping will be 1K or less,
+    // but if we're wrong, bump the buffer size up.
+    if( arg_len > env_buff_len) {
+      env_buff_len = arg_len;
+      env_buff = realloc(env_buff, env_buff_len + 1);
+    }
+
+    // Read the environment mapping into env_buff
+    check(arg_len == read(fd, env_buff, arg_len));
+    env_buff[arg_len] = '\0';
+
+    // Find `=`, use it to chop env_buff in half,
+    char * equals = strchr(env_buff, '=');
+    check(equals != NULL);
+    equals[0] = '\0';
+
+    // Grab our name and value, feed that into setenv():
+    setenv(env_buff, equals + 1, 1);
+  }
+  free(env_buff);
+}
+
 /******* Driver Code
  * Not much to see here, just putting it all together.
  */
 static void sigint_handler() { _exit(0); }
 
-uint8_t decode_char(uint8_t data) {
-    if ('A' <= data && data <= 'Z') {
-        return data - 'A';
-    } else if ('a' <= data && data <= 'z') {
-        return (data - 'a') + ('Z' - 'A') + 1;
-    } else if ('0' <= data && data <= '9') {
-        return (data - '0') + 2*(('Z' - 'A') + 1);
-    } else if (data == '+') {
-        return 62;
-    } else if (data == '/') {
-        return 63;
-    } else {
-        fprintf(stderr, "Bad char '%c'\n", data);
-        check(0);
-    }
-}
-
-// From stackoverflow
-// https://stackoverflow.com/questions/342409/how-do-i-base64-encode-decode-in-c
-unsigned char *base64_decode(const char *data,
-                             size_t input_length,
-                             size_t *output_length) {
-
-    if (input_length % 4 != 0) return NULL;
-
-    *output_length = input_length / 4 * 3;
-    if (data[input_length - 1] == '=') (*output_length)--;
-    if (data[input_length - 2] == '=') (*output_length)--;
-
-    unsigned char *decoded_data = malloc(*output_length+1);
-    if (decoded_data == NULL) return NULL;
-
-    for (int i = 0, j = 0; i < input_length;) {
-
-        uint32_t sextet_a = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
-        uint32_t sextet_b = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
-        uint32_t sextet_c = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
-        uint32_t sextet_d = data[i] == '=' ? 0 & i++ : decode_char(data[i++]);
-
-        uint32_t triple = (sextet_a << 3 * 6)
-        + (sextet_b << 2 * 6)
-        + (sextet_c << 1 * 6)
-        + (sextet_d << 0 * 6);
-
-        if (j < *output_length) decoded_data[j++] = (triple >> 2 * 8) & 0xFF;
-        if (j < *output_length) decoded_data[j++] = (triple >> 1 * 8) & 0xFF;
-        if (j < *output_length) decoded_data[j++] = (triple >> 0 * 8) & 0xFF;
-    }
-
-    return decoded_data;
-}
-
-const char sandboxarg_name[] = "sandboxargs";
-const char sandboxenv_name[] = "sandboxenv";
-
 int main(int sandbox_argc, char **sandbox_argv) {
   int status;
-  pid_t pid;
-
   pid_t mypid = getpid();
+  pid_t pgrp = getpgid(0);
   is_init = mypid == 1;
+  int cmdline_fd = -1;
 
   if (is_init) {
     // Mount our file systems right away so we can start using them
     early_fs_mount();
-    
-    // Extract our command line from the kernel's command line
-    int cmdline_fd = open("/proc/cmdline", O_RDONLY);
+
+    // Extract our command line from the second serial device created by BinaryBuilder.jl
+    cmdline_fd = open("/dev/vport1p1", O_RDONLY);
     check(cmdline_fd != -1);
-    char cmdline[8192];
-    size_t nbytes = read(cmdline_fd, cmdline, sizeof(cmdline)-1);
-    check(nbytes != -1);
-    cmdline[nbytes] = '\0';
-    
-    //// Find our arguments
-    char *ours = strstr(cmdline, sandboxarg_name);
-    char *opening_quote = strchr(ours, '"');
-    char *closing_quote = strchr(opening_quote+1, '"');
-    
-    size_t max_argv = 5;
-    sandbox_argv = malloc(sizeof(char*) * (max_argv + 1));
-    sandbox_argc = 0;
-    char *cur = opening_quote + 1;
-    while (cur < closing_quote) {
-      if (sandbox_argc == max_argv) {
-        max_argv *= 2;
-        sandbox_argv = realloc(sandbox_argv, sizeof(char*) * (max_argv + 1));
-      }
-      char *end = cur;
-      while (*end != ' ' && *end != '"' && *end != '\0')
-        ++end;
-      size_t output_length;
-      sandbox_argv[sandbox_argc] = base64_decode(cur, end-cur, &output_length);
-      sandbox_argv[sandbox_argc++][output_length] = '\0';
-      cur = end + 1;
-    }
-    
-    // Set environment variables
-    clearenv();
-    ours = strstr(cmdline, sandboxenv_name);
-    opening_quote = strchr(ours, '"');
-    closing_quote = strchr(opening_quote + 1, '"');
-    
-    cur = opening_quote + 1;
-    while (cur < closing_quote) {
-      char *end = cur;
-      while (*end != ' ' && *end != '"' && *end != '\0')
-        ++end;
-      size_t output_length;
-      char *string = base64_decode(cur, end-cur, &output_length);
-      string[output_length] = '\0';
-      putenv(string);
-      cur = end + 1;
-    }
+    read_sandbox_args(cmdline_fd, &sandbox_argc, &sandbox_argv);
   } else {
     // Skip the wrapper
     sandbox_argv += 1;
     sandbox_argc -= 1;
   }
 
-  pid_t pgrp = getpgid(0);
-  // Probably should replace this by proper argument parsing (or just make this a library)
-  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--rootfs") == 0) {
-    sandbox_root = strdup(sandbox_argv[1]);
-    size_t sandbox_root_len = strlen(sandbox_root);
-    if (sandbox_root[sandbox_root_len-1] == '/' ) {
-        sandbox_root[sandbox_root_len-1] = '\0';
+  // Parse out options
+  while(1) {
+    static struct option long_options[] = {
+      {"help",      no_argument,       NULL, 'h'},
+      {"verbose",   no_argument,       NULL, 'v'},
+      {"rootfs",    required_argument, NULL, 'r'},
+      {"workspace", required_argument, NULL, 'w'},
+      {"cd",        required_argument, NULL, 'c'},
+      {"map",       required_argument, NULL, 'm'},
+      {0, 0, 0, 0}
+    };
+
+    int opt_idx;
+    int c = getopt_long(sandbox_argc, sandbox_argv, "", long_options, &opt_idx);
+
+    // End of options
+    if( c == -1 )
+      break;
+
+    switch( c ) {
+      case 'h':
+        print_help();
+        return 0;
+      case 'v':
+        verbose = 1;
+        printf("verbose sandbox enabled\n");
+        break;
+      case 'r': {
+        sandbox_root = strdup(optarg);
+        size_t sandbox_root_len = strlen(sandbox_root);
+        if (sandbox_root[sandbox_root_len-1] == '/' ) {
+            sandbox_root[sandbox_root_len-1] = '\0';
+        }
+        if (verbose) {
+          printf("Parsed --rootfs as \"%s\"\n", sandbox_root);
+        }
+      } break;
+      case 'w':
+        workspace = strdup(optarg);
+        if (verbose) {
+          printf("Parsed --workspace as \"%s\"\n", workspace);
+        }
+        break;
+      case 'c':
+        new_cd = strdup(optarg);
+        if (verbose) {
+          printf("Parsed --cd as \"%s\"\n", new_cd);
+        }
+        break;
+      case 'm': {
+        // Find the colon in "from:to"
+        char *colon = strchr(optarg, ':');
+        check(colon != NULL);
+        struct map_list *entry = (struct map_list *) malloc(sizeof(struct map_list));
+
+        // Extract "from" and "to"
+        entry->map_path = strdup(colon + 1);
+        entry->outside_path = strndup(optarg, (colon - optarg));
+        entry->prev = maps;
+        maps = entry;
+        if (verbose) {
+          printf("Parsed --map as \"%s\" -> \"%s\"\n", entry->outside_path, entry->map_path);
+        }
+      } break;
+      case '?':
+        print_help();
+        return 1;
+      default:
+        fputs("getoptlong defaulted?!\n", stderr);
+        return 1;
     }
-    sandbox_argv += 2;
-    sandbox_argc -= 2;
   }
 
-  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--workspace") == 0) {
-    workspace = strdup(sandbox_argv[1]);
-    sandbox_argv += 2;
-    sandbox_argc -= 2;
-  }
+  // Skip past those arguments
+  sandbox_argv += optind;
+  sandbox_argc -= optind;
 
-  if (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--cd") == 0) {
-    new_cd = strdup(sandbox_argv[1]);
-    sandbox_argv += 2;
-    sandbox_argc -= 2;
-  }
-
-  /* Syntax: --map outside:inside */
-  while (sandbox_argc >= 2 && strcmp(sandbox_argv[0], "--map") == 0) {
-    char *colon = strchr(sandbox_argv[1], ':');
-    check(colon != NULL);
-    struct map_list *entry = (struct map_list*)malloc(sizeof(struct map_list));
-    entry->map_path = strdup(colon+1);
-    entry->outside_path = strndup(sandbox_argv[1], (colon-sandbox_argv[1]));
-    entry->prev = maps;
-    maps = entry;
-    sandbox_argv += 2;
-    sandbox_argc -= 2;
-  }
-
-  if( sandbox_argc >= 1 && strcmp(sandbox_argv[0], "--verbose") == 0) {
-    verbose = 1;
-    sandbox_argv += 1;
-    sandbox_argc -= 1;
-  }
-
-  if (sandbox_argc == 0 || (!is_init && !sandbox_root)) {
-    fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] ", stderr);
-    fputs("[--cd <dir>] [--map <from>:<to>, ...] [--verbose] <cmd>\n", stderr);
+  // If we don't have a command, die
+  if (sandbox_argc == 0 ) {
+    fputs("No <cmd> given!\n", stderr);
+    print_help();
     return 1;
   }
 
+  // If we're not init but we haven't been given a sandbox root, die
+  if (!is_init && !sandbox_root) {
+    fputs("--rootfs is required, unless running as init!\n", stderr);
+    print_help();
+    return 1;
+  }
+
+  // If we have a cmdline_fd, then pull out the environment from it now
+  if( cmdline_fd != -1 ) {
+    read_sandbox_env(cmdline_fd);
+  }
+
+  // If we are running as init, run sandbox_main then reboot
   if (is_init) {
     setsid();
     ioctl(0, TIOCSCTTY, 1);
     sandbox_main(sandbox_argc, sandbox_argv);
 	  sync();
+
+    // Goodnight, my sweet prince
     check(0 == reboot(RB_POWER_OFF));
+
+    // This is never reached, but it's nice for completionism
+    return 0;
   }
 
 
@@ -498,6 +520,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
   pipe(child_block);
   pipe(parent_block);
 
+  pid_t pid;
   if ((pid = syscall(SYS_clone, CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWUSER | SIGCHLD,
                      0, 0, 0, 0)) == 0) {
     close(child_block[1]);
