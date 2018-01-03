@@ -72,7 +72,7 @@ end
 function show(io::IO, x::UserNSRunner)
     p = x.platform
     # Displays as, e.g., Linux x86_64 (glibc) UserNSRunner
-    write(io, typeof(p), " ", arch(p), " ",
+    write(io, "$(typeof(p).name.name)", " ", arch(p), " ",
           Compat.Sys.islinux(p) ? "($(p.libc)) " : "",
           "UserNSRunner")
 end
