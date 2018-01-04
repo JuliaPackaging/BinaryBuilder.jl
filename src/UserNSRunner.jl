@@ -50,8 +50,13 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     update_rootfs(triplet.([platform, Linux(:x86_64)]); verbose=verbose)
 
     # Construct sandbox command
-    sandbox_cmd = `$(rootfs_dir("sandbox")) --rootfs $(rootfs_dir())`
+    sandbox_cmd = `$(rootfs_dir("sandbox"))`
 
+    if verbose
+        sandbox_cmd = `$sandbox_cmd --verbose`
+    end
+
+    sandbox_cmd = `$sandbox_cmd --rootfs $(rootfs_dir())`
     sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
 
     if cwd != nothing
@@ -60,10 +65,6 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
 
     for (outside, inside) in mappings
         sandbox_cmd = `$sandbox_cmd --map $outside:$inside`
-    end
-
-    if verbose
-        sandbox_cmd = `$sandbox_cmd --verbose`
     end
 
     UserNSRunner(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
@@ -80,7 +81,7 @@ end
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
     did_succeed = true
     cd(rootfs_dir()) do
-        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
+        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
 
         did_succeed = wait(oc)
 
@@ -101,7 +102,7 @@ end
 
 function run_interactive(ur::UserNSRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
     cd(rootfs_dir()) do
-        cmd = setenv(`$(ur.sandbox_cmd) $(cmd)`, ur.env)
+        cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
         if stdin != nothing
             cmd = pipeline(cmd, stdin=stdin)
         end
