@@ -315,17 +315,16 @@ static void print_help() {
   fputs("[--verbose] [--help] <cmd>\n", stderr);
 }
 
-void read_blocking(int fd, void * buff, int num_bytes) {
-  int bytes_available = 0;
+void read_blocking(int fd, char * buff, int num_bytes) {
+  int bytes_read = 0;
 
   // Wait until we have num_bytes bytes available
-  while(bytes_available < num_bytes) {
+  while(bytes_read != num_bytes) {
     sleep(1);
-    check(ioctl(fd, FIONREAD, &bytes_available) >= 0);
+    int b = read(fd, buff + bytes_read, num_bytes - bytes_read);
+    if( b != -1 )
+      bytes_read += b;
   }
-
-  // Once we do, do the actual read
-  check(num_bytes == read(fd, buff, num_bytes));
 }
 
 static void read_sandbox_args(int fd, int * argc, char *** argv) {
