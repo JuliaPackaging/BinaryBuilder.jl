@@ -315,11 +315,23 @@ static void print_help() {
   fputs("[--verbose] [--help] <cmd>\n", stderr);
 }
 
+void read_blocking(int fd, void * buff, int num_bytes) {
+  int bytes_available = 0;
+
+  // Wait until we have num_bytes bytes available
+  while(bytes_available < num_bytes) {
+    sleep(1);
+    check(ioctl(fd, FIONREAD, &bytes_available) >= 0);
+  }
+
+  // Once we do, do the actual read
+  check(num_bytes == read(fd, buff, num_bytes));
+}
+
 static void read_sandbox_args(int fd, int * argc, char *** argv) {
   // First, read the number of sandbox args:
   *argc = 0;
-  check(4 == read(fd, argc, sizeof(int)));
-  check(*argc > 0);
+  read_blocking(fd, argc, sizeof(int));
 
   // We need to pretend that argv[0] is "sandbox"
   *argc += 1;
@@ -330,10 +342,10 @@ static void read_sandbox_args(int fd, int * argc, char *** argv) {
   int arg_idx;
   for( arg_idx=1; arg_idx<(*argc); ++arg_idx ) {
     int arg_len = 0;
-    check(4 == read(fd, &arg_len, sizeof(int)));
+    read_blocking(fd, &arg_len, sizeof(int));
 
     (*argv)[arg_idx] = malloc(arg_len + 1);
-    check(arg_len == read(fd, (*argv)[arg_idx], arg_len));
+    read_blocking(fd, (*argv)[arg_idx], arg_len);
     (*argv)[arg_idx][arg_len] = '\0';
   }
 }
@@ -341,7 +353,7 @@ static void read_sandbox_args(int fd, int * argc, char *** argv) {
 static void read_sandbox_env(int fd) {
   clearenv();
   int num_env_mappings = 0;
-  check(4 == read(fd, &num_env_mappings, sizeof(int)));
+  read_blocking(fd, &num_env_mappings, sizeof(int));
 
   if (verbose) {
     printf("Reading %d environment mappings\n", num_env_mappings);
@@ -352,7 +364,7 @@ static void read_sandbox_env(int fd) {
   int arg_idx;
   for( arg_idx=0; arg_idx<num_env_mappings; ++arg_idx ) {
     int arg_len = 0;
-    check(4 == read(fd, &arg_len, sizeof(int)));
+    read_blocking(fd, &arg_len, sizeof(int));
 
     // We guess that each environment mapping will be 1K or less,
     // but if we're wrong, bump the buffer size up.
@@ -362,7 +374,7 @@ static void read_sandbox_env(int fd) {
     }
 
     // Read the environment mapping into env_buff
-    check(arg_len == read(fd, env_buff, arg_len));
+    read_blocking(fd, env_buff, arg_len);
     env_buff[arg_len] = '\0';
 
     // Find `=`, use it to chop env_buff in half,
