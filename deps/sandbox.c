@@ -396,10 +396,6 @@ int main(int sandbox_argc, char **sandbox_argv) {
     cmdline_fd = open("/dev/vport1p1", O_RDONLY);
     check(cmdline_fd != -1);
     read_sandbox_args(cmdline_fd, &sandbox_argc, &sandbox_argv);
-  } else {
-    // Skip the wrapper
-    sandbox_argv += 1;
-    sandbox_argc -= 1;
   }
 
   // Parse out options
