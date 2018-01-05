@@ -269,25 +269,18 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
   fflush(stdout);
 
   if ((main_pid = fork()) == 0) {
-    if (sandbox_argc == 0) {
-      char *argv[] = {"/bin/busybox", "sh", 0};
-      execve("/bin/busybox", argv, environ);
-      fputs("ERROR: Busybox not installed!\n", stderr);
-      _exit(1);
-    } else {
-      if (verbose) {
-        printf("About to run `%s` ", sandbox_argv[0]);
-        int argc_i;
-        for( argc_i=1; argc_i<sandbox_argc; ++argc_i) {
-          printf("`%s` ", sandbox_argv[argc_i]);
-        }
-        printf("\n");
+    if (verbose) {
+      printf("About to run `%s` ", sandbox_argv[0]);
+      int argc_i;
+      for( argc_i=1; argc_i<sandbox_argc; ++argc_i) {
+        printf("`%s` ", sandbox_argv[argc_i]);
       }
-      fflush(stdout);
-      execve(sandbox_argv[0], sandbox_argv, environ);
-      fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
-      _exit(1);
+      printf("\n");
     }
+    fflush(stdout);
+    execve(sandbox_argv[0], sandbox_argv, environ);
+    fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
+    _exit(1);
   }
 
   // Let's perform normal init functions, handling signals from orphaned
@@ -318,41 +311,43 @@ static void print_help() {
 void read_blocking(int fd, char * buff, int num_bytes) {
   int bytes_read = 0;
 
-  // Wait until we have num_bytes bytes available
+  // Keep reading until we have num_bytes
   while(bytes_read != num_bytes) {
-    sleep(1);
+    usleep(1);
     int b = read(fd, buff + bytes_read, num_bytes - bytes_read);
-    if( b != -1 )
+    if( b != -1 ) {
       bytes_read += b;
+    }
   }
 }
 
 static void read_sandbox_args(int fd, int * argc, char *** argv) {
   // First, read the number of sandbox args:
   *argc = 0;
-  read_blocking(fd, argc, sizeof(int));
+  read_blocking(fd, (char *)argc, sizeof(int));
 
-  // We need to pretend that argv[0] is "sandbox"
+  // We need to pretend that argv[0] is "sandbox", and we need a NULL ending
   *argc += 1;
 
   // Allocate and read in those args
-  *argv = malloc(sizeof(char *) * (*argc));
+  *argv = malloc(sizeof(char *) * (*argc + 1));
   (*argv)[0] = "/sandbox";
   int arg_idx;
   for( arg_idx=1; arg_idx<(*argc); ++arg_idx ) {
     int arg_len = 0;
-    read_blocking(fd, &arg_len, sizeof(int));
+    read_blocking(fd, (char *)&arg_len, sizeof(int));
 
     (*argv)[arg_idx] = malloc(arg_len + 1);
     read_blocking(fd, (*argv)[arg_idx], arg_len);
     (*argv)[arg_idx][arg_len] = '\0';
   }
+  (*argv)[*argc] = NULL;
 }
 
 static void read_sandbox_env(int fd) {
   clearenv();
   int num_env_mappings = 0;
-  read_blocking(fd, &num_env_mappings, sizeof(int));
+  read_blocking(fd, (char *)&num_env_mappings, sizeof(int));
 
   if (verbose) {
     printf("Reading %d environment mappings\n", num_env_mappings);
@@ -363,7 +358,7 @@ static void read_sandbox_env(int fd) {
   int arg_idx;
   for( arg_idx=0; arg_idx<num_env_mappings; ++arg_idx ) {
     int arg_len = 0;
-    read_blocking(fd, &arg_len, sizeof(int));
+    read_blocking(fd, (char *)&arg_len, sizeof(int));
 
     // We guess that each environment mapping will be 1K or less,
     // but if we're wrong, bump the buffer size up.
@@ -404,9 +399,23 @@ int main(int sandbox_argc, char **sandbox_argv) {
     early_fs_mount();
 
     // Extract our command line from the second serial device created by BinaryBuilder.jl
-    cmdline_fd = open("/dev/vport1p1", O_RDONLY);
-    check(cmdline_fd != -1);
-    read_sandbox_args(cmdline_fd, &sandbox_argc, &sandbox_argv);
+    const char * comm_dev = "/dev/vport0p1";
+    cmdline_fd = open(comm_dev, O_RDONLY);
+    if( cmdline_fd != -1 ) {
+      read_sandbox_args(cmdline_fd, &sandbox_argc, &sandbox_argv);
+    } else {
+      // This is a debugging escape hatch for us developers that aren't clever enough and
+      // somehow screw up the Julia <---> qemu <---> sandbox communication channel.
+      printf("Running as init but couldn't open %s; entering debugging mode!\n", comm_dev);
+      sandbox_argc = 5;
+      sandbox_argv = malloc(sizeof(char *)*(sandbox_argc + 1));
+      sandbox_argv[0] = "/sandbox";
+      sandbox_argv[1] = "--verbose";
+      sandbox_argv[2] = "--workspace";
+      sandbox_argv[3] = "9p:workspace";
+      sandbox_argv[4] = "/bin/bash";
+      sandbox_argv[5] = NULL;
+    }
   }
 
   // Parse out options
