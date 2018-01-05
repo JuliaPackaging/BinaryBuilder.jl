@@ -11,7 +11,6 @@ type QemuRunner <: Runner
     qemu_cmd::Cmd
     append_line::String
     sandbox_cmd::Cmd
-    comm_socket_path::String
     env::Dict{String, String}
     platform::Platform
 end
@@ -96,9 +95,6 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         triplet(platform); verbose=verbose, squashfs=true, mount=false)
     update_qemu(;verbose=verbose)
 
-    # Create temporary filename for qemu serial communication
-    comm_socket_path = tempname()
-
     qemu_cmd = ```
         $(qemu_path()) -kernel $(kernel_path())
         -M accel=$(platform_accelerator()) -nographic
@@ -106,7 +102,6 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         -nodefaults -rtc base=utc,driftfix=slew
         -device virtio-serial -chardev stdio,id=charconsole0
         -device virtconsole,chardev=charconsole0,id=console0
-        -device virtio-serial -chardev socket,path=$(comm_socket_path),server,nowait,id=charcomm0
         -device virtserialport,chardev=charcomm0,id=comm0
         -fsdev local,security_model=none,id=fsdev0,path=$workspace_root -device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=workspace
     ```
@@ -135,7 +130,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         sandbox_cmd = `--verbose $sandbox_cmd`
     end
 
-    QemuRunner(qemu_cmd, append_line, sandbox_cmd, comm_socket_path, merge(target_envs(triplet(platform)), extra_env), platform)
+    QemuRunner(qemu_cmd, append_line, sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
 end
 
 
@@ -147,19 +142,23 @@ function show(io::IO, x::QemuRunner)
           "QemuRunner")
 end
 
-function pass_sandbox_args(qr::QemuRunner, cmd::Cmd)
+function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
     @async begin
         # This is what we'll send to `sandbox`
         sandbox_args = String.(`$(qr.sandbox_cmd) -- $(cmd)`.exec)
         sandbox_env = ["$k=$v" for (k, v) in qr.env]
 
         # Wait until QEMU starts up the communications channel
-        while !issocket(qr.comm_socket_path)
-            sleep(0.1)
+        start_time = time()
+        while !issocket(comm_socket_path)
+            sleep(0.01)
+            if time() - start_time > 2
+                info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
+            end
         end
 
         # Once it has, open it up, 
-        commsock = connect(qr.comm_socket_path)
+        commsock = connect(comm_socket_path)
 
         # We're going to spit out:
         #  [4 bytes] number of sandbox args
@@ -183,51 +182,59 @@ function pass_sandbox_args(qr::QemuRunner, cmd::Cmd)
         end
 
         close(commsock)
+
+        info("Wrote it all!")
     end
+
+    long_cmd = ```
+        $(qr.qemu_cmd)
+        -device virtio-serial -chardev socket,path=$(comm_socket_path),server,nowait,id=charcomm0
+        -append $(qr.append_line)
+    ```
+
+    return `$long_cmd`
 end
 
 function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
-    # Write out our arguments to `sandbox` to the communication socket:
-    pass_sandbox_args(qr, cmd)
+    return temp_prefix() do prefix
+        comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
+        # Launch QEMU
+        cmd = qemu_gen_cmd(qr, cmd, comm_socket_path)
 
-    # Launch QEMU
-    oc = OutputCollector(`$(qr.qemu_cmd) -append $(qr.append_line)`; verbose=verbose, tee_stream=tee_stream)
+        oc = OutputCollector(cmd; verbose=verbose, tee_stream=tee_stream)
+        did_succeed = wait(oc)
 
-    # Always try to remove the comm socket path
-    rm(qr.comm_socket_path; force=true)
-
-    did_succeed = wait(oc)
-    if !isempty(logpath)
-        # Write out the logfile, regardless of whether it was successful
-        mkpath(dirname(logpath))
-        open(logpath, "w") do f
-            # First write out the actual command, then the command output
-            println(f, cmd)
-            print(f, merge(oc))
+        if !isempty(logpath)
+            # Write out the logfile, regardless of whether it was successful
+            mkpath(dirname(logpath))
+            open(logpath, "w") do f
+                # First write out the actual command, then the command output
+                println(f, cmd)
+                print(f, merge(oc))
+            end
         end
-    end
 
-    # Return whether we succeeded or not
-    return did_succeed
+        # Return whether we succeeded or not
+        return did_succeed
+    end
 end
 
 function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
-    pass_sandbox_args(qr, cmd)
-    cmd = `$(qr.qemu_cmd) -append $(qr.append_line)`
-    if stdin != nothing
-        cmd = pipeline(cmd, stdin=stdin)
+    temp_prefix() do prefix
+        comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
+        cmd = qemu_gen_cmd(qr, cmd, comm_socket_path)
+        if stdin != nothing
+            cmd = pipeline(cmd, stdin=stdin)
+        end
+        if stdout != nothing
+            cmd = pipeline(cmd, stdout=stdout)
+        end
+        if stderr != nothing
+            cmd = pipeline(cmd, stderr=stderr)
+        end
+        run(cmd)
     end
-    if stdout != nothing
-        cmd = pipeline(cmd, stdout=stdout)
-    end
-    if stderr != nothing
-        cmd = pipeline(cmd, stderr=stderr)
-    end
-    run(cmd)
     
-    # Always try to remove the comm socket path
-    rm(qr.comm_socket_path; force=true)
-
     # Qemu appears to mess with our terminal
     Base.reseteof(STDIN)
 end
