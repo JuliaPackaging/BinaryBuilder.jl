@@ -44,7 +44,7 @@ install-libfoo: $(libdir) libfoo.$(SHLIB_EXT)
 install: install-fooifier install-libfoo
 
 clean:
-	rm -rf fooifier fooifier$(EXE_EXT) fooifier.dSYM
+	rm -rf fooifier fooifier.exe fooifier.dSYM
 	rm -rf libfoo.so libfoo.dll libfoo.dylib libfoo.dylib.dSYM
 
 .SUFFIXES:

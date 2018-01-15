@@ -80,6 +80,6 @@ end
 Launch an interactive shell session within the user namespace, with environment
 setup to target the given `platform`.
 """
-function runshell(platform::Platform = platform_key())
-    runshell(preferred_runner(), platform)
+function runshell(platform::Platform = platform_key(); verbose::Bool = false)
+    runshell(preferred_runner(), platform; verbose=verbose)
 end

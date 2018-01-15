@@ -4,11 +4,9 @@
 downloads_cache = ""
 rootfs_cache = ""
 shards_cache = ""
+qemu_cache = ""
 automatic_apple = false
 use_squashfs = false
-
-# This is where the `sandbox` binary lives
-const sandbox_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox")
 
 """
     downloads_dir(postfix::String = "")
@@ -41,7 +39,6 @@ function shards_dir(postfix::String = "")
     return joinpath(shards_cache, postfix)
 end
 
-
 shard_path_squashfs(shard_name) = downloads_dir("rootfs-$(shard_name).squashfs")
 rootfs_path_squashfs() = shard_path_squashfs("base")
 
@@ -53,7 +50,7 @@ Returns the URL from which a rootfs image (tarball/squashfs) can be downloaded
 function get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
     # These constants are what should be updated for a new rootfs build:
     rootfs_urlroot = "https://julialangmirror.s3.amazonaws.com/binarybuilder"
-    rootfs_version = "2017-12-05"
+    rootfs_version = "2018-01-04"
 
     shard_name = "rootfs-$(target)"
     ext = squashfs ? "squashfs" : "tar.gz"
@@ -71,26 +68,26 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     # You can get these dictionaries spat out by running `make print-hashes`
     # in `julia-docker/crossbuild`, after running `make shards`.
     squashfs_hashes = Dict(
-        "aarch64-linux-gnu" => "a74453e26ecfc22ee8295c355ff9efadbead270d3cfc401073c5a422a8e2f882",
-        "arm-linux-gnueabihf" => "9b52109052856564f5b0d1d5ebeeb418a4ab2d07cb2fcd2552f2198388b0ce7b",
-        "base" => "ce44de83e702001792d0ba5fd018717893fe76c01a668f35d304b3be5f7e5d0f",
-        "i686-linux-gnu" => "478ddd868f1080ecd2d6bf33dfde4eff1590088d194e42e949783de13464eb03",
-        "i686-w64-mingw32" => "847ed959ceb8a7ffbd467825ad88abb50f153aa4bc2e56d20514832e252c6092",
-        "powerpc64le-linux-gnu" => "cb14c722dd933ddc5af49fcf484c744b7f6c78c153f83a0229bf53d5a86f52ed",
-        "x86_64-apple-darwin14" => "d5e58993fb810301b39362540dadf234a0638e295c8c559c26205ef714b65a27",
-        "x86_64-linux-gnu" => "2784a164b8ae67a827eb3c16bedf0edc7d2503431917eacae3c4d26bfe9a3eee",
-        "x86_64-w64-mingw32" => "cbf9e206adccbf8fc3871c33e95edefef8e8b29259e33411df6ec8d70a563282",
+        "aarch64-linux-gnu" => "8498d14519a896b2ecb54ff238d3087632d6f7624ce8db63ef8c2fc33f275417",
+        "arm-linux-gnueabihf" => "a23c6be7c3631af76fac4736cd5a90a13fc1a81e6ae21262a50a525b6c0b15ac",
+        "base" => "dad9b3c4b5e5b469a5e4a3558013a75cab009b41f6bec498cea04cc424811a63",
+        "i686-linux-gnu" => "dd700a5e0eff58aff89d1e9667277edf1c61e115d6f468223e48b4378709951a",
+        "i686-w64-mingw32" => "aba0cffb4888ff14531c628fb477d842a0335b5446e41b8647b31cb45fb78d75",
+        "powerpc64le-linux-gnu" => "40cf51c28dd3b1f8fae9eff2e1dea8c23048ef8da86562b1e63b33680c0d0406",
+        "x86_64-apple-darwin14" => "3425b3e251af2887bf05396d1c5f135a9c2807c576ff8b8793a9630eef44b91f",
+        "x86_64-linux-gnu" => "16275a4029f90349893b711bce4f257e7aa8da287b6b6aba622b6f68dcb6fae2",
+        "x86_64-w64-mingw32" => "7a130e2722fda74e26023cac3ce8686568026c82e2de94581801ccb391cee7b5",
     )
     tarball_hashes = Dict(
-        "aarch64-linux-gnu" => "35f3463bac0e1d221f92b14091ec6a312cec2b598c69ed0a6c806a213a39ac62",
-        "arm-linux-gnueabihf" => "c3390880588e92806d7c586e057c0b719e3b5930c2fdee0759a4b836fa8715f0",
-        "base" => "55121085454107d13e1ca11868918d862cb1766e2788fda606c812e7b9276ac7",
-        "i686-linux-gnu" => "4059790f379fc99597ff189bb4bd97f1f5431aebcb0dd9f7e7bbb09229953e0d",
-        "i686-w64-mingw32" => "fb4d5031a47ab778b6eb1a9c561cfcfa882f22f3f79392bddce9ba47e5013760",
-        "powerpc64le-linux-gnu" => "cf70daffca9ed87f898f3b03950b86bf9bf200b5a6fbefa7061d8b3bd24b6922",
-        "x86_64-apple-darwin14" => "74c1147e9dcc9ed9430c1ac35118275fa3d77e08af3b06c466702b2737040f20",
-        "x86_64-linux-gnu" => "b2ff666a2a785047f6c25f9fac4b69993e5da5438d0ef7fb0fc97eaa7392d365",
-        "x86_64-w64-mingw32" => "30cb86a5edffad996e600ecdeb17f4da7f9e19a3853554afcf5d398407c4708a",
+        "aarch64-linux-gnu" => "2518367658a5d7d436e382877382f83ebc70964a717b107762768d3998a5bcd4",
+        "arm-linux-gnueabihf" => "1a4bd7ff2f2e6e7c4780a41525ac92c55f9b4e53a1723463516363d41e0679f4",
+        "base" => "74476d28ab5b82d674199e126eb845b9d47a0b95fb8f88a9f9b10be4cdea15a1",
+        "i686-linux-gnu" => "362badf81379042cc487ec9ac6d92d91c3b1a6a8c0bebe07fa8f614dd2daf841",
+        "i686-w64-mingw32" => "ecc2452321d6ddaf9fdeb9c9c2ffc0071f81d80900d71186fd4f6c19249f8307",
+        "powerpc64le-linux-gnu" => "8fdbdb3235cb6977c4f6180807ac321a8425b1c2ca5ee1f9eeae2cc5bb11030d",
+        "x86_64-apple-darwin14" => "7c370ddef375dd5722290bfd5dfe92740ba313f02dac6cd741402c68b4f4a57e",
+        "x86_64-linux-gnu" => "57d75ebb07d8e1236b0a88acd3d9e1bba9e4bf3be319f8622c0d6cf8431e6fe6",
+        "x86_64-w64-mingw32" => "dbe747b59f371a148c33bc8c07929bc29948d57155d82d5dad02c4a2c42cd855",
     )
 
     if squashfs
@@ -340,31 +337,5 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
     if isdir(dir_in_dir)
         mv(dir_in_dir, "$(dirname(dir_in_dir))2")
         mv("$(dirname(dir_in_dir))2", dest; remove_destination=true)
-    end
-end
-
-
-"""
-    update_sandbox_binary(;verbose::Bool = true)
-
-Builds/updates the `sandbox` binary that launches all commands within the
-rootfs, storing the binary within the `deps` folder.
-"""
-function update_sandbox_binary(;verbose::Bool = true)
-    global sandbox_path
-
-    src_path = joinpath(dirname(@__FILE__), "..", "deps", "sandbox.c")
-    if !isfile(sandbox_path) || stat(sandbox_path).mtime < stat(src_path).mtime
-        if verbose
-            info("Rebuilding sandbox binary...")
-        end
-
-        cd() do
-            oc = OutputCollector(
-                `gcc -std=c99 -o $(sandbox_path) $(src_path)`;
-                verbose=verbose,
-            )
-            wait(oc)
-        end
     end
 end

@@ -2,6 +2,7 @@
 root/
 downloads/
 shards/
+qemu/
 
 # Ignore sandbox executable
 sandbox

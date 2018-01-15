@@ -15,19 +15,38 @@ type QemuRunner <: Runner
     platform::Platform
 end
 
-const qemu_prefix = Prefix(joinpath(@__DIR__,"..","deps","usr"))
-const qemu_hash = "92fa439350970f673a7324b61ed5bc4894d6665543175f01135550cb4a458cde"
-const kernel_hash = "0d02413529e635d4af6d2122f6aba22d261f43616bb286da3855325988f9ac3b"
+qemu_url = "https://github.com/Keno/QemuBuilder/releases/download/hvf/qemu.x86_64-apple-darwin14.tar.gz"
+qemu_hash = "92fa439350970f673a7324b61ed5bc4894d6665543175f01135550cb4a458cde"
+kernel_url = "https://github.com/Keno/LinuxBuilder/releases/download/v4.15-rc2/linux.x86_64-linux-gnu.tar.gz"
+kernel_hash = "0d02413529e635d4af6d2122f6aba22d261f43616bb286da3855325988f9ac3b"
 
-function update_qemu()
-    install("https://github.com/Keno/QemuBuilder/releases/download/hvf/qemu.x86_64-apple-darwin14.tar.gz",
-        qemu_hash; prefix=qemu_prefix, force=true, verbose=true)
-    install("https://github.com/Keno/LinuxBuilder/releases/download/v4.15-rc2/linux.x86_64-linux-gnu.tar.gz",
-        kernel_hash; prefix=qemu_prefix, force=true, verbose=true, ignore_platform=true)
+"""
+    update_qemu(;verbose::Bool = false)
+
+Update our QEMU and Linux kernel installations, downloading and installing them
+into the `qemu_cache` directory that defaults to `deps/qemu`.
+"""
+function update_qemu(;verbose::Bool = false)
+    download_verify_unpack(
+        qemu_url,
+        qemu_hash,
+        qemu_cache;
+        tarball_path=downloads_dir(basename(qemu_url)),
+        verbose=verbose,
+        force=true
+    )
+    download_verify_unpack(
+        kernel_url,
+        kernel_hash,
+        qemu_cache;
+        tarball_path=downloads_dir(basename(kernel_url)),
+        verbose=verbose,
+        force=true
+    )
 end
 
-qemu_path() = joinpath(qemu_prefix, "usr/local/bin/qemu-system-x86_64")
-kernel_path() = joinpath(qemu_prefix, "bzImage")
+qemu_path() = joinpath(qemu_cache, "usr/local/bin/qemu-system-x86_64")
+kernel_path() = joinpath(qemu_cache, "bzImage")
 
 function platform_def_mounts(platform)
     tp = triplet(platform)
@@ -66,17 +85,15 @@ platform_accelerator() = Compat.Sys.islinux() ? "kvm" : "hvf"
 function QemuRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
-                      verbose::Bool = true,
+                      verbose::Bool = false,
                       mounts = platform_def_mounts(platform),
                       mappings = platform_def_9p_mappings(platform))
-    global sandbox_path
-
     # Ensure the rootfs for this platform is downloaded and up to date
     update_rootfs(
         platform != Linux(:x86_64) ?
         [triplet(platform), triplet(Linux(:x86_64))] :
         triplet(platform); verbose=verbose, squashfs=true, mount=false)
-    update_qemu()
+    update_qemu(;verbose=verbose)
 
     qemu_cmd = ```
         $(qemu_path()) -kernel $(kernel_path())
@@ -85,6 +102,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         -nodefaults -rtc base=utc,driftfix=slew
         -device virtio-serial -chardev stdio,id=charconsole0
         -device virtconsole,chardev=charconsole0,id=console0
+        -device virtserialport,chardev=charcomm0,id=comm0
         -fsdev local,security_model=none,id=fsdev0,path=$workspace_root -device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=workspace
     ```
     append_line = "quiet console=hvc0 root=/dev/vda rootflags=ro rootfstype=squashfs noinitrd init=/sandbox"
@@ -107,6 +125,11 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         c = Char(Int(c) + 1)
     end
 
+    if verbose
+        # We put --verbose at the beginning here so that we can see argument parsing
+        sandbox_cmd = `--verbose $sandbox_cmd`
+    end
+
     QemuRunner(qemu_cmd, append_line, sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
 end
 
@@ -114,30 +137,71 @@ end
 function show(io::IO, x::QemuRunner)
     p = x.platform
     # Displays as, e.g., Linux x86_64 (glibc) QemuRunner
-    write(io, typeof(p), " ", arch(p), " ",
+    write(io, "$(typeof(p).name.name)", " ", arch(p), " ",
           Compat.Sys.islinux(p) ? "($(p.libc)) " : "",
           "QemuRunner")
 end
 
-function generate_cmd(qr::QemuRunner, cmd)
-    cmd = `$(qr.sandbox_cmd) $(cmd)`
-    cmd_string = join(map(cmd.exec) do arg
-        # Could encode as human readable with shell escaping, but we'd just
-        # have to do the decoding on the client side and it's a very, very
-        # complicated encoding. Base64 is much simpler.
-        base64encode(arg)
-    end, ' ')
-    env_string = join([base64encode("$k=$v") for (k, v) in qr.env], ' ')
-    append_line = string(qr.append_line, " sandboxargs=\"$cmd_string\" sandboxenv=\"$env_string\"")
-    bootline = `-append $append_line`
-    `$(qr.qemu_cmd) $(bootline)`
+function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
+    @async begin
+        # This is what we'll send to `sandbox`
+        sandbox_args = String.(`$(qr.sandbox_cmd) -- $(cmd)`.exec)
+        sandbox_env = ["$k=$v" for (k, v) in qr.env]
+
+        # Wait until QEMU starts up the communications channel
+        start_time = time()
+        while !issocket(comm_socket_path)
+            sleep(0.01)
+            if time() - start_time > 2
+                info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
+            end
+        end
+
+        # Once it has, open it up, 
+        commsock = connect(comm_socket_path)
+
+        # We're going to spit out:
+        #  [4 bytes] number of sandbox args
+        #    for each sandbox arg:
+        #      [4 bytes] length of arg
+        #      [N bytes] arg literal string
+        #  [4 bytes] number of environment mappings
+        #    for each environment mapping
+        #      [4 bytes] length of mapping
+        #      [N bytes] mapping literal string
+        write(commsock, UInt32(length(sandbox_args)))
+        for idx in 1:length(sandbox_args)
+            write(commsock, UInt32(length(sandbox_args[idx])))
+            write(commsock, sandbox_args[idx])
+        end
+
+        write(commsock, UInt32(length(sandbox_env)))
+        for idx in 1:length(sandbox_env)
+            write(commsock, UInt32(length(sandbox_env[idx])))
+            write(commsock, sandbox_env[idx])
+        end
+
+        close(commsock)
+
+        info("Wrote it all!")
+    end
+
+    long_cmd = ```
+        $(qr.qemu_cmd)
+        -device virtio-serial -chardev socket,path=$(comm_socket_path),server,nowait,id=charcomm0
+        -append $(qr.append_line)
+    ```
+
+    return `$long_cmd`
 end
 
 function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
-    did_succeed = true
-    cd(dirname(sandbox_path)) do
-        oc = OutputCollector(generate_cmd(qr, cmd); verbose=verbose, tee_stream=tee_stream)
+    return temp_prefix() do prefix
+        comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
+        # Launch QEMU
+        cmd = qemu_gen_cmd(qr, cmd, comm_socket_path)
 
+        oc = OutputCollector(cmd; verbose=verbose, tee_stream=tee_stream)
         did_succeed = wait(oc)
 
         if !isempty(logpath)
@@ -149,15 +213,16 @@ function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
                 print(f, merge(oc))
             end
         end
-    end
 
-    # Return whether we succeeded or not
-    return did_succeed
+        # Return whether we succeeded or not
+        return did_succeed
+    end
 end
 
 function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
-    cd(dirname(sandbox_path)) do
-        cmd = generate_cmd(qr, cmd)
+    temp_prefix() do prefix
+        comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
+        cmd = qemu_gen_cmd(qr, cmd, comm_socket_path)
         if stdin != nothing
             cmd = pipeline(cmd, stdin=stdin)
         end
@@ -168,20 +233,22 @@ function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = not
             cmd = pipeline(cmd, stderr=stderr)
         end
         run(cmd)
-        # Qemu appears to mess with our terminal
-        Base.reseteof(STDIN)
     end
+    
+    # Qemu appears to mess with our terminal
+    Base.reseteof(STDIN)
 end
 
 function runshell(qr::QemuRunner, args...)
     run_interactive(qr, `/bin/bash`, args...)
 end
 
-function runshell(::Type{QemuRunner}, platform::Platform = platform_key())
+function runshell(::Type{QemuRunner}, platform::Platform = platform_key(); verbose::Bool = false)
     qr = QemuRunner(
         pwd();
         cwd="/workspace/",
-        platform=platform
+        platform=platform,
+        verbose=verbose
     )
     return runshell(qr)
 end
