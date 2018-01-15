@@ -4,6 +4,10 @@
 module BinaryBuilder
 using Compat
 using Reexport
+
+if VERSION >= v"0.7.0-DEV.3382"
+    import Libdl
+end
 @reexport using BinaryProvider
 
 include("Auditor.jl")
