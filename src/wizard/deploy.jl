@@ -315,7 +315,7 @@ function github_deploy(state::WizardState)
 
     # Get user name
     user = try
-        PkgDev.user()
+        PkgDev.GitHub.user()
     catch
         print(state.outs, "GitHub user name: ")
         readline(state.ins)
