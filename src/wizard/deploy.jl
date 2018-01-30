@@ -162,25 +162,25 @@ function authenticate_travis(github_token)
     resp = HTTP.post("https://api.travis-ci.org/auth/github",
         body=JSON.json(Dict(
             "github_token" => github_token
-        )), headers = travis_headers, statusraise = false)
-    JSON.parse(resp.body)["access_token"]
+        )), headers = travis_headers)
+    JSON.parse(HTTP.load(resp))["access_token"]
 end
 
 function sync_and_wait_travis(outs, repo_name, travis_token)
     println(outs, "Asking travis to sync github and waiting until it knows about our new repo.")
     println(outs, "This may take a few seconds (or minutes, depending on Travis' mood)")
     headers = merge!(Dict("Authorization"=>"token $travis_token"),travis_headers)
-    resp = HTTP.post("https://api.travis-ci.org/users/sync"; headers=headers, statusraise=false)
+    resp = HTTP.post("https://api.travis-ci.org/users/sync"; headers=headers, status_exception=false)
     if resp.status != 200 && resp.status != 409
         error("Failed to sync travis (got status $(resp.status))")
     end
     while true
-        resp = HTTP.get("https://api.travis-ci.org/repos/$(repo_name)"; headers=headers, statusraise=false)
+        resp = HTTP.get("https://api.travis-ci.org/repos/$(repo_name)"; headers=headers, status_exception=false)
         if resp.status == 200
             println("Done waiting")
             # Let's sleep another 5 seconds - Sometimes there's still a race here
             sleep(5.0)
-            return JSON.parse(resp.body)["repo"]["id"]
+            return JSON.parse(HTTP.load(resp))["repo"]["id"]
         end
         println("Still Waiting..."); sleep(5.0)
     end
@@ -220,13 +220,16 @@ function obtain_token(outs, ins, repo_name, user)
             set_terminal_echo(Base._fd(ins), old)
         end
         println(outs)
-        resp = HTTP.post("https://$user:$pass@api.github.com/authorizations"; body=JSON.json(params), statusraise=false)
-        if resp.status == 401 && startswith(strip(get(resp.headers, "X-Github-Otp", "")), "required")
+        headers = Dict{String, String}("User-Agent"=>"BinaryBuilder-jl")
+        resp = HTTP.post("https://$(HTTP.escapeuri(user)):$(HTTP.escapeuri(pass))@api.github.com/authorizations", headers=headers,
+                         body=JSON.json(params), status_exception=false, basic_authorization=true)
+        if resp.status == 401 && startswith(strip(HTTP.getkv(resp.headers, "X-GitHub-OTP", "")), "required")
             println(outs, "Two factor authentication in use.  Enter auth code.")
             print(outs, "> ")
             otp_code = readline(ins)
-            resp = HTTP.post("https://$user:$pass@api.github.com/authorizations"; body=JSON.json(params), headers=Dict("X-GitHub-OTP"=>otp_code),
-                statusraise=false)
+            resp = HTTP.post("https://$(HTTP.escapeuri(user)):$(HTTP.escapeuri(pass))@api.github.com/authorizations",
+                             body=JSON.json(params), headers=merge(headers, Dict("X-GitHub-OTP"=>otp_code)),
+                             status_exception=false, basic_authorization=true)
         end
         if resp.status == 401
             print_with_color(:red, outs, "Invalid credentials!\n")
@@ -235,7 +238,7 @@ function obtain_token(outs, ins, repo_name, user)
         if resp.status != 200
             GitHub.handle_response_error(resp)
         end
-        return JSON.parse(resp.body)["token"]
+        return JSON.parse(HTTP.load(resp))["token"]
     end
 end
 
@@ -312,8 +315,13 @@ function obtain_secure_key(outs, token, gr)
     repo_id = sync_and_wait_travis(outs, GitHub.name(gr), travis_token)
     activate_travis_repo(repo_id, travis_token)
     # Obtain the appropriate encryption key from travis
-    key = JSON.parse(HTTP.get("https://api.travis-ci.org/repos/$(GitHub.name(gr))/key").body)["key"]
+    key = JSON.parse(HTTP.load(HTTP.get("https://api.travis-ci.org/repos/$(GitHub.name(gr))/key")))["key"]
     pk_ctx = MbedTLS.PKContext()
+    # Some older repositories have keys starting with "BEGIN RSA PUBLIC KEY"
+    # which would indicate that they are in PKCS#1 format. However, they are
+    # instead in PKCS#8 format with incorrect header guards, so fix that up
+    # and never think about it again.
+    key = replace(key, "RSA PUBLIC KEY", "PUBLIC KEY")
     MbedTLS.parse_public_key!(pk_ctx, key)
     # Encrypted the token
     entropy = MbedTLS.Entropy()
