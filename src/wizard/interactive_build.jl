@@ -362,7 +362,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
                             continue
                         end
                     elseif choice == 2
-                        rmdir(build_path; recursive = true)
+                        rm(build_path; force = true, recursive = true)
                         mkpath(build_path)
                         prefix, ur = setup_workspace(
                             build_path,
