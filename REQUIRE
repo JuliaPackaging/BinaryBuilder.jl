@@ -8,5 +8,5 @@ MbedTLS
 GitHub
 PkgDev
 JSON
-HTTP
+HTTP 0.6.0
 ProgressMeter
