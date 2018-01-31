@@ -247,8 +247,17 @@ static int sandbox_main(int sandbox_argc, char **sandbox_argv) {
           check(0 == mount(current_entry->outside_path+3, inside, "9p", MS_RDONLY, "trans=virtio,version=9p2000.L"));
       } else {
           check(0 == mount(current_entry->outside_path, inside, "", MS_BIND, NULL));
-          // Remount to read-only
-          check(0 == mount(current_entry->outside_path, inside, "", MS_BIND|MS_REMOUNT|MS_RDONLY, NULL));
+          // Remount to read-only, nodev, suid.
+          // We only really care about read-only, but we need to make sure
+          // to be stricter than our parent mount. If the parent mount is
+          // noexec, we're out of luck, since we do need to execute these
+          // files. However, we don't really have a need for suid (only one
+          // uid) or device files (none in the image), so passing those extra
+          // flags is harmless. If, we ever cared in the future, the thing
+          // to do would be to read /proc/self/fdinfo or the directory, find
+          // the mnt_id and extract the correct flags from /proc/self/mountinfo.
+          check(0 == mount(current_entry->outside_path, inside, "",
+            MS_BIND|MS_REMOUNT|MS_RDONLY|MS_NODEV|MS_NOSUID, NULL));
       }
 
       // Slap an overlay on top to allow future changes
