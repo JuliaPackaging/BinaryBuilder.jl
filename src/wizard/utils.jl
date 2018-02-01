@@ -186,7 +186,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             cp(src_path, joinpath(srcdir, basename(src_path)))
             if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
                endswith(src_path, ".tgz") || endswith(src_path, ".tar.bz") ||
-               endswith(src_path, ".tar.xz")
+               endswith(src_path, ".tar.xz") || endswith(src_path, ".tar.Z")
                 push!(cmds, "tar xof $(basename(src_path))")
             elseif endswith(src_path, ".zip")
                 push!(cmds, "unzip -q $(basename(src_path))")
