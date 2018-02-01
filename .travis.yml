@@ -36,10 +36,12 @@ jobs:
       env:
         - BINARYBUILDER_USE_SQUASHFS=false
         - TEST_SANDBOX=true
-      
 
-before_script:
+script:
+   - julia -e 'Pkg.clone(pwd())'
+   - julia -e 'Pkg.build("BinaryBuilder")'
    - if [ ${TEST_SANDBOX:-false} = true ]; then julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -o root/sandbox sandbox.c`)'; fi
+   - julia --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
