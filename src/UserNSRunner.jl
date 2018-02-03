@@ -52,6 +52,12 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     # Construct sandbox command
     sandbox_cmd = `$(rootfs_dir("sandbox"))`
 
+    # Check to see if we need to run privileged containers.
+    # It would be nice to automatically prefer this eventually....
+    if runner_override == "privileged"
+        sandbox_cmd = `sudo -E $sandbox_cmd`
+    end
+
     if verbose
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
