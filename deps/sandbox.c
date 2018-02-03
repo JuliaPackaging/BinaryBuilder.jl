@@ -182,6 +182,13 @@ static void mount_overlay(const char * src, const char * dest, const char * bnam
   snprintf(upper, sizeof(upper), "%s/upper/%s", work_dir, bname);
   snprintf(work, sizeof(work), "%s/work/%s", work_dir, bname);
 
+  // If `src` is "", we actually want it to be "/", so adapt here because this is the
+  // only place in the code base where we actually need the slash at the end of the
+  // directory name.
+  if (src[0] == '\0') {
+    src = "/";
+  }
+
   if (verbose) {
     printf("--> Mounting overlay of %s at %s (modifications in %s)\n", src, dest, upper);
   }
@@ -241,6 +248,9 @@ static void mount_dev(const char * root_dir) {
   // Mount devtmps at /dev
   if (execution_mode == INIT_MODE) {
     snprintf(path, sizeof(path), "%s/dev", root_dir);
+    if (verbose) {
+      printf("--> Mounting /dev at %s\n", path);
+    }
     check(0 == mount("devtmpfs", path, "devtmpfs", 0, ""));
 
     // Create /dev/pts directory
@@ -249,6 +259,9 @@ static void mount_dev(const char * root_dir) {
   } else {
     // Bindmount /dev/null into our root_dir
     snprintf(path, sizeof(path), "%s/dev/null", root_dir);
+    if (verbose) {
+      printf("--> Mounting /dev/null at %s\n", path);
+    }
     check(0 == mount("/dev/null", path, "", MS_BIND, NULL));
   }
 }
@@ -303,11 +316,11 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
     while (inside[0] == '/') {
       inside = inside + 1;
     }
-    snprintf(path, sizeof(path), "%s/%s", root_dir, inside);
+    snprintf(path, sizeof(path), "%s/%s", dest, inside);
 
     // Map <inside> to the given outside path
     if (verbose) {
-      printf("--> Mapping %s to %s\n", path, current_entry->outside_path);
+      printf("--> Mapping %s to %s\n", current_entry->outside_path, path);
     }
 
     // Create the inside directory, not freaking out if it already exists.
@@ -356,21 +369,21 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
 static void mount_the_world(const char * root_dir, const char * dest,
                             const char * workspace, struct map_list * shard_maps,
                             uid_t uid, gid_t gid) {
-  // Mount /proc within the sandbox
-  mount_procfs(root_dir);
-  
-  // Mount /dev stuff
-  mount_dev(root_dir);
-
   // Mount the place we'll put all our overlay work directories
   mount_overlaywork("/proc");
 
   // Next, overlay all the things
   mount_rootfs_and_shards(root_dir, dest, "/proc", shard_maps, uid, gid);
+  
+  // Mount /proc within the sandbox
+  mount_procfs(dest);
+  
+  // Mount /dev stuff
+  mount_dev(dest);
 
   // Only try to mount our workspace if it was given to us.
   if (workspace != NULL) {
-    mount_workspace(root_dir, workspace);
+    mount_workspace(dest, workspace);
   }
 
   // Once we're done with that, put /proc back in its place in the big world.

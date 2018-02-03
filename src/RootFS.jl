@@ -70,7 +70,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     squashfs_hashes = Dict(
         "aarch64-linux-gnu" => "3f3a35a957be999f4719925a212e6df7e78930057d0dbb5838d326ad90c68d96",
         "arm-linux-gnueabihf" => "2b65716e5c6bfed7e8193dd3cda63e7d417b9e8e0beb1fe1993a6efaee3c7728",
-        "base" => "1df6d93559a716581525479fc9fcd78064320eeb4c1957cd0326bb4602994111",
+        "base" => "6bf9076d58a066ca31bdd87e70db8c3408e18fa2fb6d51afe2a238b91db8dee4",
         "i686-linux-gnu" => "2e03b0bd44e8084b6819688def0e51908d278a5f0770450b41cba600c759095c",
         "i686-w64-mingw32" => "1d451012f9ebd71607d1687b33d55f5c0d9e48fe850e815d5c87986e4a004966",
         "powerpc64le-linux-gnu" => "447c643a8ada01689cdb59ab852c3857a4bafb7ecfa3fefcb18bf057efa57606",
@@ -81,7 +81,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     tarball_hashes = Dict(
         "aarch64-linux-gnu" => "556a4cf9b09bf1a10e7bc42f37c453038ec83645dd7b398c60a04c679e410149",
         "arm-linux-gnueabihf" => "a97d61dc1dfc82bc4e067779125b42b4faae72cfbeffe20eddeb38eb4a2c344d",
-        "base" => "a4e70978b99c21fa895f86ea6a879707e754c506b31069bd29485840b89df57c",
+        "base" => "61e6e12d5841c23d027a71f02155cbf5ffab0a3deddf787b406cae84917c1dda",
         "i686-linux-gnu" => "1f2a8aaa29ceffba9b7653c3c377c1954de5edd57640abcd73adc94f7eb347ac",
         "i686-w64-mingw32" => "a21bafd2f9f62ee21a1deb8013fa67e206b945a26fe189292bbac59570af37a5",
         "powerpc64le-linux-gnu" => "e8127fb5b1b2412775595440b90f93e5632af32b733b37fade1f9853e281f954",

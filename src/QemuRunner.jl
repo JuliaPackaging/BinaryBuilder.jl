@@ -182,8 +182,6 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
         end
 
         close(commsock)
-
-        info("Wrote it all!")
     end
 
     long_cmd = ```
