@@ -20,7 +20,7 @@ include("AutoBuild.jl")
 include("Wizard.jl")
 
 function __init__()
-    global downloads_cache, rootfs_cache, use_squashfs, automatic_apple, shards_cache
+    global downloads_cache, rootfs_cache, use_squashfs, automatic_apple, shards_cache, runner_override
     global qemu_cache
 
     # If the user has overridden our rootfs tar location, reflect that here:
@@ -63,6 +63,12 @@ function __init__()
     # accept apple EULAs, do that.
     if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
         automatic_apple = true
+    end
+
+    runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
+    if !(runner_override in ["", "userns", "qemu", "privileged"])
+        warn("BINARYBUILDER_RUNNER value is invalid, ignoring...")
+        runner_override = ""
     end
 end
 

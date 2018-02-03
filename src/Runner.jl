@@ -70,8 +70,21 @@ function destdir_envs(destdir::String)
         "PKG_CONFIG_SYSROOT" => destdir)
 end
 
+runner_override = ""
 function preferred_runner()
-    Compat.Sys.islinux() ? UserNSRunner : QemuRunner
+    if runner_override != ""
+        if runner_override in ["userns", "privileged"]
+            return UserNSRunner
+        elseif runner_override in ["qemu"]
+            return QemuRunner
+        end
+    end
+
+    if Compat.Sys.islinux()
+        return UserNSRunner
+    else
+        return QemuRunner
+    end
 end
 
 """
