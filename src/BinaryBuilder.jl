@@ -85,6 +85,9 @@ function versioninfo()
     repo = LibGit2.GitRepo(Pkg.dir("BinaryBuilder"))
     gitsha = hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
     info("BinaryBuilder.jl version: $(gitsha)")
+    @static if Compat.Sys.isunix()
+        info("Kernel version: $(readchomp(`uname -r`))")
+    end
     info("Preferred runner: $(preferred_runner())")
 
     # Dump any relevant environment variables:
