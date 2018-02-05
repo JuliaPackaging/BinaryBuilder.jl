@@ -93,11 +93,13 @@ function versioninfo()
     # Dump any relevant environment variables:
     info("Relevant envionment variables:")
     env_var_suffixes = [
+        "AUTOMATIC_APPLE",
+        "USE_SQUASHFS",
         "DOWNLOADS_CACHE",
         "ROOTFS_DIR",
         "SHARDS_DIR",
-        "USE_SQUASHFS",
-        "AUTOMATIC_APPLE",
+        "QEMU_DIR",
+        "RUNNER",
     ]
     for e in env_var_suffixes
         envvar = "BINARYBUILDER_$(e)"
