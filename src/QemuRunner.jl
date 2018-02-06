@@ -35,14 +35,16 @@ function update_qemu(;verbose::Bool = false)
         verbose=verbose,
         force=true
     )
-    download_verify_unpack(
+    download_verify(
         kernel_url,
         kernel_hash,
-        qemu_cache;
-        tarball_path=downloads_dir(basename(kernel_url)),
+        downloads_dir(basename(kernel_url));
         verbose=verbose,
         force=true
     )
+    if !isfile(kernel_path())
+        unpack(downloads_dir(basename(kernel_url)), qemu_cache; verbose=verbose)
+    end
 end
 
 qemu_path() = joinpath(qemu_cache, "usr/local/bin/qemu-system-x86_64")
