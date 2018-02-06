@@ -53,7 +53,6 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     sandbox_cmd = `$(rootfs_dir("sandbox"))`
 
     # Check to see if we need to run privileged containers.
-    # It would be nice to automatically prefer this eventually....
     if runner_override == "privileged"
         sandbox_cmd = `sudo -E $sandbox_cmd`
     end
@@ -85,6 +84,10 @@ function show(io::IO, x::UserNSRunner)
 end
 
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
+    if runner_override == "privileged"
+        info("Running privileged container via `sudo`, may ask for your password:")
+    end
+
     did_succeed = true
     cd(rootfs_dir()) do
         oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
@@ -107,6 +110,10 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
 end
 
 function run_interactive(ur::UserNSRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
+    if runner_override == "privileged"
+        info("Running privileged container via `sudo`, may ask for your password:")
+    end
+
     cd(rootfs_dir()) do
         cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
         if stdin != nothing
@@ -138,4 +145,19 @@ function runshell(::Type{UserNSRunner}, platform::Platform = platform_key(); ver
         verbose=verbose
     )
     return runshell(ur)
+end
+
+function probe_unprivileged_containers(;verbose::Bool=false)
+    # Ensure the base rootfs is available
+    update_rootfs(String[]; verbose=false)
+
+    # Construct an extremely simple sandbox command
+    sandbox_cmd = `$(rootfs_dir("sandbox")) --rootfs $(rootfs_dir())`
+    cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
+
+    if verbose
+        info("Probing for unprivileged container capability...")
+    end
+    oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
+    return wait(oc) && merge(oc) == "hello julia\n"
 end

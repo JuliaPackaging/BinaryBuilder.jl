@@ -72,6 +72,7 @@ end
 
 runner_override = ""
 function preferred_runner()
+    global runner_override
     if runner_override != ""
         if runner_override in ["userns", "privileged"]
             return UserNSRunner
@@ -80,7 +81,22 @@ function preferred_runner()
         end
     end
 
-    if Compat.Sys.islinux()
+    @static if Compat.Sys.islinux()
+        # If runner_override is not yet set, let's probe to see if we can use
+        # unprivileged containers, and if we can't, switch over to privileged.
+        if !probe_unprivileged_containers()
+            msg = strip("""
+            Unable to run unprivileged containers on this system!
+            This may be because your kernel does not support mounting overlay
+            filesystems within user namespaces. To work around this, we will
+            switch to using privileged containers. This requires the use of
+            sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
+            environment variable to "privileged" before starting Julia.
+            """)
+            warn(replace(msg, "\n", " "))
+            runner_override = "privileged"
+        end
+
         return UserNSRunner
     else
         return QemuRunner
