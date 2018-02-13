@@ -194,7 +194,7 @@ end
 
 function obtain_token(outs, ins, repo_name, user)
     println(outs)
-    print_with_color(:bold, "Creating a github access token.\n")
+    printstyled("Creating a github access token.\n", bold=true)
     println(outs, """
     We will use this token to create to repository, and then pass it to travis
     for future uploads of binary artifacts.
@@ -232,7 +232,7 @@ function obtain_token(outs, ins, repo_name, user)
                              status_exception=false, basic_authorization=true)
         end
         if resp.status == 401
-            print_with_color(:red, outs, "Invalid credentials!\n")
+            printstyled(outs, "Invalid credentials!\n", color=:red)
             continue
         end
         if resp.status != 200
@@ -251,7 +251,7 @@ function common_git_repo_setup(repo_dir, repo, state)
         license_text = try
             PkgDev.readlicense(lic)
         catch
-            print_with_color(:red, "License $lic is not available.")
+            printstyled("License $lic is not available.", color=:red)
             println("Available licenses are:")
             foreach(PkgDev.LICENSES) do lic
                 println("- $(lic[1])")
@@ -434,12 +434,12 @@ end
 
 
 function step7(state::WizardState)
-    print_with_color(:bold, state.outs, "\t\t\tDone!\n\n")
+    printstyled(state.outs, "\t\t\tDone!\n\n", bold=true)
 
     print(state.outs, "Your build script was:\n\n\t")
     print(state.outs, replace(state.history, "\n", "\n\t"))
 
-    print_with_color(:bold, state.outs, "\t\t\t# Step 7: Deployment\n\n")
+    printstyled(state.outs, "\t\t\t# Step 7: Deployment\n\n", bold=true)
 
     while true
         msg = strip("""
@@ -449,7 +449,7 @@ function step7(state::WizardState)
         state.name = readline(state.ins)
         println(state.outs)
         if isempty(state.name)
-            print_with_color(:red, state.outs, "Name may not be empty!\n")
+            printstyled(state.outs, "Name may not be empty!\n", color=:red)
             continue
         end
         break

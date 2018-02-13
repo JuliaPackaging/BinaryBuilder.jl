@@ -305,7 +305,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
         legal terms you agree to when using the SDK to build software for Apple
         operating systems: https://images.apple.com/legal/sla/docs/xcode.pdf.
         """)
-        print_with_color(:bold, msg)
+        printstyled(msg, bold=true)
         println()
         while true
             print("Would you like to download and use the macOS SDK? [y/N]: ")
