@@ -73,7 +73,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             # Convert from tuples to arrays, if need be
             src_paths = collect(src_paths)
             src_hashes = collect(src_hashes)
-            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, dependencies, platform; verbose=true)
+            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, dependencies, platform; verbose=verbose)
 
             # Don't keep the downloads directory around
             rm(joinpath(prefix, "downloads"); force=true, recursive=true)
