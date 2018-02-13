@@ -1,6 +1,6 @@
 function print_build_tarballs(io::IO, state::WizardState;
         with_travis_tags=false)
-    platforms_string = string("[\n    ",join(state.platforms,",\n  "),"\n]\n")
+    platforms_string = string("[\n    ",join(state.platforms,",\n    "),"\n]\n")
     urlhashes = zip(state.source_urls, state.source_hashes)
     sources_string = string("[\n",join(map(urlhashes) do x
         (src, hash) = x
@@ -55,7 +55,7 @@ function print_build_tarballs(io::IO, state::WizardState;
     $(state.history)
     \"\"\"
 
-    products = prefix -> [
+    products(prefix) = [
     $products_string
     ]
 
