@@ -126,7 +126,7 @@ const libfoo_script = """
 @testset "Builder Packaging" begin
     # Clear out previous build products
     for f in readdir(".")
-        if !endswith(f, ".tar.gz")
+        if !endswith(f, ".tar.gz") || !endswith(f, ".tar.gz.256")
             continue
         end
         rm(f; force=true)
@@ -174,6 +174,7 @@ const libfoo_script = """
     end
 
     rm(tarball_path; force=true)
+    rm("$(tarball_path).sha256"; force=true)
 end
 
 # Testset to make sure we can autobuild from a git repository
