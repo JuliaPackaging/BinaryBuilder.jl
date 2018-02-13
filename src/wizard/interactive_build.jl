@@ -333,10 +333,10 @@ function step5_internal(state::WizardState, platform::Platform, message)
                     println(state.outs, msg)
                     println(state.outs)
 
-                    # N.B.: This is a Star Trek reference (TNG Season 1, Episode 25,
+                    # N.B.: This is (slightly modified) a Star Trek reference (TNG Season 1, Episode 25,
                     # 25:00).
                     choice = request(terminal,
-                        "Please specify how you would like to proceed, sir.",
+                        "Please specify how you would like to proceed.",
                         RadioMenu([
                             "Drop into build environment",
                             "Open a clean session for this platform",
