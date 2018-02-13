@@ -2,7 +2,8 @@ if Sys.is_linux()
 
 using VT100
 using BinaryBuilder
-    
+using Base.Test
+
 pty = VT100.create_pty(false)
 function BinaryBuilder.WizardState(ins::Base.TTY, outs::Base.TTY)
     state = BinaryBuilder.WizardState()
@@ -17,9 +18,8 @@ end
 using HTTP
 
 r = HTTP.Router()
-#tar_libfoo() = read(`tar czf - -C $(dirname(@__FILE__))/build_tests libfoo`)
 tar_libfoo() = read(`tar czf - -C $(Pkg.dir("BinaryBuilder","test"))/build_tests libfoo`)
-function serve_tgz(req, resp)
+function serve_tgz(req)
     HTTP.Response(200, tar_libfoo())
 end
 HTTP.register!(r, "/*/source.tar.gz", HTTP.HandlerFunction(serve_tgz))
@@ -31,6 +31,9 @@ do_try(f) = try
 catch e
     bt = catch_backtrace()
     Base.display_error(STDERR, e, bt)
+
+    # If a do_try fails, panic
+    Base.Test.@test false
 end
 
 ins, outs = Base.TTY(pty.slave; readable=true), Base.TTY(pty.slave; readable=false);
@@ -67,7 +70,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
 end
 
 # We're done with the server
-put!(server.in, HTTP.Nitrogen.KILL)
+put!(server.in, HTTP.Servers.KILL)
 
 # Package up libfoo and dump a tarball in /tmp
 tempspace = tempname()
@@ -113,7 +116,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
     sleep(1)
     write(pty.master, "cd libfoo/\n")
     write(pty.master, "make install\n")
-    write(pty.master, "rm -rf \$DESTDIR/*\n")
+    write(pty.master, "rm -rf \$prefix/*\n")
     write(pty.master, "exit\n")
     readuntil(pty.master, "Would you like to edit this script now?")
     write(pty.master, "N\n")
@@ -121,9 +124,9 @@ let state = BinaryBuilder.WizardState(ins, outs)
     write(pty.master, "\r")
     wait_for_non_menu(pty)
     write(pty.master, "cd libfoo/\n")
-    write(pty.master, "mkdir -p \$DESTDIR/{lib,bin}\n")
-    write(pty.master, "cp fooifier \$DESTDIR/bin\n")
-    write(pty.master, "cp libfoo.so \$DESTDIR/lib\n")
+    write(pty.master, "mkdir -p \$prefix/{lib,bin}\n")
+    write(pty.master, "cp fooifier \$prefix/bin\n")
+    write(pty.master, "cp libfoo.so \$prefix/lib\n")
     write(pty.master, "exit\n")
     readuntil(pty.master, "Would you like to edit this script now?")
     write(pty.master, "N\n")
@@ -143,7 +146,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
     end)
     write(pty.master, "cd libfoo/\n")
     write(pty.master, "make install\n")
-    write(pty.master, "rm -rf \$DESTDIR/*\n")
+    write(pty.master, "rm -rf \$prefix/*\n")
     write(pty.master, "exit\n")
     readuntil(pty.master, "Would you like to edit this script now?")
     write(pty.master, "N\n")

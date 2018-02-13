@@ -250,8 +250,7 @@ function step34(state::WizardState)
     msg = strip("""
     You will now be dropped into the cross-compilation environment.
     Please compile the library. Your initial compilation target is $(platform).
-    The \$DESTDIR environment variable contains the target directory.
-    Many build systems will respect this variable automatically.
+    The \$prefix environment variable contains the target directory.
     Once you are done, exit by typing `exit` or `^D`
     """)
     println(state.outs, msg)

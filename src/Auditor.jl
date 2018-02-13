@@ -215,6 +215,9 @@ Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
 """
 function collect_files(prefix::Prefix, predicate::Function = f -> true; exculuded_files=Set{String}())
+    if !isdir(prefix.path)
+        return String[]
+    end
     collected = String[]
     for (root, dirs, files) in walkdir(prefix.path)
         for f in files
