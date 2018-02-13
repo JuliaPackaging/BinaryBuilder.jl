@@ -140,9 +140,10 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
     print(io, """
     using BinaryProvider
 
-    # This is where all binaries will get installed
-    const prefix = Prefix(!isempty(ARGS) ? ARGS[1] : joinpath(@__DIR__,"usr"))
-
+    # Parse some basic command-line arguments
+    const verbose = "--verbose" in ARGS
+    const prefix = Prefix(get([a for a in ARGS if a != "--verbose"], 1, joinpath(@__DIR__, "usr")))
+    
     $products_str
 
     # Download binaries from hosted location
@@ -162,10 +163,10 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
     print(io, """
     if platform_key() in keys(download_info)
         # First, check to see if we're all satisfied
-        if any(!satisfied(p; verbose=true) for p in products)
+        if any(!satisfied(p; verbose=verbose) for p in products)
             # Download and install binaries
             url, tarball_hash = download_info[platform_key()]
-            install(url, tarball_hash; prefix=prefix, force=true, verbose=true)
+            install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
         end
 
         # Finally, write out a deps.jl file that will contain mappings for each
