@@ -6,7 +6,7 @@ Print a hint for projets that use autoconf to have a good `./configure` line.
 function print_autoconf_hint(state::WizardState)
     print(state.outs, "     The recommended options for GNU Autoconf are")
     print(state.outs, " `")
-    print_with_color(:bold, state.outs, "./configure --prefix=/ --host=\$target")
+    print_with_color(:bold, state.outs, "./configure --prefix=\$prefix --host=\$target")
     println(state.outs, "`")
     println(state.outs, "    followed by `make` and `make install`. Since the DESTDIR environment")
     println(state.outs, "    variable is set already, this will automatically perform the installation")

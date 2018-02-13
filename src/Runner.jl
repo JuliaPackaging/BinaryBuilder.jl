@@ -65,9 +65,8 @@ end
 
 function destdir_envs(destdir::String)
     Dict(
-        "DESTDIR" => destdir,
-        "PKG_CONFIG_PATH" => "$destdir/lib/pkconfig",
-        "PKG_CONFIG_SYSROOT" => destdir)
+        "prefix" => destdir,
+    )
 end
 
 runner_override = ""

@@ -157,13 +157,14 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     mkdir(srcdir); mkdir(destdir)
 
     # Create a runner to work inside this workspace with the nonce built-in
-    ur = preferred_runner()(build_path,
-        cwd = "/workspace/$nonce/srcdir",
+    ur = preferred_runner()(
+        joinpath(build_path, nonce),
+        cwd = "/workspace/srcdir",
         platform = platform,
         extra_env = merge(extra_env,
-            merge(destdir_envs("/workspace/$nonce/destdir"),
+            merge(destdir_envs("/workspace/destdir"),
                 Dict(
-                    "WORKSPACE" => "/workspace/$nonce",
+                    "WORKSPACE" => "/workspace",
                     "PS1" => "sandbox:\${PWD//\$WORKSPACE/\\\\\$WORKSPACE}\\\$ "
                 ))
         ),
