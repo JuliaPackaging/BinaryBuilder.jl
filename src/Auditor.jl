@@ -108,9 +108,25 @@ function audit(prefix::Prefix; io=STDERR,
             info(io, msg)
         end
 
-        # Look at every non-default dynamic link
-        libs = filter_default_linkages(find_libraries(oh), oh)
+        # Look at every dynamic link, and see if we should do anything about that link...
+        libs = find_libraries(oh)
         for libname in keys(libs)
+            if should_ignore_lib(libname, oh)
+                if verbose
+                    info(io, "Ignoring system library $(libname)")
+                end
+                continue
+            end
+
+            # If this is a default dynamic link, then just rewrite to use rpath and call it good.
+            if is_default_lib(libname, oh)
+                relink_to_rpath(prefix, platform, path(oh), libs[libname])
+                if verbose
+                    info(io, "Rpathify'ing default library $(libname)")
+                end
+                continue
+            end
+
             if !isfile(libs[libname])
                 # If we couldn't resolve this library, let's try autofixing,
                 # if we're allowed to by the user
@@ -250,18 +266,9 @@ function collapse_symlinks(files::Vector{String})
     return filter(predicate, files)
 end
 
-"""
-    filter_default_linkages(libs::Dict, oh::ObjectHandle)
-
-Given libraries obtained through `ObjectFile.find_libraries()`, filter out
-libraries that are "default" libraries and should be available on any system.
-"""
-function filter_default_linkages(libs::Dict, oh::ObjectHandle)
-    return Dict(k => libs[k] for k in keys(libs) if !should_ignore_lib(k, oh))
-end
-
+# These are libraries we should straight-up ignore, like libsystem on OSX
 function should_ignore_lib(lib, ::ELFHandle)
-    default_libs = [
+    ignore_libs = [
         "libc.so.6",
         # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
@@ -270,12 +277,31 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libgfortran.so.3",
         "libgfortran.so.4",
     ]
-    return lowercase(basename(lib)) in default_libs
+    return lowercase(basename(lib)) in ignore_libs
+end
+function should_ignore_lib(lib, ::MachOHandle)
+    ignore_libs = [
+        "libsystem.b.dylib",
+    ]
+    return lowercase(basename(lib)) in ignore_libs
+end
+function should_ignore_lib(lib, ::COFFHandle)
+    ignore_libs = [
+        "msvcrt.dll",
+        "kernel32.dll",
+        "user32.dll",
+        "libgcc_s_sjlj-1.dll",
+        "libgfortran-3.dll",
+        "libgfortran-4.dll",
+    ]
+    return lowercase(basename(lib)) in ignore_libs
 end
 
-function should_ignore_lib(lib, ::MachOHandle)
+# Determine whether a library is a "default" library or not, if it is we need
+# to map it to `@rpath/$libname` on OSX.
+is_default_lib(lib, oh) = false
+function is_default_lib(lib, ::MachOHandle)
     default_libs = [
-        "libsystem.b.dylib",
         "libgcc_s.1.dylib",
         "libgfortran.3.dylib",
         "libgfortran.4.dylib",
@@ -284,16 +310,24 @@ function should_ignore_lib(lib, ::MachOHandle)
     return lowercase(basename(lib)) in default_libs
 end
 
-function should_ignore_lib(lib, ::COFFHandle)
-    default_libs = [
-        "msvcrt.dll",
-        "kernel32.dll",
-        "user32.dll",
-        "libgcc_s_sjlj-1.dll",
-        "libgfortran-3.dll",
-        "libgfortran-4.dll",
-    ]
-    return lowercase(basename(lib)) in default_libs
+function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractString,
+                         old_libpath::AbstractString; verbose::Bool = false)
+    ur = UserNSRunner(prefix.path; cwd="/workspace/", platform=platform, verbose=true)
+    rel_path = relpath(path, prefix.path)
+    libname = basename(old_libpath)
+    relink_cmd = ``
+
+    if Compat.Sys.isapple(platform)
+        install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+        relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
+    elseif Compat.Sys.islinux(platform)
+        patchelf = "/usr/local/bin/patchelf"
+        relink_cmd = `$patchelf --replace-needed $(old_libpath) \$ORIGIN/$(libname) $(rel_path)`
+    end
+
+    # Create a new linkage that looks like $ORIGIN/../lib, or similar
+    logpath = joinpath(logdir(prefix), "relink_to_rpath_$(libname).log")
+    run(ur, relink_cmd, logpath; verbose=verbose)
 end
 
 """
