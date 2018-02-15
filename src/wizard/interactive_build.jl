@@ -8,7 +8,7 @@ The fourth step selects build products after the first build is done
 """
 function step4(state::WizardState, ur::Runner, platform::Platform,
                build_path::AbstractString, prefix::Prefix)
-    print_with_color(:bold, state.outs, "\t\t\t# Step 4: Select build products\n\n")
+    printstyled(state.outs, "\t\t\t# Step 4: Select build products\n\n", bold=true)
 
     # Collect all executable/library files
     files = collapse_symlinks(collect_files(prefix; exculuded_files=state.dependency_files))
@@ -35,7 +35,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
     if length(files) == 0
-        print_with_color(:red, state.outs, "ERROR: ")
+        printstyled(state.outs, "ERROR: ", color=:red)
         println(state.outs, "The build has produced no binary artifacts.")
         println(state.outs, " "^7, "This is generally because an error occured during the build")
         println(state.outs, " "^7, "or because you forgot to `make install` or equivalent.")
@@ -87,7 +87,7 @@ end
 Audit the `prefix`.
 """
 function step3_audit(state::WizardState, platform::Platform, prefix::Prefix)
-    print_with_color(:bold, state.outs, "\n\t\t\tAnalyzing...\n\n")
+    printstyled(state.outs, "\n\t\t\tAnalyzing...\n\n", bold=true)
 
     audit(prefix; io=state.outs,
         platform=platform, verbose=true, autofix=true)
@@ -121,7 +121,7 @@ function interactive_build(state::WizardState, prefix::Prefix,
        rm(histfile)
    end
 
-   print_with_color(:bold, state.outs, "\n\t\t\tBuild complete\n\n")
+   printstyled(state.outs, "\n\t\t\tBuild complete\n\n", bold=true)
    print(state.outs, "Your build script was:\n\n\t")
    print(state.outs, replace(state.history, "\n", "\n\t"))
    println(state.outs)
@@ -173,7 +173,7 @@ function step3_retry(state::WizardState)
     platform = pick_preferred_platform(state.platforms)
 
     msg = "\t\t\t# Attempting to build for $platform\n\n"
-    print_with_color(:bold, state.ins, msg)
+    printstyled(state.ins, msg, bold=true)
 
     build_path = tempname()
     mkpath(build_path)
@@ -245,7 +245,7 @@ function step34(state::WizardState)
     platform = pick_preferred_platform(state.platforms)
     push!(state.visited_platforms, platform)
 
-    print_with_color(:bold, state.outs, "\t\t\t# Step 3: Build for $(platform)\n\n")
+    printstyled(state.outs, "\t\t\t# Step 3: Build for $(platform)\n\n", bold=true)
 
     msg = strip("""
     You will now be dropped into the cross-compilation environment.
@@ -283,7 +283,7 @@ end
 
 function step5_internal(state::WizardState, platform::Platform, message)
     print(state.outs, "Your next build target will be ")
-    print_with_color(:bold, state.outs, platform)
+    printstyled(state.outs, platform, bold=true)
     println(state.outs, message)
     println(state.outs)
     println(state.outs, "Press any key to continue...")
@@ -292,7 +292,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
 
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
-    print_with_color(:bold, state.ins, "\t\t\t# Attempting to build for $platform\n\n")
+    printstyled(state.ins, "\t\t\t# Attempting to build for $platform\n\n", bold=true)
 
     build_path = tempname()
     mkpath(build_path)
@@ -319,7 +319,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
 
             while true
                 msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
-                print_with_color(:bold, state.outs, msg)
+                printstyled(state.outs, msg, bold=true)
 
                 audit(prefix; io=state.outs,
                     platform=platform, verbose=true, autofix=true)
@@ -327,7 +327,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
                 ok = isempty(match_files(state, prefix, platform, state.files))
                 if !ok
                     println(state.outs)
-                    print_with_color(:red, state.outs, "ERROR: ")
+                    printstyled(state.outs, "ERROR: ", color=:red)
                     msg = "Some build products could not be found (see above)."
                     println(state.outs, msg)
                     println(state.outs)
@@ -415,7 +415,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
 end
 
 function step5a(state::WizardState)
-    print_with_color(:bold, state.outs, "\t\t\t# Step 5: Generalize the build script\n\n")
+    printstyled(state.outs, "\t\t\t# Step 5: Generalize the build script\n\n", bold=true)
 
     # We will try to pick a platform for a different operating system
     possible_platforms = filter(state.platforms) do plat
@@ -522,10 +522,10 @@ function step5c(state::WizardState)
         end
         print(state.outs, "[")
         if ok
-            print_with_color(:green, state.outs, "✓")
+            printstyled(state.outs, "✓", color=:green)
             push!(state.validated_platforms, platform)
         else
-            print_with_color(:red, state.outs, "✗")
+            printstyled(state.outs, "✗", color=:red)
             push!(state.failed_platforms, platform)
         end
         println(state.outs, "]")
@@ -549,7 +549,7 @@ function step6(state::WizardState)
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
     msg = "\t\t\t# Step 6: Revisit failed platforms\n\n"
-    print_with_color(:bold, state.outs, msg)
+    printstyled(state.outs, msg, bold=true)
 
     println(state.outs, "Several platforms failed to build:")
     for plat in state.failed_platforms

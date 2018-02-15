@@ -78,7 +78,7 @@ function download_source(state::WizardState)
     url = canonicalize_source_url(entered_url)
     if url != entered_url
         print(state.outs, "The entered URL has been canonicalized to\n")
-        print_with_color(:bold, state.outs, url)
+        printstyled(state.outs, url, bold=true)
         println(state.outs)
         println(state.outs)
     end
@@ -108,7 +108,7 @@ function download_source(state::WizardState)
 
         # Tell the user what we recorded the current commit as
         print(state.outs, "Recorded as ")
-        print_with_color(:bold, state.outs, source_hash)
+        printstyled(state.outs, source_hash, bold=true)
         println(state.outs)
         close(repo)
     else
@@ -156,7 +156,7 @@ This step selets the relevant platform(s) for the built binaries.
 function step1(state::WizardState)
     # Select a platform
     msg = "\t\t\t# Step 1: Select your platforms\n\n"
-    print_with_color(:bold, state.outs, msg)
+    printstyled(state.outs, msg, bold=true)
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
     platform_select = request(terminal,
         "Make a platform selection",
@@ -219,7 +219,7 @@ end
 
 function obtain_binary_deps(state::WizardState)
     msg = "\t\t\t# Step 2b: Obtain binary dependencies (if any)\n\n"
-    print_with_color(:bold, state.outs, msg)
+    printstyled(state.outs, msg, bold=true)
 
     q = "Do you require any (binary) dependencies? "
     if yn_prompt(state, q, :n) == :y
@@ -244,7 +244,7 @@ function obtain_binary_deps(state::WizardState)
                 canon_url = canonicalize_url(url)
                 if url != canon_url
                     print(state.outs, "The entered URL has been canonicalized to\n")
-                    print_with_color(:bold, state.outs, canon_url)
+                    printstyled(state.outs, canon_url, bold=true)
                     println(state.outs)
                     println(state.outs)
                 end
@@ -270,7 +270,7 @@ end
 
 function obtain_source(state::WizardState)
     msg = "\t\t\t# Step 2a: Obtain the source code\n\n"
-    print_with_color(:bold, state.outs, msg)
+    printstyled(state.outs, msg, bold=true)
 
     # Create the workspace that we'll stash everything within
     state.workspace = tempname()
