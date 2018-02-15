@@ -241,7 +241,7 @@ function obtain_binary_deps(state::WizardState)
                 print(state.outs, "> ")
                 url = readline(state.ins)
                 println(state.outs)
-                canon_url = canonicalize_url(url)
+                canon_url = canonicalize_source_url(url)
                 if url != canon_url
                     print(state.outs, "The entered URL has been canonicalized to\n")
                     printstyled(state.outs, canon_url, bold=true)
