@@ -326,7 +326,7 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
     end
 
     # Create a new linkage that looks like $ORIGIN/../lib, or similar
-    logpath = joinpath(logdir(prefix), "relink_to_rpath_$(libname).log")
+    logpath = joinpath(logdir(prefix), "relink_to_rpath_$(basename(rel_path))_$(libname).log")
     run(ur, relink_cmd, logpath; verbose=verbose)
 end
 
