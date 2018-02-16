@@ -1,8 +1,12 @@
 using ProgressMeter
 
-const repo_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/?$"
 
+"""
+Canonicalize a GitHub repository URL
+"""
 function canonicalize_source_url(url)
+    repo_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/?$"
+
     m = match(repo_regex, url)
     if m !== nothing
         _, user, repo = m.captures
@@ -202,9 +206,11 @@ function step1(state::WizardState)
     println(state.outs)
 end
 
-const blob_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)"
-
+"""
+Canonicalize URL to a file within a GitHub repo
+"""
 function canonicalize_file_url(url)
+    blob_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)"
     m = match(blob_regex, url)
     if m !== nothing
         _, user, repo, ref, filepath = m.captures
@@ -241,7 +247,7 @@ function obtain_binary_deps(state::WizardState)
                 print(state.outs, "> ")
                 url = readline(state.ins)
                 println(state.outs)
-                canon_url = canonicalize_url(url)
+                canon_url = canonicalize_file_url(url)
                 if url != canon_url
                     print(state.outs, "The entered URL has been canonicalized to\n")
                     printstyled(state.outs, canon_url, bold=true)
