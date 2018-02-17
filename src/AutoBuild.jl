@@ -173,6 +173,9 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
             # variable, etc...)
             @write_deps_file libfoo fooifier
         else
+            # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
+            # Alternatively, you could attempt to build from source or something more
+            # ambitious here.
             error("Your platform \$(Sys.MACHINE) is not supported by this package!")
         end
     end
