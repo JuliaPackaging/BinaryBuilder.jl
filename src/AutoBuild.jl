@@ -163,7 +163,7 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
     print(io, """
     # First, check to see if we're all satisfied
     if any(!satisfied(p; verbose=verbose) for p in products)
-        if platform_key() in keys(download_info)
+        if haskey(download_info, platform_key())
             # Download and install binaries
             url, tarball_hash = download_info[platform_key()]
             install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
