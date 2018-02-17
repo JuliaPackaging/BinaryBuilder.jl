@@ -55,9 +55,11 @@ function target_envs(target::AbstractString)
     )
 
     # If we're on OSX, default to clang instead of gcc for CC and CXX
+    # Also default to asking for a minimum of OSX 10.8 for C++ ABI
     if contains(target, "-apple-")
         mapping["CC"] = "/opt/$(target)/bin/clang"
         mapping["CXX"] = "/opt/$(target)/bin/clang++"
+        mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
     end
 
     return mapping
