@@ -6,10 +6,13 @@ makedocs(
     sitename = "BinaryBuilder.jl",
     pages = [
         "Home" => "index.md",
-        "Environment Variables" => "environment_variables.md",
-        "FAQ" => "FAQ.md",
-        "Tricksy Gotchas" => "tricksy_gotchas.md",
-        "Reference" => "reference.md",
+        "Build Tips" => "build_tips.md",
+        "Miscellaneous" => [
+            "Environment Variables" => "environment_variables.md",
+            "FAQ" => "FAQ.md",
+            "Tricksy Gotchas" => "tricksy_gotchas.md",
+            "Reference" => "reference.md",
+        ],
     ],
 )
 
