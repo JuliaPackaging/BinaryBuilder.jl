@@ -2,23 +2,23 @@
 
 BinaryBuilder provides a convenient environment to enable cross-platform building. But, many libraries have complicated build scripts that may need to be adapted to support all of the BinaryBuilder targets.
 
+*If you have additional tips, please submit a PR with suggestions.*
+
 ## Initiating different shell commands based on target
 
-Sometimes, you need to adapt build scripts based on the target platform. This can be done within the shell script. Here is an example:
+Sometimes, you need to adapt build scripts based on the target platform. This can be done within the shell script. Here is an example from [staticfloat/OpenBLASBuilder](https://github.com/staticfloat/OpenBLASBuilder/blob/master/build_tarballs.jl):
 
 ```sh
-if [[ ${target} == *-apple-* ]]; then
-    export CC=clang
-    export CXX=clang++
-    export LDFLAGS="-mmacosx-version-min=10.8"
+# Set BINARY=32 on i686 platforms and armv7l
+if [[ ${target} == i686* ]] || [[ ${target} == arm-* ]]; then
+    flags="${flags} BINARY=32"
 fi
 ```
 
-Here are examples of scripts with target-specific checks:
+Here are other examples of scripts with target-specific checks:
 
-* [Keno/ReadStatBuilder](https://github.com/Keno/ReadStatBuilder/blob/master/build_tarballs.jl#L35-L39) - windows check
-* [JuliaDiffEq/SundialsBuilder](https://github.com/JuliaDiffEq/SundialsBuilder/blob/cmake-mod/build_tarballs.jl#L125-L131) - 32-bit check
-* [staticfloat/IpoptBuilder](https://github.com/staticfloat/IpoptBuilder/blob/master/build_tarballs.jl#L28-L32) - apple check
+* [davidanthoff/ReadStatBuilder](https://github.com/davidanthoff/ReadStatBuilder/blob/cc1745add155224ef1672e7a0013c4adb1df8141/build_tarballs.jl#L33) - windows check
+* [JuliaDiffEq/SundialsBuilder](https://github.com/JuliaDiffEq/SundialsBuilder/blob/6a155530557ac2c49277d33baf02f30921739348/build_tarballs.jl#L125-L131) - 32-bit check
 
 It is also possible to run quite different scripts for each target by running different build scripts for different sets of targets. Here is an example where windows builds are separated from other targets:
 
@@ -45,10 +45,10 @@ Here are examples of autoconfigure build scripts:
 For CMake, the wizard will suggest a template for running CMake. Typically, this will look like:
 
 ```sh
-make -DCMAKE_INSTALL_PREFIX=/ -DCMAKE_TOOLCHAIN_FILE=/opt/$target/$target.toolchain
+make -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_TOOLCHAIN_FILE=/opt/$target/$target.toolchain
 ```
 
-The toolchain file sets up several CMake environment variables for better cross -DSUNDIALS_INDEX_TYPE=int32_t-platform support: 
+The toolchain file sets up several CMake environment variables for better cross-platform support: 
 
 ```sh
 # Toolchain file for x86_64-linux-gnu
@@ -73,7 +73,7 @@ Examples of builds that include CMake parts include:
 * [davidanthoff/SnappyBuilder](https://github.com/davidanthoff/SnappyBuilder/blob/master/build_tarballs.jl)
 
 * [JuliaDiffEq/SundialsBuilder](https://github.com/JuliaDiffEq/SundialsBuilder/blob/master/build_tarballs.jl)
-  - Needs `-DSUNDIALS_INDEX_TYPE=int32_t` on 32-bit targets 
+  - Needs `-DSUNDIALS_INDEX_TYPE=int32_t` on 32-bit targets (Sundials-specific way to specify integer size)
   - Needs to copy *.dll files from `destdir/lib` to `destdir/bin` for windows; this also removes symlinks by using `cp -L`
   - Needs `-DCMAKE_FIND_ROOT_PATH="$WORKSPACE/destdir"`, so CMake's `find_library` can find libraries from KLU
 
@@ -127,8 +127,6 @@ There are plans to handle file changes in the wizard automatically [(#25)](https
 ## Other examples
 
 Examples of other interesting builders include:
-
-* [staticfloat/IpoptBuilder](https://github.com/staticfloat/IpoptBuilder/blob/master/build_tarballs.jl) -- Includes multiple sources, and each of these has different build approaches. Includes custom `CC` and `CXX` definitions for macOS to use Clang and sets `LDFLAGS` to specify a minimum macOS version. 
 
 * [Keno/LinuxBuilder](https://github.com/Keno/LinuxBuilder/blob/master/build_tarballs.jl) -- Why not build Linux?
 
