@@ -10,10 +10,15 @@ function print_build_tarballs(io::IO, state::WizardState;
     stuff = collect(zip(state.files, state.file_kinds))
     products_string = join(map(stuff) do x
         file, kind = x
+        # Normalize the filename, e.g. `"foo/libfoo.tar.gz"` would get mapped to `"libfoo"`
         file = normalize_name(file)
-        kind == :executable ? "    ExecutableProduct(prefix,$(repr(file)))" :
-        kind == :library ? "    LibraryProduct(prefix,$(repr(file)))" :
-        "    FileProduct(prefix,$(repr(file)))"
+        if kind == :executable
+            return "    ExecutableProduct(prefix, $(repr(file)))"
+        elseif kind == :library
+            return "    LibraryProduct(prefix, $(repr(file)))"
+        else
+            return "    FileProduct(prefix, $(repr(file)))"
+        end
     end,",\n")
 
     dependencies_string = ""
