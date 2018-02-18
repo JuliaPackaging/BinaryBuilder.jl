@@ -69,6 +69,11 @@ function audit(prefix::Prefix; io=STDERR,
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = false)
+    # This would be really weird, but don't let someone set `silent` and `verbose` to true
+    if silent
+        verbose = false
+    end
+
     if verbose
         info(io, "Beginning audit of $(prefix.path)")
     end
@@ -191,8 +196,8 @@ function audit(prefix::Prefix; io=STDERR,
             end
             hdl = Libdl.dlopen_e(f)
             if hdl == C_NULL
-                # TODO: Use the relevant ObjFileBase packages to inspect why this
-                # file is being nasty to us.
+                # TODO: Use the relevant ObjFileBase packages to inspect why
+                # this file is being nasty to us.
 
                 if !silent
                     warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
@@ -200,6 +205,19 @@ function audit(prefix::Prefix; io=STDERR,
                 all_ok = false
             else
                 Libdl.dlclose(hdl)
+            end
+        end
+    end
+
+    if platform isa Windows
+        # If we're targeting a windows platform, check to make sure no .dll
+        # files are sitting in `$prefix/lib`, as that's a no-no.  This is
+        # not a fatal offense, but we'll yell about it.
+        predicate = f -> f[end-2:end] == "dll"
+        lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
+        for f in lib_dll_files
+            if !silent
+                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
             end
         end
     end
@@ -225,17 +243,17 @@ function audit(prefix::Prefix; io=STDERR,
 end
 
 """
-    collect_files(prefix::Prefix, predicate::Function = f -> true)
+    collect_files(path::AbstractString, predicate::Function = f -> true)
 
 Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
 """
-function collect_files(prefix::Prefix, predicate::Function = f -> true; exculuded_files=Set{String}())
-    if !isdir(prefix.path)
+function collect_files(path::AbstractString, predicate::Function = f -> true; exculuded_files=Set{String}())
+    if !isdir(path)
         return String[]
     end
     collected = String[]
-    for (root, dirs, files) in walkdir(prefix.path)
+    for (root, dirs, files) in walkdir(path)
         for f in files
             f_path = joinpath(root, f)
 
@@ -246,7 +264,8 @@ function collect_files(prefix::Prefix, predicate::Function = f -> true; exculude
     end
     return collected
 end
-
+# Unwrap Prefix objects automatically
+collect_files(prefix::Prefix, args...; kwargs...) = collect_files(prefix.path, args...; kwargs...)
 
 """
     collapse_symlinks(files::Vector{String})
