@@ -1,6 +1,7 @@
 using Documenter, BinaryBuilder
 
 makedocs(
+    modules = [BinaryBuilder],
     format = :html,
     sitename = "BinaryBuilder.jl",
     pages = [
@@ -13,6 +14,9 @@ makedocs(
 )
 
 deploydocs(
+    deps = nothing,
+    make = nothing,
+    target = "build",
     repo = "github.com/JuliaPackaging/BinaryBuilder.jl.git",
     julia = "0.6",
 )
