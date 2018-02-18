@@ -78,8 +78,8 @@ function edit_script(state::WizardState, script::AbstractString)
             prefix.path,
             cwd = "/workspace/",
             platform = Linux(:x86_64))
-        run_interactive(ur, `/usr/bin/vi /workspace/script`,
-                        state.ins, state.outs, state.outs)
+        run_interactive(ur, `/usr/bin/vi /workspace/script`;
+                        stdin=state.ins, stdout=state.outs, stderr=state.outs)
 
         # Once the user is finished, read the script back in
         script = readstring(path)

@@ -219,28 +219,40 @@ function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
     end
 end
 
-function run_interactive(qr::QemuRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
+function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
     temp_prefix() do prefix
         comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
         cmd = qemu_gen_cmd(qr, cmd, comm_socket_path)
-        if stdin != nothing
+        if stdin isa Base.AbstractCmd
             cmd = pipeline(cmd, stdin=stdin)
         end
-        if stdout != nothing
+        if stdout isa Base.AbstractCmd
             cmd = pipeline(cmd, stdout=stdout)
         end
-        if stderr != nothing
+        if stderr isa Base.AbstractCmd
             cmd = pipeline(cmd, stderr=stderr)
         end
-        run(cmd)
+
+        if stdout isa IO
+            if !(stdin isa IO)
+                stdin = Base.DevNull
+            end
+            out, process = open(cmd, "r", stdin)
+            wait(process)
+            if stdout isa IO
+                write(stdout, read(out))
+            end
+        else
+            run(cmd)
+        end
     end
     
     # Qemu appears to mess with our terminal
     Base.reseteof(STDIN)
 end
 
-function runshell(qr::QemuRunner, args...)
-    run_interactive(qr, `/bin/bash`, args...)
+function runshell(qr::QemuRunner, args...; kwargs...)
+    run_interactive(qr, `/bin/bash`, args...; kwargs...)
 end
 
 function runshell(::Type{QemuRunner}, platform::Platform = platform_key(); verbose::Bool = false)

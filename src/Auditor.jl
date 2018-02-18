@@ -1,52 +1,11 @@
 export audit, collect_files, collapse_symlinks
 
-using ObjectFile
-using ObjectFile.ELF
-
-"""
-    is_for_platform(h::ObjectHandle, platform::Platform)
-
-Returns `true` if the given `ObjectHandle` refers to an object of the given
-`platform`; E.g. if the given `platform` is for AArch64 Linux, then `h` must
-be an `ELFHandle` with `h.header.e_machine` set to `ELF.EM_AARCH64`.
-"""
-function is_for_platform(h::ObjectHandle, platform::Platform)
-    if platform isa Linux
-        h isa ELFHandle || return false
-        (h.ei.osabi == ELF.ELFOSABI_LINUX ||
-         h.ei.osabi == ELF.ELFOSABI_NONE) || return false
-        mach = h.header.e_machine
-        if platform.arch == :i686
-            return mach == ELF.EM_386
-        elseif platform.arch == :x86_64
-            # Allow i686 as well, because that's technically ok
-            return (
-                mach == ELF.EM_386 ||
-                mach == ELF.EM_X86_64)
-        elseif platform.arch == :aarch64
-            return mach == ELF.EM_AARCH64
-        elseif platform.arch == :powerpc64le || platform.arch == :ppc64le
-            return mach == ELF.EM_PPC64
-        elseif platform.arch == :armv7l
-            return mach == ELF.EM_ARM
-        else
-            error("Unknown architecture")
-        end
-    elseif platform isa Windows
-        h isa COFFHandle || return false
-        return true
-    elseif platform isa MacOS
-        h isa MachOHandle || return false
-        return true
-    else
-        error("Unkown platform")
-    end
-end
+include("auditor/instruction_set.jl")
+include("auditor/dynamic_linkage.jl")
 
 # AUDITOR TODO LIST:
 #
 # * Auto-determine minimum glibc version (to sate our own curiosity)
-# * Detect instruction sets that are non-portable
 
 """
     audit(prefix::Prefix; platform::Platform = platform_key();
@@ -103,79 +62,106 @@ function audit(prefix::Prefix; io=STDERR,
             continue
         end
 
-        !isdynamic(oh) && continue
-        rp = RPath(oh)
+        # If it's a dynamic binary, check its linkage
+        if isdynamic(oh)
+            rp = RPath(oh)
 
-        if verbose
-            msg = strip("""
-            Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
-            """)
-            info(io, msg)
-        end
-
-        # Look at every dynamic link, and see if we should do anything about that link...
-        libs = find_libraries(oh)
-        for libname in keys(libs)
-            if should_ignore_lib(libname, oh)
-                if verbose
-                    info(io, "Ignoring system library $(libname)")
-                end
-                continue
+            if verbose
+                msg = strip("""
+                Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
+                """)
+                info(io, msg)
             end
 
-            # If this is a default dynamic link, then just rewrite to use rpath and call it good.
-            if is_default_lib(libname, oh)
-                relink_to_rpath(prefix, platform, path(oh), libs[libname])
-                if verbose
-                    info(io, "Rpathify'ing default library $(libname)")
+            # Look at every dynamic link, and see if we should do anything about that link...
+            libs = find_libraries(oh)
+            for libname in keys(libs)
+                if should_ignore_lib(libname, oh)
+                    if verbose
+                        info(io, "Ignoring system library $(libname)")
+                    end
+                    continue
                 end
-                continue
-            end
 
-            if !isfile(libs[libname])
-                # If we couldn't resolve this library, let's try autofixing,
-                # if we're allowed to by the user
-                if autofix
-                    # First, is this a library that we already know about?
-                    known_bins = lowercase.(basename.(bin_files))
-                    kidx = findfirst(known_bins .== lowercase(basename(libname)))
-                    if kidx > 0
-                        # If it is, point to that file instead!
-                        new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
+                # If this is a default dynamic link, then just rewrite to use rpath and call it good.
+                if is_default_lib(libname, oh)
+                    relink_to_rpath(prefix, platform, path(oh), libs[libname])
+                    if verbose
+                        info(io, "Rpathify'ing default library $(libname)")
+                    end
+                    continue
+                end
 
-                        if verbose
+                if !isfile(libs[libname])
+                    # If we couldn't resolve this library, let's try autofixing,
+                    # if we're allowed to by the user
+                    if autofix
+                        # First, is this a library that we already know about?
+                        known_bins = lowercase.(basename.(bin_files))
+                        kidx = findfirst(known_bins .== lowercase(basename(libname)))
+                        if kidx > 0
+                            # If it is, point to that file instead!
+                            new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
+
+                            if verbose
+                                msg = replace("""
+                                Linked library $(libname) has been auto-mapped to
+                                $(new_link)
+                                """, '\n', ' ')
+                                info(io, strip(msg))
+                            end
+                        else
                             msg = replace("""
-                            Linked library $(libname) has been auto-mapped to
-                            $(new_link)
+                            Linked library $(libname) could not be resolved and
+                            could not be auto-mapped
                             """, '\n', ' ')
-                            info(io, strip(msg))
+                            if !silent
+                                warn(io, strip(msg))
+                            end
+                            all_ok = false
                         end
                     else
                         msg = replace("""
-                        Linked library $(libname) could not be resolved and
-                        could not be auto-mapped
+                        Linked library $(libname) could not be resolved within
+                        the given prefix
                         """, '\n', ' ')
                         if !silent
                             warn(io, strip(msg))
                         end
                         all_ok = false
                     end
-                else
+                elseif !startswith(libs[libname], prefix.path)
                     msg = replace("""
-                    Linked library $(libname) could not be resolved within
-                    the given prefix
+                    Linked library $(libname) (resolved path $(libs[libname]))
+                    is not within the given prefix
                     """, '\n', ' ')
                     if !silent
                         warn(io, strip(msg))
                     end
                     all_ok = false
                 end
-            elseif !startswith(libs[libname], prefix.path)
-                msg = replace("""
-                Linked library $(libname) (resolved path $(libs[libname]))
-                is not within the given prefix
-                """, '\n', ' ')
+            end
+        end
+
+        # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
+        if any(is_for_platform.(oh, [Linux(:x86_64), MacOS(), Windows(:x86_64)]))
+            if verbose
+                info(io, "Analyzing minimum instruction set for $(relpath(f, prefix.path))")
+            end
+            instruction_set = analyze_instruction_set(oh; verbose=verbose, io=io)
+            if is64bit(oh) && instruction_set != :core2
                 if !silent
+                    msg = replace("""
+                    Minimum instruction set is $(instruction_set), not :core2
+                    """, '\n', ' ')
+                    warn(io, strip(msg))
+                end
+                all_ok = false
+            elseif !is64bit(oh) && instruction_set != :pentium4
+                if !silent
+                    msg = replace("""
+                    Minimum instruction set is $(instruction_set), not :pentium4
+                    """, '\n', ' ')
                     warn(io, strip(msg))
                 end
                 all_ok = false
@@ -285,119 +271,3 @@ function collapse_symlinks(files::Vector{String})
     return filter(predicate, files)
 end
 
-# These are libraries we should straight-up ignore, like libsystem on OSX
-function should_ignore_lib(lib, ::ELFHandle)
-    ignore_libs = [
-        "libc.so.6",
-        # libgcc Linux and FreeBSD style
-        "libgcc_s.1.so",
-        "libgcc_s.so.1",
-        "libm.so.6",
-        "libgfortran.so.3",
-        "libgfortran.so.4",
-    ]
-    return lowercase(basename(lib)) in ignore_libs
-end
-function should_ignore_lib(lib, ::MachOHandle)
-    ignore_libs = [
-        "libsystem.b.dylib",
-    ]
-    return lowercase(basename(lib)) in ignore_libs
-end
-function should_ignore_lib(lib, ::COFFHandle)
-    ignore_libs = [
-        "msvcrt.dll",
-        "kernel32.dll",
-        "user32.dll",
-        "libgcc_s_sjlj-1.dll",
-        "libgfortran-3.dll",
-        "libgfortran-4.dll",
-    ]
-    return lowercase(basename(lib)) in ignore_libs
-end
-
-# Determine whether a library is a "default" library or not, if it is we need
-# to map it to `@rpath/$libname` on OSX.
-is_default_lib(lib, oh) = false
-function is_default_lib(lib, ::MachOHandle)
-    default_libs = [
-        "libgcc_s.1.dylib",
-        "libgfortran.3.dylib",
-        "libgfortran.4.dylib",
-        "libquadmath.0.dylib",
-    ]
-    return lowercase(basename(lib)) in default_libs
-end
-
-function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractString,
-                         old_libpath::AbstractString; verbose::Bool = false)
-    ur = UserNSRunner(prefix.path; cwd="/workspace/", platform=platform, verbose=true)
-    rel_path = relpath(path, prefix.path)
-    libname = basename(old_libpath)
-    relink_cmd = ``
-
-    if Compat.Sys.isapple(platform)
-        install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
-        relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
-    elseif Compat.Sys.islinux(platform)
-        patchelf = "/usr/local/bin/patchelf"
-        relink_cmd = `$patchelf --replace-needed $(old_libpath) \$ORIGIN/$(libname) $(rel_path)`
-    end
-
-    # Create a new linkage that looks like $ORIGIN/../lib, or similar
-    logpath = joinpath(logdir(prefix), "relink_to_rpath_$(basename(rel_path))_$(libname).log")
-    run(ur, relink_cmd, logpath; verbose=verbose)
-end
-
-"""
-    update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
-                   old_libpath, new_libpath; verbose::Bool = false)
-
-Given a binary object located at `path` within `prefix`, update its dynamic
-linkage to point to `new_libpath` instead of `old_libpath`.  This is done using
-a tool within the cross-compilation environment such as `install_name_tool` on
-MacOS or `patchelf` on Linux.  Windows platforms are completely skipped, as
-they do not encode paths or RPaths within their executables.
-"""
-function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
-                        old_libpath, new_libpath; verbose::Bool = false)
-    # Windows doesn't do updating of linkage
-    if Compat.Sys.iswindows(platform)
-        return
-    end
-
-    ur = UserNSRunner(prefix.path; cwd="/workspace/", platform=platform, verbose=true)
-    rel_path = relpath(path, prefix.path)
-
-    add_rpath = x -> ``
-    relink = (x, y) -> ``
-    origin = ""
-    patchelf = "/usr/local/bin/patchelf"
-    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
-    if Compat.Sys.isapple(platform)
-        origin = "@loader_path"
-        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
-        relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
-    elseif Compat.Sys.islinux(platform)
-        origin = "\$ORIGIN"
-        full_rpath = join(':', rpaths(RPath(readmeta(path))))
-        add_rpath = rp -> `$patchelf --set-rpath $(full_rpath):$(rp) $(rel_path)`
-        relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
-    end
-
-    if !(dirname(new_libpath) in canonical_rpaths(RPath(readmeta(path))))
-        libname = basename(old_libpath)
-        logpath = joinpath(logdir(prefix), "update_rpath_$(libname).log")
-        cmd = add_rpath(relpath(dirname(new_libpath), dirname(path)))
-        run(ur, cmd, logpath; verbose=verbose)
-    end
-
-    # Create a new linkage that looks like $ORIGIN/../lib, or similar
-    libname = basename(old_libpath)
-    logpath = joinpath(logdir(prefix), "update_linkage_$(libname).log")
-    origin_relpath = joinpath(origin, relpath(new_libpath, dirname(path)))
-    cmd = relink(old_libpath, origin_relpath)
-    run(ur, cmd, logpath; verbose=verbose)
-
-    return origin_relpath
-end
