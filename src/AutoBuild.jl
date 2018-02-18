@@ -161,20 +161,23 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
     println(io, ")")
 
     print(io, """
-    if platform_key() in keys(download_info)
-        # First, check to see if we're all satisfied
-        if any(!satisfied(p; verbose=verbose) for p in products)
+    # First, check to see if we're all satisfied
+    if any(!satisfied(p; verbose=verbose) for p in products)
+        if haskey(download_info, platform_key())
             # Download and install binaries
             url, tarball_hash = download_info[platform_key()]
             install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
-        end
 
-        # Finally, write out a deps.jl file that will contain mappings for each
-        # named product here: (there will be a "libfoo" variable and a "fooifier"
-        # variable, etc...)
-        @write_deps_file libfoo fooifier
-    else
-        error("Your platform \$(Sys.MACHINE) is not supported by this package!")
+            # Finally, write out a deps.jl file that will contain mappings for each
+            # named product here: (there will be a "libfoo" variable and a "fooifier"
+            # variable, etc...)
+            @write_deps_file libfoo fooifier
+        else
+            # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
+            # Alternatively, you could attempt to build from source or something more
+            # ambitious here.
+            error("Your platform \$(Sys.MACHINE) is not supported by this package!")
+        end
     end
     """)
 end
