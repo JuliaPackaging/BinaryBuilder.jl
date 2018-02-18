@@ -10,7 +10,7 @@ function normalize_name(file::AbstractString)
     if idx != 0
         file = file[1:prevind(file, idx)]
     end
-    # String -123, which is a common thing for libraries on windows
+    # Strip -123, which is a common thing for libraries on windows
     idx = findlast(file, '-')
     if idx != 0 && all(isnumber, file[nextind(file, idx):end])
         file = file[1:prevind(file, idx)]

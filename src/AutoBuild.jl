@@ -185,13 +185,15 @@ end
 function print_buildjl(build_dir, products, product_hashes, bin_path)
     open(joinpath(build_dir, "products", "build.jl"), "w") do io
         prds = String[]
-        for prod in products(Prefix(""))
+        prefix = Prefix(".")
+        for prod in products(prefix)
+            prod_relpath = relpath(prefix.path, prod.path)
             if isa(prod, LibraryProduct)
                 push!(prds, "LibraryProduct(prefix, $(repr(prod.libnames)))")
             elseif isa(prod, ExecutableProduct)
-                push!(prds, "ExecutableProduct(prefix, $(repr(prod.path)))")
+                push!(prds, "ExecutableProduct(prefix, $(repr(prod_relpath)))")
             elseif isa(prod, FileProduct)
-                push!(prds, "FileProduct(prefix, $(repr(prod.path)))")
+                push!(prds, "FileProduct(prefix, $(repr(prod_relpath)))")
             end
         end
         prd_str = string("products = [\n",join(prds, ",\n"),"\n]")
