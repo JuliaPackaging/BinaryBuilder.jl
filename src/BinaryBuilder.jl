@@ -4,6 +4,7 @@
 module BinaryBuilder
 using Compat
 using Reexport
+using ObjectFile
 
 if VERSION >= v"0.7.0-DEV.3382"
     import Libdl

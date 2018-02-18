@@ -106,7 +106,7 @@ function interactive_build(state::WizardState, prefix::Prefix,
                            ur::Runner, build_path::AbstractString;
                            hist_modify = string)
    histfile = joinpath(build_path, ".bash_history")
-   runshell(ur, state.ins, state.outs, state.outs)
+   runshell(ur, stdin=state.ins, stdout=state.outs, stderr=state.outs)
    # This is an extremely simplistic way to capture the history,
    # but ok for now. Obviously doesn't include any interactive
    # programs, etc.

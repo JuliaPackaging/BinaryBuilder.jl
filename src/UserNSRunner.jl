@@ -109,32 +109,40 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
     return did_succeed
 end
 
-function run_interactive(ur::UserNSRunner, cmd::Cmd, stdin = nothing, stdout = nothing, stderr = nothing)
+function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
     if runner_override == "privileged"
         info("Running privileged container via `sudo`, may ask for your password:")
     end
 
     cd(rootfs_dir()) do
         cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
-        if stdin != nothing
+        if stdin isa Base.AbstractCmd
             cmd = pipeline(cmd, stdin=stdin)
         end
-        if stdout != nothing
+        if stdout isa Base.AbstractCmd
             cmd = pipeline(cmd, stdout=stdout)
         end
-        if stderr != nothing
+        if stderr isa Base.AbstractCmd
             cmd = pipeline(cmd, stderr=stderr)
         end
 
-        # For interactive runs, we don't particularly care if there's an error
-        try
+        if stdout isa IO
+            if !(stdin isa IO)
+                stdin = Base.DevNull
+            end
+            out, process = open(cmd, "r", stdin)
+            wait(process)
+            if stdout isa IO
+                write(stdout, read(out))
+            end
+        else
             run(cmd)
         end
     end
 end
 
-function runshell(ur::UserNSRunner, args...)
-    run_interactive(ur, `/bin/bash`, args...)
+function runshell(ur::UserNSRunner, args...; kwargs...)
+    run_interactive(ur, `/bin/bash`, args...; kwargs...)
 end
 
 function runshell(::Type{UserNSRunner}, platform::Platform = platform_key(); verbose::Bool = false)
