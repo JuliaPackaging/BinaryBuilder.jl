@@ -223,25 +223,27 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
     temp_prefix() do prefix
         comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
         cmd = qemu_gen_cmd(qr, cmd, comm_socket_path)
-        if stdin isa Base.AbstractCmd
+        if stdin isa Base.AbstractCmd || stdin isa Base.TTY
             cmd = pipeline(cmd, stdin=stdin)
         end
-        if stdout isa Base.AbstractCmd
+        if stdout isa Base.AbstractCmd || stdout isa Base.TTY
             cmd = pipeline(cmd, stdout=stdout)
         end
-        if stderr isa Base.AbstractCmd
+        if stderr isa Base.AbstractCmd || stderr isa Base.TTY
             cmd = pipeline(cmd, stderr=stderr)
         end
 
-        if stdout isa IO
-            if !(stdin isa IO)
+        if stdout isa IOBuffer
+            if !(stdin isa IOBuffer)
                 stdin = Base.DevNull
             end
             out, process = open(cmd, "r", stdin)
-            wait(process)
-            if stdout isa IO
-                write(stdout, read(out))
+            @schedule begin
+                while !eof(out)
+                    write(stdout, read(out))
+                end
             end
+            wait(process)
         else
             run(cmd)
         end
