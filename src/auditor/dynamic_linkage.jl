@@ -91,7 +91,7 @@ end
 
 function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractString,
                          old_libpath::AbstractString; verbose::Bool = false)
-    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform, verbose=true)
+    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
     libname = basename(old_libpath)
     relink_cmd = ``
@@ -126,7 +126,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         return
     end
 
-    ur = UserNSRunner(prefix.path; cwd="/workspace/", platform=platform, verbose=verbose)
+    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
 
     add_rpath = x -> ``

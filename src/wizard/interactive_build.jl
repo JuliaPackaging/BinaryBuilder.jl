@@ -193,7 +193,7 @@ function step3_retry(state::WizardState)
             state.source_hashes,
             state.dependencies,
             platform;
-            verbose=true,
+            verbose=false,
             tee_stream=state.outs
         )
 
@@ -275,7 +275,7 @@ function step34(state::WizardState)
             state.dependencies,
             platform,
             Dict("HISTFILE"=>"/workspace/.bash_history");
-            verbose=true,
+            verbose=false,
             tee_stream=state.outs
         )
         provide_hints(state, joinpath(prefix.path, "..", "srcdir"))
