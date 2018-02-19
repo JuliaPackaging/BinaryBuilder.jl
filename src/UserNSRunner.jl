@@ -119,10 +119,10 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
         if stdin isa Base.AbstractCmd || stdin isa Base.TTY
             cmd = pipeline(cmd, stdin=stdin)
         end
-        if stdout isa Base.AbstractCmd || stdin isa Base.TTY
+        if stdout isa Base.AbstractCmd || stdout isa Base.TTY
             cmd = pipeline(cmd, stdout=stdout)
         end
-        if stderr isa Base.AbstractCmd || stdin isa Base.TTY
+        if stderr isa Base.AbstractCmd || stderr isa Base.TTY
             cmd = pipeline(cmd, stderr=stderr)
         end
         
