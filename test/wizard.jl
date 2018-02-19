@@ -96,6 +96,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
     write(pty.master, "N\n")
     # Step 4
     write(pty.master, "ad")
+    write(pty.master, "libfoo\nfooifier\n")
     wait(t)
 end
 
@@ -132,6 +133,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
     write(pty.master, "N\n")
     # Step 4
     write(pty.master, "ad")
+    write(pty.master, "libfoo\nfooifier\n")
     wait(t)
 end
 
@@ -154,16 +156,17 @@ let state = BinaryBuilder.WizardState(ins, outs)
     wait_for_menu(pty)
     write(pty.master, "\e[B")
     sleep(1)
-    write(pty.master, "\r") # Why is this needed?
+    write(pty.master, "\r")
     wait_for_non_menu(pty)
     write(pty.master, "cd libfoo/\n")
-    write(pty.master, "if [ -f fooifier ]; then\nexit\nfi\n")
     write(pty.master, "make install\n")
     write(pty.master, "exit\n")
     readuntil(pty.master, "Would you like to edit this script now?")
     write(pty.master, "N\n")
     # Step 4
     write(pty.master, "ad")
+    write(pty.master, "libfoo\nfooifier\n")
+    wait(t)
 end
 
 rm(tempspace; force=true, recursive=true)
