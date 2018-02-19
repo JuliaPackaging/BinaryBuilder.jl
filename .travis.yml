@@ -42,7 +42,7 @@ script:
    - julia -e 'Pkg.clone(pwd())'
    - julia -e 'Pkg.build("BinaryBuilder")'
    - if [ ${TEST_SANDBOX:-false} = true ]; then julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -o root/sandbox sandbox.c`)'; fi
-   - julia --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
+   - julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:

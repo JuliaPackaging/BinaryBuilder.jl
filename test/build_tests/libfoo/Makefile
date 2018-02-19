@@ -1,8 +1,7 @@
 all: install
 
 # We provide sane defaults, but BinaryBuilder may override most of these values.
-DESTDIR ?= /usr/local
-prefix ?= $(DESTDIR)
+prefix ?= /usr/local
 bindir ?= $(prefix)/bin
 libdir ?= $(prefix)/lib
 CC ?= gcc
