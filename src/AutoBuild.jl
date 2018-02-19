@@ -126,9 +126,9 @@ end
 
 const example_products_str = """
 # Instantiate products here.  Examples:
-# libfoo = LibraryProduct(prefix, "libfoo")
-# foo_executable = ExecutableProduct(prefix, "fooifier")
-# libfoo_pc = FileProduct(joinpath(libdir(prefix), "pkgconfig", "libfoo.pc"))
+# libfoo = LibraryProduct(prefix, "libfoo", :libfoo)
+# foo_executable = ExecutableProduct(prefix, "fooifier", :fooifier)
+# libfoo_pc = FileProduct(joinpath(libdir(prefix), "pkgconfig", "libfoo.pc"), :libfoo_pc)
 
 # Assign products to `products`:
 # products = [libfoo, foo_executable, libfoo_pc]
@@ -189,11 +189,11 @@ function print_buildjl(build_dir, products, product_hashes, bin_path)
         for prod in products(prefix)
             prod_relpath = relpath(prefix.path, prod.path)
             if isa(prod, LibraryProduct)
-                push!(prds, "LibraryProduct(prefix, $(repr(prod.libnames)))")
+                push!(prds, "LibraryProduct(prefix, $(repr(prod.libnames)), $(repr(variable_name(prod))))")
             elseif isa(prod, ExecutableProduct)
-                push!(prds, "ExecutableProduct(prefix, $(repr(prod_relpath)))")
+                push!(prds, "ExecutableProduct(prefix, $(repr(prod_relpath)), $(repr(variable_name(prod))))")
             elseif isa(prod, FileProduct)
-                push!(prds, "FileProduct(prefix, $(repr(prod_relpath)))")
+                push!(prds, "FileProduct(prefix, $(repr(prod_relpath)), $(repr(variable_name(prod))))")
             end
         end
         prd_str = string("products = [\n",join(prds, ",\n"),"\n]")

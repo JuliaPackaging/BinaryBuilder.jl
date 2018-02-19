@@ -28,9 +28,9 @@ make
 make install
 """
 
-products = prefix -> [
-    LibraryProduct(prefix, "libfoo"),
-    ExecutableProduct(prefix, "fooifier"),
+products(prefix) = [
+    LibraryProduct(prefix, "libfoo", :libfoo),
+    ExecutableProduct(prefix, "fooifier", :fooifier),
 ]
 
 # Build 'em!

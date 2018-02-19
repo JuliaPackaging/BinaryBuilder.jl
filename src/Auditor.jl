@@ -152,7 +152,7 @@ function audit(prefix::Prefix; io=STDERR,
             if is64bit(oh) && instruction_set != :core2
                 if !silent
                     msg = replace("""
-                    Minimum instruction set is $(instruction_set), not :core2
+                    Minimum instruction set is $(instruction_set), not core2
                     """, '\n', ' ')
                     warn(io, strip(msg))
                 end
@@ -160,7 +160,7 @@ function audit(prefix::Prefix; io=STDERR,
             elseif !is64bit(oh) && instruction_set != :pentium4
                 if !silent
                     msg = replace("""
-                    Minimum instruction set is $(instruction_set), not :pentium4
+                    Minimum instruction set is $(instruction_set), not pentium4
                     """, '\n', ' ')
                     warn(io, strip(msg))
                 end
