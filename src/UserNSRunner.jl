@@ -116,25 +116,27 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
 
     cd(rootfs_dir()) do
         cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
-        if stdin isa Base.AbstractCmd
+        if stdin isa Base.AbstractCmd || stdin isa Base.TTY
             cmd = pipeline(cmd, stdin=stdin)
         end
-        if stdout isa Base.AbstractCmd
+        if stdout isa Base.AbstractCmd || stdin isa Base.TTY
             cmd = pipeline(cmd, stdout=stdout)
         end
-        if stderr isa Base.AbstractCmd
+        if stderr isa Base.AbstractCmd || stdin isa Base.TTY
             cmd = pipeline(cmd, stderr=stderr)
         end
-
-        if stdout isa IO
-            if !(stdin isa IO)
+        
+        if stdout isa IOBuffer
+            if !(stdin isa IOBuffer)
                 stdin = Base.DevNull
             end
             out, process = open(cmd, "r", stdin)
-            wait(process)
-            if stdout isa IO
-                write(stdout, read(out))
+            @schedule begin
+                while !eof(out)
+                    write(stdout, read(out))
+                end
             end
+            wait(process)
         else
             run(cmd)
         end
