@@ -74,6 +74,13 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
         state.files = map(x->state.files[x], selected)
     end
 
+    for f in state.files
+        println(state.outs, "Please provide a unique variable name for each build artifact:\n")
+        print(state.outs, f, ":\n> ")
+        varname = readline(state.ins)
+        push!(state.file_varnames, Symbol(varname))
+    end
+
     push!(state.validated_platforms, platform)
     # Advance to next step
     state.step = :step5a

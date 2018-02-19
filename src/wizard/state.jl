@@ -34,6 +34,7 @@ mutable struct WizardState
     dependency_files::Union{Void, Set{String}}
     files::Union{Void, Vector{String}}
     file_kinds::Union{Void, Vector{Symbol}}
+    file_varnames::Union{Void, Vector{Symbol}}
     # Filled in by step 5c
     failed_platforms::Set{Any}
     # Used to keep track of which platforms we already visited
@@ -56,6 +57,7 @@ function WizardState()
         nothing,
         nothing,
         Vector{AbstractDependency}(),
+        nothing,
         nothing,
         nothing,
         nothing,

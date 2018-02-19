@@ -19,8 +19,8 @@ end
 info("Building for $(join(triplet.(build_platforms), ", "))")
 
 products(prefix) = [
-    LibraryProduct(prefix, "libfoo"),
-    ExecutableProduct(prefix, "fooifier")
+    LibraryProduct(prefix, "libfoo", :libfoo),
+    ExecutableProduct(prefix, "fooifier", :fooifier)
 ]
 
 # Build 'em!

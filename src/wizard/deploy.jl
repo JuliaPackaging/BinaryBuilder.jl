@@ -7,17 +7,17 @@ function print_build_tarballs(io::IO, state::WizardState;
         string("    ", repr(src)," =>\n    ", repr(hash), ",\n")
     end,"\n"),"]")
 
-    stuff = collect(zip(state.files, state.file_kinds))
+    stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
     products_string = join(map(stuff) do x
-        file, kind = x
+        file, kind, varname = x
         # Normalize the filename, e.g. `"foo/libfoo.tar.gz"` would get mapped to `"libfoo"`
         file = normalize_name(file)
         if kind == :executable
-            return "    ExecutableProduct(prefix, $(repr(file)))"
+            return "    ExecutableProduct(prefix, $(repr(file)), $(repr(varname)))"
         elseif kind == :library
-            return "    LibraryProduct(prefix, $(repr(file)))"
+            return "    LibraryProduct(prefix, $(repr(file)), $(repr(varname)))"
         else
-            return "    FileProduct(prefix, $(repr(file)))"
+            return "    FileProduct(prefix, $(repr(file)), $(repr(varname)))"
         end
     end,",\n")
 
