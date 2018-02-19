@@ -1,5 +1,5 @@
 julia 0.6
-BinaryProvider
+BinaryProvider 0.2.0
 ObjectFile
 Compat 0.50.0
 Reexport
