@@ -1,4 +1,7 @@
-export autobuild, print_buildjl
+export autobuild, print_buildjl, product_hashes_from_github_release
+import GitHub: gh_get_json, DEFAULT_API
+import SHA: sha256
+
 
 """
     autobuild(dir::AbstractString, src_name::AbstractString, platforms::Vector,
@@ -124,28 +127,36 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
     product_hashes
 end
 
-const example_products_str = """
-# Instantiate products here.  Examples:
-# libfoo = LibraryProduct(prefix, "libfoo", :libfoo)
-# foo_executable = ExecutableProduct(prefix, "fooifier", :fooifier)
-# libfoo_pc = FileProduct(joinpath(libdir(prefix), "pkgconfig", "libfoo.pc"), :libfoo_pc)
-
-# Assign products to `products`:
-# products = [libfoo, foo_executable, libfoo_pc]
-"""
-
-const example_bin_path = "https://<path to hosted location such as GitHub Releases>"
-
-function print_buildjl(io::IO, product_hashes::Dict; products_str=example_products_str, bin_path=example_bin_path)
+function print_buildjl(io::IO, product_hashes::Dict; products::Vector{Product} = Product[],
+                       bin_path::AbstractString = "https://<path to hosted binaries>")
     print(io, """
     using BinaryProvider
 
     # Parse some basic command-line arguments
     const verbose = "--verbose" in ARGS
     const prefix = Prefix(get([a for a in ARGS if a != "--verbose"], 1, joinpath(@__DIR__, "usr")))
-    
-    $products_str
+    """)
 
+    # If we have been given products, print out the products we're given.  Otherwise, print out an example:
+    if isempty(products)
+        print(io, """
+        products = Product[
+            # Instantiate products here, e.g.:
+            # LibraryProduct(prefix, "libfoo", :libfoo),
+            # ExecutableProduct(prefix, "fooifier", :fooifier),
+            # FileProduct(joinpath(libdir(prefix), "pkgconfig", "libfoo.pc"), :libfoo_pc),
+        ]
+
+        """)
+    else
+        print(io, "products = Product[\n")
+        for prod in products
+            print(io, "    $(repr(prod))\n")
+        end
+        print(io, "]\n\n")
+    end
+
+    print(io, """
     # Download binaries from hosted location
     bin_prefix = "$bin_path"
 
@@ -158,7 +169,7 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
         pkey = platform_key(platform)
         println(io, "    $(pkey) => (\"\$bin_prefix/$(fname)\", \"$(hash)\"),")
     end
-    println(io, ")")
+    println(io, ")\n")
 
     print(io, """
     # First, check to see if we're all satisfied
@@ -168,35 +179,64 @@ function print_buildjl(io::IO, product_hashes::Dict; products_str=example_produc
             url, tarball_hash = download_info[platform_key()]
             install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
 
-            # Finally, write out a deps.jl file that will contain mappings for each
-            # named product here: (there will be a "libfoo" variable and a "fooifier"
-            # variable, etc...)
-            @write_deps_file libfoo fooifier
+            # Write out a deps.jl file that will contain mappings for our products
+            write_deps_file(joinpath(@__DIR__, "deps.jl"), products)
         else
             # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
-            # Alternatively, you could attempt to build from source or something more
-            # ambitious here.
+            # Alternatively, you could attempt to install from a separate provider,
+            # build from source or something more even more ambitious here.
             error("Your platform \$(Sys.MACHINE) is not supported by this package!")
         end
     end
     """)
 end
 
-function print_buildjl(build_dir, products, product_hashes, bin_path)
+function print_buildjl(build_dir::AbstractString, products::Vector{Product}, product_hashes::Dict, bin_path::AbstractString)
     open(joinpath(build_dir, "products", "build.jl"), "w") do io
-        prds = String[]
-        prefix = Prefix(".")
-        for prod in products(prefix)
-            prod_relpath = relpath(prefix.path, prod.path)
-            if isa(prod, LibraryProduct)
-                push!(prds, "LibraryProduct(prefix, $(repr(prod.libnames)), $(repr(variable_name(prod))))")
-            elseif isa(prod, ExecutableProduct)
-                push!(prds, "ExecutableProduct(prefix, $(repr(prod_relpath)), $(repr(variable_name(prod))))")
-            elseif isa(prod, FileProduct)
-                push!(prds, "FileProduct(prefix, $(repr(prod_relpath)), $(repr(variable_name(prod))))")
-            end
-        end
-        prd_str = string("products = [\n",join(prds, ",\n"),"\n]")
-        print_buildjl(io, product_hashes; bin_path = bin_path, products_str=prd_str)
+        print_buildjl(io, product_hashes; products=products, bin_path=bin_path)
     end
+end
+
+"""
+If you have a sharded build on Github, it would be nice if we could get an auto-generated
+`build.jl` just like if we build serially.  This function eases the pain by reconstructing
+it from a releases page.
+"""
+function product_hashes_from_github_release(repo_name::AbstractString, tag_name::AbstractString;
+                                            verbose::Bool = false)
+    # Get list of files within this release
+    release = gh_get_json(DEFAULT_API, "/repos/$(repo_name)/releases/tags/$(tag_name)")
+
+    # Try to extract the platform key from each, use that to find all tarballs
+    function can_extract_platform(filename)
+        try
+            extract_platform_key(filename)
+            return true
+        end
+        if verbose
+            info("Ignoring file $(filename); can't extract its platform key")
+        end
+        return false
+    end
+    assets = [a for a in release["assets"] if can_extract_platform(a["name"])]
+
+    # Download each tarball, hash it, and reconstruct product_hashes.
+    product_hashes = Dict()
+    mktempdir() do d
+        for asset in assets
+            filepath = joinpath(d, asset["name"])
+            BinaryProvider.download(asset["url"], filepath; verbose=verbose)
+            hash = open(filepath) do file
+                return bytes2hex(sha256(file))
+            end
+
+            if verbose
+                info("Calculated $hash for $(asset["name"])")
+            end
+            file_triplet = triplet(extract_platform_key(asset["name"]))
+            product_hashes[file_triplet] = (asset["name"], hash)
+        end
+    end
+
+    return product_hashes
 end
