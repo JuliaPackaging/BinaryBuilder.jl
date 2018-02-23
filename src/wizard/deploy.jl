@@ -1,11 +1,10 @@
 function print_build_tarballs(io::IO, state::WizardState;
         with_travis_tags=false)
-    platforms_string = string("[\n    ",join(state.platforms,",\n    "),"\n]\n")
     urlhashes = zip(state.source_urls, state.source_hashes)
-    sources_string = string("[\n",join(map(urlhashes) do x
-        (src, hash) = x
-        string("    ", repr(src)," =>\n    ", repr(hash), ",\n")
-    end,"\n"),"]")
+    sources_string = join(map(urlhashes) do x
+        string(repr(x[1])," =>\n    ", repr(x[2]), ",\n")
+    end,"\n    ")
+    platforms_string = join(state.platforms,",\n    ")
 
     stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
     products_string = join(map(stuff) do x
@@ -13,19 +12,16 @@ function print_build_tarballs(io::IO, state::WizardState;
         # Normalize the filename, e.g. `"foo/libfoo.tar.gz"` would get mapped to `"libfoo"`
         file = normalize_name(file)
         if kind == :executable
-            return "    ExecutableProduct(prefix, $(repr(file)), $(repr(varname)))"
+            return "ExecutableProduct(prefix, $(repr(file)), $(repr(varname)))"
         elseif kind == :library
-            return "    LibraryProduct(prefix, $(repr(file)), $(repr(varname)))"
+            return "LibraryProduct(prefix, $(repr(file)), $(repr(varname)))"
         else
-            return "    FileProduct(prefix, $(repr(file)), $(repr(varname)))"
+            return "FileProduct(prefix, $(repr(file)), $(repr(varname)))"
         end
-    end,",\n")
+    end,",\n    ")
 
     dependencies_string = ""
     if !isempty(state.dependencies)
-        dependencies_string = """
-        dependencies = [
-        """
         dependencies_string *= join(map(state.dependencies) do dep
             if isa(dep, InlineBuildDependency)
                 """
@@ -36,38 +32,78 @@ function print_build_tarballs(io::IO, state::WizardState;
             elseif isa(dep, RemoteBuildDependency)
                 "\"$(dep.url)\""
             end
-        end, ",\n")
-        dependencies_string *= "]\n"
+        end, ",\n    ")
     end
 
     println(io, """
     using BinaryBuilder
 
-    # These are the platforms built inside the wizard
-    platforms = $(platforms_string)
-
-    # If the user passed in a platform (or a few, comma-separated) on the
-    # command-line, use that instead of our default platforms
-    if length(ARGS) > 0
-        platforms = platform_key.(split(ARGS[1], ","))
-    end
-    info("Building for \$(join(triplet.(platforms), ", "))")
-
     # Collection of sources required to build $(state.name)
-    sources = $(sources_string)
+    sources = [
+        $(sources_string)
+    ]
 
+    # Bash recipe for building across all platforms
     script = raw\"\"\"
     $(state.history)
     \"\"\"
 
-    products(prefix) = [
-    $products_string
+    # These are the platforms we will build for by default, unless further
+    # platforms are passed in on the command line
+    platforms = [
+        $(platforms_string)
     ]
 
-    $dependencies_string
-    # Build the given platforms using the given sources
-    hashes = autobuild(pwd(), "$(state.name)", platforms, sources, script, products$(
-        isempty(dependencies_string) ? "" : ", dependencies=dependencies"))
+    # The products that we will ensure are always built
+    products(prefix) = Product[
+        $products_string
+    ]
+
+    # Dependencies that must be installed before this package can be built
+    dependencies = [
+        $dependencies_string
+    ]
+
+    # Parse out some command-line arguments
+    BUILD_ARGS = ARGS
+
+    # This sets whether we should build verbosely or not
+    verbose = "--verbose" in BUILD_ARGS
+    BUILD_ARGS = filter!(x -> x != "--verbose", BUILD_ARGS)
+
+    # This flag skips actually building and instead attempts to reconstruct a
+    # build.jl from a GitHub release page.  Use this to automatically deploy a
+    # build.jl file even when sharding targets across multiple CI builds.
+    only_buildjl = "--only-buildjl" in BUILD_ARGS
+    BUILD_ARGS = filter!(x -> x != "--only-buildjl", BUILD_ARGS)
+
+    if !only_buildjl
+        # If the user passed in a platform (or a few, comma-separated) on the
+        # command-line, use that instead of our default platforms
+        if length(BUILD_ARGS) > 0
+            platforms = platform_key.(split(BUILD_ARGS[1], ","))
+        end
+        info("Building for \$(join(triplet.(platforms), ", "))")
+
+        # Build the given platforms using the given sources
+        autobuild(pwd(), "$(state.name)", platforms, sources, script, products, dependencies=dependencies)
+    else
+        # If we're only reconstructing a build.jl file on Travis, grab the information and do it
+        if !haskey(ENV, "TRAVIS_REPO_SLUG") || !haskey(ENV, "TRAVIS_TAG")
+            error("Must provide repository name and tag through Travis-style environment variables!")
+        end
+        repo_name = ENV["TRAVIS_REPO_SLUG"]
+        tag_name = ENV["TRAVIS_TAG"]
+        product_hashes = product_hashes_from_github_release(repo_name, tag_name; verbose=verbose)
+        bin_path = "https://github.com/\$(repo_name)/releases/download/\$(tag_name)"
+        dummy_prefix = Prefix(pwd())
+        print_buildjl(pwd(), products(dummy_prefix), product_hashes, bin_path)
+
+        if verbose
+            info("Writing out the following reconstructed build.jl:")
+            print_buildjl(STDOUT, product_hashes; products=products(dummy_prefix), bin_path=bin_path)
+        end
+    end
     """)
 end
 
