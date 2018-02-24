@@ -192,6 +192,7 @@ function print_buildjl(io::IO, product_hashes::Dict; products::Vector{Product} =
 end
 
 function print_buildjl(build_dir::AbstractString, products::Vector{Product}, product_hashes::Dict, bin_path::AbstractString)
+    mkpath(joinpath(build_dir, "products"))
     open(joinpath(build_dir, "products", "build.jl"), "w") do io
         print_buildjl(io, product_hashes; products=products, bin_path=bin_path)
     end
