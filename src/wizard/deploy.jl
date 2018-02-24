@@ -86,7 +86,8 @@ function print_build_tarballs(io::IO, state::WizardState;
         info("Building for \$(join(triplet.(platforms), ", "))")
 
         # Build the given platforms using the given sources
-        autobuild(pwd(), "$(state.name)", platforms, sources, script, products, dependencies=dependencies)
+        autobuild(pwd(), "$(state.name)", platforms, sources, script, products;
+                                          dependencies=dependencies, verbose=verbose)
     else
         # If we're only reconstructing a build.jl file on Travis, grab the information and do it
         if !haskey(ENV, "TRAVIS_REPO_SLUG") || !haskey(ENV, "TRAVIS_TAG")
