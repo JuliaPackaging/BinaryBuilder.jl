@@ -225,17 +225,23 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
     product_hashes = Dict()
     mktempdir() do d
         for asset in assets
+            # For each asset (tarball), download it
             filepath = joinpath(d, asset["name"])
-            BinaryProvider.download(asset["url"], filepath; verbose=verbose)
+            url = asset["browser_download_url"]
+            BinaryProvider.download(url, filepath; verbose=verbose)
+
+            # Hash it
             hash = open(filepath) do file
                 return bytes2hex(sha256(file))
             end
 
+            # Then fit it into our product_hashes
+            file_triplet = triplet(extract_platform_key(asset["name"]))
+            product_hashes[file_triplet] = (asset["name"], hash)
+
             if verbose
                 info("Calculated $hash for $(asset["name"])")
             end
-            file_triplet = triplet(extract_platform_key(asset["name"]))
-            product_hashes[file_triplet] = (asset["name"], hash)
         end
     end
 

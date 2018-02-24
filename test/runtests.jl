@@ -262,4 +262,55 @@ end
     end
 end
 
+@testset "GitHub releases build.jl reconstruction" begin
+    # Download some random release that is relatively small
+    product_hashes = product_hashes_from_github_release("staticfloat/OggBuilder", "v1.3.3-0")
+
+    # Ground truth hashes for each product
+    true_product_hashes = Dict(
+        "aarch64-linux-gnu" => (
+            "Ogg.aarch64-linux-gnu.tar.gz",
+            "4150d19fe0dc773ef3917498379a9148cd780d44322fc30e44cf4a241fb8e688"
+        ),
+        "i686-w64-mingw32" => (
+            "Ogg.i686-w64-mingw32.tar.gz",
+            "3f9940c1c8614fbb40f35ab28dac9237226e3e7fcfb45d1fe7488e0289284ff8"
+        ),
+        "powerpc64le-linux-gnu" => (
+            "Ogg.powerpc64le-linux-gnu.tar.gz",
+            "cf519a13c3b343334aed8771d50b991d7ea00d0bbbd490ee0c8f5ffbd3ba65f4"
+        ),
+        "x86_64-linux-gnu" => (
+            "Ogg.x86_64-linux-gnu.tar.gz",
+            "3952d4def1505ad5090622a50662b6e0a38d1977abb7bb61d2483a47b626c807"
+        ),
+        "x86_64-apple-darwin14" => (
+            "Ogg.x86_64-apple-darwin14.tar.gz",
+            "e6c0fec453c4f833a0364fbf92a4a6e4bc738aa8de84059e12f1ee40f02dbba1"
+        ),
+        "x86_64-w64-mingw32" => (
+            "Ogg.x86_64-w64-mingw32.tar.gz",
+            "a47c33147f7e572f40178d47de54ad3a0a04e6b17a9fe3cf15791ba11203544e"
+        ),
+        "arm-linux-gnueabihf" => (
+            "Ogg.arm-linux-gnueabihf.tar.gz",
+            "dcafb1c46b4363f84fc194c28732e3080be82227e36938d883a2d0e381cae20c"
+        ),
+        "i686-linux-gnu" => (
+            "Ogg.i686-linux-gnu.tar.gz",
+            "f5227b205ee64e03f7b030af0c6b6eb9ddb6a3175efe1c650935e71dcd3ae658"
+        ),
+    )
+
+    @test length(product_hashes) == length(true_product_hashes)
+
+    for target in keys(true_product_hashes)
+        @test haskey(product_hashes, target)
+        product_platform = extract_platform_key(product_hashes[target][1])
+        true_product_platform = extract_platform_key(true_product_hashes[target][1])
+        @test product_platform == true_product_platform
+        @test product_hashes[target][2] == true_product_hashes[target][2]
+    end
+end
+
 include("wizard.jl")
