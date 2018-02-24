@@ -151,7 +151,7 @@ function print_buildjl(io::IO, product_hashes::Dict; products::Vector{Product} =
     else
         print(io, "products = Product[\n")
         for prod in products
-            print(io, "    $(repr(prod))\n")
+            print(io, "    $(repr(prod)),\n")
         end
         print(io, "]\n\n")
     end
