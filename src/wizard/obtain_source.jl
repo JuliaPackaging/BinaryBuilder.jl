@@ -74,7 +74,7 @@ function download_source(state::WizardState)
     msg = replace(strip("""
     Please enter a URL (git repository or gzipped tarball) containing the
     source code to build:
-    """), "\n", " ")
+    """), "\n" => " ")
     print(state.outs, msg, "\n> ")
     entered_url = readline(state.ins)
     println(state.outs)
@@ -258,7 +258,7 @@ function obtain_binary_deps(state::WizardState)
                     String(HTTP.get(canon_url).body)))
             elseif bindep_select == 2
                 println(state.outs, "Please provide the build.jl file. Press ^D when you're done")
-                script = String(read(STDIN))
+                script = String(read(stdin))
                 Base.reseteof(terminal)
                 push!(state.dependencies, InlineBuildDependency(script))
             elseif bindep_select == 3

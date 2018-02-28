@@ -1,5 +1,5 @@
-using Base.Terminals
-using TerminalMenus
+using Compat.REPL
+using Compat.REPL.Terminals
 using ObjectFile.ELF
 using HTTP
 import PkgDev
@@ -55,7 +55,7 @@ function run_wizard(state::WizardState = WizardState())
             printstyled(state.outs, msg, bold=true, color=:red)
         else
             bt = catch_backtrace()
-            Base.showerror(STDERR, err, bt)
+            Base.showerror(Base.stderr, err, bt)
             println(state.outs, "\n")
         end
         return state

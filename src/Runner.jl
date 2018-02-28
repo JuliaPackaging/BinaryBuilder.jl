@@ -94,7 +94,7 @@ function preferred_runner()
             sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
             environment variable to "privileged" before starting Julia.
             """)
-            warn(replace(msg, "\n", " "))
+            Compat.@warn(replace(msg, "\n" => " "))
             runner_override = "privileged"
         end
 

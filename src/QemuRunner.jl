@@ -7,7 +7,7 @@ our crossbuild environment.  Use `run()` to actually run commands within the
 `QemuRunner`, and `runshell()` as a quick way to get an interactive shell
 within the crossbuild environment.
 """
-type QemuRunner <: Runner
+mutable struct QemuRunner <: Runner
     qemu_cmd::Cmd
     append_line::String
     sandbox_cmd::Cmd
@@ -155,7 +155,7 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
         while !issocket(comm_socket_path)
             sleep(0.01)
             if time() - start_time > 2
-                info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
+                Compat.@info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
             end
         end
 
@@ -195,7 +195,7 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
     return `$long_cmd`
 end
 
-function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
+function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
     return temp_prefix() do prefix
         comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
         # Launch QEMU
@@ -235,7 +235,7 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
 
         if stdout isa IOBuffer
             if !(stdin isa IOBuffer)
-                stdin = Base.DevNull
+                stdin = devnull
             end
             out, process = open(cmd, "r", stdin)
             @schedule begin
@@ -250,7 +250,7 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
     end
     
     # Qemu appears to mess with our terminal
-    Base.reseteof(STDIN)
+    Base.reseteof(stdin)
 end
 
 function runshell(qr::QemuRunner, args...; kwargs...)

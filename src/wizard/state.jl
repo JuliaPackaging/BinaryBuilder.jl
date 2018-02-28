@@ -6,7 +6,7 @@ struct InlineBuildDependency <: AbstractDependency
 end
 struct RemoteBuildDependency <: AbstractDependency
     url::String
-    script::Union{String, Void}
+    script::Union{String, Nothing}
 end
 
 """
@@ -22,19 +22,19 @@ mutable struct WizardState
     ins::IO
     outs::IO
     # Filled in by step 1
-    platforms::Union{Void, Vector{P}} where {P <: Platform}
+    platforms::Union{Nothing, Vector{P}} where {P <: Platform}
     # Filled in by step 2
-    workspace::Union{Void, String}
-    source_urls::Union{Void, Vector{String}}
-    source_files::Union{Void, Vector{String}}
-    source_hashes::Union{Void, Vector{String}}
+    workspace::Union{Nothing, String}
+    source_urls::Union{Nothing, Vector{String}}
+    source_files::Union{Nothing, Vector{String}}
+    source_hashes::Union{Nothing, Vector{String}}
     dependencies::Vector{AbstractDependency}
     # Filled in by step 3
-    history::Union{Void, String}
-    dependency_files::Union{Void, Set{String}}
-    files::Union{Void, Vector{String}}
-    file_kinds::Union{Void, Vector{Symbol}}
-    file_varnames::Union{Void, Vector{Symbol}}
+    history::Union{Nothing, String}
+    dependency_files::Union{Nothing, Set{String}}
+    files::Union{Nothing, Vector{String}}
+    file_kinds::Union{Nothing, Vector{Symbol}}
+    file_varnames::Union{Nothing, Vector{Symbol}}
     # Filled in by step 5c
     failed_platforms::Set{Any}
     # Used to keep track of which platforms we already visited
@@ -43,14 +43,14 @@ mutable struct WizardState
     # with the current script. This gets reset if the script is edited.
     validated_platforms::Set{Any}
     # Filled in by step 7
-    name::Union{Void, String}
+    name::Union{Nothing, String}
 end
 
 function WizardState()
     WizardState(
         :step1,
-        STDIN,
-        STDOUT,
+        stdin,
+        stdout,
         nothing,
         nothing,
         nothing,
