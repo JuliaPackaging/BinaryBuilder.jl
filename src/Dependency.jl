@@ -11,7 +11,7 @@ executables, etc...
 To build a `Dependency`, construct it and use `build()`.  To check to see if it
 is already satisfied, use `satisfied()`.
 """
-immutable Dependency
+struct Dependency
     # The "name" of this dependency (e.g. "cairo")
     name::String
 
@@ -42,15 +42,14 @@ immutable Dependency
 
     You may also provide a `Vector` of tuples containing the URLs and hashes
     """
-    function Dependency{P <: Product}(name::AbstractString,
+    function Dependency(name::AbstractString,
                     results::Vector{P},
                     script::AbstractString,
                     platform::Platform,
-                    prefix::Prefix = BinaryProvider.global_prefix)
+                    prefix::Prefix = BinaryProvider.global_prefix) where {P <: Product}
         return new(name, results, script, platform, prefix)
     end
 end
-
 
 """
     satisfied(dep::Dependency; platform::Platform = platform_key(),
@@ -85,9 +84,9 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
         # Verbose mode tells us what's going on
         if verbose
             if !should_build
-                info("Force-building $(dep.name) despite its satisfaction")
+                Compat.@info("Force-building $(dep.name) despite its satisfaction")
             else
-                info("Building $(dep.name) as it is unsatisfied")
+                Compat.@info("Building $(dep.name) as it is unsatisfied")
             end
         end
 
@@ -107,11 +106,11 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
             Audit failed for $(dep.prefix.path).
             Address the errors above to ensure relocatability.
             To override this check, set `ignore_audit_errors = true`.
-            """, '\n', ' ')
+            """, '\n' => ' ')
             error(strip(msg))
         end
     elseif !should_build && verbose
-        info("Not building as $(dep.name) is already satisfied")
+        Compat.@info("Not building as $(dep.name) is already satisfied")
     end
     return true
 end

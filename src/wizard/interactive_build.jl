@@ -25,7 +25,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     end
 
     # Strip out the prefix from filenames
-    state.files = map(file->replace(file, prefix.path, ""), files)
+    state.files = map(file->replace(file, prefix.path => ""), files)
     state.file_kinds = map(files) do f
         h = readmeta(f)
         isexecutable(h) ? :executable :
@@ -125,13 +125,13 @@ function interactive_build(state::WizardState, prefix::Prefix,
            # always start in the WORKSPACE. This makes sure the script
            # accurately reflects that.
            string("cd \$WORKSPACE/srcdir\n",
-           readstring(histfile)))
+           String(read(histfile))))
        rm(histfile)
    end
 
    printstyled(state.outs, "\n\t\t\tBuild complete\n\n", bold=true)
    print(state.outs, "Your build script was:\n\n\t")
-   print(state.outs, replace(state.history, "\n", "\n\t"))
+   print(state.outs, replace(state.history, "\n" => "\n\t"))
    println(state.outs)
 
    if yn_prompt(state, "Would you like to edit this script now?", :n) == :y

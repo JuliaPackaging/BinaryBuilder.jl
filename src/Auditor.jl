@@ -23,7 +23,7 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(prefix::Prefix; io=STDERR,
+function audit(prefix::Prefix; io=Compat.stderr,
                                platform::Platform = platform_key(),
                                verbose::Bool = false,
                                silent::Bool = false,
@@ -34,7 +34,7 @@ function audit(prefix::Prefix; io=STDERR,
     end
 
     if verbose
-        info(io, "Beginning audit of $(prefix.path)")
+        println(io, "INFO: Beginning audit of $(prefix.path)")
     end
 
     # If this is false then it's bedtime for bonzo boy
@@ -49,7 +49,7 @@ function audit(prefix::Prefix; io=STDERR,
             h = readmeta(f)
             if !is_for_platform(h, platform)
                 if verbose
-                    warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                    println(io, "WARN: Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
                 end
                 continue
             end
@@ -57,7 +57,7 @@ function audit(prefix::Prefix; io=STDERR,
         catch
             # If this isn't an actual binary file, skip it
             if verbose
-                info(io, "Skipping binary analysis of $(relpath(f, prefix.path))")
+                println(io, "INFO: Skipping binary analysis of $(relpath(f, prefix.path))")
             end
             continue
         end
@@ -68,9 +68,9 @@ function audit(prefix::Prefix; io=STDERR,
 
             if verbose
                 msg = strip("""
-                Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
+                INFO: Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
                 """)
-                info(io, msg)
+                println(io, msg)
             end
 
             # Look at every dynamic link, and see if we should do anything about that link...
@@ -78,7 +78,7 @@ function audit(prefix::Prefix; io=STDERR,
             for libname in keys(libs)
                 if should_ignore_lib(libname, oh)
                     if verbose
-                        info(io, "Ignoring system library $(libname)")
+                        println(io, "INFO: Ignoring system library $(libname)")
                     end
                     continue
                 end
@@ -87,7 +87,7 @@ function audit(prefix::Prefix; io=STDERR,
                 if is_default_lib(libname, oh)
                     relink_to_rpath(prefix, platform, path(oh), libs[libname])
                     if verbose
-                        info(io, "Rpathify'ing default library $(libname)")
+                        println(io, "INFO: Rpathify'ing default library $(libname)")
                     end
                     continue
                 end
@@ -107,16 +107,16 @@ function audit(prefix::Prefix; io=STDERR,
                                 msg = replace("""
                                 Linked library $(libname) has been auto-mapped to
                                 $(new_link)
-                                """, '\n', ' ')
-                                info(io, strip(msg))
+                                """, '\n' => ' ')
+                                println(io, sINFO: trip(msg))
                             end
                         else
                             msg = replace("""
                             Linked library $(libname) could not be resolved and
                             could not be auto-mapped
-                            """, '\n', ' ')
+                            """, '\n' => ' ')
                             if !silent
-                                warn(io, strip(msg))
+                                println(io, "WARN: " * strip(msg))
                             end
                             all_ok = false
                         end
@@ -124,9 +124,9 @@ function audit(prefix::Prefix; io=STDERR,
                         msg = replace("""
                         Linked library $(libname) could not be resolved within
                         the given prefix
-                        """, '\n', ' ')
+                        """, '\n' => ' ')
                         if !silent
-                            warn(io, strip(msg))
+                            println(io, "WARN: " * strip(msg))
                         end
                         all_ok = false
                     end
@@ -134,9 +134,9 @@ function audit(prefix::Prefix; io=STDERR,
                     msg = replace("""
                     Linked library $(libname) (resolved path $(libs[libname]))
                     is not within the given prefix
-                    """, '\n', ' ')
+                    """, '\n' => ' ')
                     if !silent
-                        warn(io, strip(msg))
+                        println(io, "WARN: " * strip(msg))
                     end
                     all_ok = false
                 end
@@ -146,23 +146,23 @@ function audit(prefix::Prefix; io=STDERR,
         # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
         if any(is_for_platform.(oh, [Linux(:x86_64), MacOS(), Windows(:x86_64)]))
             if verbose
-                info(io, "Analyzing minimum instruction set for $(relpath(f, prefix.path))")
+                println(io, "INFO: Analyzing minimum instruction set for $(relpath(f, prefix.path))")
             end
             instruction_set = analyze_instruction_set(oh; verbose=verbose, io=io)
             if is64bit(oh) && instruction_set != :core2
                 if !silent
                     msg = replace("""
                     Minimum instruction set is $(instruction_set), not core2
-                    """, '\n', ' ')
-                    warn(io, strip(msg))
+                    """, '\n' => ' ')
+                    println(io, "WARN: " * strip(msg))
                 end
                 all_ok = false
             elseif !is64bit(oh) && instruction_set != :pentium4
                 if !silent
                     msg = replace("""
                     Minimum instruction set is $(instruction_set), not pentium4
-                    """, '\n', ' ')
-                    warn(io, strip(msg))
+                    """, '\n' => ' ')
+                    println(io, "WARN: " * strip(msg))
                 end
                 all_ok = false
             end
@@ -178,7 +178,7 @@ function audit(prefix::Prefix; io=STDERR,
 
         for f in shlib_files
             if verbose
-                info(io, "Checking shared library $(relpath(f, prefix.path))")
+                println(io, "INFO: Checking shared library $(relpath(f, prefix.path))")
             end
             hdl = Libdl.dlopen_e(f)
             if hdl == C_NULL
@@ -186,7 +186,7 @@ function audit(prefix::Prefix; io=STDERR,
                 # this file is being nasty to us.
 
                 if !silent
-                    warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                    println(io, "WARN: $(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 end
                 all_ok = false
             else
@@ -203,7 +203,7 @@ function audit(prefix::Prefix; io=STDERR,
         lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
         for f in lib_dll_files
             if !silent
-                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
+                println(io, "WARN: $(relpath(f, prefix.path)) should be in `bin`!")
             end
         end
     end
@@ -217,10 +217,10 @@ function audit(prefix::Prefix; io=STDERR,
     # offense, as many files have absolute paths.  We want to know about it
     # though, so we'll still warn the user.
     for f in all_files
-        file_contents = readstring(f)
+        file_contents = String(read(f))
         if contains(file_contents, prefix.path)
             if !silent
-                warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
+                println(io, "WARN: $(relpath(f, prefix.path)) contains an absolute path")
             end
         end
     end

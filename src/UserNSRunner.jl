@@ -9,7 +9,7 @@ our crossbuild environment.  Use `run()` to actually run commands within the
 `UserNSRunner`, and `runshell()` as a quick way to get an interactive shell
 within the crossbuild environment.
 """
-type UserNSRunner <: Runner
+mutable struct UserNSRunner <: Runner
     sandbox_cmd::Cmd
     env::Dict{String, String}
     platform::Platform
@@ -83,9 +83,9 @@ function show(io::IO, x::UserNSRunner)
           "UserNSRunner")
 end
 
-function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=STDOUT)
+function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
     if runner_override == "privileged"
-        info("Running privileged container via `sudo`, may ask for your password:")
+        Compat.@info("Running privileged container via `sudo`, may ask for your password:")
     end
 
     did_succeed = true
@@ -111,7 +111,7 @@ end
 
 function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
     if runner_override == "privileged"
-        info("Running privileged container via `sudo`, may ask for your password:")
+        Compat.@info("Running privileged container via `sudo`, may ask for your password:")
     end
 
     cd(rootfs_dir()) do
@@ -128,7 +128,7 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
         
         if stdout isa IOBuffer
             if !(stdin isa IOBuffer)
-                stdin = Base.DevNull
+                stdin = devnull
             end
             out, process = open(cmd, "r", stdin)
             @schedule begin
@@ -166,7 +166,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
     cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
 
     if verbose
-        info("Probing for unprivileged container capability...")
+        Compat.@info("Probing for unprivileged container capability...")
     end
     oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
     return wait(oc) && merge(oc) == "hello julia\n"

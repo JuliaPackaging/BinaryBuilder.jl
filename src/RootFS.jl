@@ -284,7 +284,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
     # If it already exists, return out
     if isdir(dest)
         if verbose
-            info("macOS SDK $(dest) already exists")
+            Compat.@info("macOS SDK $(dest) already exists")
         end
         return
     end
@@ -297,7 +297,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
             to download and install the macOS SDK, see the docstring for the
             `download_osx_sdk()` method for more details.
             """)
-            warn(msg)
+            Compat.@warn(msg)
             return
         end
         msg = strip("""
@@ -313,7 +313,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
         println()
         while true
             print("Would you like to download and use the macOS SDK? [y/N]: ")
-            answer = lowercase(strip(readline(STDIN)))
+            answer = lowercase(strip(readline(stdin)))
             if answer == "y" || answer == "yes"
                 break
             elseif answer == "n" || answer == "no"
@@ -324,7 +324,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
         end
     else
         if verbose
-            info("Automatic macOS SDK install initiated")
+            Compat.@info("Automatic macOS SDK install initiated")
         end
     end
 

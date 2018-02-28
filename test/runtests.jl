@@ -4,7 +4,7 @@ using BinaryBuilder: preferred_runner
 using ObjectFile
 using Base.Test
 using SHA
-using Compat
+using Compat, Compat.Random, Compat.LibGit2, Compat.Libdl
 
 # The platform we're running on
 const platform = platform_key()
@@ -75,7 +75,7 @@ end
 
             @test build(ur, dep; verbose=true)
             @test satisfied(dep)
-            @test readstring(`$(test_exe_path)`) == "test\n"
+            @test String(read(`$(test_exe_path)`)) == "test\n"
         end
     end
 

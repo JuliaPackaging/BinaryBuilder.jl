@@ -2,13 +2,11 @@
 # __precompile__()
 
 module BinaryBuilder
-using Compat
+using Compat, Compat.Libdl, Compat.LibGit2, Compat.Random
 using Reexport
 using ObjectFile
+using Nullables
 
-if VERSION >= v"0.7.0-DEV.3382"
-    import Libdl
-end
 @reexport using BinaryProvider
 
 include("Auditor.jl")
@@ -68,7 +66,7 @@ function __init__()
 
     runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
     if !(runner_override in ["", "userns", "qemu", "privileged"])
-        warn("BINARYBUILDER_RUNNER value is invalid, ignoring...")
+        Compat.@warn("BINARYBUILDER_RUNNER value is invalid, ignoring...")
         runner_override = ""
     end
 end
@@ -79,20 +77,20 @@ end
 Helper function to print out some debugging information
 """
 function versioninfo()
-    info("Julia versioninfo(): ")
+    Compat.@info("Julia versioninfo(): ")
     Base.versioninfo()
 
     # Get BinaryBuilder.jl's git sha
     repo = LibGit2.GitRepo(Pkg.dir("BinaryBuilder"))
     gitsha = hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
-    info("BinaryBuilder.jl version: $(gitsha)")
+    Compat.@info("BinaryBuilder.jl version: $(gitsha)")
     @static if Compat.Sys.isunix()
-        info("Kernel version: $(readchomp(`uname -r`))")
+        Compat.@info("Kernel version: $(readchomp(`uname -r`))")
     end
-    info("Preferred runner: $(preferred_runner())")
+    Compat.@info("Preferred runner: $(preferred_runner())")
 
     # Dump any relevant environment variables:
-    info("Relevant envionment variables:")
+    Compat.@info("Relevant envionment variables:")
     env_var_suffixes = [
         "AUTOMATIC_APPLE",
         "USE_SQUASHFS",
@@ -105,12 +103,12 @@ function versioninfo()
     for e in env_var_suffixes
         envvar = "BINARYBUILDER_$(e)"
         if haskey(ENV, envvar)
-            info("  $(envvar): \"$(ENV[envvar])\"")
+            Compat.@info("  $(envvar): \"$(ENV[envvar])\"")
         end
     end
 
     # Try to run 'echo julia' in Linux x86_64 environment
-    info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
+    Compat.@info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
 
     runner = preferred_runner()(
         pwd();

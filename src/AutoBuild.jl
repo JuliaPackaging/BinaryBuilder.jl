@@ -19,7 +19,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
         run_travis_busytask = true
         travis_busytask = @async begin
             # Don't let Travis think we're asleep...
-            info("Brewing a pot of coffee for Travis...")
+            Compat.@info("Brewing a pot of coffee for Travis...")
             while run_travis_busytask
                 sleep(4)
                 print(".")
@@ -121,8 +121,8 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
     end
 
     # Finally, print out our awesome build.jl
-    info("Use this as your deps/build.jl:")
-    print_buildjl(STDOUT, product_hashes)
+    Compat.@info("Use this as your deps/build.jl:")
+    print_buildjl(stdout, product_hashes)
 
     product_hashes
 end

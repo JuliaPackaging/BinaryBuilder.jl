@@ -1,8 +1,8 @@
-if Sys.is_linux()
+if Compat.Sys.islinux()
 
 using VT100
 using BinaryBuilder
-using Base.Test
+using Compat.Test
 
 pty = VT100.create_pty(false)
 function BinaryBuilder.WizardState(ins::Base.TTY, outs::Base.TTY)
@@ -30,7 +30,7 @@ do_try(f) = try
     f()
 catch e
     bt = catch_backtrace()
-    Base.display_error(STDERR, e, bt)
+    Base.display_error(stderr, e, bt)
 
     # If a do_try fails, panic
     Base.Test.@test false

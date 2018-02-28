@@ -16,7 +16,7 @@ build_platforms = supported_platforms()
 if length(ARGS) > 0
     build_platforms = platform_key.(split(ARGS[1], ","))
 end
-info("Building for $(join(triplet.(build_platforms), ", "))")
+Compat.@info("Building for $(join(triplet.(build_platforms), ", "))")
 
 products(prefix) = [
     LibraryProduct(prefix, "libfoo", :libfoo),

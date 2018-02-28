@@ -1127,7 +1127,7 @@ function instruction_mnemonics(path::AbstractString)
     objdump = "/opt/super_binutils/bin/objdump"
     run_interactive(ur, `$objdump -d $(basename(path))`; stdout=output)
     seekstart(output)
-    output_str = readstring(output)
+    output_str = String(read(output))
 
     # Grab instruction mnemonics for each instruction from the output of objdump
     output_lines = split(output_str, '\n')
@@ -1194,7 +1194,7 @@ if `verbose` is set to `true`.
 Note that this function only really makes sense for x86/x64 binaries.  Don't
 run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
 """
-function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO = STDOUT)
+function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO = stdout)
     # Get list of mnemonics
     mnemonics, counts = instruction_mnemonics(path(oh))
 
@@ -1211,8 +1211,8 @@ function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO
             analyze for minimum instruction set, as it may dynamically select
             the proper instruction set internally.  Would have chosen
             $(min_isa), instead choosing $(new_min_isa).
-            """, '\n', ' ')
-            warn(io, strip(msg))
+            """, '\n' => ' ')
+            Compat.@warn(io, strip(msg))
         end
         return new_min_isa
     end

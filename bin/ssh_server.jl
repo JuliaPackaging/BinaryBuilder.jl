@@ -11,7 +11,7 @@ sock = listen(port)
 pubkey_to_user_map = Dict{Vector{UInt8}, String}()
 user_to_pubkey_map = Dict{String, Vector{UInt8}}()
 
-const github_token = strip(readstring(joinpath(dirname(@__FILE__),"..","etc","github_tok")))
+const github_token = strip(String(read(joinpath(dirname(@__FILE__),"..","etc","github_tok"))))
 auth = GitHub.authenticate(github_token)
 
 tx = "\033[0m\033[0m" # text
@@ -152,10 +152,10 @@ while true
                         slave, master, masterfd = open_fake_pty()
                         new_termios = Ref{SSH.termios}()
                         systemerror("tcgetattr",
-                            -1 == ccall(:tcgetattr, Cint, (Cint, Ptr{Void}), slave, new_termios))
+                            -1 == ccall(:tcgetattr, Cint, (Cint, Ptr{Cvoid}), slave, new_termios))
                         new_termios[] = SSH.decode_modes(encoded_termios, new_termios[])
                         systemerror("tcsetattr",
-                            -1 == ccall(:tcsetattr, Cint, (Cint, Cint, Ptr{Void}), slave, 0, new_termios))
+                            -1 == ccall(:tcsetattr, Cint, (Cint, Cint, Ptr{Cvoid}), slave, 0, new_termios))
                         new_termios = Ref{SSH.termios}()
                         @async while true
                             data = readavailable(master)

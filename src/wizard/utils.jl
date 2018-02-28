@@ -6,13 +6,13 @@ Given a filename, normalize it, stripping out extensions.  E.g. the file path
 """
 function normalize_name(file::AbstractString)
     file = basename(file)
-    idx = findfirst(file, '.')
-    if idx != 0
+    idx = findfirst(equalto('.'), file)
+    if idx !== nothing
         file = file[1:prevind(file, idx)]
     end
     # Strip -123, which is a common thing for libraries on windows
-    idx = findlast(file, '-')
-    if idx != 0 && all(isnumber, file[nextind(file, idx):end])
+    idx = findlast(equalto('-'), file)
+    if idx !== nothing && all(isnumber, file[nextind(file, idx):end])
         file = file[1:prevind(file, idx)]
     end
     return file
@@ -37,7 +37,7 @@ function match_files(state::WizardState, prefix::Prefix,
             h = readmeta(f)
             if !is_for_platform(h, platform)
                 if !silent
-                    warn(state.outs, "Skipping binary `$f` with incorrect platform")
+                    Compat.@warn(state.outs, "Skipping binary `$f` with incorrect platform")
                 end
                 return false
             end
@@ -52,7 +52,7 @@ function match_files(state::WizardState, prefix::Prefix,
     d = setdiff(norm_files, norm_prefix_files)
     if !isempty(d)
         if !silent
-            warn(state.outs, "Could not find correspondences for $(join(d, ' '))")
+            Compat.@warn(state.outs, "Could not find correspondences for $(join(d, ' '))")
         end
     end
     return d
@@ -82,7 +82,7 @@ function edit_script(state::WizardState, script::AbstractString)
                         stdin=state.ins, stdout=state.outs, stderr=state.outs)
 
         # Once the user is finished, read the script back in
-        script = readstring(path)
+        script = String(read(path))
     end
     return script
 end
@@ -131,7 +131,7 @@ end
     setup_workspace(build_path::AbstractString, src_paths::Vector,
                     src_hashes::Vector, platform::Platform,
                     extra_env::Dict{String, String};
-                    verbose::Bool = false, tee_stream::IO = STDOUT)
+                    verbose::Bool = false, tee_stream::IO = stdout)
 
 Sets up a workspace within `build_path`, creating the directory structure
 needed by further steps, unpacking the source within `build_path`, and defining
@@ -145,7 +145,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          platform::Platform,
                          extra_env::Dict{String, String} =
                              Dict{String, String}();
-                         verbose::Bool = false, tee_stream::IO = STDOUT)
+                         verbose::Bool = false, tee_stream::IO = stdout)
 
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
@@ -252,15 +252,15 @@ function print_wizard_logo(outs)
     magenta = "\033[35m"
     normal  = "\033[0m\033[0m"
 
-    logo = replace(logo, " o ", " $(green)o$(normal) ")
-    logo = replace(logo, "o*o", "$(red)o$(blue)*$(magenta)o$(normal)")
+    logo = replace(logo, " o " => " $(green)o$(normal) ")
+    logo = replace(logo, "o*o" => "$(red)o$(blue)*$(magenta)o$(normal)")
 
-    logo = replace(logo, ".--*", "$(red).$(green)-$(magenta)-$(blue)*$(normal)")
+    logo = replace(logo, ".--*" => "$(red).$(green)-$(magenta)-$(blue)*$(normal)")
 
-    logo = replace(logo, "\$.", " $(blue).$(normal)")
-    logo = replace(logo, "\$E", " $(red)E$(normal)")
-    logo = replace(logo, "\$L", " $(green)L$(normal)")
-    logo = replace(logo, "\$F", " $(magenta)F$(normal)")
+    logo = replace(logo, "\$." => " $(blue).$(normal)")
+    logo = replace(logo, "\$E" => " $(red)E$(normal)")
+    logo = replace(logo, "\$L" => " $(green)L$(normal)")
+    logo = replace(logo, "\$F" => " $(magenta)F$(normal)")
 
     print(outs, logo)
 end

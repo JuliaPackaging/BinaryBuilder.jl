@@ -3,3 +3,4 @@
 *.jl.mem
 global_prefix
 .vscode/
+deps/usr

@@ -363,7 +363,7 @@ function obtain_secure_key(outs, token, gr)
     # which would indicate that they are in PKCS#1 format. However, they are
     # instead in PKCS#8 format with incorrect header guards, so fix that up
     # and never think about it again.
-    key = replace(key, "RSA PUBLIC KEY", "PUBLIC KEY")
+    key = replace(key, "RSA PUBLIC KEY" => "PUBLIC KEY")
     MbedTLS.parse_public_key!(pk_ctx, key)
     # Encrypted the token
     entropy = MbedTLS.Entropy()
@@ -454,7 +454,7 @@ function github_deploy(state::WizardState)
                 print_travis_deploy(f, gr, secure_key)
             end
         catch e
-            Base.display_error(STDERR, e, catch_backtrace())
+            Base.display_error(Base.stderr, e, catch_backtrace())
             println(:red, """
                 Something went wrong generating the deployment steps.
                 We will finish pushing to GitHub, but you may have to setup
@@ -479,7 +479,7 @@ function step7(state::WizardState)
     printstyled(state.outs, "\t\t\tDone!\n\n", bold=true)
 
     print(state.outs, "Your build script was:\n\n\t")
-    print(state.outs, replace(state.history, "\n", "\n\t"))
+    print(state.outs, replace(state.history, "\n" => "\n\t"))
 
     printstyled(state.outs, "\t\t\t# Step 7: Deployment\n\n", bold=true)
 
