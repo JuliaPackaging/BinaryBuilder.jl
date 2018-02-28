@@ -83,7 +83,7 @@ function show(io::IO, x::UserNSRunner)
           "UserNSRunner")
 end
 
-function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
+function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=Compat.stdout)
     if runner_override == "privileged"
         Compat.@info("Running privileged container via `sudo`, may ask for your password:")
     end

@@ -1194,7 +1194,7 @@ if `verbose` is set to `true`.
 Note that this function only really makes sense for x86/x64 binaries.  Don't
 run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
 """
-function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO = stdout)
+function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO = Compat.stdout)
     # Get list of mnemonics
     mnemonics, counts = instruction_mnemonics(path(oh))
 
