@@ -108,7 +108,7 @@ function audit(prefix::Prefix; io=Compat.stderr,
                                 Linked library $(libname) has been auto-mapped to
                                 $(new_link)
                                 """, '\n' => ' ')
-                                println(io, sINFO: trip(msg))
+                                println(io, "INFO: " * strip(msg))
                             end
                         else
                             msg = replace("""
