@@ -195,7 +195,7 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
     return `$long_cmd`
 end
 
-function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
+function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=Compat.stdout)
     return temp_prefix() do prefix
         comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
         # Launch QEMU

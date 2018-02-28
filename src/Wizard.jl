@@ -1,3 +1,4 @@
+using Compat
 using Compat.REPL
 using Compat.REPL.Terminals
 using ObjectFile.ELF
@@ -55,7 +56,7 @@ function run_wizard(state::WizardState = WizardState())
             printstyled(state.outs, msg, bold=true, color=:red)
         else
             bt = catch_backtrace()
-            Base.showerror(Base.stderr, err, bt)
+            Base.showerror(Compat.stderr, err, bt)
             println(state.outs, "\n")
         end
         return state

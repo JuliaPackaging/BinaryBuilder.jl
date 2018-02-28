@@ -454,7 +454,7 @@ function github_deploy(state::WizardState)
                 print_travis_deploy(f, gr, secure_key)
             end
         catch e
-            Base.display_error(Base.stderr, e, catch_backtrace())
+            Base.display_error(Compat.stderr, e, catch_backtrace())
             println(:red, """
                 Something went wrong generating the deployment steps.
                 We will finish pushing to GitHub, but you may have to setup
