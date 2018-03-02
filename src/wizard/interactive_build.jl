@@ -181,7 +181,7 @@ function step3_retry(state::WizardState)
     platform = pick_preferred_platform(state.platforms)
 
     msg = "\t\t\t# Attempting to build for $platform\n\n"
-    printstyled(state.ins, msg, bold=true)
+    printstyled(state.outs, msg, bold=true)
 
     build_path = tempname()
     mkpath(build_path)
@@ -299,7 +299,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
 
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
-    printstyled(state.ins, "\t\t\t# Attempting to build for $platform\n\n", bold=true)
+    printstyled(state.outs, "\t\t\t# Attempting to build for $platform\n\n", bold=true)
 
     build_path = tempname()
     mkpath(build_path)
