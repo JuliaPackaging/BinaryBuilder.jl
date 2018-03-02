@@ -23,7 +23,7 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(prefix::Prefix; io=Compat.stderr,
+function audit(prefix::Prefix; io=stderr,
                                platform::Platform = platform_key(),
                                verbose::Bool = false,
                                silent::Bool = false,

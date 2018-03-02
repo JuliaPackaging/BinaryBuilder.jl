@@ -145,7 +145,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          platform::Platform,
                          extra_env::Dict{String, String} =
                              Dict{String, String}();
-                         verbose::Bool = false, tee_stream::IO = stdout)
+                         verbose::Bool = false, tee_stream::IO = Compat.stdout)
 
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
