@@ -33,6 +33,8 @@ products(prefix) = [
     ExecutableProduct(prefix, "fooifier", :fooifier),
 ]
 
+dependencies = []
+
 # Build 'em!
 autobuild(
     pwd(),
@@ -41,6 +43,8 @@ autobuild(
     sources,
     script,
     products,
+    dependencies;
+    verbose = true
 )
 ```
 
@@ -48,7 +52,7 @@ This bare-bones snippet (an adapted form of the [`libfoo` test](../../test/build
 
 The bash commands contained within `script` will be executed for each `platform` that is passed in, so if there are platform differences that need to be addressed in the build script, using `if` statements and the `$target` environment variable can be a powerful tool.  See the [OpenBLASBuilder build script](https://github.com/staticfloat/OpenBLASBuilder/blob/master/build_tarballs.jl) for an example showcasing this.
 
-Once the `autobuild()` method completes, it will print out a template `build.jl` file to download and install the generated tarballs.  This file is what will be used in Julia packages that need to use your built binaries.  An example is given in the [Nettle repository](https://github.com/staticfloat/Nettle.jl/blob/3cfb13a82537eced1721408bd7c8894495955698/deps/build.jl).
+Once the `autobuild()` method completes, it will return a `product_hashes` object which can be used to print out a template `build.jl` file to download and install the generated tarballs.  This file is what will be used in Julia packages that need to use your built binaries, and is typically included within the tagged release uploads from a builder repository.  Here is an example release from the [IpoptBuilder repository](https://github.com/staticfloat/IpoptBuilder/releases/tag/v3.12.8-9), containing built tarballs as well as a `build.jl` that can be used within `Ipopt.jl`.
 
 While constructing your own build script is certainly possible, `BinaryBuilder.jl` supports a more interactive method for building the binary dependencies and capturing the commands used to build it into a `build_tarballs.jl` file; the Wizard interface.
 

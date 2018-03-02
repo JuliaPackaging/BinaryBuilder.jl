@@ -80,14 +80,17 @@ function print_build_tarballs(io::IO, state::WizardState;
     if !only_buildjl
         # If the user passed in a platform (or a few, comma-separated) on the
         # command-line, use that instead of our default platforms
-        if length(BUILD_ARGS) > 0
-            platforms = platform_key.(split(BUILD_ARGS[1], ","))
+        should_override_platforms = length(BUILD_ARGS) > 0
+        if should_override_platforms
+            # Use next of `BUILD_ARGS` as a comma-separated list of platforms.
+            platforms = platform_key.(split(shift!(BUILD_ARGS), ","))
         end
         info("Building for \$(join(triplet.(platforms), ", "))")
 
         # Build the given platforms using the given sources
-        autobuild(pwd(), "$(state.name)", platforms, sources, script, products;
-                                          dependencies=dependencies, verbose=verbose)
+        product_hashes = autobuild(pwd(), "$(state.name)", platforms, sources,
+                                   script, products, dependencies; verbose=verbose)
+        
     else
         # If we're only reconstructing a build.jl file on Travis, grab the information and do it
         if !haskey(ENV, "TRAVIS_REPO_SLUG") || !haskey(ENV, "TRAVIS_TAG")

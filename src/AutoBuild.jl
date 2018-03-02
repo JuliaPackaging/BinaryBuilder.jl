@@ -5,14 +5,24 @@ import SHA: sha256
 
 """
     autobuild(dir::AbstractString, src_name::AbstractString, platforms::Vector,
-              sources::Vector, script, products)
+              sources::Vector, script::AbstractString, products::Vector,
+              dependencies::Vector; verbose::Bool = true)
 
 Runs the boiler plate code to download, build, and package a source package
-for multiple platforms.  `src_name`
+for multiple platforms.  `src_name` represents the name of the source package
+being built (and will set the name of the built tarballs), `platforms` is a
+list of platforms to build for, `sources` is a list of tuples giving
+`(url, hash)` of all sources to download and unpack before building begins,
+`script` is a string representing a `bash` script to run to build the desired
+products, which are listed as `Product` objects within the vector `products`.
+`dependencies` gives a list of dependencies that provide `build.jl` files that
+should be installed before building begins to allow this build process to
+depend on the results of another build process.
 """
 function autobuild(dir::AbstractString, src_name::AbstractString,
-                   platforms::Vector, sources::Vector, script, products;
-                   dependencies::Vector = AbstractDependency[],
+                   platforms::Vector, sources::Vector, script::AbstractString,
+                   products::Vector,
+                   dependencies::Vector = AbstractDependency[];
                    verbose::Bool = true)
     # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
     if haskey(ENV, "TRAVIS") && !verbose
