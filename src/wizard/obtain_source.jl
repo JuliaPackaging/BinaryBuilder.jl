@@ -258,7 +258,7 @@ function obtain_binary_deps(state::WizardState)
                     String(HTTP.get(canon_url).body)))
             elseif bindep_select == 2
                 println(state.outs, "Please provide the build.jl file. Press ^D when you're done")
-                script = String(read(stdin))
+                script = String(read(state.ins))
                 Base.reseteof(terminal)
                 push!(state.dependencies, InlineBuildDependency(script))
             elseif bindep_select == 3
