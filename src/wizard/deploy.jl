@@ -55,7 +55,7 @@ function print_build_tarballs(io::IO, state::WizardState;
     ]
 
     # The products that we will ensure are always built
-    products(prefix) = Product[
+    products(prefix) = [
         $products_string
     ]
 
@@ -64,59 +64,8 @@ function print_build_tarballs(io::IO, state::WizardState;
         $dependencies_string
     ]
 
-    # Parse out some command-line arguments
-    BUILD_ARGS = ARGS
-
-    # This sets whether we should build verbosely or not
-    verbose = "--verbose" in BUILD_ARGS
-    BUILD_ARGS = filter!(x -> x != "--verbose", BUILD_ARGS)
-
-    # This flag skips actually building and instead attempts to reconstruct a
-    # build.jl from a GitHub release page.  Use this to automatically deploy a
-    # build.jl file even when sharding targets across multiple CI builds.
-    only_buildjl = "--only-buildjl" in BUILD_ARGS
-    BUILD_ARGS = filter!(x -> x != "--only-buildjl", BUILD_ARGS)
-
-    if !only_buildjl
-        # If the user passed in a platform (or a few, comma-separated) on the
-        # command-line, use that instead of our default platforms
-        should_override_platforms = length(BUILD_ARGS) > 0
-        if should_override_platforms
-            # Use next of `BUILD_ARGS` as a comma-separated list of platforms.
-            platforms = platform_key.(split(shift!(BUILD_ARGS), ","))
-        end
-        info("Building for \$(join(triplet.(platforms), ", "))")
-
-        # Build the given platforms using the given sources
-        product_hashes = autobuild(pwd(), "$(state.name)", platforms, sources,
-                                   script, products, dependencies; verbose=verbose)
-        
-    else
-        # If we're only reconstructing a build.jl file on Travis, grab the information and do it
-        if !haskey(ENV, "TRAVIS_REPO_SLUG") || !haskey(ENV, "TRAVIS_TAG")
-            error("Must provide repository name and tag through Travis-style environment variables!")
-        end
-        repo_name = ENV["TRAVIS_REPO_SLUG"]
-        tag_name = ENV["TRAVIS_TAG"]
-        product_hashes = product_hashes_from_github_release(repo_name, tag_name; verbose=verbose)
-        bin_path = "https://github.com/\$(repo_name)/releases/download/\$(tag_name)"
-        dummy_prefix = Prefix(pwd())
-        print_buildjl(pwd(), products(dummy_prefix), product_hashes, bin_path)
-
-        if verbose
-            info("Writing out the following reconstructed build.jl:")
-            print_buildjl(STDOUT, product_hashes; products=products(dummy_prefix), bin_path=bin_path)
-        end
-    end
-    """)
-end
-
-function print_travis_buildjl(io::IO, repo)
-    println(io, """
-    if !isempty(get(ENV,"TRAVIS_TAG",""))
-        print_buildjl(pwd(), products, hashes,
-            "https://github.com/$(GitHub.name(repo))/releases/download/\$(ENV["TRAVIS_TAG"])")
-    end
+    # Build the tarballs, and possibly a `build.jl` as well.
+    build_tarballs(ARGS, $(repr(state.name)), sources, script, platforms, products, dependencies)
     """)
 end
 
