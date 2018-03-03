@@ -178,10 +178,10 @@ const libfoo_script = """
     rm("$(tarball_path).sha256"; force=true)
 end
 
-# Testset to make sure we can autobuild from a git repository
-@testset "AutoBuild Git-Based" begin
+# Testset to make sure we can build_tarballs() from a git repository
+@testset "build_tarballs() Git-Based" begin
     build_path = tempname()
-    git_path = joinpath(build_path,"libfoo.git")
+    git_path = joinpath(build_path, "libfoo.git")
     mkpath(git_path)
 
     cd(build_path) do
@@ -202,17 +202,19 @@ end
             LibGit2.hex(LibGit2.GitHash(commit)),
         ]
 
-        autobuild(
-            pwd(),
+        build_tarballs(
+            [], # fake ARGS
             "libfoo",
-            [Linux(:x86_64, :glibc)],
             sources,
             "cd libfoo\n$libfoo_script",
-            libfoo_products
+            [Linux(:x86_64, :glibc)],
+            libfoo_products,
+            [], # no dependencies
         )
 
         # Make sure that worked
         @test isfile("products/libfoo.x86_64-linux-gnu.tar.gz")
+        @test isfile("products/build.jl")
     end
 
     rm(build_path; force=true, recursive=true)

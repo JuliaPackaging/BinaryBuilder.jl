@@ -1,37 +1,35 @@
 #!/usr/bin/env julia
 using BinaryBuilder
 
-# First, package up the libfoo source so `autobuild()` can take it:
+# First, package up the libfoo source so `build_tarballs()` can take it:
 src_prefix = Prefix("./build_tests/libfoo")
 src_tarball, src_hash = package(src_prefix, "./downloads/libfoo"; verbose=true, force=true)
 
-# Our sources are local, that's fine
+# Our sources are local.  No biggie.
 sources = [
     (src_tarball, src_hash)
 ]
 
-# Choose which platforms to build for; if we've got an argument use that one,
-# otherwise default to just building all of them!
-build_platforms = supported_platforms()
-if length(ARGS) > 0
-    build_platforms = platform_key.(split(ARGS[1], ","))
-end
-Compat.@info("Building for $(join(triplet.(build_platforms), ", "))")
+# Build script is very complicated.
+script = raw"""
+make install
+"""
 
+# By default, we build for all platforms.
+platforms = supported_platforms()
+
+# These are the products we care about
 products(prefix) = [
     LibraryProduct(prefix, "libfoo", :libfoo),
     ExecutableProduct(prefix, "fooifier", :fooifier)
 ]
 
-# Build 'em!
-autobuild(
-    pwd(),
-    "libfoo",
-    build_platforms,
-    sources,
-    "make install",
-    products,
-)
+# Dependencies that must be installed before this package can be built
+dependencies = [
+]
+
+# Build the tarballs, and possibly a `build.jl` as well.
+build_tarballs(ARGS, "libfoo", sources, script, platforms, products, dependencies)
 
 # Cleanup temporary sources
 rm(src_tarball; force=true)
