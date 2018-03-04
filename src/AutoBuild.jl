@@ -54,7 +54,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
 
     product_hashes = if !only_buildjl
         # If the user didn't just ask for a `build.jl`, go ahead and actually build
-        info("Building for $(join(triplet.(platforms), ", "))")
+        Compat.@info("Building for $(join(triplet.(platforms), ", "))")
 
         # Build the given platforms using the given sources
         autobuild(pwd(), src_name, platforms, sources, script,
@@ -63,7 +63,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         msg = strip("""
         Reconstructing product hashes from GitHub Release $(repo_name)/$(tag_name)
         """)
-        info(msg)
+        Compat.@info(msg)
 
         # Reconstruct product_hashes from github
         product_hashes_from_github_release(repo_name, tag_name; verbose=verbose)
@@ -79,7 +79,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         print_buildjl(pwd(), products(dummy_prefix), product_hashes, bin_path)
 
         if verbose
-            info("Writing out the following reconstructed build.jl:")
+            Compat.@info("Writing out the following reconstructed build.jl:")
             print_buildjl(STDOUT, products(dummy_prefix), product_hashes, bin_path)
         end
     end
@@ -295,7 +295,7 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
             return true
         end
         if verbose
-            info("Ignoring file $(filename); can't extract its platform key")
+            Compat.@info("Ignoring file $(filename); can't extract its platform key")
         end
         return false
     end
@@ -320,7 +320,7 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
             product_hashes[file_triplet] = (asset["name"], hash)
 
             if verbose
-                info("Calculated $hash for $(asset["name"])")
+                Compat.@info("Calculated $hash for $(asset["name"])")
             end
         end
     end
