@@ -115,11 +115,11 @@ end
     end
 end
 
-const libfoo_products = prefix->[
+libfoo_products(prefix) = [
     LibraryProduct(prefix, "libfoo", :libfoo)
     ExecutableProduct(prefix, "fooifier", :fooifier)
 ]
-const libfoo_script = """
+libfoo_script = """
 /usr/bin/make clean
 /usr/bin/make install
 """
