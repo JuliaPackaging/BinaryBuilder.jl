@@ -34,7 +34,7 @@ function audit(prefix::Prefix; io=stderr,
     end
 
     if verbose
-        println(io, "INFO: Beginning audit of $(prefix.path)")
+        info(io, "Beginning audit of $(prefix.path)")
     end
 
     # If this is false then it's bedtime for bonzo boy
@@ -49,7 +49,7 @@ function audit(prefix::Prefix; io=stderr,
             h = readmeta(f)
             if !is_for_platform(h, platform)
                 if verbose
-                    println(io, "WARN: Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                    warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
                 end
                 continue
             end
@@ -57,7 +57,7 @@ function audit(prefix::Prefix; io=stderr,
         catch
             # If this isn't an actual binary file, skip it
             if verbose
-                println(io, "INFO: Skipping binary analysis of $(relpath(f, prefix.path))")
+                info(io, "Skipping binary analysis of $(relpath(f, prefix.path))")
             end
             continue
         end
@@ -68,9 +68,9 @@ function audit(prefix::Prefix; io=stderr,
 
             if verbose
                 msg = strip("""
-                INFO: Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
+                Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
                 """)
-                println(io, msg)
+                info(io, msg)
             end
 
             # Look at every dynamic link, and see if we should do anything about that link...
@@ -78,7 +78,7 @@ function audit(prefix::Prefix; io=stderr,
             for libname in keys(libs)
                 if should_ignore_lib(libname, oh)
                     if verbose
-                        println(io, "INFO: Ignoring system library $(libname)")
+                        info(io, "Ignoring system library $(libname)")
                     end
                     continue
                 end
@@ -87,7 +87,7 @@ function audit(prefix::Prefix; io=stderr,
                 if is_default_lib(libname, oh)
                     relink_to_rpath(prefix, platform, path(oh), libs[libname])
                     if verbose
-                        println(io, "INFO: Rpathify'ing default library $(libname)")
+                        info(io, "Rpathify'ing default library $(libname)")
                     end
                     continue
                 end
@@ -108,7 +108,7 @@ function audit(prefix::Prefix; io=stderr,
                                 Linked library $(libname) has been auto-mapped to
                                 $(new_link)
                                 """, '\n' => ' ')
-                                println(io, "INFO: " * strip(msg))
+                                info(io, strip(msg))
                             end
                         else
                             msg = replace("""
@@ -116,7 +116,7 @@ function audit(prefix::Prefix; io=stderr,
                             could not be auto-mapped
                             """, '\n' => ' ')
                             if !silent
-                                println(io, "WARN: " * strip(msg))
+                                warn(io, strip(msg))
                             end
                             all_ok = false
                         end
@@ -126,7 +126,7 @@ function audit(prefix::Prefix; io=stderr,
                         the given prefix
                         """, '\n' => ' ')
                         if !silent
-                            println(io, "WARN: " * strip(msg))
+                            warn(io, strip(msg))
                         end
                         all_ok = false
                     end
@@ -136,7 +136,7 @@ function audit(prefix::Prefix; io=stderr,
                     is not within the given prefix
                     """, '\n' => ' ')
                     if !silent
-                        println(io, "WARN: " * strip(msg))
+                        warn(io, strip(msg))
                     end
                     all_ok = false
                 end
@@ -146,7 +146,7 @@ function audit(prefix::Prefix; io=stderr,
         # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
         if any(is_for_platform.(oh, [Linux(:x86_64), MacOS(), Windows(:x86_64)]))
             if verbose
-                println(io, "INFO: Analyzing minimum instruction set for $(relpath(f, prefix.path))")
+                info(io, "Analyzing minimum instruction set for $(relpath(f, prefix.path))")
             end
             instruction_set = analyze_instruction_set(oh; verbose=verbose, io=io)
             if is64bit(oh) && instruction_set != :core2
@@ -154,7 +154,7 @@ function audit(prefix::Prefix; io=stderr,
                     msg = replace("""
                     Minimum instruction set is $(instruction_set), not core2
                     """, '\n' => ' ')
-                    println(io, "WARN: " * strip(msg))
+                    warn(io, strip(msg))
                 end
                 all_ok = false
             elseif !is64bit(oh) && instruction_set != :pentium4
@@ -162,7 +162,7 @@ function audit(prefix::Prefix; io=stderr,
                     msg = replace("""
                     Minimum instruction set is $(instruction_set), not pentium4
                     """, '\n' => ' ')
-                    println(io, "WARN: " * strip(msg))
+                    warn(io, strip(msg))
                 end
                 all_ok = false
             end
@@ -178,7 +178,7 @@ function audit(prefix::Prefix; io=stderr,
 
         for f in shlib_files
             if verbose
-                println(io, "INFO: Checking shared library $(relpath(f, prefix.path))")
+                info(io, "Checking shared library $(relpath(f, prefix.path))")
             end
             hdl = Libdl.dlopen_e(f)
             if hdl == C_NULL
@@ -186,7 +186,7 @@ function audit(prefix::Prefix; io=stderr,
                 # this file is being nasty to us.
 
                 if !silent
-                    println(io, "WARN: $(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                    warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 end
                 all_ok = false
             else
@@ -203,7 +203,7 @@ function audit(prefix::Prefix; io=stderr,
         lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
         for f in lib_dll_files
             if !silent
-                println(io, "WARN: $(relpath(f, prefix.path)) should be in `bin`!")
+                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
             end
         end
     end
@@ -220,7 +220,7 @@ function audit(prefix::Prefix; io=stderr,
         file_contents = String(read(f))
         if contains(file_contents, prefix.path)
             if !silent
-                println(io, "WARN: $(relpath(f, prefix.path)) contains an absolute path")
+                warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
             end
         end
     end
