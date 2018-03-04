@@ -9,6 +9,7 @@ using Nullables
 
 @reexport using BinaryProvider
 
+include("compat.jl")
 include("Auditor.jl")
 include("Runner.jl")
 include("RootFS.jl")
