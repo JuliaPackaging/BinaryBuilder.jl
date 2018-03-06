@@ -6,10 +6,11 @@ makedocs(
     sitename = "BinaryBuilder.jl",
     pages = [
         "Home" => "index.md",
-        "Build Tips" => "build_tips.md",
-        "Miscellaneous" => [
+        "Building Packages" => "build_tips.md",
+        "FAQ" => "FAQ.md",
+        "Internals" => [
+            "RootFS" => "rootfs.md",
             "Environment Variables" => "environment_variables.md",
-            "FAQ" => "FAQ.md",
             "Tricksy Gotchas" => "tricksy_gotchas.md",
             "Reference" => "reference.md",
         ],

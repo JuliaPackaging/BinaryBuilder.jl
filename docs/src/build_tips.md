@@ -1,4 +1,4 @@
-# Building tips
+# Tips for Building Packages
 
 BinaryBuilder provides a convenient environment to enable cross-platform building. But, many libraries have complicated build scripts that may need to be adapted to support all of the BinaryBuilder targets.
 
@@ -10,7 +10,7 @@ Sometimes, you need to adapt build scripts based on the target platform. This ca
 
 ```sh
 # Set BINARY=32 on i686 platforms and armv7l
-if [[ ${target} == i686* ]] || [[ ${target} == arm-* ]]; then
+if [[ ${nbits} == 32 ]]; then
     flags="${flags} BINARY=32"
 fi
 ```

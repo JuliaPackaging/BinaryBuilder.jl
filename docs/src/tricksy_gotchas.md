@@ -1,6 +1,6 @@
 # Tricksy Gotchas
 
-There is a plethora of gotchas when it comes to binary compilation and distribution that must be appropriately addressed, or the binaries will only work on certain machines and not others.  Here is an incomplete list of things that this package takes care of for you:
+There are a plethora of gotchas when it comes to binary compilation and distribution that must be appropriately addressed, or the binaries will only work on certain machines and not others.  Here is an incomplete list of things that `BinaryBuilder.jl` takes care of for you:
 
 * Uniform compiler interface
 No need to worry about invoking compilers through weird names; just run `gcc` within the proper environment and you'll get the appropriate cross-compiler.  Triplet-prefixed names (such as `x86_64-linux-gnu-gcc`) are, of course, also available, and the same version of `gcc`, `g++` and `gfortran` is used across all platforms.
