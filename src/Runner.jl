@@ -1,7 +1,26 @@
 abstract type Runner; end
 
+function target_nbits(target::AbstractString)
+    if startswith(target, "i686-") || startswith(target, "arm-")
+        return 32
+    else
+        return 64
+    end
+end
+
+function target_proc_family(target::AbstractString)
+    if startswith(target, "arm") || startswith(target, "aarch")
+        return "arm"
+    elseif startswith(target, "power")
+        return "power"
+    else
+        return "intel"
+    end
+end
+
 """
     target_envs(target::String)
+
 Given a `target` (this term is used interchangeably with `triplet`), generate a
 `Dict` mapping representing all the environment variables to be set within the
 build environment to force compiles toward the defined target architecture.
@@ -47,6 +66,8 @@ function target_envs(target::AbstractString)
         # Useful tools
         "target" => target,
         "nproc" => "$(Sys.CPU_CORES)",
+        "nbits" => target_num_bits(target),
+        "proc_family" => target_proc_family(target),
         "TERM" => "screen",
 
         # Autotools really appreciates being able to build stuff for the

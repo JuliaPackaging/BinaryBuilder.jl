@@ -52,6 +52,25 @@ end
     end
 end
 
+@testset "Target properties" begin
+    for t in ["i686-linux-gnu", "i686-w64-mingw32", "arm-linux-gnueabihf"]
+        @test BinaryBuilder.target_nbits(t) == 32
+    end
+
+    for t in ["x86_64-linux-gnu", "x86_64-w64-mingw32", "aarch64-linux-gnu",
+              "powerpc64le-linux-gnu", "x86_64-apple-darwin14"]
+        @test BinaryBuilder.target_nbits(t) == 64
+    end
+    
+    for t in ["x86_64-linux-gnu", "x86_64-apple-darwin14", "i686-w64-mingw32"]
+        @test BinaryBuilder.target_proc_type(t) == "intel"
+    end
+    for t in ["aarch64-linux-gnu", "arm-linux-gnueabihf"]
+        @test BinaryBuilder.target_proc_type(t) == "arm"
+    end
+    @test BinaryBuilder.target_proc_type("powerpc64le-linux-gnu") == "power"
+end
+
 # This file contains tests that require our cross-compilation environment
 @testset "Builder Dependency" begin
     temp_prefix() do prefix
