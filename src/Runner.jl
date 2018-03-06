@@ -2,9 +2,9 @@ abstract type Runner; end
 
 function target_nbits(target::AbstractString)
     if startswith(target, "i686-") || startswith(target, "arm-")
-        return 32
+        return "32"
     else
-        return 64
+        return "64"
     end
 end
 
@@ -66,7 +66,7 @@ function target_envs(target::AbstractString)
         # Useful tools
         "target" => target,
         "nproc" => "$(Sys.CPU_CORES)",
-        "nbits" => target_num_bits(target),
+        "nbits" => target_nbits(target),
         "proc_family" => target_proc_family(target),
         "TERM" => "screen",
 

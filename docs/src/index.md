@@ -8,7 +8,7 @@ Note that at this time, BinaryBuilder runs on Linux x86_64 systems only, with ma
 
 `BinaryBuilder.jl` makes it easy to move from source code to packaged tarball.  In the end, what you hope to gain from using this package is a handful of compiled tarballs and a Julia snippet that uses [`BinaryProvider.jl`](https://github.com/JuliaPackaging/BinaryProvider.jl) to install the binaries.  An example of this is shown in [this file](https://github.com/JuliaPackaging/BinaryProvider.jl/blob/master/test/LibFoo.jl/deps/build.jl), where a mapping from the different platforms is established to various tarballs that have been built with this package, and according to the platform the user's Julia installation is running on, that package is downloaded and installed to a package-specific `Prefix`.
 
-To get to that point, the source code for a project must be downloaded, it must be compiled for the various platforms, it must be packaged and hosted, at which point it may finally be downloaded and installed on user's machines.  Although it is technically possible to manually package software using `BinaryBuilder.jl`, this package is geared toward automation.  Most interaction with this package will revolve around methods to construct a `build_tarballs.jl` script for your source code that will download, build and package it into a nice tarball.  Note that while you can write your own build script from scratch, most users will want to use the Wizard to interactively generate this build script instead.
+To get to that point, the source code for a project must be downloaded, compiled for the various platforms, packaged and hosted, at which point it may finally be downloaded and installed on user's machines.  Although it is technically possible to manually package software using `BinaryBuilder.jl`, this package is geared toward automation.  Most interaction with this package will revolve around methods to construct a `build_tarballs.jl` script for your source code that will download, build and package it into a nice tarball.  Note that while you can write your own build script from scratch, most users will want to use the Wizard to interactively generate this build script instead.
 
 ## Build scripts
 
@@ -47,7 +47,7 @@ build_tarballs(
 )
 ```
 
-This bare-bones snippet (an adapted form of the [`libfoo` test](../../test/build_libfoo_tarballs.jl) within this repository) first identifies the sources to download and compile (there can be multiple sources listed here), then lists the bash commands to actually build this particular project.  Next, the `products` are defined.  These represent the output of the build process, and are how `BinaryBuilder.jl` knows that its build has succeeded.  Finally, we pass this information off to `build_tarballs()`, which takes it all in and runs the builds, placing output tarballs into the `./products` directory.
+This bare-bones snippet (an adapted form of the [`libfoo` test](../../test/build_libfoo_tarballs.jl) within this repository) first identifies the sources to download and compile (there can be multiple sources listed here), then lists the `bash` commands to actually build this particular project.  Next, the `products` are defined.  These represent the output of the build process, and are how `BinaryBuilder.jl` knows that its build has succeeded.  Finally, we pass this information off to `build_tarballs()`, which takes it all in and runs the builds, placing output tarballs into the `./products` directory.
 
 The bash commands contained within `script` will be executed for each `platform` that is passed in, so if there are platform differences that need to be addressed in the build script, using `if` statements and the `$target` environment variable can be a powerful tool.  See the [OpenBLASBuilder build script](https://github.com/staticfloat/OpenBLASBuilder/blob/master/build_tarballs.jl) for an example showcasing this.
 
@@ -58,3 +58,7 @@ While constructing your own build script is certainly possible, `BinaryBuilder.j
 ## Wizard interface
 
 `BinaryBuilder.jl` contains a wizard interface that will walk you through constructing a `build_tarballs.jl` file.  To launch it, run `BinaryBuilder.run_wizard()`, and follow the instructions on-screen.
+
+## How does this all work?
+
+`BinaryBuilder.jl` wraps a [root filesystem](rootfs.md) that has been carefully constructed so as to provide the set of cross-compilers needed to support the wide array of platforms that Julia runs on.  This _RootFS_ is then used as the chroot jail for a sandboxed process which runs within the RootFS as if that were the whole world.  The workspace containing input source code and (eventually) output binaries is mounted within the RootFS and environment variables are setup such that the appropriate compilers for a particular target platform are used by build tools.
