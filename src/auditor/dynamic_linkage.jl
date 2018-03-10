@@ -1,11 +1,55 @@
 using ObjectFile.ELF
 
 """
+    platform_for_object(oh::ObjectHandle)
+
+Returns the platform the given `ObjectHandle` should run on.  E.g.
+if the given `ObjectHandle` is an x86_64 Linux ELF object, this function
+will return `Linux(:x86_64)`.  This function does not yet distinguish
+between different libc's such as `:glibc` and `:musl`.
+"""
+function platform_for_object(oh::ObjectHandle)
+    if oh isa ELFHandle
+        if !(oh.ei.osabi == ELF.ELFOSABI_LINUX ||
+             oh.ei.osabi == ELF.ELFOSABI_NONE)
+            error("We do not support non-Linux ELF files")
+        end
+        mach = oh.header.e_machine
+        if mach == ELF.EM_386
+            return Linux(:i686)
+        elseif mach == ELF.EM_X86_64
+            return Linux(:x86_64)
+        elseif mach == ELF.EM_AARCH64
+            return Linux(:aarch64)
+        elseif mach == ELF.EM_PPC64
+            return Linux(:ppc64le)
+        elseif mach == ELF.EM_ARM
+            return Linux(:armv7l)
+        else
+            error("Unknown ELF arch $(mach)")
+        end
+    elseif oh isa MachOHandle
+        return MacOS()
+    elseif oh isa COFFHandle
+        if is64bit(oh)
+            return Windows(:x86_64)
+        else
+            return Windows(:i686)
+        end
+    else
+        error("Unknown ObjectHandle type!")
+    end
+end
+
+"""
     is_for_platform(h::ObjectHandle, platform::Platform)
 
 Returns `true` if the given `ObjectHandle` refers to an object of the given
 `platform`; E.g. if the given `platform` is for AArch64 Linux, then `h` must
 be an `ELFHandle` with `h.header.e_machine` set to `ELF.EM_AARCH64`.
+
+In particular, this method and `platform_for_object()` both exist because
+the latter is not smart enough to deal with `:glibc` and `:musl` yet.
 """
 function is_for_platform(h::ObjectHandle, platform::Platform)
     if platform isa Linux

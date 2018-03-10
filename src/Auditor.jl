@@ -144,7 +144,7 @@ function audit(prefix::Prefix; io=stderr,
         end
 
         # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
-        if any(is_for_platform.(oh, [Linux(:x86_64), MacOS(), Windows(:x86_64)]))
+        if arch(platform_for_object(oh)) in [:x86_64, :i686]
             if verbose
                 info(io, "Analyzing minimum instruction set for $(relpath(f, prefix.path))")
             end

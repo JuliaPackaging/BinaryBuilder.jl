@@ -255,7 +255,7 @@ end
             run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
             # Build isa tests
-           script="""
+            script="""
             /usr/bin/make clean
             /usr/bin/make install
             """
