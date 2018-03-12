@@ -52,11 +52,6 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     # Construct sandbox command
     sandbox_cmd = `$(rootfs_dir("sandbox"))`
 
-    # Check to see if we need to run privileged containers.
-    if runner_override == "privileged"
-        sandbox_cmd = `sudo -E $sandbox_cmd`
-    end
-
     if verbose
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
@@ -72,7 +67,22 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
         sandbox_cmd = `$sandbox_cmd --map $outside:$inside`
     end
 
-    UserNSRunner(sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
+    # Check to see if we need to run privileged containers.
+    if runner_override == "privileged"
+        # First, if we're already root, don't do anything.
+        if getuid() != 0
+            # Next, prefer `sudo`, but allow fallback to `su`
+            if success(`sudo -V`)
+                sandbox_cmd = `sudo -E $sandbox_cmd`
+            else
+                sandbox_cmd = `su root -c "$sandbox_cmd"`
+            end
+        end
+    end
+
+    # Finally, return the UserNSRunner in all its glory
+    envs = merge(target_envs(triplet(platform)), extra_env)
+    return UserNSRunner(sandbox_cmd, envs, platform)
 end
 
 function show(io::IO, x::UserNSRunner)
