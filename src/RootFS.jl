@@ -116,6 +116,15 @@ const SQUASHFS_COMPRESSED_BIT = UInt16(1) << 15
 const SQUASHFS_MAGIC = 0x73717368
 
 """
+    getuid()
+
+Wrapper around libc's `getuid()` function
+"""
+function getuid()
+    return ccall(:getuid, Cint, ())
+end
+
+"""
     rewrite_squashfs_uids(path, new_uid)
 
 In order for the sandbox to work well, we need to have the uids of the squashfs
@@ -207,7 +216,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                     end
 
                     # Patch squashfs files for current uid
-                    rewrite_squashfs_uids(squashfs_path, ccall(:getuid, Cint, ()))
+                    rewrite_squashfs_uids(squashfs_path, getuid())
 
                     # Touch SHA file to prevent re-verifcation from blowing the
                     # fs away
