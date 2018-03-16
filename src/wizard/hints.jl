@@ -44,7 +44,7 @@ function provide_hints(state::WizardState, path::AbstractString)
 
             # Helper function to try to read the given path's contents, but
             # returning an empty string on error (for e.g. broken symlinks)
-            read_contents = (path) -> try
+            read_contents(path) = try
                 String(read(path))
             catch
                 ""
