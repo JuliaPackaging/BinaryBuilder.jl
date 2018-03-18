@@ -423,6 +423,10 @@ static int sandbox_main(const char * root_dir, const char * new_cd, int sandbox_
     fflush(stdout);
     execve(sandbox_argv[0], sandbox_argv, environ);
     fprintf(stderr, "ERROR: Failed to run %s!\n", sandbox_argv[0]);
+
+    // Flush to make sure we've said all we're going to before we _exit()
+    fflush(stdout);
+    fflush(stderr);
     _exit(1);
   }
 
