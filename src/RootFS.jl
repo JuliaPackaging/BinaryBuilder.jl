@@ -35,7 +35,7 @@ end
 Builds a path relative to the `shards_cache`.
 """
 function shards_dir(postfix::String = "")
-    global shards_dir
+    global shards_cache
     return joinpath(shards_cache, postfix)
 end
 

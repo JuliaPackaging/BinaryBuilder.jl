@@ -18,20 +18,20 @@ end
 function platform_def_mapping(platform)
     tp = triplet(platform)
     mapping = Pair{String,String}[
-        joinpath(shards_cache, tp) => joinpath("/opt", tp)
+        shards_dir(tp) => joinpath("/opt", tp)
     ]
 
     # We might also need the x86_64-linux-gnu platform for bootstrapping,
     # so make sure that's always included
     if platform != Linux(:x86_64)
         ltp = triplet(Linux(:x86_64))
-        push!(mapping, joinpath(shards_cache, ltp) => joinpath("/opt", ltp))
+        push!(mapping, shards_dir(ltp) => joinpath("/opt", ltp))
     end
 
     # If we're trying to run macOS and we have an SDK directory, mount that!
     if platform == MacOS()
         sdk_version = "MacOSX10.10.sdk"
-        sdk_shard_path = joinpath(shards_cache, sdk_version)
+        sdk_shard_path = shards_dir(sdk_version)
         push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
     end
 
