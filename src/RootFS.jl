@@ -7,6 +7,7 @@ shards_cache = ""
 qemu_cache = ""
 automatic_apple = false
 use_squashfs = false
+allow_ecryptfs = false
 
 """
     downloads_dir(postfix::String = "")
