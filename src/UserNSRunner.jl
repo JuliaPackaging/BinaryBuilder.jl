@@ -175,6 +175,10 @@ function probe_unprivileged_containers(;verbose::Bool=false)
     # Ensure the base rootfs is available
     update_rootfs(String[]; verbose=false)
 
+    # Ensure we're not about to make fools of ourselves by trying to mount an
+    # encrypted directory, which triggers kernel bugs.  :(
+    check_encryption(pwd())
+
     # Construct an extremely simple sandbox command
     sandbox_cmd = `$(rootfs_dir("sandbox")) --rootfs $(rootfs_dir())`
     cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
