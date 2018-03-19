@@ -88,7 +88,16 @@ function versioninfo()
     @static if Compat.Sys.isunix()
         Compat.@info("Kernel version: $(readchomp(`uname -r`))")
     end
-    Compat.@info("Preferred runner: $(preferred_runner())")
+
+    # Dump if the Pkg directory is encrypted:
+    @static if Compat.Sys.islinux()
+        is_encrypted, mountpoint = is_ecryptfs(dirname(@__FILE__))
+        if is_encrypted
+            Compat.@info("Package is encrypted on mountpoint $mountpoint")
+        else
+            Compat.@info("Package is NOT encrypted on mountpoint $mountpoint")
+        end
+    end
 
     # Dump any relevant environment variables:
     Compat.@info("Relevant envionment variables:")
@@ -107,6 +116,9 @@ function versioninfo()
             Compat.@info("  $(envvar): \"$(ENV[envvar])\"")
         end
     end
+
+    # Print out the preferred runner stuff here:
+    Compat.@info("Preferred runner: $(preferred_runner())")
 
     # Try to run 'echo julia' in Linux x86_64 environment
     Compat.@info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
