@@ -8,10 +8,12 @@
 
 * `BINARYBUILDER_DOWNLOADS_CACHE`: When set to a path, cross-compiler shards will be downloaded to this location, instead of the default location of `<binarybuilder_root>/deps/downloads`.
 
-* `BINARYBUILDER_ROOTFS_DIR`: When set to a path, the base root FS will be unpacked/mounted to this location, instead of the default location of `<binarybuilder_root>/deps/root`.
+* `BINARYBUILDER_ROOTFS_DIR`: When set to a path, the base root FS will be unpacked/mounted to this location, instead of the default location of `<binarybuilder_root>/deps/root`.  Shards will be bind-mounted into this root directory, depending on the runner used.
 
-* `BINARYBUILDER_SHARDS_DIR`: When set to a path, cross-compiler shards will be unpacked/mounted to this location, instead of the default location of `<binarybuilder_root>/deps/shards`.
+* `BINARYBUILDER_SHARDS_DIR`: When set to a path, cross-compiler shards will be unpacked to this location, instead of the default location of `<binarybuilder_root>/deps/shards`.
 
 * `BINARYBUILDER_QEMU_DIR`: When set to a path, qemu/the linux kernel will be installed here (if using the `QemuRunner`) instead of the default location of `<binarybuilder_root>/deps/qemu`
 
 * `BINARYBUILDER_RUNNER`: When set to a runner string, alters the execution engine that `BinaryBuilder.jl` will use to wrap the build process in a sandbox.  Valid values are one of `"userns"`, `"privileged"` and `"qemu"`.  If not given, `BinaryBuilder.jl` will do its best to guess.
+
+* `BINARYBUILDER_ALLOW_ECRYPTFS`: When set to `true`, this allows the mounting of rootfs/shard/workspace directories from within encrypted mounts.  This is disabled by default, as at the time of writing, this triggers kernel bugs.  To avoid these kernel bugs on a system where e.g. the home directory has been encrypted, set the `BINARYBUILDER_ROOTFS_DIR` and `BINARYBUILDER_SHARDS_DIR` environment variables to a path outside of the encrypted home directory.
