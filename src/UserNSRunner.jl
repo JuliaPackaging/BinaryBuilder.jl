@@ -49,6 +49,10 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     # Also, since we require the Linux(:x86_64) shard for HOST_CC....
     update_rootfs(triplet.([platform, Linux(:x86_64)]); verbose=verbose)
 
+    # Check to make sure we're not going to try and bindmount within an
+    # encrypted directory, as that triggers kernel bugs
+    check_encryption(workspace_root; verbose=verbose)
+
     # Construct sandbox command
     sandbox_cmd = `$(rootfs_dir("sandbox"))`
 
@@ -180,4 +184,92 @@ function probe_unprivileged_containers(;verbose::Bool=false)
     end
     oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
     return wait(oc) && merge(oc) == "hello julia\n"
+end
+
+"""
+    is_ecryptfs(path::AbstractString; verbose::Bool=false)
+
+Checks to see if the given `path` (or any parent directory) is placed upon an
+`ecryptfs` mount.  This is known not to work on current kernels, see this bug
+for more details: https://bugzilla.kernel.org/show_bug.cgi?id=197603
+
+This method returns whether it is encrypted or not, and what mountpoint it used
+to make that decision.
+"""
+function is_ecryptfs(path::AbstractString; verbose::Bool=false)
+    # Canonicalize `path` immediately, and if it's a directory, add a "/" so
+    # as to be consistent with the rest of this function
+    path = abspath(path)
+    if isdir(path)
+        path = abspath(path * "/")
+    end
+
+    if verbose
+        Compat.@info("Checking to see if $path is encrypted...")
+    end
+
+    # Get a listing of the current mounts.  If we can't do this, just give up
+    if !isfile("/proc/mounts")
+        if verbose
+            Compat.@info("Couldn't open /proc/mounts, returning...")
+        end
+        return false
+    end
+    mounts = String(read("/proc/mounts"))
+
+    # Grab the fstype and the mountpoints
+    mounts = [split(m)[2:3] for m in split(mounts, "\n") if !isempty(m)]
+
+    # Canonicalize mountpoints now so as to dodge symlink difficulties
+    mounts = [(abspath(m[1]*"/"), m[2]) for m in mounts]
+
+    # Fast-path asking for a mountpoint directly (e.g. not a subdirectory)
+    direct_path = [m[1] == path for m in mounts]
+    parent = if any(direct_path)
+        mounts[findfirst(direct_path)]
+    else
+        # Find the longest prefix mount:
+        parent_mounts = [m for m in mounts if startswith(path, m[1])]
+        parent_mounts[indmax(length(m[1]) for m in parent_mounts)]
+    end
+
+    # Return true if this mountpoint is an ecryptfs mount
+    return parent[2] == "ecryptfs", parent[1]
+end
+
+function check_encryption(workspace_root::AbstractString;
+                          verbose::Bool = false)
+    msg = []
+    
+    is_encrypted, mountpoint = is_ecryptfs(workspace_root; verbose=verbose)
+    if is_encrypted
+        push!(msg, replace(strip("""
+        Will not launch a user namespace runner within $(workspace_root), it
+        has been encrypted!  Change your working directory to one outside of
+        $(mountpoint) and try again.
+        """), "\n" => " "))
+    end
+
+    is_encrypted, mountpoint = is_ecryptfs(rootfs_dir(); verbose=verbose)
+    if is_encrypted
+        push!(msg, replace(strip("""
+        Cannot mount rootfs at $(rootfs_dir()), it has been encrypted!  Change
+        your rootfs cache directory to one outside of $(mountpoint) by setting
+        the BINARYBUILDER_ROOTFS_DIR environment variable and try again.
+        """), "\n" => " "))
+    end
+
+    is_encrypted, mountpoint = is_ecryptfs(shards_dir(); verbose=verbose)
+    if is_encrypted
+        push!(msg, replace(strip("""
+        Cannot mount rootfs shards within $(shards_dir()), it has been
+        encrypted!  Change your shard cache directory to one outside of
+        $(mountpoint) by setting the BINARYBUILDER_SHARDS_DIR environment
+        variable and try again.
+        """), "\n" => " "))
+    end
+
+    if !isempty(msg)
+        error(join(msg, "\n"))
+    end
 end

@@ -71,7 +71,14 @@ end
     @test BinaryBuilder.target_proc_family("powerpc64le-linux-gnu") == "power"
 end
 
-# This file contains tests that require our cross-compilation environment
+@testset "UserNS utilities" begin
+    # Test that is_ecryptfs works for something we're certain isn't encrypted
+    isecfs = (false, "/proc/")
+    @test BinaryBuilder.is_ecryptfs("/proc"; verbose=true) == isecfs
+    @test BinaryBuilder.is_ecryptfs("/proc/"; verbose=true) == isecfs
+    @test BinaryBuilder.is_ecryptfs("/proc/not_a_file"; verbose=true) == isecfs
+end
+
 @testset "Builder Dependency" begin
     temp_prefix() do prefix
         # First, let's create a Dependency that just installs a file
