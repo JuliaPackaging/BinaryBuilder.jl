@@ -239,6 +239,11 @@ end
 
 function check_encryption(workspace_root::AbstractString;
                           verbose::Bool = false)
+    # If we've explicitly allowed ecryptfs, just quit out immediately
+    global allow_ecryptfs
+    if allow_ecryptfs
+        return
+    end
     msg = []
     
     is_encrypted, mountpoint = is_ecryptfs(workspace_root; verbose=verbose)

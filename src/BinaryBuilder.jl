@@ -20,8 +20,8 @@ include("AutoBuild.jl")
 include("Wizard.jl")
 
 function __init__()
-    global downloads_cache, rootfs_cache, use_squashfs, automatic_apple, shards_cache, runner_override
-    global qemu_cache
+    global downloads_cache, rootfs_cache, shards_cache, runner_override
+    global qemu_cache, use_squashfs, automatic_apple, allow_ecryptfs
 
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
@@ -65,10 +65,17 @@ function __init__()
         automatic_apple = true
     end
 
+    # If the user has overridden our runner selection algorithms, honor that
     runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
     if !(runner_override in ["", "userns", "qemu", "privileged"])
         Compat.@warn("BINARYBUILDER_RUNNER value is invalid, ignoring...")
         runner_override = ""
+    end
+
+    # If the user has signified that they want to allow mounting of ecryptfs
+    # paths, then let them do so at their own peril.
+    if get(ENV, "BINARYBUILDER_ALLOW_ECRYPTFS", "") == "true"
+        allow_ecryptfs = true
     end
 end
 
@@ -89,14 +96,20 @@ function versioninfo()
         Compat.@info("Kernel version: $(readchomp(`uname -r`))")
     end
 
-    # Dump if the Pkg directory is encrypted:
+    # Dump if some important directories are encrypted:
     @static if Compat.Sys.islinux()
-        is_encrypted, mountpoint = is_ecryptfs(dirname(@__FILE__))
-        if is_encrypted
-            Compat.@info("Package is encrypted on mountpoint $mountpoint")
-        else
-            Compat.@info("Package is NOT encrypted on mountpoint $mountpoint")
+        print_enc(n, path) = begin
+            is_encrypted, mountpoint = is_ecryptfs(path)
+            if is_encrypted
+                Compat.@info("$n is encrypted on mountpoint $mountpoint")
+            else
+                Compat.@info("$n is NOT encrypted on mountpoint $mountpoint")
+            end
         end
+        
+        print_enc("pkg dir", dirname(@__FILE__))
+        print_enc("rootfs dir", rootfs_dir())
+        print_enc("shards dir", shards_dir())
     end
 
     # Dump any relevant environment variables:
@@ -109,6 +122,7 @@ function versioninfo()
         "SHARDS_DIR",
         "QEMU_DIR",
         "RUNNER",
+        "ALLOW_ECRYPTFS",
     ]
     for e in env_var_suffixes
         envvar = "BINARYBUILDER_$(e)"
