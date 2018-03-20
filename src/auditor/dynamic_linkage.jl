@@ -116,9 +116,11 @@ function should_ignore_lib(lib, ::COFFHandle)
         "msvcrt.dll",
         "kernel32.dll",
         "user32.dll",
+        "libgcc_s_seh-1.dll",
         "libgcc_s_sjlj-1.dll",
         "libgfortran-3.dll",
         "libgfortran-4.dll",
+        "libstdc++-6.dll",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
