@@ -70,6 +70,10 @@ function target_envs(target::AbstractString)
         "proc_family" => target_proc_family(target),
         "TERM" => "screen",
 
+        # We should always be looking for packages already in the prefix
+        "PKG_CONFIG_PATH" => "/workspace/destdir/lib/pkgconfig",
+        "PKG_CONFIG_SYSROOT_DIR" => "/workspace/destdir",
+
         # Autotools really appreciates being able to build stuff for the
         # host system, so we set this to ease its woes
         "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
