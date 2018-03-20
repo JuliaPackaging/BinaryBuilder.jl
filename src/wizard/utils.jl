@@ -204,6 +204,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             using BinaryProvider
             platform_key() = $platform
             macro write_deps_file(args...); end
+            function write_deps_file(args...) end
             macro __DIR__(args...); return $destdir; end
             install(args...; kwargs...) = BinaryProvider.install(args...; kwargs..., ignore_platform=true, verbose=$verbose)
             ARGS = [$destdir]

@@ -187,6 +187,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                     using BinaryProvider
                     platform_key() = $platform
                     macro write_deps_file(args...); end
+                    function write_deps_file(args...); end
                     function install(url, hash;
                         prefix::Prefix = BinaryProvider.global_prefix,
                         kwargs...)
