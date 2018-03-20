@@ -37,6 +37,9 @@ function target_envs(target::AbstractString)
     lib_path *= ":/opt/$(target)/lib64:/opt/$(target)/lib"
     lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
 
+    # Finally add on our destination location
+    lib_path *= ":/workspace/destdir/lib64:/workspace/destdir/lib"
+
     # Start with the standard PATH:
     path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
