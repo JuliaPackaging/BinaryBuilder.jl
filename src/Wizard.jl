@@ -5,7 +5,6 @@ using TerminalMenus
 using ObjectFile.ELF
 using HTTP
 import PkgDev
-using GitHub
 using JSON
 using MbedTLS
 

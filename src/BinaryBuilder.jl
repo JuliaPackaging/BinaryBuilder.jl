@@ -6,6 +6,7 @@ using Compat, Compat.Libdl, Compat.LibGit2, Compat.Random
 using Reexport
 using ObjectFile
 using Nullables
+using GitHub
 
 @reexport using BinaryProvider
 
@@ -19,9 +20,13 @@ include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
+# This is a global github authentication token that is used everywhere we can
+github_auth = GitHub.AnonymousAuth()
+
 function __init__()
     global downloads_cache, rootfs_cache, shards_cache, runner_override
     global qemu_cache, use_squashfs, automatic_apple, allow_ecryptfs
+    global github_auth
 
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
@@ -76,6 +81,11 @@ function __init__()
     # paths, then let them do so at their own peril.
     if get(ENV, "BINARYBUILDER_ALLOW_ECRYPTFS", "") == "true"
         allow_ecryptfs = true
+    end
+
+    # If the user is feeding us a GITHUB_AUTH token, use it!
+    if length(get(ENV, "GITHUB_AUTH", "")) == 40
+        github_auth = GitHub.authenticate(ENV["GITHUB_AUTH"])
     end
 end
 
