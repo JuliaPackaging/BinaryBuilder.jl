@@ -287,7 +287,7 @@ it from a releases page.
 function product_hashes_from_github_release(repo_name::AbstractString, tag_name::AbstractString;
                                             verbose::Bool = false)
     # Get list of files within this release
-    release = gh_get_json(DEFAULT_API, "/repos/$(repo_name)/releases/tags/$(tag_name)")
+    release = gh_get_json(DEFAULT_API, "/repos/$(repo_name)/releases/tags/$(tag_name)", auth=github_auth)
 
     # Try to extract the platform key from each, use that to find all tarballs
     function can_extract_platform(filename)
