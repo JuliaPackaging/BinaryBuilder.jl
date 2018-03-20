@@ -99,6 +99,9 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libm.so.6",
         "libgfortran.so.3",
         "libgfortran.so.4",
+        # libpthread and libgomp are pretty safe bets
+        "libpthread.so.0",
+        "libgomp.so.1",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
