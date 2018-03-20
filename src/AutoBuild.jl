@@ -262,7 +262,7 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
             # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
             # Alternatively, you could attempt to install from a separate provider,
             # build from source or something more even more ambitious here.
-            error("Your platform \$(Sys.MACHINE) is not supported by this package!")
+            error("Your platform \$(triplet(platform_key())) is not supported by this package!")
         end
     end
 
