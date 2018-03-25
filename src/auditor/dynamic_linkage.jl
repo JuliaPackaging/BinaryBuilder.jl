@@ -22,7 +22,7 @@ function platform_for_object(oh::ObjectHandle)
         elseif mach == ELF.EM_AARCH64
             return Linux(:aarch64)
         elseif mach == ELF.EM_PPC64
-            return Linux(:ppc64le)
+            return Linux(:powerpc64le)
         elseif mach == ELF.EM_ARM
             return Linux(:armv7l)
         else
