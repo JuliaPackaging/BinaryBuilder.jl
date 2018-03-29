@@ -203,7 +203,7 @@ function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
 
         oc = OutputCollector(cmd; verbose=verbose, tee_stream=tee_stream)
         did_succeed = wait(oc)
-
+        
         if !isempty(logpath)
             # Write out the logfile, regardless of whether it was successful
             mkpath(dirname(logpath))
@@ -254,7 +254,10 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
 end
 
 function runshell(qr::QemuRunner, args...; kwargs...)
+    println("Setting parent shell interrupt to ^] (use ^C as usual, ^] to exit shell)")
+    @static if Compat.Sys.isapple() run(`stty intr ^\]`) end
     run_interactive(qr, `/bin/bash`, args...; kwargs...)
+    @static if Compat.Sys.isapple() run(`stty intr ^\C`) end
 end
 
 function runshell(::Type{QemuRunner}, platform::Platform = platform_key(); verbose::Bool = false)
