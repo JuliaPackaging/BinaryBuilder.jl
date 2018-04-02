@@ -53,6 +53,9 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     # encrypted directory, as that triggers kernel bugs
     check_encryption(workspace_root; verbose=verbose)
 
+    # Construct environment variables we'll use from here on out
+    envs = merge(target_envs(triplet(platform)), extra_env)
+
     # Construct sandbox command
     sandbox_cmd = `$(rootfs_dir("sandbox"))`
 
@@ -75,9 +78,11 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     if runner_override == "privileged"
         # First, if we're already root, don't do anything.
         if getuid() != 0
-            # Next, prefer `sudo`, but allow fallback to `su`
+            # Next, prefer `sudo`, but allow fallback to `su`. Also, force-set
+            # $LD_LIBRARY_PATH with these commands, because it is typically
+            # lost and forgotten.  :(
             if success(`sudo -V`)
-                sandbox_cmd = `sudo -E $sandbox_cmd`
+                sandbox_cmd = `sudo -E LD_LIBRARY_PATH=$(envs["LD_LIBRARY_PATH"]) $sandbox_cmd`
             else
                 sandbox_cmd = `su root -c "$sandbox_cmd"`
             end
@@ -85,7 +90,6 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     end
 
     # Finally, return the UserNSRunner in all its glory
-    envs = merge(target_envs(triplet(platform)), extra_env)
     return UserNSRunner(sandbox_cmd, envs, platform)
 end
 
