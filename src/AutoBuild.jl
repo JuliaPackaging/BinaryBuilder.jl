@@ -291,14 +291,11 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
 
     # Try to extract the platform key from each, use that to find all tarballs
     function can_extract_platform(filename)
-        try
-            extract_platform_key(filename)
-            return true
-        end
-        if verbose
+        unknown_platform = typeof(extract_platform_key(filename)) <: UnknownPlatform
+        if unknown_platform && verbose
             Compat.@info("Ignoring file $(filename); can't extract its platform key")
         end
-        return false
+        return !unknown_platform
     end
     assets = [a for a in release["assets"] if can_extract_platform(a["name"])]
 
