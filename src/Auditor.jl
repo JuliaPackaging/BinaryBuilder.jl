@@ -180,8 +180,12 @@ function audit(prefix::Prefix; io=stderr,
             if verbose
                 info(io, "Checking shared library $(relpath(f, prefix.path))")
             end
-            hdl = Libdl.dlopen_e(f)
-            if hdl == C_NULL
+
+            # dlopen() this library in a separate Julia process so that if we
+            # try to do something silly like `dlopen()` a .so file that uses
+            # LLVM in interesting ways on startup, it doesn't kill our main
+            # Julia process.
+            if !success(`$(Base.julia_cmd()) -e "Libdl.dlopen(\"$f\")"`)
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
 
@@ -189,8 +193,6 @@ function audit(prefix::Prefix; io=stderr,
                     warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 end
                 all_ok = false
-            else
-                Libdl.dlclose(hdl)
             end
         end
     end
