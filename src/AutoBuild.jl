@@ -291,6 +291,11 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
 
     # Try to extract the platform key from each, use that to find all tarballs
     function can_extract_platform(filename)
+        # Short-circuit build.jl because that's quite often there.  :P
+        if filename == "build.jl"
+            return false
+        end
+
         unknown_platform = typeof(extract_platform_key(filename)) <: UnknownPlatform
         if unknown_platform && verbose
             Compat.@info("Ignoring file $(filename); can't extract its platform key")
