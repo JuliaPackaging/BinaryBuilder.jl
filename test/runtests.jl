@@ -204,6 +204,40 @@ libfoo_script = """
     rm("$(tarball_path).sha256"; force=true)
 end
 
+# Testset to make sure we can build_tarballs() from a local directory
+@testset "build_tarballs() local directory based" begin
+    build_path = tempname()
+    local_dir_path = joinpath(build_path, "libfoo")
+    mkpath(local_dir_path)
+
+    cd(build_path) do
+        # Just like we package up libfoo into a tarball above, we'll just copy it
+        # into a new directory and use build_tarball's ability to auto-package
+        # local directories to do all the heavy lifting.
+        libfoo_dir = joinpath(@__DIR__, "build_tests", "libfoo")
+        run(`cp -r $(libfoo_dir)/$(readdir(libfoo_dir)) $local_dir_path`)
+
+        sources = [
+            local_dir_path
+        ]
+
+        build_tarballs(
+            [], # fake ARGS
+            "libfoo",
+            sources,
+            "cd libfoo\n$libfoo_script",
+            [Linux(:x86_64, :glibc)],
+            libfoo_products,
+            [], # no dependencies
+        )
+
+        # Make sure that worked
+        @test isfile("products/libfoo.x86_64-linux-gnu.tar.gz")
+        @test isfile("products/build.jl")
+
+    end
+end
+
 # Testset to make sure we can build_tarballs() from a git repository
 @testset "build_tarballs() Git-Based" begin
     build_path = tempname()

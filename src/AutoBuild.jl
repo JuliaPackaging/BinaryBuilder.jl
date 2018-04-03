@@ -83,6 +83,8 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
             print_buildjl(STDOUT, products(dummy_prefix), product_hashes, bin_path)
         end
     end
+
+    return product_hashes
 end
 
 
@@ -120,92 +122,123 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
         end
     end
 
-    # First, download the source(s), store in ./downloads/
-    downloads_dir = joinpath(dir, "downloads")
-    try mkpath(downloads_dir) end
-    for idx in 1:length(sources)
-        src_url, src_hash = sources[idx]
-        if endswith(src_url, ".git")
-            src_path = joinpath(downloads_dir, basename(src_url))
-            if !isdir(src_path)
-                repo = LibGit2.clone(src_url, src_path; isbare=true)
-            else
-                LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-                    LibGit2.fetch(repo)
-                end
-            end
-        else
-            if isfile(src_url)
-                # Immediately abspath() a src_url so we don't lose track of
-                # sources given to us with a relative path
-                src_path = abspath(src_url)
-
-                # And if this is a locally-sourced tarball, just verify
-                verify(src_path, src_hash; verbose=verbose)
-            else
-                # Otherwise, download and verify
-                src_path = joinpath(downloads_dir, basename(src_url))
-                download_verify(src_url, src_hash, src_path; verbose=verbose)
-            end
-        end
-        sources[idx] = (src_path => src_hash)
-    end
-
-    # Our build products will go into ./products
-    out_path = joinpath(dir, "products")
-    try mkpath(out_path) end
+    # This is what we'll eventually return
     product_hashes = Dict()
 
-    for platform in platforms
-        target = triplet(platform)
+    # If we end up packaging any local directories into tarballs, we'll store them here
+    mktempdir() do tempdir
+        # First, download the source(s), store in ./downloads/
+        downloads_dir = joinpath(dir, "downloads")
+        try mkpath(downloads_dir) end
 
-        # We build in a platform-specific directory
-        build_path = joinpath(pwd(), "build", target)
-        try mkpath(build_path) end
+        # We must prepare our sources.  Download them, hash them, etc...
+        sources = Any[s for s in sources]
+        for idx in 1:length(sources)
+            # If the given source is a local path that is a directory, package it up and insert it into our sources
+            if typeof(sources[idx]) <: AbstractString
+                if !isdir(sources[idx])
+                    error("Sources must either be a pair (url => hash) or a local directory")
+                end
 
-        cd(build_path) do
-            src_paths, src_hashes = collect(zip(sources...))
+                # Package up this directory and calculate its hash
+                tarball_path = joinpath(tempdir, basename(sources[idx]) * ".tar.gz")
+                package(sources[idx], tarball_path; verbose=verbose)
+                tarball_hash = open(tarball_path, "r") do f
+                    bytes2hex(sha256(f))
+                end
 
-            # Convert from tuples to arrays, if need be
-            src_paths = collect(src_paths)
-            src_hashes = collect(src_hashes)
-            prefix, ur = setup_workspace(build_path, src_paths, src_hashes, dependencies, platform; verbose=verbose)
+                # Now that it's packaged, store this into sources[idx]
+                sources[idx] = (tarball_path => tarball_hash)
+            elseif typeof(sources[idx]) <: Pair
+                src_url, src_hash = sources[idx]
 
-            # Don't keep the downloads directory around
-            rm(joinpath(prefix, "downloads"); force=true, recursive=true)
-
-            dep = Dependency(src_name, products(prefix), script, platform, prefix)
-            if !build(ur, dep; verbose=verbose, autofix=true)
-                error("Failed to build $(target)")
-            end
-
-            # Remove the files of any dependencies
-            for dependency in dependencies
-                dep_script = script_for_dep(dependency)
-                m = Module(:__anon__)
-                eval(m, quote
-                    using BinaryProvider
-                    platform_key() = $platform
-                    macro write_deps_file(args...); end
-                    function write_deps_file(args...); end
-                    function install(url, hash;
-                        prefix::Prefix = BinaryProvider.global_prefix,
-                        kwargs...)
-                        manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
-                        BinaryProvider.uninstall(manifest_path; verbose=$verbose)
+                # If it's a .git url, clone it
+                if endswith(src_url, ".git")
+                    src_path = joinpath(downloads_dir, basename(src_url))
+                    if !isdir(src_path)
+                        repo = LibGit2.clone(src_url, src_path; isbare=true)
+                    else
+                        LibGit2.with(LibGit2.GitRepo(src_path)) do repo
+                            LibGit2.fetch(repo)
+                        end
                     end
-                    ARGS = [$(prefix.path)]
-                    include_string($(dep_script))
-                end)
-            end
+                else
+                    if isfile(src_url)
+                        # Immediately abspath() a src_url so we don't lose track of
+                        # sources given to us with a relative path
+                        src_path = abspath(src_url)
 
-            # Once we're built up, go ahead and package this prefix out
-            tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=verbose, force=true)
-            product_hashes[target] = (basename(tarball_path), tarball_hash)
+                        # And if this is a locally-sourced tarball, just verify
+                        verify(src_path, src_hash; verbose=verbose)
+                    else
+                        # Otherwise, download and verify
+                        src_path = joinpath(downloads_dir, basename(src_url))
+                        download_verify(src_url, src_hash, src_path; verbose=verbose)
+                    end
+                end
+
+                # Now that it's downloaded, store this into sources[idx]
+                sources[idx] = (src_path => src_hash)
+            else
+                error("Sources must be either a `URL => hash` pair, or a path to a local directory")
+            end
         end
 
-        # Finally, destroy the build_path
-        rm(build_path; recursive=true)
+        # Our build products will go into ./products
+        out_path = joinpath(dir, "products")
+        try mkpath(out_path) end
+
+        for platform in platforms
+            target = triplet(platform)
+
+            # We build in a platform-specific directory
+            build_path = joinpath(pwd(), "build", target)
+            try mkpath(build_path) end
+
+            cd(build_path) do
+                src_paths, src_hashes = collect(zip(sources...))
+
+                # Convert from tuples to arrays, if need be
+                src_paths = collect(src_paths)
+                src_hashes = collect(src_hashes)
+                prefix, ur = setup_workspace(build_path, src_paths, src_hashes, dependencies, platform; verbose=verbose)
+
+                # Don't keep the downloads directory around
+                rm(joinpath(prefix, "downloads"); force=true, recursive=true)
+
+                dep = Dependency(src_name, products(prefix), script, platform, prefix)
+                if !build(ur, dep; verbose=verbose, autofix=true)
+                    error("Failed to build $(target)")
+                end
+
+                # Remove the files of any dependencies
+                for dependency in dependencies
+                    dep_script = script_for_dep(dependency)
+                    m = Module(:__anon__)
+                    eval(m, quote
+                        using BinaryProvider
+                        platform_key() = $platform
+                        macro write_deps_file(args...); end
+                        function write_deps_file(args...); end
+                        function install(url, hash;
+                            prefix::Prefix = BinaryProvider.global_prefix,
+                            kwargs...)
+                            manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
+                            BinaryProvider.uninstall(manifest_path; verbose=$verbose)
+                        end
+                        ARGS = [$(prefix.path)]
+                        include_string($(dep_script))
+                    end)
+                end
+
+                # Once we're built up, go ahead and package this prefix out
+                tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=verbose, force=true)
+                product_hashes[target] = (basename(tarball_path), tarball_hash)
+            end
+
+            # Finally, destroy the build_path
+            rm(build_path; recursive=true)
+        end
     end
 
     if haskey(ENV, "TRAVIS") && !verbose
