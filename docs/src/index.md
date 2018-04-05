@@ -21,7 +21,7 @@ In particular, Travis [uploads the build products to a GitHub release](https://d
 
 Once these files are created and uploaded to GitHub, and Travis is enabled for your FooBuilder repository, then simply [creating a release](https://help.github.com/articles/creating-releases/) in your repo will trigger Travis to run, using cross-compilers to generate binaries for *all* platforms simultaneously, and finally to automatically attach the binaries to the release.
 
-See the [troubleshooting](insert link here) and [cross-compiling](insert link here) manual sections for help with common problems.
+See also the [FAQ](FAQ.md), [build tips](build_tips.md), and [tricksy gotchas](tricksy_gotchas.md) for help with common problems.
 
 ## Build scripts
 
