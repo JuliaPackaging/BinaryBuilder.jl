@@ -93,6 +93,7 @@ end
 function should_ignore_lib(lib, ::ELFHandle)
     ignore_libs = [
         "libc.so.6",
+        "libstdc++.so.6",
         # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
         "libgcc_s.so.1",
@@ -108,6 +109,7 @@ end
 function should_ignore_lib(lib, ::MachOHandle)
     ignore_libs = [
         "libsystem.b.dylib",
+        "libstdc++.6.dylib",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
