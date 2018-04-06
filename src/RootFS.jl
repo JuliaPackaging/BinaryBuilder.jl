@@ -83,6 +83,8 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
         "x86_64-linux-gnu" => "9c7881aadc990b310599f9873423b1d17c5cec91a34ee0d9ab5fafc28b10b77d",
         "x86_64-linux-musl" => "7b55e23493adb02fd409cbab43e5febc8cedd3712ee19911610d38b231b16276",
         "x86_64-w64-mingw32" => "afa89cd4f83cc94d8cc887d23c81579444627795d5e4dec8e9f4f454e84d525d",
+        # FIXME: real hash
+        "x86_64-unknown-freebsd11.1" => "62acaee7e7c9df66ee2c0c2d533d1da0ddf67d32833bc4b77d935ddd9fe27dab",
     )
     tarball_hashes = Dict(
         "aarch64-linux-gnu" => "08d491bff0039f81f76a2962c338e33ea67533209983c57c597aaac4ffe939a3",
@@ -98,6 +100,8 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
         "x86_64-linux-gnu" => "24d6eed2f0ecac85637e478d324f08fc53f52cec3e01c528313cd4db527fb3f4",
         "x86_64-linux-musl" => "362abc73138f9427f763d39c334e848e7bcb4000ab567799c45831f8cdc5ddb5",
         "x86_64-w64-mingw32" => "f4e60e193222bd449f921aecc5754962ac0c8c3859c89787d7c310548e5689ad",
+        # FIXME: real hash
+        "x86_64-unknown-freebsd11.1" => "62acaee7e7c9df66ee2c0c2d533d1da0ddf67d32833bc4b77d935ddd9fe27dab",
     )
 
     if squashfs
