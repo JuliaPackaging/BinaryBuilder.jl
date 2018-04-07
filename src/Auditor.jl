@@ -2,6 +2,7 @@ export audit, collect_files, collapse_symlinks
 
 include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")
+include("auditor/symlink_translator.jl")
 
 # AUDITOR TODO LIST:
 #
@@ -39,6 +40,9 @@ function audit(prefix::Prefix; io=stderr,
 
     # If this is false then it's bedtime for bonzo boy
     all_ok = true
+
+    # Translate absolute symlinks to relative symlinks, if possible
+    translate_symlinks(prefix.path; verbose=verbose)
 
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
