@@ -223,10 +223,16 @@ function audit(prefix::Prefix; io=stderr,
     # offense, as many files have absolute paths.  We want to know about it
     # though, so we'll still warn the user.
     for f in all_files
-        file_contents = String(read(f))
-        if contains(file_contents, prefix.path)
+        try
+            file_contents = String(read(f))
+            if contains(file_contents, prefix.path)
+                if !silent
+                    warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
+                end
+            end
+        except
             if !silent
-                warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
+                warn(io, "Skipping abspath scanning of $(f), as we can't open it")
             end
         end
     end
