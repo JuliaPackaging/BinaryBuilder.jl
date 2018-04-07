@@ -94,6 +94,9 @@ function should_ignore_lib(lib, ::ELFHandle)
     ignore_libs = [
         "libc.so.6",
         "libstdc++.so.6",
+        # POSIX libraries
+        "libdl.so.2",
+        "librt.so.1",
         # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
         "libgcc_s.so.1",
