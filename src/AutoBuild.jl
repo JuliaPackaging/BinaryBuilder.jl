@@ -294,18 +294,19 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
     println(io, ")\n")
 
     print(io, """
-    # First, check to see if we're all satisfied
-    if any(!satisfied(p; verbose=verbose) for p in products)
-        if haskey(download_info, platform_key())
+    # Install unsatisfied or updated dependencies:
+    unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
+    if haskey(download_info, platform_key())
+        url, tarball_hash = download_info[platform_key()]
+        if unsatisfied || !isinstalled(url, tarball_hash)
             # Download and install binaries
-            url, tarball_hash = download_info[platform_key()]
             install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
-        else
-            # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
-            # Alternatively, you could attempt to install from a separate provider,
-            # build from source or something more even more ambitious here.
-            error("Your platform \$(triplet(platform_key())) is not supported by this package!")
         end
+    elseif unsatisfied
+        # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
+        # Alternatively, you could attempt to install from a separate provider,
+        # build from source or something more even more ambitious here.
+        error("Your platform \$(triplet(platform_key())) is not supported by this package!")
     end
 
     # Write out a deps.jl file that will contain mappings for our products
