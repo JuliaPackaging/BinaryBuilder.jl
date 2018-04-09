@@ -109,6 +109,13 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
             """, '\n' => ' ')
             error(strip(msg))
         end
+
+        # Finally, check to see if we are now satisfied
+        if !satisfied(dep; verbose=verbose)
+            if verbose
+                Compat.@warn("Built $(dep.name) but still unsatisfied!")
+            end
+        end
     elseif !should_build && verbose
         Compat.@info("Not building as $(dep.name) is already satisfied")
     end
