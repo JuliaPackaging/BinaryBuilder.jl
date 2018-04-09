@@ -217,17 +217,19 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                     m = Module(:__anon__)
                     eval(m, quote
                         using BinaryProvider
+                        # Override BinaryProvider functionality so that it doesn't actually install anything
                         platform_key() = $platform
-                        macro write_deps_file(args...); end
                         function write_deps_file(args...); end
-                        function install(url, hash;
-                            prefix::Prefix = BinaryProvider.global_prefix,
-                            kwargs...)
-                            manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
-                            BinaryProvider.uninstall(manifest_path; verbose=$verbose)
-                        end
+                        function install(args...; kwargs...); end
+
+                        # Include build.jl file to extract download_info
                         ARGS = [$(prefix.path)]
                         include_string($(dep_script))
+
+                        # Grab the information we need in order to extract a manifest, then uninstall it
+                        url, hash = download_info[platform_key()]
+                        manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
+                        BinaryProvider.uninstall(manifest_path; verbose=$verbose)
                     end)
                 end
 
