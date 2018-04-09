@@ -234,10 +234,17 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                 # Once we're built up, go ahead and package this prefix out
                 tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=verbose, force=true)
                 product_hashes[target] = (basename(tarball_path), tarball_hash)
+
+                # Destroy the prefix
+                rm(prefix.path; recursive=true)
             end
 
-            # Finally, destroy the build_path
-            rm(build_path; recursive=true)
+            # If the whole build_path is empty, then remove it too.  If it's not, it's probably
+            # because some other build is doing something simultaneously with this target, and we
+            # don't want to mess with their stuff.
+            if isempty(readdir(build_path))
+                rm(build_path; recursive=true)
+            end
         end
     end
 
