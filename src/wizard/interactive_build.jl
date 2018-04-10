@@ -227,7 +227,7 @@ function pick_preferred_platform(platforms)
     if Linux(:x86_64) in platforms
         return Linux(:x86_64)
     end
-    for os in (Linux, Windows, MacOS)
+    for os in (Linux, Windows, MacOS, FreeBSD)
         plats = filter(p->p isa os, platforms)
         if !isempty(plats)
             platforms = plats
