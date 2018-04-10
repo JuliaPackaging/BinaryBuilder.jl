@@ -79,11 +79,10 @@ function audit(prefix::Prefix; io=stderr,
 
             # Look at every dynamic link, and see if we should do anything about that link...
             libs = find_libraries(oh)
+            ignored_libraries = String[]
             for libname in keys(libs)
                 if should_ignore_lib(libname, oh)
-                    if verbose
-                        info(io, "Ignoring system library $(libname)")
-                    end
+                    push!(ignored_libraries, libname)
                     continue
                 end
 
@@ -144,6 +143,10 @@ function audit(prefix::Prefix; io=stderr,
                     end
                     all_ok = false
                 end
+            end
+
+            if verbose && !isempty(ignored_libraries)
+                info(io, "Ignored system libraries $(join(ignored_libraries, ", "))")
             end
         end
 
