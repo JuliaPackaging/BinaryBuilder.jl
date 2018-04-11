@@ -263,7 +263,7 @@ end
 function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
                        bin_path::AbstractString)
     print(io, """
-    using BinaryProvider
+    using BinaryProvider # requires BinaryProvider 0.3.0 or later
 
     # Parse some basic command-line arguments
     const verbose = "--verbose" in ARGS
