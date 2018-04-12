@@ -28,7 +28,10 @@ Examples of things set are `PATH`, `CC`, `RANLIB`, as well as nonstandard
 things like `target`.
 """
 function target_envs(target::AbstractString)
-    target_tool = tool -> "/opt/$(target)/bin/$(target)-$(tool)"
+    # Helper function to generate paths such as /opt/x86_64-apple-darwin14/bin/llvm-ar
+    tool = x -> "/opt/$(target)/bin/$(x)"
+    # Helper function to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
+    target_tool = x -> tool("$(target)-$(x)")
 
     # Start with the default musl ld path:
     lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
@@ -51,22 +54,13 @@ function target_envs(target::AbstractString)
         "PATH" => path,
         "LD_LIBRARY_PATH" => lib_path,
 
-        # Define toolchain envvars
-        "AR" => target_tool("ar"),
-        "CC" => target_tool("gcc"),
-        "CXX" => target_tool("g++"),
-        "FC" => target_tool("gfortran"),
-        "LD" => target_tool("ld"),
-        "NM" => target_tool("nm"),
-        "AS" => target_tool("as"),
+        # binutils/toolchain envvars
         "RANLIB" => target_tool("ranlib"),
         "STRIP" => target_tool("strip"),
-        "INSTALL_NAME_TOOL" => target_tool("install_name_tool"),
         "LIBTOOL" => target_tool("libtool"),
         "LIPO" => target_tool("lipo"),
-        "OTOOL" => target_tool("otool"),
 
-        # Useful tools
+        # Useful tools for our buildscripts
         "target" => target,
         "nproc" => "$(Sys.CPU_CORES)",
         "nbits" => target_nbits(target),
@@ -82,15 +76,35 @@ function target_envs(target::AbstractString)
         "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
     )
 
-    # If we're on OSX or FreeBBSD, default to clang for CC and CXX
-    # Also default to asking for a minimum of OSX 10.8 for C++ ABI
+    # If we're on MacOS or FreeBSD, we default to LLVM tools instead of GCC.
+    # On all of our clangy platforms we actually have GCC tools available as well,
+    # they're just not used by default.  Override these environment variables in
+    # your scripts if you want to use them.
     if contains(target, "-apple-") || contains(target, "-freebsd")
-        mapping["CC"] = "/opt/$(target)/bin/clang"
-        mapping["CXX"] = "/opt/$(target)/bin/clang++"
-        if contains(target, "-apple-")
-            mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
-        end
+        mapping["AR"] = tool("llvm-ar")
+        mapping["AS"] = tool("llvm-as")
+        mapping["CC"] = tool("clang")
+        mapping["CXX"] = tool("clang++")
+        # flang isn't a realistic option yet, so we still use gfortran here
+        mapping["FC"] = target_tool("gfortran")
+        mapping["LD"] = tool("llvm-ld")
+        mapping["NM"] = tool("llvm-nm")
+        mapping["OTOOL"] = target_tool("otool")
+        mapping["INSTALL_NAME_TOOL"] = target_tool("install_name_tool")
+    else
+        mapping["AR"] = target_tool("ar")
+        mapping["AS"] = target_tool("as")
+        mapping["CC"] = target_tool("gcc")
+        mapping["CXX"] = target_tool("g++")
+        mapping["FC"] = target_tool("gfortran")
+        mapping["LD"] = target_tool("ld")
+        mapping["NM"] = target_tool("nm")
     end
+
+    # On OSX ask for a minimum of OSX 10.8 for C++ ABI (This is default now?)
+    #if contains(target, "-apple-")
+    #    mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
+    #end
 
     return mapping
 end
