@@ -103,7 +103,8 @@ end
 
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
     if runner_override == "privileged"
-        Compat.@info("Running privileged container via `sudo`, may ask for your password:")
+        msg = "Running privileged container via `sudo`, may ask for your password:"
+        BinaryProvider.info_onchange(msg, "privileged", "userns_run_privileged")
     end
 
     did_succeed = true
@@ -129,7 +130,8 @@ end
 
 function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
     if runner_override == "privileged"
-        Compat.@info("Running privileged container via `sudo`, may ask for your password:")
+        msg = "Running privileged container via `sudo`, may ask for your password:"
+        BinaryProvider.info_onchange(msg, "privileged", "userns_run_privileged")
     end
 
     cd(rootfs_dir()) do
