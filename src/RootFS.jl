@@ -51,7 +51,7 @@ Returns the URL from which a rootfs image (tarball/squashfs) can be downloaded
 function get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
     # These constants are what should be updated for a new rootfs build:
     rootfs_urlroot = "https://julialangmirror.s3.amazonaws.com/binarybuilder"
-    rootfs_version = "2018-04-01"
+    rootfs_version = "2018-04-11"
 
     shard_name = "rootfs-$(target)"
     ext = squashfs ? "squashfs" : "tar.gz"
@@ -70,34 +70,36 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     # in `julia-docker/crossbuild`, after running `make shards`.  Alternatively,
     # run `make push-rootfs` to do both and upload to S3
     squashfs_hashes = Dict(
-        "aarch64-linux-gnu" => "ecfcc6fa071dea7b7e0eba6994af5b02fc703bd1c8b99f902b1ef172171fb780",
-        "aarch64-linux-musl" => "96102a9acdb2f03f8a67003bf8762419cdc6109851075d6b1ea89d2317cb6116",
-        "arm-linux-gnueabihf" => "d0567cb77ae533c6f639c6d7ece40df3c9eea70fc1f79074c6a83cb5170cf24c",
-        "arm-linux-musleabihf" => "6d2dc85c638d2e4ed0487905bb0c2f013817f19413c89bf2f1259023de2cf467",
-        "base" => "155018ab628b17bc2c972f99b2725345cde43530a86dad6c7b6a838df08422dd",
-        "i686-linux-gnu" => "d4d1e7d886f057e75097a3c071fa9e0406dd377bd227ca7483147e0bf044af6e",
-        "i686-linux-musl" => "e72c1d34de87b73411174601f242121826c171785a4fb01d00502af0a7359099",
-        "i686-w64-mingw32" => "cdbb780f79d7e8b72580c729426e509cc75e628c919ce5a91f849b5120591a29",
-        "powerpc64le-linux-gnu" => "fa0c858ca9460a53490e82429efdeed2d1292931c1e0dc47d6e580b68263852e",
-        "x86_64-apple-darwin14" => "a637a44807e196d9191038afa744ff50b246d4ed8538d44b734bd6e38c154cd0",
-        "x86_64-linux-gnu" => "9c7881aadc990b310599f9873423b1d17c5cec91a34ee0d9ab5fafc28b10b77d",
-        "x86_64-linux-musl" => "7b55e23493adb02fd409cbab43e5febc8cedd3712ee19911610d38b231b16276",
-        "x86_64-w64-mingw32" => "afa89cd4f83cc94d8cc887d23c81579444627795d5e4dec8e9f4f454e84d525d",
+        "aarch64-linux-gnu" => "f0fd6793e329772dadee41298e3e408d43e6c5af6f43ea3bcdb0cabc94ba5e89",
+        "aarch64-linux-musl" => "67d3e6bc967bd4e058f533fac0ee62e535b2dee366e4bfddd50492ce94c8d0c3",
+        "arm-linux-gnueabihf" => "96daa95805974e7876f60468476d878613879aa1a390f55fb78a2c2ae3fc45dd",
+        "arm-linux-musleabihf" => "29f37b003277da768bbcd869d2a93c6588e9f3ab99e8ec96cd7c5e49cba57e3e",
+        "base" => "6248961bf057030055da502e3436025b40f27e11e410603c8fb0148ff04dcf9f",
+        "i686-linux-gnu" => "71788936b3b1e5f72a451a0974701851337a899d7ac557910240ea58917ca6c4",
+        "i686-linux-musl" => "acfcb756b7247b617b487bbe22df94f18d44e0dddc9f71c36ef311ffc9cb0367",
+        "i686-w64-mingw32" => "b04ae82fc3432a78825c57e32e86a7cb41ba9bf94fb21d75d8e0be91ef2a907c",
+        "powerpc64le-linux-gnu" => "4ba71b6e7969151189e9dfa870f48443d07b9b2cd68b0a268316067bc8a22845",
+        "x86_64-apple-darwin14" => "998408b0ba4060465b464648ca092fd5080d220b55d244c3821cbb19b5219edc",
+        "x86_64-linux-gnu" => "9dcec7f1092572eb9bddee43236fe0a9853ddba044425b01ff75ed162445f93f",
+        "x86_64-linux-musl" => "9639f19c735b426f355b073f5c2be1d6c6eb232791403bf99b3de270b8e325a3",
+        "x86_64-unknown-freebsd11.1" => "09a1ae3078c4e5f8fc43a728941674e9102f3697f78c026cf5a5725c08c742ed",
+        "x86_64-w64-mingw32" => "cbadda2aa1651f14cbe2cd5ccbc2d8bdb5d2e85aa7dbcbadc5232381de5daa6a",
     )
     tarball_hashes = Dict(
-        "aarch64-linux-gnu" => "08d491bff0039f81f76a2962c338e33ea67533209983c57c597aaac4ffe939a3",
-        "aarch64-linux-musl" => "4794b61ba4d673d34b7a7fe34d4a5866607ccdb6fd734ab28278c96ea5cbf7b5",
-        "arm-linux-gnueabihf" => "52e1fdd80d27ebf8f4dd693000d5096a6e166679eb6607b374e75c2c94fb16ec",
-        "arm-linux-musleabihf" => "5f123ca56362c5c7c8a1037a3d33d90cf4bca30780281f0a94240e20fd36f7dc",
-        "base" => "f797b579c98d181cffc8dca6aaab0f6f1c9084b750bcffbe9e6307132b1ab2de",
-        "i686-linux-gnu" => "90d418fe008f417200bd5317ec27ab1b34ffba661487d552477fa10081a6322f",
-        "i686-linux-musl" => "72aba030dd3c2e715af6da6eaefb7271b9fabc6ca42d01cfb6110dc053223def",
-        "i686-w64-mingw32" => "be6e62c47b16d4827e06d24062721510d0be8f7ed25731460d601a0591067e18",
-        "powerpc64le-linux-gnu" => "57dc54ed006b1578a0e0f10150225658d8c6777d47fb91be88ab5db4733c0be2",
-        "x86_64-apple-darwin14" => "7ba4e216282c4e4591bea808993f59d469fc8bf471622bd7d36886a96190b81f",
-        "x86_64-linux-gnu" => "24d6eed2f0ecac85637e478d324f08fc53f52cec3e01c528313cd4db527fb3f4",
-        "x86_64-linux-musl" => "362abc73138f9427f763d39c334e848e7bcb4000ab567799c45831f8cdc5ddb5",
-        "x86_64-w64-mingw32" => "f4e60e193222bd449f921aecc5754962ac0c8c3859c89787d7c310548e5689ad",
+        "aarch64-linux-gnu" => "09d689a60d3586c7ee2a6a728de739f2528a3cf66c9428760cf297f1cae63279",
+        "aarch64-linux-musl" => "85acd64e2fb7573c315f599f82b97361985ea63bd41a8b28c619f7888a61bda4",
+        "arm-linux-gnueabihf" => "d3ec1899669de05fb85702f11b41495dbc8306d8857ba6254b4063b18674d71b",
+        "arm-linux-musleabihf" => "9f37d189ef990c407e47be874036bd4980a0fca2d1658d1b83587370dd5830ff",
+        "base" => "b9650d11d86a5386d2b5fe3ce295659da89b98226c2488c399a620402d2a853a",
+        "i686-linux-gnu" => "ed8c0344d90b092907d736e0c74018f3c3a493a7a6c1525f6f48b0469fdda408",
+        "i686-linux-musl" => "8acf68e05dc734fcfd16bd1f8cf50b20dacf9937891ca0928392e6c3406ec051",
+        "i686-w64-mingw32" => "4b5a3956707baf34efb897e79f032c41c693618dba5e6fb529d46a6bc2cc3728",
+        "powerpc64le-linux-gnu" => "979826644b009549d933d44febf8773e35292765e1c99253ba86fe14fe3f5468",
+        "x86_64-apple-darwin14" => "698c918e32d31cd5c0d6017fc451c8916a9f0e1b2d9b041812848de1508f90cb",
+        "x86_64-linux-gnu" => "1118c434a14016da6eaeb1c8f0c7bea30aed9f98cc7c5847634aba92bd5f8ffc",
+        "x86_64-linux-musl" => "5954553d2fb0d7404e0054686ef3e76edaa17ac771869f73b6e4ee687174aa87",
+        "x86_64-unknown-freebsd11.1" => "f60a91e897f38455ee76f4fb74d87148635270b5a65211e571d79f3c8fb929c7",
+        "x86_64-w64-mingw32" => "ddf230129b6785a21bac0cb60b167d7f7aa2633e27c376a9f4601aac9f5de0b0",
     )
 
     if squashfs
