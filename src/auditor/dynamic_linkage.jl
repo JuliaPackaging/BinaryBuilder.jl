@@ -92,6 +92,8 @@ end
 # These are libraries we should straight-up ignore, like libsystem on OSX
 function should_ignore_lib(lib, ::ELFHandle)
     ignore_libs = [
+        # Basic runtimes
+        "libc.so",
         "libc.so.6",
         "libstdc++.so.6",
         # POSIX libraries
