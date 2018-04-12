@@ -1,3 +1,5 @@
+export supported_platforms
+
 # These globals store important information such as where we're downloading
 # the rootfs to, and where we're unpacking it.  These constants are initialized
 # by `__init__()` to allow for environment variable overrides from the user.
@@ -107,6 +109,38 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
     else
         return tarball_hashes[triplet]
     end
+end
+
+"""
+    supported_platforms()
+
+Return the list of supported platforms as an array of `Platform`s.  These are the platforms we
+officially support building for, if you see a mapping in `get_shard_hash()` that isn't
+represented here, it's probably because that platform is still considered "in beta".
+"""
+function supported_platforms()
+    return [
+        # glibc Linuces
+        Linux(:i686),
+        Linux(:x86_64),
+        Linux(:aarch64),
+        Linux(:armv7l),
+        Linux(:powerpc64le),
+
+        # musl Linuces
+        Linux(:i686, :musl),
+        Linux(:x86_64, :musl),
+        Linux(:aarch64, :musl),
+        Linux(:armv7l, :musl),
+
+        # BSDs
+        MacOS(:x86_64),
+        FreeBSD(:x86_64),
+
+        # Windows
+        Windows(:i686),
+        Windows(:x86_64),
+    ]
 end
 
 # Note: produce these values by #including squashfs_fs.h from linux in Cxx.jl
