@@ -82,12 +82,14 @@ function target_envs(target::AbstractString)
         "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
     )
 
-    # If we're on OSX, default to clang instead of gcc for CC and CXX
+    # If we're on OSX or FreeBBSD, default to clang for CC and CXX
     # Also default to asking for a minimum of OSX 10.8 for C++ ABI
-    if contains(target, "-apple-")
+    if contains(target, "-apple-") || contains(target, "-freebsd")
         mapping["CC"] = "/opt/$(target)/bin/clang"
         mapping["CXX"] = "/opt/$(target)/bin/clang++"
-        mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
+        if contains(target, "-apple-")
+            mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
+        end
     end
 
     return mapping
