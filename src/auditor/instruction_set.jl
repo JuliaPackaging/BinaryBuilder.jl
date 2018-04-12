@@ -1212,7 +1212,7 @@ function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO
             the proper instruction set internally.  Would have chosen
             $(min_isa), instead choosing $(new_min_isa).
             """, '\n' => ' ')
-            Compat.@warn(io, strip(msg))
+            warn(io, strip(msg))
         end
         return new_min_isa
     end
