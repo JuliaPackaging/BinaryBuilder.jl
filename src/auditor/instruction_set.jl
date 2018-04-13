@@ -1205,7 +1205,7 @@ function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO
     # return the most conservative ISA and warn the user if `verbose` is set.
     if counts["cpuid"] > 0
         new_min_isa = is64bit(oh) ? :core2 : :pentium4
-        if verbose
+        if verbose && new_min_isa != min_isa
             msg = replace("""
             $(basename(path(oh))) contains a `cpuid` instruction; refusing to
             analyze for minimum instruction set, as it may dynamically select
