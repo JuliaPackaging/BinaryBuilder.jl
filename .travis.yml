@@ -20,9 +20,14 @@ matrix:
 env:
   global:
     - BINARYBUILDER_AUTOMATIC_APPLE=true
+    - BINARYBUILDER_FULL_SHARD_TEST=false
   matrix:
-    - BINARYBUILDER_USE_SQUASHFS=true
+    # One test with squashfs, also doing a full shard test
+    - BINARYBUILDER_USE_SQUASHFS=true BINARYBUILDER_FULL_SHARD_TEST=true
+    # One test without squashfs.  We don't have the disk space
+    # available to do a full shard test here. :(
     - BINARYBUILDER_USE_SQUASHFS=false
+    # One test with the privileged runner, also 
     - BINARYBUILDER_RUNNER=privileged
 
 cache:
@@ -41,8 +46,11 @@ jobs:
 script:
    - julia -e 'Pkg.clone(pwd())'
    - julia -e 'Pkg.build("BinaryBuilder")'
-   - if [ ${TEST_SANDBOX:-false} = true ]; then julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -o root/sandbox sandbox.c`)'; fi
-   - julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
+   - if [ ${TEST_SANDBOX:-false} = true ]; then
+        julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -o root/sandbox sandbox.c`)';
+     else
+        julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)';
+     fi
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
