@@ -204,21 +204,24 @@ libfoo_script = """
     rm("$(tarball_path).sha256"; force=true)
 end
 
-@testset "Shard sanity tests" begin
-    for shard_platform in supported_platforms()
-        build_path = tempname()
-        mkpath(build_path)
-        prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], shard_platform)
-        cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
-            run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
+if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"
+    # Perform a sanity test on each and every shard.
+    @testset "Shard sanity tests" begin
+        for shard_platform in supported_platforms()
+            build_path = tempname()
+            mkpath(build_path)
+            prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], shard_platform)
+            cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
+                run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
-            # Build libfoo, warn if we fail
-            dep = Dependency("foo", libfoo_products(prefix), libfoo_script, shard_platform, prefix)
-            @test build(ur, dep)
+                # Build libfoo, warn if we fail
+                dep = Dependency("foo", libfoo_products(prefix), libfoo_script, shard_platform, prefix)
+                @test build(ur, dep)
+            end
+
+            # Delete the build path
+            rm(build_path, recursive = true)
         end
-
-        # Delete the build path
-        rm(build_path, recursive = true)
     end
 end
 
