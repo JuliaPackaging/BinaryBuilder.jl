@@ -142,15 +142,6 @@ function supported_platforms()
     ]
 end
 
-# Note: produce these values by #including squashfs_fs.h from linux in Cxx.jl
-# and running the indicated command
-const offsetof_id_table_start = 0x30    # offsetof(struct suqashfs_super_block, id_table_start)
-const offsetof_no_ids = 0x1a            # offsetof(struct suqashfs_super_block, no_ids)
-
-# From squashfs_fs.h
-const SQUASHFS_COMPRESSED_BIT = UInt16(1) << 15
-const SQUASHFS_MAGIC = 0x73717368
-
 """
     getuid()
 
@@ -159,6 +150,15 @@ Wrapper around libc's `getuid()` function
 function getuid()
     return ccall(:getuid, Cint, ())
 end
+
+# Note: produce these values by #including squashfs_fs.h from linux in Cxx.jl
+# and running the indicated command
+const offsetof_id_table_start = 0x30    # offsetof(struct suqashfs_super_block, id_table_start)
+const offsetof_no_ids = 0x1a            # offsetof(struct suqashfs_super_block, no_ids)
+
+# From squashfs_fs.h
+const SQUASHFS_COMPRESSED_BIT = UInt16(1) << 15
+const SQUASHFS_MAGIC = 0x73717368
 
 """
     rewrite_squashfs_uids(path, new_uid)
