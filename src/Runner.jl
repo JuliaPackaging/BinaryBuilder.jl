@@ -91,6 +91,7 @@ function target_envs(target::AbstractString)
         mapping["NM"] = tool("llvm-nm")
         mapping["OTOOL"] = target_tool("otool")
         mapping["INSTALL_NAME_TOOL"] = target_tool("install_name_tool")
+        mapping["LLVM_TARGET"] = target
     else
         mapping["AR"] = target_tool("ar")
         mapping["AS"] = target_tool("as")
