@@ -101,10 +101,15 @@ function target_envs(target::AbstractString)
         mapping["NM"] = target_tool("nm")
     end
 
-    # On OSX ask for a minimum of OSX 10.8 for C++ ABI (This is default now?)
-    #if contains(target, "-apple-")
-    #    mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
-    #end
+    # On OSX, we need to do a little more work.
+    if contains(target, "-apple-")
+        # First, tell CMake what our deployment target is, so that it tries to
+        # set -mmacosx-version-min and such appropriately
+        mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
+
+        # Also put this into LDFLAGS because some packages are hard of hearing
+        mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
+    end
 
     return mapping
 end
