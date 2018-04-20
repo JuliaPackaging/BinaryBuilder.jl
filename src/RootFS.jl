@@ -81,10 +81,10 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
         "i686-linux-musl" => "0230ccf69edf79964a5395219eb787ea55af3eb64f2fc74b25ad58e962fdd483",
         "i686-w64-mingw32" => "1d2b0b0f05c1c67fdeaefe8245e20c8ee24323c2a87e962b6a0ae3efd2b6671b",
         "powerpc64le-linux-gnu" => "697dbed010596cf2ebb2346dba2da56d71167287d7ce30ab98c8a9e3d3c195b9",
-        "x86_64-apple-darwin14" => "f7cd46f0f71a9544d8d4ce2cead3db524a8b354a1520a1893c4b2c531eff61c1",
+        "x86_64-apple-darwin14" => "183be0a9dcfaad28bf980e3ff04eae15fcf9571fea53827e47722e7e77664bfe",
         "x86_64-linux-gnu" => "35f95e2ec777d5b4cfd9dddb43beef12d2be6758a17624ac838d97ea3269f3f5",
         "x86_64-linux-musl" => "0c4ddd014949dc1a3332e03569d4b9fa8989fe5903c095ea580c05c22c8b9210",
-        "x86_64-unknown-freebsd11.1" => "fb5571556255bea30fa7b286266d2415bb64f30f999d998b769242d55dd32b84",
+        "x86_64-unknown-freebsd11.1" => "c6c4fc0106fe471da95d47e6706bd968160951cd58fe467694bca4eed8971c7a",
         "x86_64-w64-mingw32" => "2a3467d3aaf3780696ff4ca7b36da42f7de8065438f4c202db635eb3929eb4be",
     )
     tarball_hashes = Dict(
@@ -97,10 +97,10 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
         "i686-linux-musl" => "a06f2381058b718a56302921fc0a560a47d09f776f0c7caf9a4eee026762044d",
         "i686-w64-mingw32" => "f99c43b80906b1b6a3100d2b685aa3b40932bd299e78ce21ee922cceec31880b",
         "powerpc64le-linux-gnu" => "c9ccf51d18b34854c18a40f079381327016eeb631e5f3e578f5a3f39ba7de51b",
-        "x86_64-apple-darwin14" => "a4dec3e0efbffd2e4a15b963fd0163701e2aeaf4fdb71eb05b5b692a6839363c",
+        "x86_64-apple-darwin14" => "077a3ab4465e1e90ae5111efb3a49a1427baa431ed5cecaf74e1449c19e2fae7",
         "x86_64-linux-gnu" => "c661c3b2d04face54ffec210b3abdb742b3dc77c9c5b53bfa75b25979410f45e",
         "x86_64-linux-musl" => "06628287f2bf567105a3ab2fa603796a595739891caeccde1ea2b5c9a2aca605",
-        "x86_64-unknown-freebsd11.1" => "930d6c9c08fed688235b6956925861130596acbeb88532a68c9a508482b09edb",
+        "x86_64-unknown-freebsd11.1" => "461ede7ef47b1d8a03d927c8a4bc780cdcfe2eefe84d3d679c5a1caf6274bfe6",
         "x86_64-w64-mingw32" => "7891c322d378f27741bd618465bce51770b919795c9d1ab739b8372d59b26271",
     )
     if squashfs
