@@ -28,6 +28,8 @@ Examples of things set are `PATH`, `CC`, `RANLIB`, as well as nonstandard
 things like `target`.
 """
 function target_envs(target::AbstractString)
+    global use_ccache
+
     # Helper function to generate paths such as /opt/x86_64-apple-darwin14/bin/llvm-ar
     tool = x -> "/opt/$(target)/bin/$(x)"
     # Helper function to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
@@ -110,6 +112,13 @@ function target_envs(target::AbstractString)
 
         # Also put this into LDFLAGS because some packages are hard of hearing
         mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
+    end
+
+    # If we're using `ccache`, prepend it to `CC`, `CXX`, `FC`, etc....
+    if use_ccache
+        for k in ("CC", "CXX", "FC")
+            mapping[k] = string("ccache ", mapping[k])
+        end
     end
 
     return mapping

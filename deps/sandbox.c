@@ -31,6 +31,18 @@ Init mode is used when `sandbox` is invoked with PID == 1.  In this mode, some e
 happen first as this sandbox is the first user program running on a virtualized system, e.g. inside
 of QEMU, and it needs to setup the plan 9 filesystem mounts and whatnot.  There is no
 containerization or namespaces that happen in this mode.
+
+
+To test this executable, compile it with:
+
+    gcc -std=c99 -o /tmp/sandbox ./sandbox.c
+
+Then run it, mounting in a rootfs with a workspace and a single map:
+
+    BB=$(echo ~/.julia/v0.6/BinaryBuilder/deps)
+    P=/usr/local/bin:/usr/bin:/bin:/opt/x86_64-linux-gnu/bin
+    mkdir -p /tmp/workspace
+    PATH=$P /tmp/sandbox --verbose --rootfs $BB/root --workspace /tmp/workspace:/workspace --cd /workspace --map $BB/shards/x86_64-linux-gnu:/opt/x86_64-linux-gnu /bin/bash
 */
 
 
@@ -75,7 +87,6 @@ containerization or namespaces that happen in this mode.
 
 // TODO: NABIL: Explain what these are better 
 char *sandbox_root = NULL;
-char *workspace = NULL;
 char *new_cd = NULL;
 unsigned char verbose = 0;
 
@@ -86,6 +97,7 @@ struct map_list {
     struct map_list *prev;
 };
 struct map_list *maps;
+struct map_list *workspaces;
 
 // This keeps track of our execution mode
 enum {
@@ -266,20 +278,40 @@ static void mount_dev(const char * root_dir) {
   }
 }
 
-static void mount_workspace(const char * root_dir, const char * workspace) {
+static void mount_workspaces(struct map_list * workspaces, const char * dest) {
   char path[PATH_MAX];
 
-  // Mount workspace at /workspace
-  snprintf(path, sizeof(path), "%s/workspace", root_dir);
+  // Apply command-line specified workspace mounts
+  struct map_list *current_entry = workspaces;
+  while( current_entry != NULL ) {
+    char *inside = current_entry->map_path;
+    
+    // take the path relative to root_dir
+    while (inside[0] == '/') {
+      inside = inside + 1;
+    }
+    snprintf(path, sizeof(path), "%s/%s", dest, inside);
 
-  if (strncmp("9p:", workspace, 3) == 0) {
-    // If we're running as init within QEMU, the workspace is a plan 9 mount
-    check(0 == mount(workspace+3, path, "9p", 0, "trans=virtio,version=9p2000.L"));
-  } else {
-    // We don't expect workspace to have any submounts in normal operation.
-    // However, for runshell(), workspace could be an arbitrary directory,
-    // including one with sub-mounts, so allow that situation.
-    check(0 == mount(workspace, path, "", MS_BIND | MS_REC, NULL));
+    // map <inside> to the given outside path
+    if (verbose) {
+      printf("--> workspacing %s to %s\n", current_entry->outside_path, path);
+    }
+
+    // create the inside directory, not freaking out if it already exists.
+    int result = mkdir(path, 0777);
+    check((0 == result) || (errno == EEXIST));
+
+    if (strncmp("9p:", current_entry->outside_path, 3) == 0) {
+      // If we're running as init within QEMU, the workspace is a plan 9 mount
+      check(0 == mount(current_entry->outside_path+3, path, "9p", 0, "trans=virtio,version=9p2000.L"));
+    } else {
+      // We don't expect workspace to have any submounts in normal operation.
+      // However, for runshell(), workspace could be an arbitrary directory,
+      // including one with sub-mounts, so allow that situation.
+      check(0 == mount(current_entry->outside_path, path, "", MS_BIND | MS_REC, NULL));
+    }
+
+    current_entry = current_entry->prev;
   }
 }
 
@@ -312,39 +344,39 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
   while (current_entry != NULL) {
     char *inside = current_entry->map_path;
     
-    // Take the path relative to root_dir
+    // take the path relative to root_dir
     while (inside[0] == '/') {
       inside = inside + 1;
     }
     snprintf(path, sizeof(path), "%s/%s", dest, inside);
 
-    // Map <inside> to the given outside path
+    // map <inside> to the given outside path
     if (verbose) {
-      printf("--> Mapping %s to %s\n", current_entry->outside_path, path);
+      printf("--> mapping %s to %s\n", current_entry->outside_path, path);
     }
 
-    // Create the inside directory, not freaking out if it already exists.
+    // create the inside directory, not freaking out if it already exists.
     int result = mkdir(path, 0777);
     check((0 == result) || (errno == EEXIST));
 
     if (strncmp(current_entry->outside_path, "/dev", 4) == 0) {
-      // If we're running on QEMU, we pass mounts in as virtual devices, which we
+      // if we're running on qemu, we pass mounts in as virtual devices, which we
       // know are always passed-through .squashfs files.
       check(0 == mount(current_entry->outside_path, path, "squashfs", 0, ""));
     } else if (strncmp(current_entry->outside_path, "9p/", 3) == 0) {
-      // If we're running on QEMU, we pass in mappings as plan 9 shares
-      check(0 == mount(current_entry->outside_path+3, path, "9p", MS_RDONLY, "trans=virtio,version=9p2000.L"));
+      // if we're running on qemu, we pass in mappings as plan 9 shares
+      check(0 == mount(current_entry->outside_path+3, path, "9p", MS_RDONLY, "trans=virtio,version=9p2000.l"));
     } else {
-      // If it's a normal directory, just bind mount it in
+      // if it's a normal directory, just bind mount it in
       check(0 == mount(current_entry->outside_path, path, "", MS_BIND, NULL));
       
-      // Remount to read-only, nodev, suid.
-      // We only really care about read-only, but we need to make sure
-      // to be stricter than our parent mount. If the parent mount is
+      // remount to read-only, nodev, suid.
+      // we only really care about read-only, but we need to make sure
+      // to be stricter than our parent mount. if the parent mount is
       // noexec, we're out of luck, since we do need to execute these
-      // files. However, we don't really have a need for suid (only one
+      // files. however, we don't really have a need for suid (only one
       // uid) or device files (none in the image), so passing those extra
-      // flags is harmless. If, we ever cared in the future, the thing
+      // flags is harmless. if, we ever cared in the future, the thing
       // to do would be to read /proc/self/fdinfo or the directory, find
       // the mnt_id and extract the correct flags from /proc/self/mountinfo.
       check(0 == mount(current_entry->outside_path, path, "",
@@ -365,9 +397,13 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
  *   - the rootfs,
  *   - the shards
  *   - the workspace (if given by the user)
+ *
+ *  If we're running in normal mode, `root_dir` and `dest` are both the same,
+ *  pointing to the rootfs directory.  If we're running as `init`, they are
+ *  "" and "/tmp", respectively. 
  */
 static void mount_the_world(const char * root_dir, const char * dest,
-                            const char * workspace, struct map_list * shard_maps,
+                            struct map_list * workspaces, struct map_list * shard_maps,
                             uid_t uid, gid_t gid) {
   // Mount the place we'll put all our overlay work directories
   mount_overlaywork("/proc");
@@ -381,10 +417,8 @@ static void mount_the_world(const char * root_dir, const char * dest,
   // Mount /dev stuff
   mount_dev(dest);
 
-  // Only try to mount our workspace if it was given to us.
-  if (workspace != NULL) {
-    mount_workspace(dest, workspace);
-  }
+  // Mount all our read-write mounts (workspaces)
+  mount_workspaces(workspaces, dest);
 
   // Once we're done with that, put /proc back in its place in the big world.
   mount_procfs("");
@@ -451,9 +485,15 @@ static int sandbox_main(const char * root_dir, const char * new_cd, int sandbox_
 }
 
 static void print_help() {
-  fputs("Usage: sandbox --rootfs <dir> [--workspace <dir>] ", stderr);
-  fputs("[--cd <dir>] [--map <from>:<to>, --map <from>:<to>, ...] ", stderr);
+  fputs("Usage: sandbox --rootfs <dir> [--cd <dir>] ", stderr);
+  fputs("[--map <from>:<to>, --map <from>:<to>, ...] ", stderr);
+  fputs("[--workspace <from>:<to>, --workspace <from>:<to>, ...] ", stderr);
   fputs("[--verbose] [--help] <cmd>\n", stderr);
+  fputs("\nExample:\n", stderr);
+  fputs("  BB=$(echo ~/.julia/v0.6/BinaryBuilder/deps)\n", stderr);
+  fputs("  P=/usr/local/bin:/usr/bin:/bin:/opt/x86_64-linux-gnu/bin\n", stderr);
+  fputs("  mkdir -p /tmp/workspace\n", stderr);
+  fputs("  PATH=$P /tmp/sandbox --verbose --rootfs $BB/root --workspace /tmp/workspace:/workspace --cd /workspace --map $BB/shards/x86_64-linux-gnu:/opt/x86_64-linux-gnu /bin/bash\n", stderr);
 }
 
 // Helper function to read from the serial file descriptor, blocking until we
@@ -586,7 +626,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
       sandbox_argv[0] = "/sandbox";
       sandbox_argv[1] = "--verbose";
       sandbox_argv[2] = "--workspace";
-      sandbox_argv[3] = "9p:workspace";
+      sandbox_argv[3] = "9p:workspace:/workspace";
       sandbox_argv[4] = "/bin/bash";
       sandbox_argv[5] = NULL;
     } else {
@@ -644,38 +684,42 @@ int main(int sandbox_argc, char **sandbox_argv) {
           printf("Parsed --rootfs as \"%s\"\n", sandbox_root);
         }
       } break;
-      case 'w':
-        workspace = strdup(optarg);
-        if (verbose) {
-          printf("Parsed --workspace as \"%s\"\n", workspace);
-        }
-        break;
       case 'c':
         new_cd = strdup(optarg);
         if (verbose) {
           printf("Parsed --cd as \"%s\"\n", new_cd);
         }
         break;
+      case 'w':
       case 'm': {
         // Find the colon in "from:to"
         char *colon = strchr(optarg, ':');
         check(colon != NULL);
-        struct map_list *entry = (struct map_list *) malloc(sizeof(struct map_list));
 
         // Extract "from" and "to"
-        entry->map_path = strdup(colon + 1);
-        entry->outside_path = strndup(optarg, (colon - optarg));
-        entry->prev = maps;
-
-        if (verbose) {
-          printf("Parsed --map as \"%s\" -> \"%s\"\n", entry->outside_path, entry->map_path);
+        char *from =  strndup(optarg, (colon - optarg));
+        char *to = strdup(colon + 1);
+        if ((from[0] != '/') && (strncmp(from, "9p/", 3) != 0)) {
+          printf("ERROR: Outside path \"%s\" must be absolute or 9p!  Ignoring...\n", from);
+          break;
         }
 
-        if ((entry->outside_path[0] != '/') && (strncmp(entry->outside_path, "9p/", 3) != 0)) {
-          printf("ERROR: Outside path \"%s\" must be absolute or 9p!  Ignoring...\n", entry->outside_path);
-          free(entry);
-        } else {
+        // Construct `map_list` object for this `from:to` pair
+        struct map_list *entry = (struct map_list *) malloc(sizeof(struct map_list));
+        entry->map_path = to;
+        entry->outside_path = from;
+
+        // If this was `--map`, then add it to `maps`, if it was `--workspace` add it to `workspaces`
+        if( c == 'm' ) {
+          entry->prev = maps;
           maps = entry;
+        } else {
+          entry->prev = workspaces;
+          workspaces = entry;
+        }
+        if (verbose) {
+          printf("Parsed --%s as \"%s\" -> \"%s\"\n", c == 'm' ? "map" : "workspace",
+                 entry->outside_path, entry->map_path);
         }
       } break;
       default:
@@ -714,7 +758,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
     // Let's mount our world.  Since we're running as init, the rootfs is already mounted
     // at "/", but it's read-only, so we use overlayfs to mount it on "/tmp".  We then
     // continue to mount our shards within "/tmp".
-    mount_the_world("", "/tmp", workspace, maps, 0, 0);
+    mount_the_world("", "/tmp", workspaces, maps, 0, 0);
 
     // Run sandbox_main to Enter The Sandbox (TM)
     sandbox_main("/tmp", new_cd, sandbox_argc, sandbox_argv);
@@ -751,7 +795,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
     check(0 == mount(NULL, "/", NULL, MS_PRIVATE|MS_REC, NULL));
 
     // Mount the rootfs, shards, and workspace.
-    mount_the_world(sandbox_root, sandbox_root, workspace, maps, uid, gid);
+    mount_the_world(sandbox_root, sandbox_root, workspaces, maps, uid, gid);
   }
 
   // We want to request a new PID space, a new mount space, and a new user space
@@ -791,7 +835,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
     if (execution_mode == UNPRIVILEGED_CONTAINER_MODE) {
       // If we're unprivileged, we now take advantage of our new root status
       // to mount the world.
-      mount_the_world(sandbox_root, sandbox_root, workspace, maps, 0, 0);
+      mount_the_world(sandbox_root, sandbox_root, workspaces, maps, 0, 0);
     }
 
     // Finally, we begin invocation of the target program

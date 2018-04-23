@@ -78,7 +78,7 @@ function platform_def_9p_mappings(platform)
         sdk_shard_path = joinpath(shards_cache, sdk_version)
         push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
     end
-    
+
     return mapping
 end
 
@@ -90,6 +90,8 @@ function QemuRunner(workspace_root::String; cwd = nothing,
                       verbose::Bool = false,
                       mounts = platform_def_mounts(platform),
                       mappings = platform_def_9p_mappings(platform))
+    global use_ccache
+
     # Ensure the rootfs for this platform is downloaded and up to date
     update_rootfs(
         platform != Linux(:x86_64) ?
@@ -109,7 +111,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
     ```
     append_line = "quiet console=hvc0 root=/dev/vda rootflags=ro rootfstype=squashfs noinitrd init=/sandbox"
 
-    sandbox_cmd = `--workspace 9p:workspace`
+    sandbox_cmd = `--workspace 9p/workspace:/workspace`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
@@ -118,6 +120,17 @@ function QemuRunner(workspace_root::String; cwd = nothing,
     for (mapping, dir) in mappings
         qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$num,path=$mapping,readonly -device virtio-9p-pci,id=fs$num,fsdev=fsdev$num,mount_tag=mapping$num`
         sandbox_cmd = `$sandbox_cmd --map 9p/mapping$num:$dir`
+        num += 1
+    end
+
+    # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
+    if use_ccache
+        if !isdir(ccache_dir())
+            mkpath(ccache_dir())
+        end
+        sandbox_cmd = `$sandbox_cmd --workspace 9p/ccache:/root/.ccache`
+        qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$num,path=$(ccache_dir()),readonly -device virtio-9p-pci,id=fs$num,fsdev=fsdev$num,mount_tag=ccache`
+        num += 1
     end
 
     c = 'b'

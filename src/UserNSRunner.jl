@@ -45,6 +45,8 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
                       mappings = platform_def_mapping(platform))
+    global use_ccache
+
     # Ensure the rootfs for this platform is downloaded and up to date.
     # Also, since we require the Linux(:x86_64) shard for HOST_CC....
     update_rootfs(triplet.([platform, Linux(:x86_64)]); verbose=verbose)
@@ -64,7 +66,15 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     end
 
     sandbox_cmd = `$sandbox_cmd --rootfs $(rootfs_dir())`
-    sandbox_cmd = `$sandbox_cmd --workspace $workspace_root`
+    sandbox_cmd = `$sandbox_cmd --workspace $workspace_root:/workspace`
+
+    # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
+    if use_ccache
+        if !isdir(ccache_dir())
+            mkpath(ccache_dir())
+        end
+        sandbox_cmd = `$sandbox_cmd --workspace $(ccache_dir()):/root/.ccache`
+    end
 
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`

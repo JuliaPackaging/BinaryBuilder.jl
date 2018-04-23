@@ -1,16 +1,5 @@
 export supported_platforms
 
-# These globals store important information such as where we're downloading
-# the rootfs to, and where we're unpacking it.  These constants are initialized
-# by `__init__()` to allow for environment variable overrides from the user.
-downloads_cache = ""
-rootfs_cache = ""
-shards_cache = ""
-qemu_cache = ""
-automatic_apple = false
-use_squashfs = false
-allow_ecryptfs = false
-
 """
     downloads_dir(postfix::String = "")
 
@@ -44,6 +33,7 @@ end
 
 shard_path_squashfs(shard_name) = downloads_dir("rootfs-$(shard_name).squashfs")
 rootfs_path_squashfs() = shard_path_squashfs("base")
+ccache_dir() = shards_dir("ccache")
 
 """
     get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
