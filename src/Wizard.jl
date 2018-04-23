@@ -17,12 +17,34 @@ include("wizard/obtain_source.jl")
 include("wizard/interactive_build.jl")
 include("wizard/deploy.jl")
 
-function run_wizard(state::WizardState = WizardState())
-    print_wizard_logo(state.outs)
+# This is here so that if the wizard crashes, we may have a shot at resuming.
+last_wizard_state = WizardState()
 
-    println(state.outs,
+function run_wizard(state::WizardState = WizardState())
+    global last_wizard_state
+
+    if last_wizard_state.step != :done && last_wizard_state.step != :step1
+        terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
+        choice = request(terminal,
+            "Would you like to resume the previous incomplete wizard run?",
+            RadioMenu([
+                "Resume previous run",
+                "Start from scratch",
+            ]),
+        )
+
+        if choice == 1
+            state = last_wizard_state
+        end
+    end
+
+    if state.step == :step1
+        print_wizard_logo(state.outs)
+
+        println(state.outs,
             "Welcome to the BinaryBuilder wizard.\n"*
             "We'll get you set up in no time.\n")
+    end
 
     try
         while state.step != :done
@@ -51,8 +73,9 @@ function run_wizard(state::WizardState = WizardState())
             end
         end
     catch err
+        last_wizard_state = state
         if isa(err, InterruptException)
-            msg = "\n\nWizard stopped, use run_wizard(ans) to resume.\n\n"
+            msg = "\n\nWizard stopped, use run_wizard() to resume.\n\n"
             printstyled(state.outs, msg, bold=true, color=:red)
         else
             bt = catch_backtrace()
