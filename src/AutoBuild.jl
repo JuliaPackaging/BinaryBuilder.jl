@@ -11,10 +11,50 @@ It takes in the information baked into a `build_tarballs.jl` file such as the
 `sources` to download, the `products` to build, etc... and will automatically
 download, build and package the tarballs, generating a `build.jl` file when
 appropriate.  Note that `ARGS` should be the top-level Julia `ARGS` command-
-line arguments object.
+line arguments object.  This function does some rudimentary parsing of the
+`ARGS`, call it with `--help` in the `ARGS` to see what it can do.
 """
 function build_tarballs(ARGS, src_name, sources, script, platforms, products,
                         dependencies)
+    # See if someone has passed in `--help`, and if so, give them the
+    # assistance they so clearly long for
+    if "--help" in ARGS
+        println(strip("""
+        Usage: build_tarballs.jl [target1,target2,...] [--only-buildjl]
+                                 [--verbose] [--help]
+
+        Options:
+            targets         By default `build_tarballs.jl` will build a tarball
+                            for every target within the `platforms` variable.
+                            To override this, pass in a list of comma-separated
+                            target triplets for each target to be built.  Note
+                            that this can be used to build for platforms that
+                            are not listed in the 'default list' of platforms
+                            in the build_tarballs.jl script.
+
+            --verbose       This streams compiler output to stdout during the
+                            build which can be very helpful for finding bugs.
+                            Note that it is colorized if you pass the
+                            --color=yes option to julia, see examples below.
+
+            --only-buildjl  This disables building of any tarballs, and merely
+                            reconstructs a `build.jl` file from a github
+                            release.  This is mostly useful as a later stage in
+                            a travis/github releases autodeployment setup.
+
+            --help          Print out this message.
+
+        Examples:
+            julia --color=yes build_tarballs.jl --verbose
+                This builds all tarballs, with colorized output.
+
+            julia build_tarballs.jl x86_64-linux-gnu,i686-linux-gnu
+                This builds two tarballs for the two platforms given, with a
+                minimum of output messages.
+        """))
+        return nothing
+    end
+
     # This sets whether we should build verbosely or not
     verbose = "--verbose" in ARGS
     ARGS = filter!(x -> x != "--verbose", ARGS)

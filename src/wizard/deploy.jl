@@ -36,6 +36,8 @@ function print_build_tarballs(io::IO, state::WizardState;
     end
 
     println(io, """
+    # Note that this script can accept some limited command-line arguments, run
+    # `julia build_tarballs.jl --help` to see a usage message.
     using BinaryBuilder
 
     # Collection of sources required to build $(state.name)
