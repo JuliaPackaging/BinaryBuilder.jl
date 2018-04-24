@@ -58,7 +58,7 @@ end
 Return true if all results are satisfied for this dependency.
 """
 function satisfied(dep::Dependency; verbose::Bool = false)
-    s = result -> satisfied(result; verbose=verbose)
+    s = result -> satisfied(result; verbose=verbose, platform=dep.platform)
     return all(s(result) for result in dep.results)
 end
 
