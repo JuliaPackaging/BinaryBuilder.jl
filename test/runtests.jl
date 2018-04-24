@@ -345,6 +345,29 @@ end
     end
 end
 
+@testset "Auditor - .dll moving" begin
+    begin
+        build_path = tempname()
+        mkpath(build_path)
+        dll_platform = Windows(:x86_64)
+        prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], dll_platform)
+
+        libfoo = LibraryProduct(prefix, "libfoo", :libfoo)
+        mkpath(joinpath(prefix, "lib"))
+
+        # Create a fake `.dll` file in `lib/`
+        libfoo_path = joinpath(prefix, "lib", "libfoo.dll")
+        touch(libfoo_path)
+        chmod(libfoo_path, 0777)
+
+        BinaryBuilder.audit(prefix; platform=dll_platform, verbose=true, autofix=true)
+
+        # Test that `audit()` has moved it to `bin`.
+        @test isfile(joinpath(prefix, "bin", "libfoo.dll"))
+        @test !isfile(joinpath(prefix, "lib", "libfoo.dll"))
+    end
+end
+
 @testset "GitHub releases build.jl reconstruction" begin
     # Download some random release that is relatively small
     product_hashes = product_hashes_from_github_release("staticfloat/OggBuilder", "v1.3.3-0")
