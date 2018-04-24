@@ -208,11 +208,28 @@ function audit(prefix::Prefix; io=stderr,
         # If we're targeting a windows platform, check to make sure no .dll
         # files are sitting in `$prefix/lib`, as that's a no-no.  This is
         # not a fatal offense, but we'll yell about it.
-        predicate = f -> f[end-2:end] == "dll"
+        predicate = f -> f[end-3:end] == ".dll"
         lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
         for f in lib_dll_files
             if !silent
                 warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
+            end
+        end
+
+        # Even more than yell about it, we're going to automatically move
+        # them if there are no `.dll` files outside of `lib`.  This is
+        # indicative of a simplistic build system that just don't know any
+        # better with regards to windows, rather than a complicated beast.
+        all_dll_files = collect_files(prefix, predicate)
+        outside_dll_files = [f for f in all_dll_files if !(f in lib_dll_files)]
+        if isempty(outside_dll_files)
+            if !silent
+                warn(io, "Simple buildsystem detected; Moving all `.dll` files to `bin`!")
+            end
+
+            mkpath(joinpath(prefix, "bin"))
+            for f in lib_dll_files
+                mv(f, joinpath(prefix, "bin", basename(f)))
             end
         end
     end
