@@ -57,7 +57,6 @@ function target_envs(target::AbstractString)
         "LD_LIBRARY_PATH" => lib_path,
 
         # binutils/toolchain envvars
-        "RANLIB" => target_tool("ranlib"),
         "STRIP" => target_tool("strip"),
         "LIBTOOL" => target_tool("libtool"),
         "LIPO" => target_tool("lipo"),
@@ -94,6 +93,7 @@ function target_envs(target::AbstractString)
         mapping["OTOOL"] = target_tool("otool")
         mapping["INSTALL_NAME_TOOL"] = target_tool("install_name_tool")
         mapping["LLVM_TARGET"] = target
+        mapping["RANLIB"] = tool("llvm-ranlib")
     else
         mapping["AR"] = target_tool("ar")
         mapping["AS"] = target_tool("as")
@@ -102,6 +102,7 @@ function target_envs(target::AbstractString)
         mapping["FC"] = target_tool("gfortran")
         mapping["LD"] = target_tool("ld")
         mapping["NM"] = target_tool("nm")
+        mapping["RANLIB"] = target_tool("ranlib")
     end
 
     # On OSX, we need to do a little more work.
