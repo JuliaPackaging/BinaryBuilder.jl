@@ -123,6 +123,17 @@ patch -l file.ext.orig file.patch -o file.ext
 
 There are plans to handle file changes in the wizard automatically [(#25)](https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/125).
 
+## Build iteration workflow
+
+Often, you may not get all the platforms working through the wizard. Here's a reiteration workflow:
+
+* Get a list of all supported platforms with `BinaryBuilder.supported_platforms()`
+
+* Run `julia --color=yes build_tarballs.jl --verbose x86_64-linux-gnu`.  When that fails, go look around in `build/$platform/<random string>` and see if you can make heads or tails of the build process.  Passing `--verbose` to `build_tarballs.jl` will print out the compiler output as you go (normally it only prints out the tail end of a failure, which may not be enough).
+
+* If you need to muck around interactively, do `cd build/$platform/<random string>` and then run `BinaryBuilder.runshell(Linux(:x86_64))`, to launch a shell inside of a `x86_64-linux-gnu` environment that will be setup just like you would have when running `build_tarballs.jl`.  You can then muck around and do whatever you want until you are satisfied, update the `build_tarballs.jl`, and re-iterate.
+
+* Tagging a release on the GitHub registered package will trigger the build on Travis and uploading of the binaries to the tagged release.
 
 ## Other examples
 
