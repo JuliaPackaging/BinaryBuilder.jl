@@ -1115,6 +1115,10 @@ This function returns the list of mnemonics as well as the counts of each,
 binned by the mapping defined within `instruction_categories`.
 """
 function instruction_mnemonics(path::AbstractString)
+    # The outputs we are calculating
+    counts = Dict(k => 0 for k in keys(instruction_categories))
+    mnemonics = String[]
+
     ur = preferred_runner()(
         abspath(dirname(path));
         cwd="/workspace/",
@@ -1127,17 +1131,20 @@ function instruction_mnemonics(path::AbstractString)
     objdump = "/opt/super_binutils/bin/objdump"
     run_interactive(ur, `$objdump -d $(basename(path))`; stdout=output)
     seekstart(output)
-    output_str = String(read(output))
 
-    # Grab instruction mnemonics for each instruction from the output of objdump
-    output_lines = split(output_str, '\n')
-    output_lines = split.(output_lines, '\t')
-    mnemonics = [split(l[3])[1] for l in output_lines if length(l) >= 3]
+    for line in readlines(output)
+        # First, ensure that this line of output is 3 fields long at least
+        fields = split(line, '\t')
+        if length(fields) < 3
+            continue
+        end
 
-    # For each mnemonic, find it in mnemonics_by_category, if we can, and
-    # increment the appropriate `counts` member:
-    counts = Dict(k => 0 for k in keys(instruction_categories))
-    for m in mnemonics
+        # Grab the mnemonic for this line as the first word of the 3rd field
+        m = split(fields[3])[1]
+        push!(mnemonics, m)
+        
+        # For each mnemonic, find it in mnemonics_by_category, if we can, and
+        # increment the appropriate `counts` member:
         if haskey(mnemonics_by_category, m)
             counts[mnemonics_by_category[m]] += 1
         else
