@@ -1132,7 +1132,7 @@ function instruction_mnemonics(path::AbstractString)
     run_interactive(ur, `$objdump -d $(basename(path))`; stdout=output)
     seekstart(output)
 
-    for line in readlines(output)
+    for line in eachline(output)
         # First, ensure that this line of output is 3 fields long at least
         fields = split(line, '\t')
         if length(fields) < 3
@@ -1142,7 +1142,7 @@ function instruction_mnemonics(path::AbstractString)
         # Grab the mnemonic for this line as the first word of the 3rd field
         m = split(fields[3])[1]
         push!(mnemonics, m)
-        
+
         # For each mnemonic, find it in mnemonics_by_category, if we can, and
         # increment the appropriate `counts` member:
         if haskey(mnemonics_by_category, m)
