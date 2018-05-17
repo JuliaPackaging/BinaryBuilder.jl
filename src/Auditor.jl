@@ -28,7 +28,8 @@ function audit(prefix::Prefix; io=stderr,
                                platform::Platform = platform_key(),
                                verbose::Bool = false,
                                silent::Bool = false,
-                               autofix::Bool = false)
+                               autofix::Bool = false,
+                               ignore_manifests::Vector = [])
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
         verbose = false
@@ -44,10 +45,20 @@ function audit(prefix::Prefix; io=stderr,
     # Translate absolute symlinks to relative symlinks, if possible
     translate_symlinks(prefix.path; verbose=verbose)
 
+    # If a file exists within ignore_manifests, then we won't inspect it
+    # as it belongs to some dependent package.
+    ignore_files = vcat((readlines(f) for f in ignore_manifests)...)
+    ignore_files = [abspath(joinpath(prefix, f)) for f in ignore_files]
+
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
     bin_files = collect_files(prefix, predicate)
     for f in collapse_symlinks(bin_files)
+        # If this file is contained within the `ignore_manifests`, skip it
+        if f in ignore_files
+            continue
+        end
+
         # Peel this binary file open like a delicious tangerine
         oh = try
             h = readmeta(f)
@@ -180,7 +191,7 @@ function audit(prefix::Prefix; io=stderr,
     # running native, don't try to load library files from other platforms)
     if platform == platform_key()
         # Find all dynamic libraries
-        predicate = f -> valid_dl_path(f, platform)
+        predicate = f -> valid_dl_path(f, platform) && !(f in ignore_files)
         shlib_files = collect_files(prefix, predicate)
 
         for f in shlib_files
@@ -208,7 +219,7 @@ function audit(prefix::Prefix; io=stderr,
         # If we're targeting a windows platform, check to make sure no .dll
         # files are sitting in `$prefix/lib`, as that's a no-no.  This is
         # not a fatal offense, but we'll yell about it.
-        predicate = f -> f[end-3:end] == ".dll"
+        predicate = f -> f[end-3:end] == ".dll" && !(f in ignore_files)
         lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
         for f in lib_dll_files
             if !silent
@@ -236,7 +247,8 @@ function audit(prefix::Prefix; io=stderr,
 
     # Search _every_ file in the prefix path to find hardcoded paths
     predicate = f -> !startswith(f, joinpath(prefix, "logs")) &&
-                     !startswith(f, joinpath(prefix, "manifests"))
+                     !startswith(f, joinpath(prefix, "manifests")) &&
+                     !(f in ignore_files)
     all_files = collect_files(prefix, predicate)
 
     # Finally, check for absolute paths in any files.  This is not a "fatal"
