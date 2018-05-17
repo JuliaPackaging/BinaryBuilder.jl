@@ -14,19 +14,19 @@
 Pkg.add("BinaryBuilder")
 ```
 
-2. Run the wizard. Be patient as it will download a rootfs image for every platform that is tested, and there are about a dozen of these.
+2. Run the wizard. 
 ```
 using BinaryBuilder
 BinaryBuilder.run_wizard()
 ```
 
-3. The wizard will take you through a process of creating the `build_tarballs.jl` file. It will deploy the result to GitHub and configure Travis and GitHub releases for your package.
+3. The wizard will take you through a process of building your software package. Note that the wizard may need to download a new roofts image for each platform targeted, and there are about a dozen of these at the time of writing.  The output of this stage is a `build_tarballs.jl` file, which will be deployed to GitHub.  The wizard will also configure Travis and GitHub releases for your package.
 
 4. Once you complete the wizard and your repository is created on GitHub, create a new release on the `GitHub Releases` page and Travis will automatically upload binaries for all platforms to your GitHub release. It will also upload a `build.jl` file that you can use in your Julia package to import the binaries you have just built.
 
 5. Not all platforms may be successfully built the first time. Use the iteration workflow described in the `Build Tips` section of the documentation to debug the breaking builds. Push your changes and tag a new release to test the new platforms.
 
-6. Once you have a `build.jl` file, you can just drop it into the `deps/` folder of your Julia package and use it just like any other `build.jl` file. When it is run through `Pkg.build()`, it will generate a `deps.jl` file, which records the path of every binary that you care about. This allows package startup to be really fast; all your package has to do is `include("../deps/deps.jl")`, and it has variables that point to the location of the installed binaries.
+6. Once you have a `build.jl` file, you can just drop it into the `deps/` folder of your Julia package and use it just like any other `build.jl` file. When it is run through `Pkg.build()`, it will generate a `deps.jl` file, which records the path of every binary listed as a `Product` during the wizard stage. This allows package startup to be really fast; all your package has to do is `include("../deps/deps.jl")` (and call `check_deps()` within `__init__()`, see the docs of `BinaryProvider` for more information about this), and it has variables that point to the location of the installed binaries.
 
 For more information, see the documentation for this package, viewable either directly in markdown within the [`docs/src`](docs/src) folder within this repository, or [online](https://juliapackaging.github.io/BinaryBuilder.jl/latest).
 
