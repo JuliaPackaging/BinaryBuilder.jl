@@ -198,11 +198,17 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Compat.Sys.islinux(platform)
         origin = "\$ORIGIN"
-        full_rpath = join(':', rpaths(RPath(readmeta(path))))
-        add_rpath = rp -> `$patchelf --set-rpath $(full_rpath):$(rp) $(rel_path)`
+        current_rpaths = [r for r in rpaths(RPath(readmeta(path))) if !isempty(r)]
+        add_rpath = rp -> begin
+            # Join together RPaths to set new one
+            rpath_str = join(':', vcat(current_rpaths, joinpath(origin,rp)))
+            return `$patchelf --set-rpath $(rpath_str) $(rel_path)`
+        end
         relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
     end
 
+    # If the relative directory doesn't already exist within the RPATH of this
+    # binary, then add it in.
     if !(dirname(new_libpath) in canonical_rpaths(RPath(readmeta(path))))
         libname = basename(old_libpath)
         logpath = joinpath(logdir(prefix), "update_rpath_$(libname).log")
@@ -210,12 +216,18 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         run(ur, cmd, logpath; verbose=verbose)
     end
 
-    # Create a new linkage that looks like $ORIGIN/../lib, or similar
-    libname = basename(old_libpath)
-    logpath = joinpath(logdir(prefix), "update_linkage_$(libname).log")
-    origin_relpath = joinpath(origin, relpath(new_libpath, dirname(path)))
-    cmd = relink(old_libpath, origin_relpath)
+    # Create a new linkage that depends on $ORIGIN or @rpath to find things.
+    # This allows us to split things up into multiple packages, and as long as the
+    # libraries that this guy is interested in have been `dlopen()`'ed previously,
+    # (and have the appropriate SONAME) things should "just work".
+    logpath = joinpath(logdir(prefix), "update_linkage_$(basename(path))_$(basename(old_libpath)).log")
+    new_libpath = relpath(new_libpath, dirname(path))
+    if Compat.Sys.isapple(platform)
+        # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
+        new_libpath = joinpath("@rpath", new_libpath)
+    end
+    cmd = relink(old_libpath, new_libpath)
     run(ur, cmd, logpath; verbose=verbose)
 
-    return origin_relpath
+    return new_libpath
 end
