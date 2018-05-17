@@ -268,8 +268,12 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                 # Don't keep the downloads directory around
                 rm(joinpath(prefix, "downloads"); force=true, recursive=true)
 
+                # Collect dependency manifests so that our auditing doesn't touch these files that
+                # were installed by dependencies
+                dep_manifests = [joinpath(prefix, "manifests", f) for f in readdir(joinpath(prefix, "manifests"))]
+
                 dep = Dependency(src_name, products(prefix), script, platform, prefix)
-                if !build(ur, dep; verbose=verbose, autofix=true)
+                if !build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests)
                     error("Failed to build $(target)")
                 end
 

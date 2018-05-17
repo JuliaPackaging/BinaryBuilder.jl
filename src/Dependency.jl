@@ -75,7 +75,8 @@ warnings can be automatically fixed, and this will be attempted if `autofix` is
 set to `true`.
 """
 function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = false,
-               autofix::Bool = false, ignore_audit_errors::Bool = true)
+               autofix::Bool = false, ignore_audit_errors::Bool = true,
+               ignore_manifests::Vector = [])
     # First, look to see whether this dependency is satisfied or not
     should_build = !satisfied(dep)
 
@@ -100,7 +101,8 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
 
         # Run an audit of the prefix to ensure it is properly relocatable
         audit_result = audit(dep.prefix; platform=dep.platform,
-                             verbose=verbose, autofix=autofix) 
+                             verbose=verbose, autofix=autofix,
+                             ignore_manifests=ignore_manifests) 
         if !audit_result && !ignore_audit_errors
             msg = replace("""
             Audit failed for $(dep.prefix.path).
