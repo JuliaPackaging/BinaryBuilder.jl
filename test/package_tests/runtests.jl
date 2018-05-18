@@ -96,6 +96,8 @@ test_cases = [
     ("https://github.com/staticfloat/NettleBuilder", "https://github.com/staticfloat/Nettle.jl", []),
     ("https://github.com/bicycle1885/ZlibBuilder", "https://github.com/bicycle1885/CodecZlib.jl", ["https://github.com/bicycle1885/TranscodingStreams.jl"]),
     ("https://github.com/JuliaWeb/MbedTLSBuilder", "https://github.com/JuliaWeb/MbedTLS.jl", []),
+    # This segfaults for some reason.
+    #("https://github.com/staticfloat/IpoptBuilder", "https://github.com/JuliaOpt/Ipopt.jl", ["https://github.com/JuliaOpt/MathProgBase.jl", "https://github.com/JuliaOpt/MathOptInterface.jl"]),
     # This awaiting https://github.com/dancasimiro/WAV.jl/pull/59
     #("https://github.com/staticfloat/FLACBuilder", "https://github.com/dmbates/FLAC.jl", ["https://github.com/staticfloat/Ogg.jl", "https://github.com/JuliaIO/FileIO.jl", "https://github.com/dancasimiro/WAV.jl"]),
 ]
