@@ -201,7 +201,18 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         current_rpaths = [r for r in rpaths(RPath(readmeta(path))) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
-            rpath_str = join(':', vcat(current_rpaths, joinpath(origin,rp)))
+            rpaths = unique(vcat(current_rpaths, joinpath(origin,rp)))
+            
+            # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
+            # it semantically makes a difference, but why not be correct AND beautiful?
+            chomp_dot = path -> begin
+                if path[end-1:end] == "/."
+                    return path[1:end-2]
+                end
+                return path
+            end
+
+            rpath_str = join(chomp_dot.(rpaths), ':')
             return `$patchelf --set-rpath $(rpath_str) $(rel_path)`
         end
         relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
