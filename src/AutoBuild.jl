@@ -270,7 +270,12 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
 
                 # Collect dependency manifests so that our auditing doesn't touch these files that
                 # were installed by dependencies
-                dep_manifests = [joinpath(prefix, "manifests", f) for f in readdir(joinpath(prefix, "manifests"))]
+                manifest_dir = joinpath(prefix, "manifests")
+                dep_manifests = if isdir(manifest_dir)
+                   [joinpath(prefix, "manifests", f) for f in readdir(manifest_dir)]
+                else
+                    String[]
+                end
 
                 dep = Dependency(src_name, products(prefix), script, platform, prefix)
                 if !build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests)
