@@ -1,13 +1,14 @@
 using BinaryProvider
-using Base.Test
+using Compat
+using Compat.Test
 
 function pull_latest(url, dir)
     # Get the repo that we've already cloned, or clone a new one
     repo = if !isdir(dir)
-        info("Cloning $(basename(url))")
+        Compat.@info("Cloning $(basename(url))")
         LibGit2.clone(url, dir)
     else
-        info("Updating $(basename(url))")
+        Compat.@info("Updating $(basename(url))")
         LibGit2.GitRepo(dir)
     end
 
@@ -29,7 +30,7 @@ function clone_build_test(builder_url, package_url, package_deps)
     # Build for the current platform
     try
         product_hashes = cd(builder_dir) do
-            info("Building $(basename(builder_url))")
+            Compat.@info("Building $(basename(builder_url))")
             m = Module(:__anon__)
             eval(m, quote
                 trip = $(triplet(platform_key()))
@@ -60,10 +61,10 @@ function clone_build_test(builder_url, package_url, package_deps)
     pkg_env = merge(ENV, Dict("JULIA_LOAD_PATH" => join(pkg_src_dirs, ':')))
 
     # Copy over the new build.jl file and build it
-    cp(joinpath(builder_dir, "products", "build.jl"), joinpath(package_dir, "deps", "build.jl"); remove_destination=true)
+    Compat.cp(joinpath(builder_dir, "products", "build.jl"), joinpath(package_dir, "deps", "build.jl"); force=true)
 
     try
-        info("Building $(basename(package_url))")
+        Compat.@info("Building $(basename(package_url))")
         run(setenv(`$(Base.julia_cmd()) $(joinpath(package_dir, "deps", "build.jl"))`, pkg_env))
     catch e
        display(e)
@@ -73,7 +74,7 @@ function clone_build_test(builder_url, package_url, package_deps)
 
     # Finally, test that package!
     try
-        info("Testing $(basename(package_url))")
+        Compat.@info("Testing $(basename(package_url))")
         cd(joinpath(package_dir, "test")) do
             run(setenv(`$(Base.julia_cmd()) runtests.jl`, pkg_env))
         end
