@@ -22,21 +22,29 @@ env:
     - BINARYBUILDER_AUTOMATIC_APPLE=true
     - BINARYBUILDER_FULL_SHARD_TEST=false
   matrix:
-    # One test with squashfs, also doing a full shard test
+    # Test with squashfs, also doing a full shard test
     - BINARYBUILDER_USE_SQUASHFS=true BINARYBUILDER_FULL_SHARD_TEST=true
-    # One test without squashfs.  We don't have the disk space
-    # available to do a full shard test here. :(
-    - BINARYBUILDER_USE_SQUASHFS=false
-    # One test with the privileged runner, also 
-    - BINARYBUILDER_RUNNER=privileged
 
+    # Add a job that uses squashfs and also runs the package tests
+    - BINARYBUILDER_USER_SQUASHFS=true BINARYBUILDER_PACKAGE_TESTS=true
 cache:
   directories:
     - deps/downloads
 
-# Add a test job that builds a new version of the sandbox.
 jobs:
   include:
+    # Add a job that doesn't use the squashfs but otherwise does normal tests
+    # We don't have the disk space available to do a full shard test here.
+    - julia: 0.6
+      env:
+        - BINARYBUILDER_USE_SQUASHFS=false
+
+    # Add a job that uses the privileged builder
+    - julia: 0.6
+      env:
+        - BINARYBUILDER_RUNNER=privileged
+
+    # Add a test job that builds a new version of the sandbox.
     - stage: test
       julia: 0.6
       env:
