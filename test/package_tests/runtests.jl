@@ -92,7 +92,7 @@ end
 test_cases = [
     # This awaiting the merging of https://github.com/davidanthoff/SnappyBuilder/pull/1
     #("https://github.com/davidanthoff/SnappyBuilder", "https://github.com/bicycle1885/Snappy.jl", []),
-    ("https://github.com/staticfloat/OggBuilder", "https://github.com/staticfloat/Ogg.jl", []),
+    ("https://github.com/staticfloat/OggBuilder", "https://github.com/staticfloat/Ogg.jl", ["https://github.com/JuliaIO/FileIO.jl"]),
     ("https://github.com/staticfloat/NettleBuilder", "https://github.com/staticfloat/Nettle.jl", []),
     ("https://github.com/bicycle1885/ZlibBuilder", "https://github.com/bicycle1885/CodecZlib.jl", ["https://github.com/bicycle1885/TranscodingStreams.jl"]),
     ("https://github.com/JuliaWeb/MbedTLSBuilder", "https://github.com/JuliaWeb/MbedTLS.jl", []),
