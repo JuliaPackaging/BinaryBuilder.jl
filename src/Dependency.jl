@@ -64,7 +64,8 @@ end
 
 """
     build(runner, dep::Dependency; verbose::Bool = false, force::Bool = false,
-                  autofix::Bool = false, ignore_audit_errors::Bool = true)
+                  autofix::Bool = false, ignore_audit_errors::Bool = true,
+                  verbose_audit::Bool=verbose)
 
 Build the dependency for given `platform` (defaulting to the host platform)
 unless it is already satisfied.  If `force` is set to `true`, then the
@@ -76,7 +77,7 @@ set to `true`.
 """
 function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = false,
                autofix::Bool = false, ignore_audit_errors::Bool = true,
-               ignore_manifests::Vector = [])
+               ignore_manifests::Vector = [], verbose_audit::Bool = verbose)
     # First, look to see whether this dependency is satisfied or not
     should_build = !satisfied(dep)
 
@@ -101,7 +102,7 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
 
         # Run an audit of the prefix to ensure it is properly relocatable
         audit_result = audit(dep.prefix; platform=dep.platform,
-                             verbose=verbose, autofix=autofix,
+                             verbose=verbose_audit, autofix=autofix,
                              ignore_manifests=ignore_manifests) 
         if !audit_result && !ignore_audit_errors
             msg = replace("""
