@@ -21,7 +21,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
     if "--help" in ARGS
         println(strip("""
         Usage: build_tarballs.jl [target1,target2,...] [--only-buildjl]
-                                 [--verbose] [--help]
+                                 [--verbose] [--verbose-audit] [--help]
 
         Options:
             targets         By default `build_tarballs.jl` will build a tarball
@@ -44,6 +44,8 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
                             Note that it is colorized if you pass the
                             --color=yes option to julia, see examples below.
 
+            --verbose-audit Like `--verbose`, but only for the Auditor.
+
             --only-buildjl  This disables building of any tarballs, and merely
                             reconstructs a `build.jl` file from a github
                             release.  This is mostly useful as a later stage in
@@ -64,7 +66,8 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
 
     # This sets whether we should build verbosely or not
     verbose = "--verbose" in ARGS
-    ARGS = filter!(x -> x != "--verbose", ARGS)
+    verbose_audit = verbose || "--verbose-audit" in ARGS
+    ARGS = filter!(x -> !startswith(x, "--verbose"), ARGS)
 
     # --part=n/m builds only part n out of m divisions
     # of the platforms list.
@@ -120,7 +123,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
 
         # Build the given platforms using the given sources
         autobuild(pwd(), src_name, platforms, sources, script,
-                         products, dependencies; verbose=verbose)
+                         products, dependencies; verbose=verbose, verbose_audit=verbose_audit)
     else
         msg = strip("""
         Reconstructing product hashes from GitHub Release $(repo_name)/$(tag_name)
@@ -153,7 +156,7 @@ end
 """
     autobuild(dir::AbstractString, src_name::AbstractString, platforms::Vector,
               sources::Vector, script::AbstractString, products::Function,
-              dependencies::Vector; verbose::Bool = true)
+              dependencies::Vector; verbose::Bool = true, verbose_audit::Bool = verbose)
 
 Runs the boiler plate code to download, build, and package a source package
 for a list of platforms.  `src_name` represents the name of the source package
@@ -170,7 +173,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                    platforms::Vector, sources::Vector,
                    script::AbstractString, products::Function,
                    dependencies::Vector = AbstractDependency[];
-                   verbose::Bool = true)
+                   verbose::Bool = true, verbose_audit::Bool = verbose)
     # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
     if haskey(ENV, "TRAVIS") && !verbose
         run_travis_busytask = true
@@ -278,7 +281,8 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                 end
 
                 dep = Dependency(src_name, products(prefix), script, platform, prefix)
-                if !build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests)
+                if !build(ur, dep; verbose=verbose, verbose_audit=verbose_audit,
+                                   autofix=true, ignore_manifests=dep_manifests)
                     error("Failed to build $(target)")
                 end
 
