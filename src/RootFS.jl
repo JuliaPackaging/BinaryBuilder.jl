@@ -35,6 +35,16 @@ shard_path_squashfs(shard_name) = downloads_dir("rootfs-$(shard_name).squashfs")
 rootfs_path_squashfs() = shard_path_squashfs("base")
 ccache_dir() = shards_dir("ccache")
 
+function sandbox_path()
+    global sandbox_override
+
+    if sandbox_override != ""
+        return sandbox_override
+    else
+        return rootfs_dir("sandbox")
+    end
+end
+
 """
     get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
 
