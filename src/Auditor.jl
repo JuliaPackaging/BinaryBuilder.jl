@@ -163,14 +163,12 @@ function audit(prefix::Prefix; io=stderr,
 
         # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
         if arch(platform_for_object(oh)) in [:x86_64, :i686]
-            if verbose
-                info(io, "Analyzing minimum instruction set for $(relpath(f, prefix.path))")
-            end
             instruction_set = analyze_instruction_set(oh; verbose=verbose, io=io)
             if is64bit(oh) && instruction_set != :core2
                 if !silent
                     msg = replace("""
-                    Minimum instruction set is $(instruction_set), not core2
+                    Minimum instruction set for $(relpath(f, prefix.path)) is
+                    $(instruction_set), not core2 as desired.
                     """, '\n' => ' ')
                     warn(io, strip(msg))
                 end
@@ -178,7 +176,8 @@ function audit(prefix::Prefix; io=stderr,
             elseif !is64bit(oh) && instruction_set != :pentium4
                 if !silent
                     msg = replace("""
-                    Minimum instruction set is $(instruction_set), not pentium4
+                    Minimum instruction set for $(relpath(f, prefix.path)) is
+                    $(instruction_set), not pentium4 as desired.
                     """, '\n' => ' ')
                     warn(io, strip(msg))
                 end
