@@ -72,6 +72,9 @@ function target_envs(target::AbstractString)
         "PKG_CONFIG_PATH" => "/workspace/destdir/lib/pkgconfig",
         "PKG_CONFIG_SYSROOT_DIR" => "/workspace/destdir",
 
+        # We like to be able to get at our .bash_history afterwards. :)
+        "HISTFILE"=>"/workspace/.bash_history",
+
         # Autotools really appreciates being able to build stuff for the
         # host system, so we set this to ease its woes
         "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
