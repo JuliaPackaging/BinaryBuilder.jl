@@ -44,6 +44,9 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
                             Note that it is colorized if you pass the
                             --color=yes option to julia, see examples below.
 
+            --debug         This causes a failed build to drop into an
+                            interactive bash shell for debugging purposes.
+
             --only-buildjl  This disables building of any tarballs, and merely
                             reconstructs a `build.jl` file from a github
                             release.  This is mostly useful as a later stage in
@@ -62,9 +65,22 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         return nothing
     end
 
+    function check_flag(flag)
+        flag_present = flag in ARGS
+        ARGS = filter!(x -> x != flag, ARGS)
+        return flag_present
+    end
+
     # This sets whether we should build verbosely or not
-    verbose = "--verbose" in ARGS
-    ARGS = filter!(x -> x != "--verbose", ARGS)
+    verbose = check_flag("--verbose")
+
+    # This sets whether we drop into a debug shell on failure or not
+    debug = check_flag("--debug")
+
+    # This flag skips actually building and instead attempts to reconstruct a
+    # build.jl from a GitHub release page.  Use this to automatically deploy a
+    # build.jl file even when sharding targets across multiple CI builds.
+    only_buildjl = check_flag("--only-buildjl")
 
     # --part=n/m builds only part n out of m divisions
     # of the platforms list.
@@ -80,12 +96,6 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         platforms = platforms[n*(p[1]-1)+1:min(end,n*p[1])]
         deleteat!(ARGS, i)
     end
-
-    # This flag skips actually building and instead attempts to reconstruct a
-    # build.jl from a GitHub release page.  Use this to automatically deploy a
-    # build.jl file even when sharding targets across multiple CI builds.
-    only_buildjl = "--only-buildjl" in ARGS
-    ARGS = filter!(x -> x != "--only-buildjl", ARGS)
 
     # If we're only reconstructing a build.jl file, we _need_ this information
     # otherwise it's useless, so go ahead and error() out here.
@@ -120,7 +130,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
 
         # Build the given platforms using the given sources
         autobuild(pwd(), src_name, platforms, sources, script,
-                         products, dependencies; verbose=verbose)
+                         products, dependencies; verbose=verbose, debug=debug)
     else
         msg = strip("""
         Reconstructing product hashes from GitHub Release $(repo_name)/$(tag_name)
@@ -153,7 +163,7 @@ end
 """
     autobuild(dir::AbstractString, src_name::AbstractString, platforms::Vector,
               sources::Vector, script::AbstractString, products::Function,
-              dependencies::Vector; verbose::Bool = true)
+              dependencies::Vector; verbose::Bool = true, debug::Bool = false)
 
 Runs the boiler plate code to download, build, and package a source package
 for a list of platforms.  `src_name` represents the name of the source package
@@ -165,12 +175,14 @@ products, which are listed as `Product` objects within the vector returned by
 the `products` function. `dependencies` gives a list of dependencies that
 provide `build.jl` files that should be installed before building begins to
 allow this build process to depend on the results of another build process.
+Setting `debug` to `true` will cause a failed build to drop into an interactive
+shell so that the build can be inspected easily.
 """
 function autobuild(dir::AbstractString, src_name::AbstractString,
                    platforms::Vector, sources::Vector,
                    script::AbstractString, products::Function,
                    dependencies::Vector = AbstractDependency[];
-                   verbose::Bool = true)
+                   verbose::Bool = true, debug::Bool = false)
     # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
     if haskey(ENV, "TRAVIS") && !verbose
         run_travis_busytask = true
@@ -278,9 +290,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                 end
 
                 dep = Dependency(src_name, products(prefix), script, platform, prefix)
-                if !build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests)
-                    error("Failed to build $(target)")
-                end
+                build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests, debug=debug)
 
                 # Remove the files of any dependencies
                 for dependency in dependencies

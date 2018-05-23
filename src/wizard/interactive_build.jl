@@ -273,8 +273,7 @@ function step34(state::WizardState)
             state.source_files,
             state.source_hashes,
             state.dependencies,
-            platform,
-            Dict("HISTFILE"=>"/workspace/.bash_history");
+            platform;
             verbose=false,
             tee_stream=state.outs
         )
@@ -311,8 +310,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
                 state.source_files,
                 state.source_hashes,
                 state.dependencies,
-                platform,
-                Dict("HISTFILE"=>"/workspace/.bash_history");
+                platform;
                 verbose=true,
                 tee_stream=state.outs
             )
@@ -375,8 +373,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
                             state.source_files,
                             state.source_hashes,
                             state.dependencies,
-                            platform,
-                            Dict("HISTFILE"=>"/workspace/.bash_history");
+                            platform;
                             verbose=true,
                             tee_stream=state.outs
                         )
