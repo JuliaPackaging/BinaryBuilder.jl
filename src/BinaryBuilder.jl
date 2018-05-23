@@ -34,11 +34,12 @@ automatic_apple = false
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
+sandbox_override = ""
 
 function __init__()
     global downloads_cache, rootfs_cache, shards_cache, runner_override
     global qemu_cache, use_squashfs, automatic_apple, allow_ecryptfs
-    global github_auth, use_ccache
+    global github_auth, use_ccache, sandbox_override
 
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
@@ -103,6 +104,13 @@ function __init__()
     # If the user has enabled `ccache` support, use it!
     if get(ENV, "BINARYBUILDER_USE_CCACHE", "false") == "true"
         use_ccache = true
+    end
+
+    # If the user has asked to use a particular `sandbox` executable, use it!
+    sandbox_override = get(ENV, "BINARYBUILDER_SANDBOX_PATH", "")
+    if !isempty(sandbox_override) && !isfile(sandbox_override)
+        Compat.@warn("Invalid sandbox override, ignoring...")
+        sandbox_override = ""
     end
 end
 

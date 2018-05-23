@@ -59,7 +59,7 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     envs = merge(target_envs(triplet(platform)), extra_env)
 
     # Construct sandbox command
-    sandbox_cmd = `$(rootfs_dir("sandbox"))`
+    sandbox_cmd = `$(sandbox_path())`
 
     if verbose
         sandbox_cmd = `$sandbox_cmd --verbose`
@@ -196,7 +196,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
     check_encryption(pwd())
 
     # Construct an extremely simple sandbox command
-    sandbox_cmd = `$(rootfs_dir("sandbox")) --rootfs $(rootfs_dir())`
+    sandbox_cmd = `$(sandbox_path()) --rootfs $(rootfs_dir())`
     cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
 
     if verbose

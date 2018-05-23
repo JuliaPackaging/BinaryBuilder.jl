@@ -44,21 +44,21 @@ jobs:
       env:
         - BINARYBUILDER_RUNNER=privileged
 
-    # Add a test job that builds a new version of the sandbox.
+    # Add a test job that builds a new version of the sandbox and runs tests with that.
     - stage: test
       julia: 0.6
       env:
         - BINARYBUILDER_USE_SQUASHFS=false
+        - BINARYBUILDER_SANDBOX_PATH=/tmp/sandbox
         - TEST_SANDBOX=true
 
 script:
    - julia -e 'Pkg.clone(pwd())'
    - julia -e 'Pkg.build("BinaryBuilder")'
    - if [ ${TEST_SANDBOX:-false} = true ]; then
-        julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -o root/sandbox sandbox.c`)';
-     else
-        julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)';
+         julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -o /tmp/sandbox sandbox.c`)';
      fi
+   - julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
