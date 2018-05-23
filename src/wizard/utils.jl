@@ -128,10 +128,11 @@ function script_for_dep(dep)
 end
 
 """
-    setup_workspace(build_path::AbstractString, src_paths::Vector,
+    setup_workspace(build_path::String, src_paths::Vector,
                     src_hashes::Vector, platform::Platform,
                     extra_env::Dict{String, String};
-                    verbose::Bool = false, tee_stream::IO = stdout)
+                    verbose::Bool = false, tee_stream::IO = stdout,
+                    downloads_dir = nothing)
 
 Sets up a workspace within `build_path`, creating the directory structure
 needed by further steps, unpacking the source within `build_path`, and defining
@@ -145,8 +146,9 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          platform::Platform,
                          extra_env::Dict{String, String} =
                              Dict{String, String}();
-                         verbose::Bool = false, tee_stream::IO = Compat.stdout)
-
+                         verbose::Bool = false,
+                         tee_stream::IO = Compat.stdout,
+                         downloads_dir = nothing)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
     mkdir(joinpath(build_path, nonce))
@@ -197,16 +199,40 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         end
     end
 
+    # If we haven't been given a downloads_dir, just dump it all into `srcdir`:
+    if downloads_dir == nothing
+        downloads_dir = srcdir
+    end
+
     # For each dependency, install it into the prefix
     for dep in dependencies
         script = script_for_dep(dep)
         m = Module(:__anon__)
         eval(m, quote
             using BinaryProvider
+
+            # Force the script to download for this platform.
             platform_key() = $platform
+
+            # We don't want any deps files being written out
             function write_deps_file(args...) end
+
+            # Override @__DIR__ to return the destination directory,
+            # so that things get installed into there.  This is a protection
+            # against older scripts that ignore `ARGS[1]`, which is set below.
+            # Eventually we should be able to forgo this skullduggery.
             macro __DIR__(args...); return $destdir; end
-            install(args...; kwargs...) = BinaryProvider.install(args...; kwargs..., ignore_platform=true, verbose=$verbose)
+
+            # Override install() to cache in our downloads directory, to
+            # ignore platforms, and to be verbose if we want it to be.
+            function install(url, hash; kwargs...)
+                BinaryProvider.install(url, hash;
+                    tarball_path=joinpath($downloads_dir, basename(url)),
+                    ignore_platform=true,
+                    verbose=$verbose,
+                    kwargs...,
+                )
+            end
             ARGS = [$destdir]
             include_string($(script))
         end)
