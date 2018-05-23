@@ -130,6 +130,12 @@ static int open_proc_file(pid_t pid, const char *file, int mode) {
   return fd;
 }
 
+/* `touch` a file; create it if it doesn't already exist. */
+static void touch(const char * path) {
+  int fd = open(path, O_RDONLY | O_CREAT, S_IRUSR | S_IRGRP | S_IROTH);
+  close(fd);
+}
+
 /**** 2: User namespaces
  *
  * For a general overview on user namespaces, see the corresponding manual page
@@ -274,7 +280,21 @@ static void mount_dev(const char * root_dir) {
     if (verbose) {
       printf("--> Mounting /dev/null at %s\n", path);
     }
+    touch(path);
     check(0 == mount("/dev/null", path, "", MS_BIND, NULL));
+
+    // If the host has a /dev/urandom, expose that to the sandboxed process as well.
+    if (access("/dev/urandom", F_OK) == 0) {
+      snprintf(path, sizeof(path), "%s/dev/urandom", root_dir);
+
+      if (verbose) {
+        printf("--> Mounting /dev/urandom at %s\n", path);
+      }
+
+      // Bind-mount /dev/urandom to internal /dev/urandom (creating it if it doesn't already exist)
+      touch(path);
+      check(0 == mount("/dev/urandom", path, "", MS_BIND, NULL));
+    }
   }
 }
 
