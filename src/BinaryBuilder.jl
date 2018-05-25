@@ -179,6 +179,17 @@ function versioninfo()
         verbose=true
     )
     run_interactive(runner, `/bin/bash -c "echo hello julia"`)
+
+    # If we use ccache, dump the ccache stats
+    if use_ccache
+        Compat.@info("ccache stats:")
+        runner = preferred_runner()(
+            pwd();
+            cwd="/workspace/",
+            platform=Linux(:x86_64),
+        )
+        run_interactive(runner, `/usr/local/bin/ccache -s`)
+    end
 end
 
 end # module
