@@ -303,7 +303,15 @@ Given a list of files, prune those that are symlinks pointing to other files
 within the list.
 """
 function collapse_symlinks(files::Vector{String})
-    abs_files = realpath.(files)
+    abs_files = String[]
+    # Collapse symlinks down to real files, but don't die if we've got a broken symlink
+    for f in files
+        try
+            push!(abs_files, realpath(f))
+        end
+    end
+
+    # Return true if it's not a link and the real path exists in abs_files
     predicate = f -> begin
         try
             return !(islink(f) && realpath(f) in abs_files)
