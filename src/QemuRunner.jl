@@ -15,10 +15,25 @@ mutable struct QemuRunner <: Runner
     platform::Platform
 end
 
-qemu_url = "https://github.com/Keno/QemuBuilder/releases/download/hvf/qemu.x86_64-apple-darwin14.tar.gz"
-qemu_hash = "92fa439350970f673a7324b61ed5bc4894d6665543175f01135550cb4a458cde"
+qemu_url = "//github.com/Keno/QemuBuilder/releases/download/rebased/Qemu.x86_64-apple-darwin14.tar.gz"
+qemu_hash = "dbbfde0b70736d7b670c67d2a000b60dfc9c0b82503c96c61797fa1d3808979a"
 kernel_url = "https://github.com/Keno/LinuxBuilder/releases/download/v4.15-rc2/linux.x86_64-linux-gnu.tar.gz"
 kernel_hash = "0d02413529e635d4af6d2122f6aba22d261f43616bb286da3855325988f9ac3b"
+
+qemu_dependencies = [
+    "https://github.com/staticfloat/PixmanBuilder/releases/download/v0.34.0-0/Pixman.x86_64-apple-darwin14.tar.gz" =>
+        "7d10eba60ac7824093199d557c7fb9ec0750cd2d3f2314d5a2480677fc1f88aa",
+    "https://github.com/staticfloat/GlibBuilder/releases/download/v2.54.2-2/Glib.x86_64-apple-darwin14.tar.gz" =>
+        "29b52a6a95ef48a0da40e2c3a9385dd2fc93d472a965763f932a15fcd96a100b",
+    "https://github.com/staticfloat/PcreBuilder/releases/download/v8.41-0/pcre.x86_64-apple-darwin14.tar.gz" =>
+        "e9b99a17525ed9d694e312be7e556e0666f64515c99c7cb87257a411abf8fb9e",
+    "https://github.com/staticfloat/GettextBuilder/releases/download/v0.19.8-0/libgettext.x86_64-apple-darwin14.tar.gz" =>
+        "b7f64f9c34705c157f6c6a241454a2984cc80cefd11f46c63345341791cc012f",
+    "https://github.com/staticfloat/LibffiBuilder/releases/download/v3.2.1-0/libffi.x86_64-apple-darwin14.tar.gz" =>
+        "287f289b428cfae58084aa4bab21cb07cc405a7c5535b62a39dc8b68d163d250",
+    "https://github.com/staticfloat/ZlibBuilder/releases/download/v1.2.11-3/Zlib.x86_64-apple-darwin14.tar.gz" =>
+        "d921114efca229f53b4faaac3d6d153862559aa38bc6df1b702732036394c634",
+]
 
 """
     update_qemu(;verbose::Bool = false)
@@ -27,27 +42,30 @@ Update our QEMU and Linux kernel installations, downloading and installing them
 into the `qemu_cache` directory that defaults to `deps/qemu`.
 """
 function update_qemu(;verbose::Bool = false)
-    download_verify_unpack(
-        qemu_url,
-        qemu_hash,
-        qemu_cache;
-        tarball_path=downloads_dir(basename(qemu_url)),
-        verbose=verbose,
-        force=true
-    )
-    download_verify(
-        kernel_url,
-        kernel_hash,
-        downloads_dir(basename(kernel_url));
-        verbose=verbose,
-        force=true
-    )
+    should_delete = false
+    for (url, hash) in [qemu_dependencies; qemu_url=>qemu_hash; kernel_url=>kernel_hash]
+        should_delete |= !download_verify(
+            kernel_url,
+            kernel_hash,
+            downloads_dir(basename(kernel_url));
+            verbose=verbose,
+            force=true
+        )
+    end
+    if should_delete
+        rm(qemu_cache; recursive=true, force=true)
+    end
+    if !isdir(qemu_cache)
+        for (url, hash) in [qemu_dependencies; qemu_url=>qemu_hash]
+            unpack(downloads_dir(basename(url)), qemu_cache; verbose=verbose)
+        end
+    end
     if !isfile(kernel_path())
         unpack(downloads_dir(basename(kernel_url)), qemu_cache; verbose=verbose)
     end
 end
 
-qemu_path() = joinpath(qemu_cache, "usr/local/bin/qemu-system-x86_64")
+qemu_path() = joinpath(qemu_cache, "bin/qemu-system-x86_64")
 kernel_path() = joinpath(qemu_cache, "bzImage")
 
 function platform_def_mounts(platform)
