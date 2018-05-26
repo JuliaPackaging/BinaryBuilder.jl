@@ -616,7 +616,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
   if (execution_mode == INIT_MODE) {
     // Extract our command line from the second serial device created by BinaryBuilder.jl
     const char * comm_dev = "/dev/vport0p1";
-    cmdline_fd = open(comm_dev, O_RDONLY);
+    cmdline_fd = open(comm_dev, O_RDWR);
     if( cmdline_fd == -1 ) {
       // This is a debugging escape hatch for us developers that aren't clever enough and
       // somehow screw up the Julia <---> qemu <---> sandbox communication channel.
@@ -750,6 +750,12 @@ int main(int sandbox_argc, char **sandbox_argv) {
   // then sub off to sandbox_main and finally reboot
   if (execution_mode == INIT_MODE) {
     read_sandbox_env(cmdline_fd);
+
+    // We've received all of our configuration data.
+    // Acknowledge receipt and close the file descriptor.
+    uint8_t ok = 0;
+    check(1 == write(cmdline_fd, &ok, sizeof(uint8_t)));
+    close(cmdline_fd);
 
     // Take over the terminal
     setsid();
