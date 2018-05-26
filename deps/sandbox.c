@@ -444,6 +444,131 @@ static void mount_the_world(const char * root_dir, const char * dest,
   mount_procfs("");
 }
 
+/*** 3: Networking
+ *
+ * This section sets up networking. To do so, it instructs the kernel
+ * netwokring subsystem to set the appropriate data structures. The ip
+ * address is set using SIOCSIFADDR (set netdevice(7)). The default gateway
+ * is set using the route subsytem (see rtnetlink(7)). The commands we perform
+ * are roughly:
+ *
+ *  // Find out what the name of the network interface is
+ *  ipconfig eth0 10.0.2.3
+ *  ifup eth0
+ *  ip route add default via 10.0.2.2
+ *
+ * But rather than going through the hassle of requiring those external
+ * commands to be present, we just do it through the kernel API, which
+ * while a bit cumbersome is quite useable.
+ */
+void buf_put(char **cur_buf_pos, void *data, size_t size)
+{
+  memcpy(*cur_buf_pos, data, size);
+  *cur_buf_pos += size;
+}
+
+void buf_put_attr_header(char **cur_buf_pos, uint16_t opt, size_t size)
+{
+  struct rtattr attr = {.rta_type = opt,
+                        .rta_len = size + sizeof(struct rtattr)};
+  buf_put(cur_buf_pos, &attr, sizeof(struct rtattr));
+}
+
+void buf_put_attr(char **cur_buf_pos, uint16_t opt, void *data, size_t size)
+{
+  buf_put_attr_header(cur_buf_pos, opt, size);
+  buf_put(cur_buf_pos, data, size);
+  *cur_buf_pos += RTA_ALIGN(size) - size;
+}
+
+#define htonl(x) __bswap_32(x)
+void setup_vm_networking()
+{
+  // Network settings - We hardcode these for convenience.
+  uint32_t ipaddr = htonl(0x0a000203);  //  10.  0.  2.  3
+  uint32_t netmask = htonl(0xffffff00); // 255.255.255.  0
+  uint32_t gateway = htonl(0x0a000202); //  10.  0.  2.  2
+
+  // Open connections to the network and routing
+  // kernel subsystems.
+  int fd = socket(AF_NETLINK, SOCK_DGRAM, NETLINK_ROUTE);
+  int inetfd = socket(AF_INET, SOCK_DGRAM, 0);
+  struct iovec iov;
+  struct sockaddr_nl kernel_addr;
+  memset(&kernel_addr, 0, sizeof(struct sockaddr_nl));
+  kernel_addr.nl_family = AF_NETLINK;
+  struct msghdr hdr = {.msg_name = &kernel_addr,
+                       .msg_namelen = sizeof(struct sockaddr_nl),
+                       .msg_iov = &iov,
+                       .msg_iovlen = 1,
+                       .msg_control = 0,
+                       .msg_controllen = 0,
+                       .msg_flags = 0};
+
+  // Find the first non-loopback interface
+  struct ifreq req;
+  for (int i = 1; i < 5; ++i)
+  {
+    req.ifr_ifindex = i;
+    check(0 == ioctl(inetfd, SIOCGIFNAME, &req));
+    check(0 == ioctl(inetfd, SIOCGIFFLAGS, &req));
+    if ((req.ifr_flags & IFF_LOOPBACK) == 0)
+      break;
+  }
+
+  // We now have the name of the interface in req.ifr_name.
+  req.ifr_addr.sa_family = AF_INET;
+  // Set IP address (ifconfig eth0 <addr>)
+  memcpy(&((struct sockaddr_in *)&req.ifr_addr)->sin_addr,
+         &ipaddr, sizeof(uint32_t));
+  check(0 == ioctl(inetfd, SIOCSIFADDR, &req));
+  // Set netmask
+  memcpy(&((struct sockaddr_in *)&req.ifr_addr)->sin_addr,
+         &netmask, sizeof(uint32_t));
+  // Bring up the interface
+  check(0 == ioctl(inetfd, SIOCGIFFLAGS, &req));
+  req.ifr_flags |= IFF_UP | IFF_RUNNING;
+  check(0 == ioctl(inetfd, SIOCSIFFLAGS, &req));
+
+  // Ask the kernel to set up the default gateway
+  // (ip route add default via <gateway>)
+  char *cur_buf_p;
+  char **cur_buf_pos = &cur_buf_p;
+  size_t msg_len = sizeof(struct nlmsghdr) + sizeof(struct rtmsg) + sizeof(struct rtattr) +
+                   sizeof(uint32_t);
+
+  struct nlmsghdr nlhdr;
+  memset(&nlhdr, 0, sizeof(struct nlmsghdr));
+  nlhdr.nlmsg_type = RTM_NEWROUTE;
+  nlhdr.nlmsg_flags = NLM_F_CREATE | NLM_F_REQUEST | NLM_F_ACK | NLM_F_EXCL;
+  nlhdr.nlmsg_len = msg_len;
+  nlhdr.nlmsg_seq = 1;
+
+  struct rtmsg msg;
+  memset(&msg, 0, sizeof(struct rtmsg));
+  msg.rtm_family = AF_INET;
+  msg.rtm_table = RT_TABLE_MAIN;
+  msg.rtm_protocol = RTPROT_STATIC;
+  msg.rtm_scope = RT_SCOPE_UNIVERSE;
+  msg.rtm_type = RTN_UNICAST;
+
+  char buf[msg_len];
+  cur_buf_p = buf;
+  buf_put(cur_buf_pos, &nlhdr, sizeof(nlhdr));
+  buf_put(cur_buf_pos, &msg, sizeof(msg));
+  buf_put_attr(cur_buf_pos, RTA_GATEWAY, &gateway, sizeof(uint32_t));
+
+  iov.iov_base = buf;
+  iov.iov_len = msg_len;
+  check(msg_len == sendmsg(fd, &hdr, 0));
+  check(-1 != recvmsg(fd, &hdr, 0));
+  errno = -((struct nlmsgerr *)&(((struct nlmsghdr *)buf)[1]))->error;
+  check(((struct nlmsghdr *)buf)->nlmsg_type != NLMSG_ERROR || errno == 0);
+
+  close(inetfd);
+  close(fd);
+}
+
 /*
  * Sets up the chroot jail, then executes the target executable.
  */
@@ -785,6 +910,9 @@ int main(int sandbox_argc, char **sandbox_argv) {
     // at "/", but it's read-only, so we use overlayfs to mount it on "/tmp".  We then
     // continue to mount our shards within "/tmp".
     mount_the_world("", "/tmp", workspaces, maps, 0, 0);
+
+    // Enable networking
+    setup_vm_networking();
 
     // Run sandbox_main to Enter The Sandbox (TM)
     sandbox_main("/tmp", new_cd, sandbox_argc, sandbox_argv);

@@ -100,6 +100,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         -device virtio-serial -chardev stdio,id=charconsole0
         -device virtconsole,chardev=charconsole0,id=console0
         -device virtserialport,chardev=charcomm0,id=comm0
+        -device virtio-net-pci,netdev=networking -netdev user,id=networking
     ```
     append_line = "quiet console=hvc0 root=/dev/vda rootflags=ro rootfstype=squashfs noinitrd init=/sandbox"
 
