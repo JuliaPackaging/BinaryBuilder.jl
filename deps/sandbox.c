@@ -495,7 +495,7 @@ static int sandbox_main(const char * root_dir, const char * new_cd, int sandbox_
     sigwait(&waitset, &sig);
 
     pid_t reaped_pid;
-    while ((reaped_pid = waitpid(-1, &status, NULL)) != -1) {
+    while ((reaped_pid = waitpid(-1, &status, 0)) != -1) {
       if (reaped_pid == main_pid) {
         // If it was the main pid that exited, return as well.
         return WIFEXITED(status) ? WEXITSTATUS(status) : 1;
