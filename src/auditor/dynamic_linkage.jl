@@ -194,7 +194,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
     if Compat.Sys.isapple(platform)
         origin = "@loader_path"
-        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
+        add_rpath = rp -> `$install_name_tool -add_rpath $(joinpath(origin,rp)) $(rel_path)`
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Compat.Sys.islinux(platform)
         origin = "\$ORIGIN"
