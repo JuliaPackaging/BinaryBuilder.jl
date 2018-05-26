@@ -196,6 +196,9 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
             write(commsock, sandbox_env[idx])
         end
 
+        # Wait for acknowledgement
+        read(commsock, UInt8)
+
         close(commsock)
     end
 
