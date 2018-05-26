@@ -114,7 +114,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
     end
 
     # We always include the workspace as one of our read-write workspace mountings, and always as the first
-    insert!(workspaces, 1, workspace => "/workspace")
+    insert!(workspaces, 1, workspace_root => "/workspace")
 
     # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
     if use_ccache
@@ -134,11 +134,11 @@ function QemuRunner(workspace_root::String; cwd = nothing,
     end
 
     # Mount in read-only mappings over plan9 if they're raw directories, and directly if they're .squashfs files
-    for (outside, dir) in mappings
+    for (outside, inside) in mappings
         # Squashfs files get mounted in directly, actual directories have to be shared over plan9:
         if endswith(outside, ".squashfs")
             qemu_cmd = `$qemu_cmd -drive if=virtio,file=$(outside),format=raw`
-            sandbox_cmd = `$sandbox_cmd --map /dev/vd$(devchar):$(inside)`
+            sandbox_cmd = `$sandbox_cmd --map /dev/vd$(devchr):$(inside)`
             devchr = Char(Int(devchr) + 1)
         else
             qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$(devnum),path=$(outside),readonly -device virtio-9p-pci,id=fs$(devnum),fsdev=fsdev$(devnum),mount_tag=mapping$(devnum)`
@@ -174,7 +174,7 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
             end
         end
 
-        # Once it has, open it up, 
+        # Once it has, open it up,
         commsock = connect(comm_socket_path)
 
         # We're going to spit out:
@@ -221,7 +221,7 @@ function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
 
         oc = OutputCollector(cmd; verbose=verbose, tee_stream=tee_stream)
         did_succeed = wait(oc)
-        
+
         if !isempty(logpath)
             # Write out the logfile, regardless of whether it was successful
             mkpath(dirname(logpath))
@@ -266,7 +266,7 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
             run(cmd)
         end
     end
-    
+
     # Qemu appears to mess with our terminal
     Base.reseteof(Compat.stdin)
 end
