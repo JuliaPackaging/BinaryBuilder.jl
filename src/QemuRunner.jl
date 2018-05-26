@@ -50,7 +50,7 @@ end
 qemu_path() = joinpath(qemu_cache, "usr/local/bin/qemu-system-x86_64")
 kernel_path() = joinpath(qemu_cache, "bzImage")
 
-function platform_def_mounts(platform)
+function platform_def_mappings(platform)
     tp = triplet(platform)
     mapping = Pair{String,String}[
         shard_path_squashfs(tp) => joinpath("/opt", tp)
@@ -63,15 +63,6 @@ function platform_def_mounts(platform)
         push!(mapping, shard_path_squashfs(ltp) => joinpath("/opt", ltp))
     end
 
-    # Reverse mapping order, because `sandbox` reads them backwards
-    reverse!(mapping)
-    return mapping
-end
-
-function platform_def_9p_mappings(platform)
-    tp = triplet(platform)
-    mapping = Pair{String,String}[]
-
     # If we're trying to run macOS and we have an SDK directory, mount that!
     if platform == MacOS()
         sdk_version = "MacOSX10.10.sdk"
@@ -79,6 +70,8 @@ function platform_def_9p_mappings(platform)
         push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
     end
 
+    # Reverse mapping order, because `sandbox` reads them backwards
+    reverse!(mapping)
     return mapping
 end
 
@@ -88,8 +81,8 @@ function QemuRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
-                      mounts = platform_def_mounts(platform),
-                      mappings = platform_def_9p_mappings(platform))
+                      mappings::Vector = platform_def_mappings(platform),
+                      workspaces::Vector = [])
     global use_ccache
 
     # Ensure the rootfs for this platform is downloaded and up to date
@@ -107,42 +100,51 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         -device virtio-serial -chardev stdio,id=charconsole0
         -device virtconsole,chardev=charconsole0,id=console0
         -device virtserialport,chardev=charcomm0,id=comm0
-        -fsdev local,security_model=none,id=fsdev0,path=$workspace_root -device virtio-9p-pci,id=fs0,fsdev=fsdev0,mount_tag=workspace
     ```
     append_line = "quiet console=hvc0 root=/dev/vda rootflags=ro rootfstype=squashfs noinitrd init=/sandbox"
 
-    sandbox_cmd = `--workspace 9p/workspace:/workspace`
+    sandbox_cmd = ``
+    if verbose
+        # We put --verbose at the beginning here so that we can see argument parsing
+        sandbox_cmd = `$sandbox_cmd --verbose`
+    end
+
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
 
-    num = 1
-    for (mapping, dir) in mappings
-        qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$num,path=$mapping,readonly -device virtio-9p-pci,id=fs$num,fsdev=fsdev$num,mount_tag=mapping$num`
-        sandbox_cmd = `$sandbox_cmd --map 9p/mapping$num:$dir`
-        num += 1
-    end
+    # We always include the workspace as one of our read-write workspace mountings, and always as the first
+    insert!(workspaces, 1, workspace => "/workspace")
 
     # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
     if use_ccache
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
-        sandbox_cmd = `$sandbox_cmd --workspace 9p/ccache:/root/.ccache`
-        qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$num,path=$(ccache_dir()),readonly -device virtio-9p-pci,id=fs$num,fsdev=fsdev$num,mount_tag=ccache`
-        num += 1
+        push!(workspaces, ccache_dir() => "/root/.ccache")
     end
 
-    c = 'b'
-    for (mount,dir) in mounts
-        qemu_cmd = `$qemu_cmd -drive if=virtio,file=$mount,format=raw`
-        sandbox_cmd = `$sandbox_cmd --map /dev/vd$c:$dir`
-        c = Char(Int(c) + 1)
+    devchr = 'b'
+    devnum = 0
+    # Mount in read-writable workspaces over plan9
+    for (outside, inside) in workspaces
+        qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$(devnum),path=$(outside) -device virtio-9p-pci,id=fs$(devnum),fsdev=fsdev$(devnum),mount_tag=workspace$(devnum)`
+        sandbox_cmd = `$sandbox_cmd --workspace 9p/workspace$(devnum):$(inside)`
+        devnum += 1
     end
 
-    if verbose
-        # We put --verbose at the beginning here so that we can see argument parsing
-        sandbox_cmd = `--verbose $sandbox_cmd`
+    # Mount in read-only mappings over plan9 if they're raw directories, and directly if they're .squashfs files
+    for (outside, dir) in mappings
+        # Squashfs files get mounted in directly, actual directories have to be shared over plan9:
+        if endswith(outside, ".squashfs")
+            qemu_cmd = `$qemu_cmd -drive if=virtio,file=$(outside),format=raw`
+            sandbox_cmd = `$sandbox_cmd --map /dev/vd$(devchar):$(inside)`
+            devchr = Char(Int(devchr) + 1)
+        else
+            qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$(devnum),path=$(outside),readonly -device virtio-9p-pci,id=fs$(devnum),fsdev=fsdev$(devnum),mount_tag=mapping$(devnum)`
+            sandbox_cmd = `$sandbox_cmd --map 9p/mapping$(devnum):$(inside)`
+            devnum += 1
+        end
     end
 
     QemuRunner(qemu_cmd, append_line, sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)

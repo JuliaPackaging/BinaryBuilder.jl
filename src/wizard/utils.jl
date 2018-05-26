@@ -156,7 +156,8 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     # We now set up two directories, one as a source dir, one as a dest dir
     srcdir = joinpath(build_path, nonce, "srcdir")
     destdir = joinpath(build_path, nonce, "destdir")
-    mkdir(srcdir); mkdir(destdir)
+    metadir = joinpath(build_path, nonce, "metadir")
+    mkdir(srcdir); mkdir(destdir); mkdir(metadir)
 
     # Create a runner to work inside this workspace with the nonce built-in
     ur = preferred_runner()(
@@ -164,13 +165,14 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         cwd = "/workspace/srcdir",
         platform = platform,
         extra_env = merge(extra_env,
-            merge(destdir_envs("/workspace/destdir"),
-                Dict(
-                    "WORKSPACE" => "/workspace",
-                    "PS1" => "sandbox:\${PWD//\$WORKSPACE/\\\\\$WORKSPACE}\\\$ "
-                ))
+            Dict(
+                "prefix" => "/workspace/destdir",
+                "WORKSPACE" => "/workspace",
+                "PS1" => "sandbox:\${PWD//\$WORKSPACE/\\\\\$WORKSPACE}\\\$ "
+             )
         ),
         verbose = verbose,
+        workspaces = [metadir => "/meta"],
     )
 
     # Unpack the sources into the srcdir
@@ -239,7 +241,9 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     end
 
     # Run the cmds defined above
-    run(ur, `/bin/bash -c $(join(cmds, '\n'))`, ""; verbose=verbose, tee_stream=tee_stream)
+    if !isempty(cmds)
+        run(ur, `/bin/bash -c $(join(cmds, '\n'))`, ""; verbose=verbose, tee_stream=tee_stream)
+    end
 
     # Return the prefix and the runner
     return Prefix(destdir), ur
