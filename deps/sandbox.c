@@ -301,7 +301,7 @@ static void mount_workspaces(struct map_list * workspaces, const char * dest) {
     int result = mkdir(path, 0777);
     check((0 == result) || (errno == EEXIST));
 
-    if (strncmp("9p:", current_entry->outside_path, 3) == 0) {
+    if (strncmp("9p/", current_entry->outside_path, 3) == 0) {
       // If we're running as init within QEMU, the workspace is a plan 9 mount
       check(0 == mount(current_entry->outside_path+3, path, "9p", 0, "trans=virtio,version=9p2000.L"));
     } else {
@@ -365,7 +365,7 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
       check(0 == mount(current_entry->outside_path, path, "squashfs", 0, ""));
     } else if (strncmp(current_entry->outside_path, "9p/", 3) == 0) {
       // if we're running on qemu, we pass in mappings as plan 9 shares
-      check(0 == mount(current_entry->outside_path+3, path, "9p", MS_RDONLY, "trans=virtio,version=9p2000.l"));
+      check(0 == mount(current_entry->outside_path+3, path, "9p", MS_RDONLY, "trans=virtio,version=9p2000.L"));
     } else {
       // if it's a normal directory, just bind mount it in
       check(0 == mount(current_entry->outside_path, path, "", MS_BIND, NULL));
@@ -626,7 +626,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
       sandbox_argv[0] = "/sandbox";
       sandbox_argv[1] = "--verbose";
       sandbox_argv[2] = "--workspace";
-      sandbox_argv[3] = "9p:workspace:/workspace";
+      sandbox_argv[3] = "9p/workspace:/workspace";
       sandbox_argv[4] = "/bin/bash";
       sandbox_argv[5] = NULL;
     } else {
