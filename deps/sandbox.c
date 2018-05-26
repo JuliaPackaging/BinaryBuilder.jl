@@ -85,7 +85,7 @@ Then run it, mounting in a rootfs with a workspace and a single map:
 
 /**** Global Variables ***/
 
-// TODO: NABIL: Explain what these are better 
+// TODO: NABIL: Explain what these are better
 char *sandbox_root = NULL;
 char *new_cd = NULL;
 unsigned char verbose = 0;
@@ -285,7 +285,7 @@ static void mount_workspaces(struct map_list * workspaces, const char * dest) {
   struct map_list *current_entry = workspaces;
   while( current_entry != NULL ) {
     char *inside = current_entry->map_path;
-    
+
     // take the path relative to root_dir
     while (inside[0] == '/') {
       inside = inside + 1;
@@ -318,7 +318,7 @@ static void mount_workspaces(struct map_list * workspaces, const char * dest) {
 /*
  * This will mount the rootfs and shards within the given root directory.
  * `root_dir`  is the path where the rootfs is mounted on the outside.
- * `dest` is the path where the roofs and all should be mounted 
+ * `dest` is the path where the roofs and all should be mounted
  * `shard_maps` is the list of mappings that we've been told to mount.
  */
 static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
@@ -343,7 +343,7 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
   struct map_list *current_entry = shard_maps;
   while (current_entry != NULL) {
     char *inside = current_entry->map_path;
-    
+
     // take the path relative to root_dir
     while (inside[0] == '/') {
       inside = inside + 1;
@@ -369,7 +369,7 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
     } else {
       // if it's a normal directory, just bind mount it in
       check(0 == mount(current_entry->outside_path, path, "", MS_BIND, NULL));
-      
+
       // remount to read-only, nodev, suid.
       // we only really care about read-only, but we need to make sure
       // to be stricter than our parent mount. if the parent mount is
@@ -400,7 +400,7 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
  *
  *  If we're running in normal mode, `root_dir` and `dest` are both the same,
  *  pointing to the rootfs directory.  If we're running as `init`, they are
- *  "" and "/tmp", respectively. 
+ *  "" and "/tmp", respectively.
  */
 static void mount_the_world(const char * root_dir, const char * dest,
                             struct map_list * workspaces, struct map_list * shard_maps,
@@ -410,10 +410,10 @@ static void mount_the_world(const char * root_dir, const char * dest,
 
   // Next, overlay all the things
   mount_rootfs_and_shards(root_dir, dest, "/proc", shard_maps, uid, gid);
-  
+
   // Mount /proc within the sandbox
   mount_procfs(dest);
-  
+
   // Mount /dev stuff
   mount_dev(dest);
 
@@ -473,7 +473,7 @@ static int sandbox_main(const char * root_dir, const char * new_cd, int sandbox_
   for (;;) {
     int sig;
     sigwait(&waitset, &sig);
-    
+
     pid_t reaped_pid;
     while ((reaped_pid = waitpid(-1, &status, WNOHANG)) != -1) {
       if (reaped_pid == main_pid) {
@@ -598,7 +598,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
 
   uid_t uid = getuid();
   gid_t gid = getgid();
-  
+
   // If we're running inside of `sudo`, we need to grab the UID/GID of the calling user through
   // environment variables, not using `getuid()` or `getgid()`.  :(
   const char * SUDO_UID = getenv("SUDO_UID");
@@ -808,11 +808,11 @@ int main(int sandbox_argc, char **sandbox_argv) {
   int clone_flags = CLONE_NEWPID | CLONE_NEWNS | CLONE_NEWUSER | SIGCHLD;
   if ((pid = syscall(SYS_clone, clone_flags, 0, 0, 0, 0)) == 0) {
     // If we're in here, we have become the "child" process, within the container.
-    
+
     // Get rid of the ends of the synchronization pipe that I'm not going to use
     close(child_block[1]);
     close(parent_block[0]);
-    
+
     // N.B: Capabilities in the original user namespaces are now dropped
     // The kernel may have decided to reset our dumpability, because of
     // the privilege change. However, the parent needs to access our /proc
@@ -868,7 +868,7 @@ int main(int sandbox_argc, char **sandbox_argv) {
 
   // Signal to the child that it can now continue running.
   close(child_block[1]);
-  
+
   // Wait until the child exits.
   check(pid == waitpid(pid, &status, 0));
   check(WIFEXITED(status));
