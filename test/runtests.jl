@@ -225,6 +225,32 @@ if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"
     end
 end
 
+@testset "environment and history saving" begin
+    build_path = tempname()
+    mkpath(build_path)
+    prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], platform)
+    dep = Dependency("foo", libfoo_products(prefix), "MARKER=1\nexit 1", platform, prefix)
+    @test_throws ErrorException build(ur, dep)
+
+    # Ensure that we get a metadir, and that our history and .env files are in there!
+    metadir = joinpath(prefix.path, "..", "metadir")
+    @test isdir(metadir)
+
+    hist_file = joinpath(metadir, ".bash_history")
+    env_file = joinpath(metadir, ".env")
+    @test isfile(hist_file)
+    @test isfile(env_file)
+
+    # Test that exit 1 is in .bash_history
+    @test contains(read(open(hist_file), String), "\nexit 1\n")
+
+    # Test that MARKER=1 is in .env:
+    @test contains(read(open(env_file), String), "\nMARKER=1\n")
+
+    # Delete the build path
+    rm(build_path, recursive = true)
+end
+
 # Testset to make sure we can build_tarballs() from a local directory
 @testset "build_tarballs() local directory based" begin
     build_path = tempname()

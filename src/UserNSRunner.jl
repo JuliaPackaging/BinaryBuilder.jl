@@ -44,7 +44,8 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
-                      mappings = platform_def_mapping(platform))
+                      mappings::Vector = platform_def_mapping(platform),
+                      workspaces::Vector = Pair[])
     global use_ccache
 
     # Ensure the rootfs for this platform is downloaded and up to date.
@@ -58,30 +59,34 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     # Construct environment variables we'll use from here on out
     envs = merge(target_envs(triplet(platform)), extra_env)
 
-    # Construct sandbox command
-    sandbox_cmd = `$(sandbox_path())`
-
-    if verbose
-        sandbox_cmd = `$sandbox_cmd --verbose`
-    end
-
-    sandbox_cmd = `$sandbox_cmd --rootfs $(rootfs_dir())`
-    sandbox_cmd = `$sandbox_cmd --workspace $workspace_root:/workspace`
+    # the workspace_root is always a workspace, and we always mount it first
+    insert!(workspaces, 1, workspace_root => "/workspace")
 
     # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
     if use_ccache
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
-        sandbox_cmd = `$sandbox_cmd --workspace $(ccache_dir()):/root/.ccache`
+        push!(workspaces, ccache_dir() => "/root/.ccache")
     end
 
+
+    # Construct sandbox command
+    sandbox_cmd = `$(sandbox_path())`
+    if verbose
+        sandbox_cmd = `$sandbox_cmd --verbose`
+    end
+    sandbox_cmd = `$sandbox_cmd --rootfs $(rootfs_dir())`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
 
+    # Add in read-only mappings and read-write workspaces
     for (outside, inside) in mappings
         sandbox_cmd = `$sandbox_cmd --map $outside:$inside`
+    end
+    for (outside, inside) in workspaces
+        sandbox_cmd = `$sandbox_cmd --workspace $outside:$inside`
     end
 
     # Check to see if we need to run privileged containers.

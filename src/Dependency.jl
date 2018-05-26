@@ -100,35 +100,34 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
             history -s "\$BASH_COMMAND"
             history -a
         }
-        trap save_history DEBUG
 
         save_env() {
-            set > /workspace/.env
+            set > /meta/.env
             # Ignore read-only variables
             for l in BASHOPTS BASH_VERSINFO UID EUID PPID SHELLOPTS; do
-                grep -v "^\$l=" /workspace/.env > /workspace/.env2
-                mv /workspace/.env2 /workspace/.env
+                grep -v "^\$l=" /meta/.env > /meta/.env2
+                mv /meta/.env2 /meta/.env
             done
-            echo "cd \$(pwd)" >> /workspace/.env
+            echo "cd \$(pwd)" >> /meta/.env
         }
-        trap save_env INT TERM EXIT ERR
+
+        # Do this if /meta exists, otherwise we get angry errors
+        if [[ -d /meta ]]; then
+            trap save_history DEBUG
+            trap save_env INT TERM EXIT ERR
+        fi
         $(dep.script)
         """
 
         logpath = joinpath(logdir(dep.prefix), "$(dep.name).log")
         did_succeed = run(runner, `/bin/bash -c $(trapped_script)`, logpath; verbose=verbose)
-        try
-            if !did_succeed
-                if debug
-                    Compat.@warn("Build failed, launching debug shell")
-                    run_interactive(runner, `/bin/bash --init-file /workspace/.env`)
-                end
-                msg = "Build for $(dep.name) did not complete successfully\n"
-                error(msg)
+        if !did_succeed
+            if debug
+                Compat.@warn("Build failed, launching debug shell")
+                run_interactive(runner, `/bin/bash --init-file /meta/.env`)
             end
-        finally
-            workspace = dirname(dep.prefix.path)
-            rm(joinpath(workspace, ".env"); force=true)
+            msg = "Build for $(dep.name) did not complete successfully\n"
+            error(msg)
         end
 
         # Run an audit of the prefix to ensure it is properly relocatable

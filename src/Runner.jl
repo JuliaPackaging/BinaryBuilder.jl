@@ -73,7 +73,7 @@ function target_envs(target::AbstractString)
         "PKG_CONFIG_SYSROOT_DIR" => "/workspace/destdir",
 
         # We like to be able to get at our .bash_history afterwards. :)
-        "HISTFILE"=>"/workspace/.bash_history",
+        "HISTFILE"=>"/meta/.bash_history",
 
         # Autotools really appreciates being able to build stuff for the
         # host system, so we set this to ease its woes
@@ -126,12 +126,6 @@ function target_envs(target::AbstractString)
     end
 
     return mapping
-end
-
-function destdir_envs(destdir::String)
-    Dict(
-        "prefix" => destdir,
-    )
 end
 
 runner_override = ""
