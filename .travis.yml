@@ -56,7 +56,7 @@ script:
    - julia -e 'Pkg.clone(pwd())'
    - julia -e 'Pkg.build("BinaryBuilder")'
    - if [ ${TEST_SANDBOX:-false} = true ]; then
-         julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -o /tmp/sandbox sandbox.c`)';
+         julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -std=c99 -o /tmp/sandbox sandbox.c`)';
      fi
    - julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
 
