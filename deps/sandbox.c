@@ -82,6 +82,7 @@ Then run it, mounting in a rootfs with a workspace and a single map:
 #include <linux/reboot.h>
 #include <linux/limits.h>
 #include <getopt.h>
+#include <byteswap.h>
 
 /**** Global Variables ***/
 
