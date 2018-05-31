@@ -97,11 +97,15 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
         # up-arrow to get to the last run command.
         trapped_script = """
         save_history() {
-            history -s "\$BASH_COMMAND"
+            if [[ "$(verbose)" == "true" ]]; then
+                echo " ---> \$BASH_COMMAND" >&2
+            fi
+             history -s "\$BASH_COMMAND"
             history -a
         }
 
         save_env() {
+            set +x
             set > /meta/.env
             # Ignore read-only variables
             for l in BASHOPTS BASH_VERSINFO UID EUID PPID SHELLOPTS; do
@@ -111,11 +115,15 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
             echo "cd \$(pwd)" >> /meta/.env
         }
 
-        # Do this if /meta exists, otherwise we get angry errors
+        # If /meta is mounted, then we want to save history and environment
         if [[ -d /meta ]]; then
             trap save_history DEBUG
             trap save_env INT TERM EXIT ERR
         fi
+
+        # Stop if we hit any errors.
+        set -e
+
         $(dep.script)
         """
 
