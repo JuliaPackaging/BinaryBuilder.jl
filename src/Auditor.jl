@@ -133,7 +133,7 @@ function audit(prefix::Prefix; io=stderr,
         # better with regards to windows, rather than a complicated beast.
         all_dll_files = collect_files(prefix, predicate)
         outside_dll_files = [f for f in all_dll_files if !(f in lib_dll_files)]
-        if isempty(outside_dll_files)
+        if autofix && isempty(outside_dll_files)
             if !silent
                 warn(io, "Simple buildsystem detected; Moving all `.dll` files to `bin`!")
             end
