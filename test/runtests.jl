@@ -357,14 +357,20 @@ end
         end
 
         # Next, test isa of these files
-        isa_sse = BinaryBuilder.analyze_instruction_set(readmeta(locate(main_sse)); verbose=true)
-        @test isa_sse == :core2
+        readmeta(locate(main_sse)) do oh
+            isa_sse = BinaryBuilder.analyze_instruction_set(oh; verbose=true)
+            @test isa_sse == :core2
+        end
 
-        isa_avx = BinaryBuilder.analyze_instruction_set(readmeta(locate(main_avx)); verbose=true)
-        @test isa_avx == :sandybridge
+        readmeta(locate(main_avx)) do oh
+            isa_avx = BinaryBuilder.analyze_instruction_set(oh; verbose=true)
+            @test isa_avx == :sandybridge
+        end
 
-        isa_avx2 = BinaryBuilder.analyze_instruction_set(readmeta(locate(main_avx2)); verbose=true)
-        @test isa_avx2 == :haswell
+        readmeta(locate(main_avx2)) do oh
+            isa_avx2 = BinaryBuilder.analyze_instruction_set(oh; verbose=true)
+            @test isa_avx2 == :haswell
+        end
 
         # Delete the build path
         rm(build_path, recursive = true)

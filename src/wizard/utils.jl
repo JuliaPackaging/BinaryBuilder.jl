@@ -19,6 +19,31 @@ function normalize_name(file::AbstractString)
 end
 
 """
+    filter_object_files(files)
+
+Given a list of files, filter out any that cannot be opened by `readmeta()`
+from `ObjectFile`.
+"""
+function filter_object_files(files)
+    return filter(files) do f
+        try
+            readmeta(f) do oh
+                return true
+            end
+        catch e
+            # If something goes wrong beyond just throwing a MagicMismatch,
+            # then rethrow that error and pass it up
+            if !isa(e, ObjectFile.MagicMismatch)
+                rethrow(e)
+            end
+
+            # If it was just a MagicMismatch, then return false for this file
+            return false
+        end
+    end
+end
+
+"""
     match_files(state::WizardState, prefix::Prefix,
                 platform::Platform, files::Vector; silent::Bool = false)
 
@@ -31,19 +56,17 @@ function match_files(state::WizardState, prefix::Prefix,
                      platform::Platform, files::Vector; silent::Bool = false)
     # Collect all executable/library files
     prefix_files = collapse_symlinks(collect_files(prefix))
+    prefix_files = filter_object_files(prefix_files)
     # Check if we can load them as an object file
     prefix_files = filter(prefix_files) do f
-        try
-            h = readmeta(f)
-            if !is_for_platform(h, platform)
+        readmeta(f) do oh
+            if !is_for_platform(oh, platform)
                 if !silent
                     Compat.@warn(state.outs, "Skipping binary `$f` with incorrect platform")
                 end
                 return false
             end
             return true
-        catch
-            return false
         end
     end
 
