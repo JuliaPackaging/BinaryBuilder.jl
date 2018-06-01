@@ -12,24 +12,27 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
 
     # Collect all executable/library files
     files = collapse_symlinks(collect_files(prefix; exculuded_files=state.dependency_files))
+    files = filter_object_files(files)
 
     # Check if we can load them as an object file
     files = filter(files) do f
-        try
-            h = readmeta(f)
-            is_for_platform(h, platform) || return false
-            return true
-        catch
-            return false
+        readmeta(f) do oh
+            return is_for_platform(oh, platform)
         end
     end
 
     # Strip out the prefix from filenames
     state.files = map(file->replace(file, prefix.path => ""), files)
     state.file_kinds = map(files) do f
-        h = readmeta(f)
-        isexecutable(h) ? :executable :
-        islibrary(h) ? :library : :other
+        readmeta(f) do oh
+            if isexecutable(oh)
+                return :executable
+            elseif islibrary(oh)
+                return :library
+            else
+                return :other
+            end
+        end
     end
 
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)

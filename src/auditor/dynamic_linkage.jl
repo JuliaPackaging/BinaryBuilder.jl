@@ -1,4 +1,5 @@
 using ObjectFile.ELF
+import ObjectFile: rpaths, canonical_rpaths
 
 """
     platform_for_object(oh::ObjectHandle)
@@ -38,6 +39,18 @@ function platform_for_object(oh::ObjectHandle)
         end
     else
         error("Unknown ObjectHandle type!")
+    end
+end
+
+function rpaths(file::AbstractString)
+    readmeta(file) do oh
+        rpaths(RPath(oh))
+    end
+end
+
+function canonical_rpaths(file::AbstractString)
+    readmeta(file) do oh
+        canonical_rpaths(RPath(oh))
     end
 end
 
@@ -198,7 +211,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Compat.Sys.islinux(platform)
         origin = "\$ORIGIN"
-        current_rpaths = [r for r in rpaths(RPath(readmeta(path))) if !isempty(r)]
+        current_rpaths = [r for r in rpaths(path) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
             rpaths = unique(vcat(current_rpaths, joinpath(origin,rp)))
@@ -220,7 +233,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
 
     # If the relative directory doesn't already exist within the RPATH of this
     # binary, then add it in.
-    if !(dirname(new_libpath) in canonical_rpaths(RPath(readmeta(path))))
+    if !(dirname(new_libpath) in canonical_rpaths(path))
         libname = basename(old_libpath)
         logpath = joinpath(logdir(prefix), "update_rpath_$(libname).log")
         cmd = add_rpath(relpath(dirname(new_libpath), dirname(path)))

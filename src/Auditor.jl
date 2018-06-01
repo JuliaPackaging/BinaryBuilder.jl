@@ -62,128 +62,27 @@ function audit(prefix::Prefix; io=stderr,
         end
 
         # Peel this binary file open like a delicious tangerine
-        oh = try
-            h = readmeta(f)
-            if !is_for_platform(h, platform)
-                if verbose
-                    warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+        try
+            readmeta(f) do oh
+                if !is_for_platform(oh, platform)
+                    if verbose
+                        warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                    end
+                else
+                    all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
+                                                    io=io, platform=platform, silent=silent,
+                                                    verbose=verbose, autofix=autofix)
+                    all_ok &= check_isa(oh, prefix; io=io, verbose=verbose, silent=silent)
                 end
-                continue
             end
-            h
-        catch
+        catch e
+            if !isa(e, ObjectFile.MagicMismatch)
+                rethrow(e)
+            end
+
             # If this isn't an actual binary file, skip it
             if verbose
                 info(io, "Skipping binary analysis of $(relpath(f, prefix.path))")
-            end
-            continue
-        end
-
-        # If it's a dynamic binary, check its linkage
-        if isdynamic(oh)
-            rp = RPath(oh)
-
-            if verbose
-                msg = strip("""
-                Checking $(relpath(f, prefix.path)) with RPath list $(rpaths(rp))
-                """)
-                info(io, msg)
-            end
-
-            # Look at every dynamic link, and see if we should do anything about that link...
-            libs = find_libraries(oh)
-            ignored_libraries = String[]
-            for libname in keys(libs)
-                if should_ignore_lib(libname, oh)
-                    push!(ignored_libraries, libname)
-                    continue
-                end
-
-                # If this is a default dynamic link, then just rewrite to use rpath and call it good.
-                if is_default_lib(libname, oh)
-                    relink_to_rpath(prefix, platform, path(oh), libs[libname])
-                    if verbose
-                        info(io, "Rpathify'ing default library $(libname)")
-                    end
-                    continue
-                end
-
-                if !isfile(libs[libname])
-                    # If we couldn't resolve this library, let's try autofixing,
-                    # if we're allowed to by the user
-                    if autofix
-                        # First, is this a library that we already know about?
-                        known_bins = lowercase.(basename.(bin_files))
-                        kidx = findfirst(known_bins .== lowercase(basename(libname)))
-                        if kidx > 0
-                            # If it is, point to that file instead!
-                            new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
-
-                            if verbose
-                                msg = replace("""
-                                Linked library $(libname) has been auto-mapped to
-                                $(new_link)
-                                """, '\n' => ' ')
-                                info(io, strip(msg))
-                            end
-                        else
-                            msg = replace("""
-                            Linked library $(libname) could not be resolved and
-                            could not be auto-mapped
-                            """, '\n' => ' ')
-                            if !silent
-                                warn(io, strip(msg))
-                            end
-                            all_ok = false
-                        end
-                    else
-                        msg = replace("""
-                        Linked library $(libname) could not be resolved within
-                        the given prefix
-                        """, '\n' => ' ')
-                        if !silent
-                            warn(io, strip(msg))
-                        end
-                        all_ok = false
-                    end
-                elseif !startswith(libs[libname], prefix.path)
-                    msg = replace("""
-                    Linked library $(libname) (resolved path $(libs[libname]))
-                    is not within the given prefix
-                    """, '\n' => ' ')
-                    if !silent
-                        warn(io, strip(msg))
-                    end
-                    all_ok = false
-                end
-            end
-
-            if verbose && !isempty(ignored_libraries)
-                info(io, "Ignored system libraries $(join(ignored_libraries, ", "))")
-            end
-        end
-
-        # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
-        if arch(platform_for_object(oh)) in [:x86_64, :i686]
-            instruction_set = analyze_instruction_set(oh; verbose=verbose, io=io)
-            if is64bit(oh) && instruction_set != :core2
-                if !silent
-                    msg = replace("""
-                    Minimum instruction set for $(relpath(f, prefix.path)) is
-                    $(instruction_set), not core2 as desired.
-                    """, '\n' => ' ')
-                    warn(io, strip(msg))
-                end
-                all_ok = false
-            elseif !is64bit(oh) && instruction_set != :pentium4
-                if !silent
-                    msg = replace("""
-                    Minimum instruction set for $(relpath(f, prefix.path)) is
-                    $(instruction_set), not pentium4 as desired.
-                    """, '\n' => ' ')
-                    warn(io, strip(msg))
-                end
-                all_ok = false
             end
         end
     end
@@ -272,6 +171,129 @@ function audit(prefix::Prefix; io=stderr,
 
     return all_ok
 end
+
+function check_isa(oh, prefix;
+                   io::IO = stderr,
+                   verbose::Bool = false,
+                   silent::Bool = false)
+    # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
+    if arch(platform_for_object(oh)) in [:x86_64, :i686]
+        instruction_set = analyze_instruction_set(oh; verbose=verbose, io=io)
+        if is64bit(oh) && instruction_set != :core2
+            if !silent
+                msg = replace("""
+                Minimum instruction set for $(relpath(path(oh), prefix.path)) is
+                $(instruction_set), not core2 as desired.
+                """, '\n' => ' ')
+                warn(io, strip(msg))
+            end
+            return false
+        elseif !is64bit(oh) && instruction_set != :pentium4
+            if !silent
+                msg = replace("""
+                Minimum instruction set for $(relpath(path(oh), prefix.path)) is
+                $(instruction_set), not pentium4 as desired.
+                """, '\n' => ' ')
+                warn(io, strip(msg))
+            end
+            return false
+        end
+    end
+    return true
+end
+
+function check_dynamic_linkage(oh, prefix, bin_files;
+                               io::IO = stderr,
+                               platform::Platform = platform_key(),
+                               verbose::Bool = false,
+                               silent::Bool = false,
+                               autofix::Bool = true)
+    # If it's a dynamic binary, check its linkage
+    if isdynamic(oh)
+        rp = RPath(oh)
+
+        if verbose
+            msg = strip("""
+                        Checking $(relpath(path(oh), prefix.path)) with RPath list $(rpaths(rp))
+            """)
+            info(io, msg)
+        end
+
+        # Look at every dynamic link, and see if we should do anything about that link...
+        libs = find_libraries(oh)
+        ignored_libraries = String[]
+        for libname in keys(libs)
+            if should_ignore_lib(libname, oh)
+                push!(ignored_libraries, libname)
+                continue
+            end
+
+            # If this is a default dynamic link, then just rewrite to use rpath and call it good.
+            if is_default_lib(libname, oh)
+                relink_to_rpath(prefix, platform, path(oh), libs[libname])
+                if verbose
+                    info(io, "Rpathify'ing default library $(libname)")
+                end
+                continue
+            end
+
+            if !isfile(libs[libname])
+                # If we couldn't resolve this library, let's try autofixing,
+                # if we're allowed to by the user
+                if autofix
+                    # First, is this a library that we already know about?
+                    known_bins = lowercase.(basename.(bin_files))
+                    kidx = findfirst(known_bins .== lowercase(basename(libname)))
+                    if kidx > 0
+                        # If it is, point to that file instead!
+                        new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
+
+                        if verbose
+                            msg = replace("""
+                            Linked library $(libname) has been auto-mapped to
+                            $(new_link)
+                            """, '\n' => ' ')
+                            info(io, strip(msg))
+                        end
+                    else
+                        msg = replace("""
+                        Linked library $(libname) could not be resolved and
+                        could not be auto-mapped
+                        """, '\n' => ' ')
+                        if !silent
+                            warn(io, strip(msg))
+                        end
+                        return false
+                    end
+                else
+                    msg = replace("""
+                    Linked library $(libname) could not be resolved within
+                    the given prefix
+                    """, '\n' => ' ')
+                    if !silent
+                        warn(io, strip(msg))
+                    end
+                    return false
+                end
+            elseif !startswith(libs[libname], prefix.path)
+                msg = replace("""
+                Linked library $(libname) (resolved path $(libs[libname]))
+                is not within the given prefix
+                """, '\n' => ' ')
+                if !silent
+                    warn(io, strip(msg))
+                end
+                return false
+            end
+        end
+
+        if verbose && !isempty(ignored_libraries)
+            info(io, "Ignored system libraries $(join(ignored_libraries, ", "))")
+        end
+    end
+    return true
+end
+
 
 """
     collect_files(path::AbstractString, predicate::Function = f -> true)
