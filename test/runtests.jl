@@ -272,7 +272,7 @@ end
             [], # fake ARGS
             "libfoo",
             sources,
-            "cd libfoo\n$libfoo_script",
+            libfoo_script,
             [Linux(:x86_64, :glibc)],
             libfoo_products,
             [], # no dependencies
