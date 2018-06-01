@@ -1,6 +1,6 @@
 julia 0.6
 BinaryProvider 0.2.0
-ObjectFile
+ObjectFile 0.2.0
 Compat 0.55.0
 Reexport
 TerminalMenus
