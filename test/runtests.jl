@@ -264,14 +264,10 @@ end
         libfoo_dir = joinpath(@__DIR__, "build_tests", "libfoo")
         run(`cp -r $(libfoo_dir)/$(readdir(libfoo_dir)) $local_dir_path`)
 
-        sources = [
-            local_dir_path
-        ]
-
         build_tarballs(
             [], # fake ARGS
             "libfoo",
-            sources,
+            [local_dir_path],
             libfoo_script,
             [Linux(:x86_64, :glibc)],
             libfoo_products,
@@ -281,7 +277,6 @@ end
         # Make sure that worked
         @test isfile("products/libfoo.x86_64-linux-gnu.tar.gz")
         @test isfile("products/build.jl")
-
     end
 end
 
@@ -383,18 +378,25 @@ end
         mkpath(build_path)
         dll_platform = Windows(:x86_64)
         prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], dll_platform)
+        cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
+            run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
-        libfoo = LibraryProduct(prefix, "libfoo", :libfoo)
-        mkpath(joinpath(prefix, "lib"))
+            # First, build libfoo, but with a dumb script that doesn't know to put .dll files in bin
+            dumb_script = """
+            /usr/bin/make clean
+            /usr/bin/make install libdir=\$prefix/lib
+            """
+            dep = Dependency("foo", libfoo_products(prefix), libfoo_script, dll_platform, prefix)
 
-        # Create a fake `.dll` file in `lib/`
-        libfoo_path = joinpath(prefix, "lib", "libfoo.dll")
-        touch(libfoo_path)
-        chmod(libfoo_path, 0777)
+            @test build(ur, dep; autofix=false)
+        end
 
+        # Test that libfoo puts its .dll's into lib, even on windows:
+        @test !isfile(joinpath(prefix, "bin", "libfoo.dll"))
+        @test isfile(joinpath(prefix, "lib", "libfoo.dll"))
+
+        # Test that `audit()` moves it to `bin`.
         BinaryBuilder.audit(prefix; platform=dll_platform, verbose=true, autofix=true)
-
-        # Test that `audit()` has moved it to `bin`.
         @test isfile(joinpath(prefix, "bin", "libfoo.dll"))
         @test !isfile(joinpath(prefix, "lib", "libfoo.dll"))
     end

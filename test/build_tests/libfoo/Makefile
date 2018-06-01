@@ -12,7 +12,7 @@ INSTALL_NAME ?= -install_name '@rpath/libfoo.$(SHLIB_EXT)'
 SHLIB_EXT ?= dylib
 RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
 else ifneq ($(findstring MSYS,$(shell uname)),)
-libdir = $(bindir)
+libdir ?= $(bindir)
 SHLIB_EXT ?= dll
 EXE_EXT ?= .exe
 else
