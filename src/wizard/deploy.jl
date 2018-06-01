@@ -297,8 +297,13 @@ function common_git_repo_setup(repo_dir, repo, state)
         break
     end
 
+    # Check for global ~/.gitconfig and repo-local git config settings
+    cfg = LibGit2.GitConfig(LibGit2.Consts.CONFIG_LEVEL_GLOBAL)
+
     # check to see if the user has already setup git config settings
-    if (LibGit2.getconfig(repo, "user.name", nothing) == nothing) ||
+    if (LibGit2.get(cfg, "user.name", nothing) == nothing ||
+        LibGit2.get(cfg, "user.email", nothing) == nothing) &&
+        (LibGit2.getconfig(repo, "user.name", nothing) == nothing) ||
         (LibGit2.getconfig(repo, "user.email", nothing) == nothing)
         # If they haven't, prompt them to make a global one, and then actually
         # make a repository-local config right now.
