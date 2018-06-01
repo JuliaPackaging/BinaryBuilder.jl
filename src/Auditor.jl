@@ -7,6 +7,8 @@ include("auditor/symlink_translator.jl")
 # AUDITOR TODO LIST:
 #
 # * Auto-determine minimum glibc version (to sate our own curiosity)
+# * Build dlopen() clone that inspects and tries to figure out why
+#   something can't be opened.  Possibly use that within BinaryProvider too?
 
 """
     audit(prefix::Prefix; platform::Platform = platform_key();
