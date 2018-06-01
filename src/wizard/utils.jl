@@ -31,13 +31,18 @@ function filter_object_files(files)
                 return true
             end
         catch e
-            # If something goes wrong beyond just throwing a MagicMismatch,
-            # then rethrow that error and pass it up
-            if !isa(e, ObjectFile.MagicMismatch)
-                rethrow(e)
+            # If it was just a MagicMismatch, then return false for this file
+            if isa(e, ObjectFile.MagicMismatch)
+                return false
             end
 
-            # If it was just a MagicMismatch, then return false for this file
+            # If it was an EOFError (e.g. this was an empty file) then return false
+            if isa(e, EOFError)
+                return false
+            end
+
+            # If something else wrong then rethrow that error and pass it up
+            rethrow(e)
             return false
         end
     end
