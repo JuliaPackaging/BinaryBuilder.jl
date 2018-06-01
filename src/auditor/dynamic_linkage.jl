@@ -11,23 +11,26 @@ between different libc's such as `:glibc` and `:musl`.
 """
 function platform_for_object(oh::ObjectHandle)
     if oh isa ELFHandle
-        if !(oh.ei.osabi == ELF.ELFOSABI_LINUX ||
-             oh.ei.osabi == ELF.ELFOSABI_NONE)
-            error("We do not support non-Linux ELF files")
-        end
+        mach_to_arch = Dict(
+            ELF.EM_386 => :i686,
+            ELF.EM_X86_64 => :x86_64,
+            ELF.EM_AARCH64 => :aarch64,
+            ELF.EM_PPC64 => :powerpc64le,
+            ELF.EM_ARM => :armv7l,
+        )
         mach = oh.header.e_machine
-        if mach == ELF.EM_386
-            return Linux(:i686)
-        elseif mach == ELF.EM_X86_64
-            return Linux(:x86_64)
-        elseif mach == ELF.EM_AARCH64
-            return Linux(:aarch64)
-        elseif mach == ELF.EM_PPC64
-            return Linux(:powerpc64le)
-        elseif mach == ELF.EM_ARM
-            return Linux(:armv7l)
+        if !haskey(mach_to_arch, mach)
+            error("Unknown ELF architecture $(mach)")
+        end
+
+        arch = mach_to_arch[mach]
+
+        if oh.ei.osabi == ELF.ELFOSABI_LINUX || oh.ei.osabi == ELF.ELFOSABI_NONE
+            return Linux(arch)
+        elseif oh.ei.osabi == ELF.ELFOSABI_FREEBSD
+            return FreeBSD(arch)
         else
-            error("Unknown ELF arch $(mach)")
+            error("Unknown ELF OSABI $(oh.ei.osabi)")
         end
     elseif oh isa MachOHandle
         return MacOS()
@@ -38,7 +41,7 @@ function platform_for_object(oh::ObjectHandle)
             return Windows(:i686)
         end
     else
-        error("Unknown ObjectHandle type!")
+        error("Unknown ObjectHandle type $(typeof(oh))")
     end
 end
 
@@ -65,40 +68,61 @@ In particular, this method and `platform_for_object()` both exist because
 the latter is not smart enough to deal with `:glibc` and `:musl` yet.
 """
 function is_for_platform(h::ObjectHandle, platform::Platform)
-    if platform isa Linux
-        h isa ELFHandle || return false
-        (h.ei.osabi == ELF.ELFOSABI_LINUX ||
-         h.ei.osabi == ELF.ELFOSABI_NONE) || return false
-        mach = h.header.e_machine
+    if platform isa Linux || platform isa FreeBSD
+        # First off, if h isn't an ELF object, quit out
+        if !(h isa ELFHandle)
+            return false
+        end
+        # If the ELF object has an OSABI, check it matches platform
+        if h.ei.osabi != ELF.ELF.ELFOSABI_NONE
+            if platform isa Linux
+                if h.ei.osabi != ELF.ELFOSABI_LINUX
+                    return false
+                end
+            elseif platform isa FreeBSD
+                if h.ei.osabi != ELF.ELFOSABI_FREEBSD
+                    return false
+                end
+            else
+                error("Unknown OS ABI type $(typeof(platform))")
+            end
+        end
+        # Check that the ELF arch matches our own
+        m = h.header.e_machine
         if platform.arch == :i686
-            return mach == ELF.EM_386
+            return m == ELF.EM_386
         elseif platform.arch == :x86_64
-            # Allow i686 as well, because that's technically ok
-            return (
-                mach == ELF.EM_386 ||
-                mach == ELF.EM_X86_64)
+            # Allow i686 on x86_64, because that's technically ok
+            return m == ELF.EM_386 || m == ELF.EM_X86_64
         elseif platform.arch == :aarch64
-            return mach == ELF.EM_AARCH64
-        elseif platform.arch == :powerpc64le || platform.arch == :ppc64le
-            return mach == ELF.EM_PPC64
+            return m == ELF.EM_AARCH64
+        elseif platform.arch == :powerpc64le
+            return m == ELF.EM_PPC64
         elseif platform.arch == :armv7l
-            return mach == ELF.EM_ARM
+            return m == ELF.EM_ARM
         else
-            error("Unknown architecture")
+            error("Unknown $(typeof(platform)) architecture $(platform.arch)")
         end
     elseif platform isa Windows
+        if !(h isa COFFHandle)
+            return false
+        end
+
         if platform.arch == :x86_64
-            return h isa COFFHandle
+            return true
         elseif platform.arch == :i686
-            return h isa COFFHandle && !is64bit(h)
+            return !is64bit(h)
         else
-            error("Unknown architecture")
+            error("Unknown $(typeof(platform)) architecture $(platform.arch)")
         end
     elseif platform isa MacOS
-        h isa MachOHandle || return false
+        # We'll take any old Mach-O handle
+        if !(h isa MachOHandle)
+            return false
+        end
         return true
     else
-        error("Unkown platform")
+        error("Unkown platform $(typeof(platform))")
     end
 end
 
