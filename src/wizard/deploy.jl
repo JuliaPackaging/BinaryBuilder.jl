@@ -234,7 +234,7 @@ function obtain_token(outs, ins, repo_name, user)
         if resp.status != 200
             GitHub.handle_response_error(resp)
         end
-        return JSON.parse(HTTP.payload(resp))["token"]
+        return JSON.parse(HTTP.payload(resp, String))["token"]
     end
 end
 
