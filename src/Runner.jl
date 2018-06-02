@@ -75,9 +75,11 @@ function target_envs(target::AbstractString)
         # We like to be able to get at our .bash_history afterwards. :)
         "HISTFILE"=>"/meta/.bash_history",
 
-        # Autotools really appreciates being able to build stuff for the
-        # host system, so we set this to ease its woes
+        # There is no broad agreement of what this should be called,
+        # so we set all the environment variables that we've seen it called as:
         "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
+        "BUILD_CC"     => "/opt/x86_64-linux-gnu/bin/gcc",
+        "HOSTCC"       => "/opt/x86_64-linux-gnu/bin/gcc",
     )
 
     # If we're on MacOS or FreeBSD, we default to LLVM tools instead of GCC.
