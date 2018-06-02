@@ -52,13 +52,12 @@ struct Dependency
 end
 
 """
-    satisfied(dep::Dependency; platform::Platform = platform_key(),
-                               verbose::Bool = false)
+    satisfied(dep::Dependency; verbose::Bool = false, isolate::Bool = true)
 
 Return true if all results are satisfied for this dependency.
 """
-function satisfied(dep::Dependency; verbose::Bool = false)
-    s = result -> satisfied(result; verbose=verbose, platform=dep.platform)
+function satisfied(dep::Dependency; verbose::Bool = false, isolate::Bool = true)
+    s = result -> satisfied(result; verbose=verbose, platform=dep.platform, isolate=isolate)
     return all(s(result) for result in dep.results)
 end
 
@@ -79,7 +78,7 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
                autofix::Bool = false, ignore_audit_errors::Bool = true,
                ignore_manifests::Vector = [], debug::Bool = false)
     # First, look to see whether this dependency is satisfied or not
-    should_build = !satisfied(dep)
+    should_build = !satisfied(dep; isolate=true)
 
     # If it is not satisfied, (or we're forcing the issue) build it
     if force || should_build
@@ -152,7 +151,7 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
         end
 
         # Finally, check to see if we are now satisfied
-        if !satisfied(dep; verbose=verbose)
+        if !satisfied(dep; verbose=verbose, isolate=true)
             if verbose
                 Compat.@warn("Built $(dep.name) but still unsatisfied!")
             end
