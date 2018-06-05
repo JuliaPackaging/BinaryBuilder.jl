@@ -257,10 +257,11 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
 
     # If the relative directory doesn't already exist within the RPATH of this
     # binary, then add it in.
-    if !(dirname(new_libpath) in canonical_rpaths(path))
+    new_libdir = abspath(dirname(new_libpath) * "/")
+    if !(new_libdir in canonical_rpaths(path))
         libname = basename(old_libpath)
         logpath = joinpath(logdir(prefix), "update_rpath_$(libname).log")
-        cmd = add_rpath(relpath(dirname(new_libpath), dirname(path)))
+        cmd = add_rpath(relpath(new_libdir, dirname(path)))
         run(ur, cmd, logpath; verbose=verbose)
     end
 
