@@ -197,11 +197,12 @@ function rewrite_squashfs_uids(path, new_uid)
        p = position(file)
        uid = read(file, UInt32)
        if uid != 0
-          error("Expected all uids to be 0 inside the image")
+           error("Expected all uids to be 0 (not $(uid)) inside the image")
        end
        seek(file, p)
        write(file, UInt32(new_uid))
     end
+    return nothing
 end
 
 """
