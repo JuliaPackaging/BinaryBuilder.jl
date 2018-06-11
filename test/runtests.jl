@@ -69,6 +69,12 @@ end
         @test BinaryBuilder.target_proc_family(t) == "arm"
     end
     @test BinaryBuilder.target_proc_family("powerpc64le-linux-gnu") == "power"
+
+    for t in ["aarch64-linux-gnu", "x86_64-unknown-freebsd11.1"]
+        @test BinaryBuilder.target_dlext(t) == "so"
+    end
+    @test BinaryBuilder.target_dlext("x86_64-apple-darwin14") == "dylib"
+    @test BinaryBuilder.target_dlext("i686-w64-mingw32") == "dll"
 end
 
 @testset "UserNS utilities" begin

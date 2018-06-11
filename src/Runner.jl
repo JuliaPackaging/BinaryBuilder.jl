@@ -18,6 +18,16 @@ function target_proc_family(target::AbstractString)
     end
 end
 
+function target_dlext(target::AbstractString)
+    if endswith(target, "-mingw32")
+        return "dll"
+    elseif contains(target, "-apple-")
+        return "dylib"
+    else
+        return "so"
+    end
+end
+
 """
     target_envs(target::String)
 
@@ -66,6 +76,7 @@ function target_envs(target::AbstractString)
         "nproc" => "$(Sys.CPU_CORES)",
         "nbits" => target_nbits(target),
         "proc_family" => target_proc_family(target),
+        "dlext" => target_dlext(target),
         "TERM" => "screen",
 
         # We should always be looking for packages already in the prefix
