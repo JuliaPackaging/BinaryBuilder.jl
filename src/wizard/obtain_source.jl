@@ -72,7 +72,7 @@ exact commit used to build the code, in the case of a tarball, it is the
 function download_source(state::WizardState)
     # First, ask the user where this is all coming from
     msg = replace(strip("""
-    Please enter a URL (git repository or gzipped tarball) containing the
+    Please enter a URL (git repository or compressed archive) containing the
     source code to build:
     """), "\n" => " ")
     print(state.outs, msg, "\n> ")
