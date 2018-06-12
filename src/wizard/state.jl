@@ -21,6 +21,7 @@ mutable struct WizardState
     step::Symbol
     ins::IO
     outs::IO
+    global_git_cfg::LibGit2.GitConfig
     # Filled in by step 1
     platforms::Union{Nothing, Vector{P}} where {P <: Platform}
     # Filled in by step 2
@@ -44,13 +45,17 @@ mutable struct WizardState
     validated_platforms::Set{Any}
     # Filled in by step 7
     name::Union{Nothing, String}
+    github_api::GitHub.GitHubAPI
+    travis_endpoint::String
 end
 
+const DEFAULT_TRAVIS_ENDPOINT = "https://api.travis-ci.org/"
 function WizardState()
     WizardState(
         :step1,
         stdin,
         stdout,
+        LibGit2.GitConfig(),
         nothing,
         nothing,
         nothing,
@@ -65,7 +70,9 @@ function WizardState()
         Set{Any}(),
         Set{Any}(),
         Set{Any}(),
-        nothing
+        nothing,
+        GitHub.DEFAULT_API,
+        DEFAULT_TRAVIS_ENDPOINT
     )
 end
 
