@@ -268,10 +268,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 if mount && Compat.Sys.islinux()
                     # Unmount the mountpoint. It may point to a previous version
                     # of the file. Also, we're about to mess with it
-                    if success(`mountpoint $(dest_dir)`)
-                        Compat.@info("Unmounting $(dest_dir)")
-                        run(`$(sudo_cmd()) umount $(dest_dir)`)
-                    end
+                    unmount_shard(dest_dir)
 
                     # Patch squashfs files for current uid
                     rewrite_squashfs_uids(squashfs_path, getuid())
@@ -290,10 +287,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             end
         else
             # If it has been mounted previously, unmount here
-            if Compat.Sys.islinux() && success(`mountpoint $(dest_dir)`)
-                Compat.@info("Unmounting $(dest_dir)`")
-                run(`$(sudo_cmd()) umount $(dest_dir)`)
-            end
+            unmount_shard(dest_dir)
 
              # If tarball, verify/redownload/reunpack the tarball
             download_verify_unpack(
@@ -315,6 +309,35 @@ end
 
 # Helper for when you're only asking for a single triplet
 update_rootfs(triplet::AbstractString; kwargs...) = update_rootfs([triplet]; kwargs...)
+
+# Helper to unmount any shards that may be mounted, so as not to exhaust the number of loopback devices
+function unmount_shard(dest_dir::AbstractString)
+    # This function only matters on Linux
+    @static if !Compat.Sys.islinux()
+        return
+    end
+
+    if success(`mountpoint $(dest_dir)`)
+        Compat.@info("Unmounting $(dest_dir)`")
+        run(`$(sudo_cmd()) umount $(dest_dir)`)
+    end
+    return
+end
+
+function unmount_all_shards()
+    # This function only matters on Linux
+    @static if !Compat.Sys.islinux()
+        return
+    end
+
+    dest_dirs = shards_dir.(triplet.(supported_platforms()))
+    push!(dest_dirs, rootfs_dir())
+
+    for dest_dir in dest_dirs
+        unmount_shard(dest_dir)
+    end
+    return
+end
 
 """
     download_osx_sdk(;automatic::Bool = automatic_apple, verbose::Bool = false,
