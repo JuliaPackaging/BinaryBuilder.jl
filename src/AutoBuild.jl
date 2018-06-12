@@ -338,7 +338,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             end
 
             # Clean up this particular shard, so as not to run out of loopback devices
-            unmount_shard(triplet(platform))
+            unmount_shard(shards_dir(triplet(platform)))
         end
     end
 
