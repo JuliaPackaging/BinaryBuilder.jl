@@ -285,11 +285,11 @@ function common_git_repo_setup(repo_dir, repo, state)
         lic = readline(state.ins)
         isempty(lic) && (lic = "MIT")
         license_text = try
-            PkgDev.readlicense(lic)
+            PkgLicenses.readlicense(lic)
         catch
             printstyled("License $lic is not available.", color=:red)
             println("Available licenses are:")
-            foreach(PkgDev.LICENSES) do lic
+            foreach(PkgLicenses.LICENSES) do lic
                 println("- $(lic[1])")
             end
             continue
@@ -384,11 +384,15 @@ end
 
 function get_github_user(outs, ins)
     # Get user name
-    user = try
-        PkgDev.GitHub.user()
-    catch
+    user = LibGit2.getconfig("github.user", "")
+    if isempty(user)
+        println(state.outs, """
+        GitHub username not globally configured. You will have to enter your
+        GitHub username below. To avoid this prompt in the future, set your
+        GitHub username using `git config --global github.user <username>`.
+        """)
         print(outs, "GitHub user name: ")
-        readline(ins)
+        user = readline(ins)
     end
     user
 end
@@ -441,7 +445,7 @@ function github_deploy(state::WizardState)
             """)
         end
         # Create the GitHub repository
-        gr = GitHub.create_repo(GitHub.Owner(PkgDev.GitHub.user()),
+        gr = GitHub.create_repo(GitHub.Owner(user),
                 github_name; auth=auth)
         # Push the empty commit
         LibGit2.push(repo, remoteurl="https://github.com/$(user)/$(github_name).git",

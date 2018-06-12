@@ -4,7 +4,7 @@ using Compat.REPL.Terminals
 using TerminalMenus
 using ObjectFile.ELF
 using HTTP
-import PkgDev
+import PkgLicenses
 using JSON
 using MbedTLS
 
