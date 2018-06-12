@@ -336,8 +336,14 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
             if isempty(readdir(build_path))
                 rm(build_path; recursive=true)
             end
+
+            # Clean up this particular shard, so as not to run out of loopback devices
+            unmount_shard(triplet(platform))
         end
     end
+
+    # At the end of all things, unmount all our shards so as to play nice with others
+    unmount_all_shards()
 
     if haskey(ENV, "TRAVIS") && !verbose
         run_travis_busytask = false
