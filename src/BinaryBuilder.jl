@@ -158,6 +158,7 @@ function versioninfo()
         "QEMU_DIR",
         "RUNNER",
         "ALLOW_ECRYPTFS",
+        "USE_CCACHE",
     ]
     for e in env_var_suffixes
         envvar = "BINARYBUILDER_$(e)"
