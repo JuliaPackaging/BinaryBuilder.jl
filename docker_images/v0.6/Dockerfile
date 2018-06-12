@@ -3,6 +3,9 @@ FROM julia:0.6
 # Install tools which get used by BinaryBuilder.
 RUN apt-get update && apt-get install -y xz-utils
 
+RUN cd /usr/local/bin && \
+    curl -L 'https://github.com/tcnksm/ghr/releases/download/v0.10.0/ghr_v0.10.0_linux_amd64.tar.gz' -o- | tar -zx --strip-components=1
+
 # Set useful envvars
 ENV BINARYBUILDER_USE_SQUASHFS true
 ENV BINARYBUILDER_DOWNLOADS_CACHE /shards
