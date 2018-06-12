@@ -159,7 +159,7 @@ function authenticate_travis(github_token; travis_endpoint=DEFAULT_TRAVIS_ENDPOI
         body=JSON.json(Dict(
             "github_token" => github_token
         )), headers = travis_headers)
-    JSON.parse(HTTP.load(resp))["access_token"]
+    JSON.parse(HTTP.payload(resp, String))["access_token"]
 end
 
 function sync_and_wait_travis(outs, repo_name, travis_token; travis_endpoint=DEFAULT_TRAVIS_ENDPOINT)
@@ -176,7 +176,7 @@ function sync_and_wait_travis(outs, repo_name, travis_token; travis_endpoint=DEF
             println(outs, "Done waiting")
             # Let's sleep another 5 seconds - Sometimes there's still a race here
             sleep(5.0)
-            return JSON.parse(HTTP.load(resp))["repo"]["id"]
+            return JSON.parse(HTTP.payload(resp, String))["repo"]["id"]
         end
         println(outs, "Still Waiting..."); sleep(5.0)
     end
@@ -368,7 +368,7 @@ function obtain_secure_key(outs, token, gr; travis_endpoint=DEFAULT_TRAVIS_ENDPO
     repo_id = sync_and_wait_travis(outs, GitHub.name(gr), travis_token; travis_endpoint=travis_endpoint)
     activate_travis_repo(repo_id, travis_token; travis_endpoint=travis_endpoint)
     # Obtain the appropriate encryption key from travis
-    key = JSON.parse(HTTP.load(HTTP.get("$(travis_endpoint)repos/$(GitHub.name(gr))/key")))["key"]
+    key = JSON.parse(HTTP.payload(HTTP.get("$(travis_endpoint)repos/$(GitHub.name(gr))/key"), String))["key"]
     pk_ctx = MbedTLS.PKContext()
     # Some older repositories have keys starting with "BEGIN RSA PUBLIC KEY"
     # which would indicate that they are in PKCS#1 format. However, they are
