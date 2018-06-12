@@ -1,8 +1,10 @@
-if Compat.Sys.islinux()
-
 using VT100
 using BinaryBuilder
+using GitHub
+using Compat
 using Compat.Test
+
+if Compat.Sys.islinux()
 
 # Create fake terminal to communicate with BinaryBuilder over
 pty = VT100.create_pty(false)
@@ -72,9 +74,6 @@ let state = BinaryBuilder.WizardState(ins, outs)
     # Wait for that step to complete
     wait(t)
 end
-
-# We're done with the server
-put!(server.in, HTTP.Servers.KILL)
 
 # Package up libfoo and dump a tarball in /tmp
 tempspace = tempname()
@@ -205,9 +204,140 @@ let state = BinaryBuilder.WizardState(ins, outs)
     wait(t)
 end
 
-rm(tempspace; force=true, recursive=true)
-
+struct GitHubSimulator <: GitHub.GitHubAPI
 end
+
+function GitHub.gh_post(g::GitHubSimulator, endpoint; auth = nothing, headers = Dict(), kwargs...)
+    if endpoint == "/authorizations"
+        @test isa(auth, GitHub.UsernamePassAuth)
+        @test auth.username == "TestUser"
+        @test auth.password == "test"
+        # Simulate 2FA enabled
+        if !haskey(headers, "X-GitHub-OTP")
+            return HTTP.Response(401, Dict("X-GitHub-OTP"=>"required"))
+        else
+            return HTTP.Response(200; body=Vector{UInt8}("""
+            {
+              "id": 1,
+              "url": "https://api.github.com/authorizations/1",
+              "scopes": [
+                "public_repo"
+              ],
+              "token": "abcdefgh12345678",
+              "token_last_eight": "12345678",
+              "hashed_token": "25f94a2a5c7fbaf499c665bc73d67c1c87e496da8985131633ee0a95819db2e8",
+              "app": {
+                "url": "http://my-github-app.com",
+                "name": "my github app",
+                "client_id": "abcde12345fghij67890"
+              },
+              "note": "optional note",
+              "note_url": "http://optional/note/url",
+              "updated_at": "2011-09-06T20:39:23Z",
+              "created_at": "2011-09-06T17:26:27Z",
+              "fingerprint": ""
+            }
+            """))
+        end
+    else
+        error()
+    end
+end
+
+push_counter = 0
+create_repo_counter = 0
+function BinaryBuilder.push_repo(g::GitHubSimulator, args...)
+    global push_counter += 1
+end
+function GitHub.create_repo(api::GitHubSimulator, owner, name::String, params=Dict{String,Any}(); kwargs...)
+    global create_repo_counter += 1
+    GitHub.Repo("TestUser/TestRepo")
+end
+
+function emulate_travis(req)
+    if req.target == "/travis/auth/github"
+        HTTP.Response(200; body=Vector{UInt8}("""
+        {"access_token":"some_token"}
+        """))
+    elseif req.target == "/travis/users/sync"
+        HTTP.Response(200)
+    elseif req.target == "/travis/repos/TestUser/TestRepo"
+        HTTP.Response(200; body=Vector{UInt8}("""
+        {
+          "repo": {
+            "id": 1,
+            "slug": "TestUser/TestRepo",
+            "description": "Whatever",
+            "last_build_id": 23436881,
+            "last_build_number": "792",
+            "last_build_state": "passed",
+            "last_build_duration": 2542,
+            "last_build_started_at": "2014-04-21T15:27:14Z",
+            "last_build_finished_at": "2014-04-21T15:40:04Z",
+            "active": "true"
+          }
+        }
+        """))
+    elseif req.target == "/travis/repo/1/activate"
+        HTTP.Response(200)
+    elseif req.target == "/travis/repos/TestUser/TestRepo/key"
+        HTTP.Response(200; body=Vector{UInt8}("""
+        {"key":"-----BEGIN PUBLIC KEY-----\\n"""*
+        "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA88f8L8L5XhApAf0WC3VQ\\n"*
+        "AdA2x6ZBB6flQ7/xbhFOIHgK2zX+GT1kvr5BrrKjscD1/pNm13LMXeBD/R+PlcTo\\n"*
+        "hAJYAxbeniTD//Zkx6mocCmqkNjpp7N6i1HOmls/vWvs3c4ZrZpy9hWk70MOH1j3\\n"*
+        "VXxDuugfWkTiq6GExLrTRaVLe0qagL0goIHSTdpJbyWxOct3+W8bv8v/scwqmnQf\\n"*
+        "ecjGYRjEqAXWYQLTJ+VY2zRGcksESztykfgA9Hj/CH0Jh5wE43hUXa61CEdseQ7P\\n"*
+        "QtMX8OPzcu2QWOoSHHnv6Q0Tte7xc+TKG3h3KC2DW/x2qog5RsXMh2UJXsLG+iDv\\n"*
+        "tYidlyekxcmldbpNm7169CnjRa3Kq55vIwtRiMPTcLbrMwzi1aJWOBVPthfDTu//\\n"*
+        "6HM3ajzZIo6xmg5lddBB09jsY5uoqdu5ddKAo9Wkeqn/gYzQrHyc7jvLMDo7RPFp\\n"*
+        "ZnY8u2tWFYK/O1LonqJY3Oyf4ZS2aKDTciVoNSBIqJzAgC2LF1E8WEBMcmFy4xeB\\n"*
+        "4Ke2j6bF+szTnKbcRTHhu9AvSkDdWxN3JFolGNHYnIHD0jNlc3rlTSkQfzCFgP3U\\n"*
+        "9RQRgz6ix3lP608gL0j64GuSFuIqulmn9UiKgf8J8eV9FLybbZ1WayBe8Bbfbh3c\\n"*
+        "y7a79CxhXJ0WJxO5pQijKXkCAwEAAQ==\\n"*
+        """-----END PUBLIC KEY-----\\n",
+        "fingerprint":"e3:5c:d0:0d:d8:00:bb:6d:fb:c2:e7:9b:59:9f:91:50"}
+        """))
+    else
+        error()
+    end
+end
+HTTP.register!(r, "/travis/*", HTTP.HandlerFunction(emulate_travis))
+
+# Test GitHub Deploy
+let state = BinaryBuilder.WizardState(ins, outs)
+    state.step = :step7
+    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
+    state.source_files = [joinpath(tempspace, "source.tar.gz")]
+    state.source_hashes = [bytes2hex(tar_hash)]
+    state.global_git_cfg = LibGit2.GitConfig(joinpath(tempspace, ".gitconfig"))
+    state.github_api = GitHubSimulator()
+    state.files = String[]
+    state.file_kinds = Symbol[]
+    state.file_varnames = Symbol[]
+    state.travis_endpoint = "http://127.0.0.1:14444/travis/"
+    LibGit2.set!(state.global_git_cfg, "github.user", "TestUser")
+    t = @async BinaryBuilder.github_deploy(state)
+    readuntil(pty.master, "Enter the desired name for the new repository: ")
+    write(pty.master, "TestRepo\n")
+    readuntil(pty.master, "Please enter the github.com password for TestUser:")
+    write(pty.master, "test\n")
+    readuntil(pty.master, "Two factor authentication in use.  Enter auth code.")
+    write(pty.master, "12345\n")
+    readuntil(pty.master, "Enter your desired license [MIT]: ")
+    write(pty.master, "\n")
+    readuntil(pty.master, "Enter your name:")
+    write(pty.master, "Test User\ntest@user.email\n")
+    readuntil(pty.master, "Deployment Complete")
+end
+
+
+# We're done with the server
+put!(server.in, HTTP.Servers.KILL)
+
+end #if
+
+rm(tempspace; force=true, recursive=true)
 
 # Make sure canonicalization does what we expect
 zmq_url = "https://github.com/zeromq/zeromq3-x/releases/download/v3.2.5/zeromq-3.2.5.tar.gz"

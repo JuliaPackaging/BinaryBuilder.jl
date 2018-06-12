@@ -154,41 +154,41 @@ const travis_headers = Dict(
     "User-Agent" => "Travis-WHY-YOU-HAVE-BAD-DOCS (https://github.com/travis-ci/travis-ci/issues/5649)"
 )
 
-function authenticate_travis(github_token)
-    resp = HTTP.post("https://api.travis-ci.org/auth/github",
+function authenticate_travis(github_token; travis_endpoint=DEFAULT_TRAVIS_ENDPOINT)
+    resp = HTTP.post("$(travis_endpoint)auth/github",
         body=JSON.json(Dict(
             "github_token" => github_token
         )), headers = travis_headers)
     JSON.parse(HTTP.load(resp))["access_token"]
 end
 
-function sync_and_wait_travis(outs, repo_name, travis_token)
+function sync_and_wait_travis(outs, repo_name, travis_token; travis_endpoint=DEFAULT_TRAVIS_ENDPOINT)
     println(outs, "Asking travis to sync github and waiting until it knows about our new repo.")
     println(outs, "This may take a few seconds (or minutes, depending on Travis' mood)")
     headers = merge!(Dict("Authorization"=>"token $travis_token"),travis_headers)
-    resp = HTTP.post("https://api.travis-ci.org/users/sync"; headers=headers, status_exception=false)
+    resp = HTTP.post("$(travis_endpoint)users/sync"; headers=headers, status_exception=false)
     if resp.status != 200 && resp.status != 409
         error("Failed to sync travis (got status $(resp.status))")
     end
     while true
-        resp = HTTP.get("https://api.travis-ci.org/repos/$(repo_name)"; headers=headers, status_exception=false)
+        resp = HTTP.get("$(travis_endpoint)repos/$(repo_name)"; headers=headers, status_exception=false)
         if resp.status == 200
-            println("Done waiting")
+            println(outs, "Done waiting")
             # Let's sleep another 5 seconds - Sometimes there's still a race here
             sleep(5.0)
             return JSON.parse(HTTP.load(resp))["repo"]["id"]
         end
-        println("Still Waiting..."); sleep(5.0)
+        println(outs, "Still Waiting..."); sleep(5.0)
     end
 end
 
-function activate_travis_repo(repo_id, travis_token)
+function activate_travis_repo(repo_id, travis_token; travis_endpoint=DEFAULT_TRAVIS_ENDPOINT)
     headers = merge!(Dict("Authorization"=>"token $travis_token",
                           "Travis-API-Version"=>3))
-    HTTP.post("https://api.travis-ci.org/repo/$(repo_id)/activate"; headers=headers)
+    HTTP.post("$(travis_endpoint)repo/$(repo_id)/activate"; headers=headers)
 end
 
-function obtain_token(outs, ins, repo_name, user)
+function obtain_token(outs, ins, repo_name, user; github_api=Github.DEFAULT_API)
     println(outs)
     printstyled("Creating a github access token.\n", bold=true)
     println(outs, """
@@ -217,15 +217,18 @@ function obtain_token(outs, ins, repo_name, user)
         end
         println(outs)
         headers = Dict{String, String}("User-Agent"=>"BinaryBuilder-jl")
-        resp = HTTP.post("https://$(HTTP.escapeuri(user)):$(HTTP.escapeuri(pass))@api.github.com/authorizations", headers=headers,
-                         body=JSON.json(params), status_exception=false, basic_authorization=true)
+        auth = GitHub.UsernamePassAuth(user, pass)
+        resp = GitHub.gh_post(github_api, "/authorizations",
+            headers=headers, params=params, handle_error=false,
+            auth = auth)
         if resp.status == 401 && startswith(strip(HTTP.getkv(resp.headers, "X-GitHub-OTP", "")), "required")
             println(outs, "Two factor authentication in use.  Enter auth code.")
             print(outs, "> ")
             otp_code = readline(ins)
-            resp = HTTP.post("https://$(HTTP.escapeuri(user)):$(HTTP.escapeuri(pass))@api.github.com/authorizations",
-                             body=JSON.json(params), headers=merge(headers, Dict("X-GitHub-OTP"=>otp_code)),
-                             status_exception=false, basic_authorization=true)
+            resp = GitHub.gh_post(github_api, "/authorizations",
+                headers=merge(headers, Dict("X-GitHub-OTP"=>otp_code)),
+                params=params, handle_error=false,
+                auth = auth)
         end
         if resp.status == 401
             printstyled(outs, "Invalid credentials!\n", color=:red)
@@ -258,16 +261,19 @@ Ask the user for their username and password for a repository-local
 `.git/config` file.  This is used during an interactive wizard session.
 """
 function init_git_config(repo, state)
-    msg = replace(strip("""
-    Global `~/.gitconfig` information not found.  In order to create a git
-    repository, we need a "username" and "email address" to identify the git
-    commits we are about to create.  To avoid this prompt in the future and to
-    set your username and email address globally, run
-    `BinaryProvider.set_global_git_config(username, email)`
-    """),"\n", " ")
+    msg = """
+    Global `~/.gitconfig` information not found.
+    In order to create a git repository, we need a
+    "name" and "email address" to identify the git
+    commits we are about to create.  To avoid this
+    prompt in the future and to set your name and
+    email address globally, run
+
+        BinaryProvider.set_global_git_config(username, email)
+
+    """
     println(state.outs, msg)
-    
-    print(state.outs, "Enter your username: ")
+    print(state.outs, "Enter your name: ")
     username = readline(state.ins)
     print(state.outs, "Enter your email address: ")
     email = readline(state.ins)
@@ -297,12 +303,9 @@ function common_git_repo_setup(repo_dir, repo, state)
         break
     end
 
-    # Check for global ~/.gitconfig and repo-local git config settings
-    cfg = LibGit2.GitConfig(LibGit2.Consts.CONFIG_LEVEL_GLOBAL)
-
     # check to see if the user has already setup git config settings
-    if (LibGit2.get(cfg, "user.name", nothing) == nothing ||
-        LibGit2.get(cfg, "user.email", nothing) == nothing) &&
+    if (LibGit2.get(state.global_git_cfg, "user.name", nothing) == nothing ||
+        LibGit2.get(state.global_git_cfg, "user.email", nothing) == nothing) &&
         (LibGit2.getconfig(repo, "user.name", nothing) == nothing) ||
         (LibGit2.getconfig(repo, "user.email", nothing) == nothing)
         # If they haven't, prompt them to make a global one, and then actually
@@ -360,12 +363,12 @@ function local_deploy(state::WizardState)
     println("Your repository is all set up in $(repo_dir)")
 end
 
-function obtain_secure_key(outs, token, gr)
-    travis_token = authenticate_travis(token)
-    repo_id = sync_and_wait_travis(outs, GitHub.name(gr), travis_token)
-    activate_travis_repo(repo_id, travis_token)
+function obtain_secure_key(outs, token, gr; travis_endpoint=DEFAULT_TRAVIS_ENDPOINT)
+    travis_token = authenticate_travis(token; travis_endpoint=travis_endpoint)
+    repo_id = sync_and_wait_travis(outs, GitHub.name(gr), travis_token; travis_endpoint=travis_endpoint)
+    activate_travis_repo(repo_id, travis_token; travis_endpoint=travis_endpoint)
     # Obtain the appropriate encryption key from travis
-    key = JSON.parse(HTTP.load(HTTP.get("https://api.travis-ci.org/repos/$(GitHub.name(gr))/key")))["key"]
+    key = JSON.parse(HTTP.load(HTTP.get("$(travis_endpoint)repos/$(GitHub.name(gr))/key")))["key"]
     pk_ctx = MbedTLS.PKContext()
     # Some older repositories have keys starting with "BEGIN RSA PUBLIC KEY"
     # which would indicate that they are in PKCS#1 format. However, they are
@@ -382,9 +385,9 @@ function obtain_secure_key(outs, token, gr)
     secure_key = base64encode(outbuf[1:len])
 end
 
-function get_github_user(outs, ins)
+function get_github_user(outs, ins, cfg=LibGit2.GitConfig())
     # Get user name
-    user = LibGit2.getconfig("github.user", "")
+    user = LibGit2.get(cfg, "github.user", "")
     if isempty(user)
         println(state.outs, """
         GitHub username not globally configured. You will have to enter your
@@ -409,6 +412,13 @@ function setup_travis(repo)
     print_travis_deploy(STDOUT, gr, secure_key)
 end
 
+function push_repo(api::GitHub.GitHubWebAPI, lrepo, rrepo, user, token, refspecs)
+    # Push the empty commit
+    LibGit2.push(repo, remoteurl="https://github.com/$(GitHub.name(gr)).git",
+        payload=Nullable(LibGit2.UserPasswordCredentials(deepcopy(user),deepcopy(token))),
+        refspecs=refspecs)
+end
+
 function github_deploy(state::WizardState)
     println(state.outs, """
     Let's deploy a builder repository to GitHub. This repository will be set up
@@ -419,11 +429,11 @@ function github_deploy(state::WizardState)
     print(state.outs, "Enter the desired name for the new repository: ")
     github_name = readline(state.ins)
 
-    user = get_github_user(state.outs, state.ins)
+    user = get_github_user(state.outs, state.ins, state.global_git_cfg)
 
     # Could re-use the package manager's token here, but we need to create a
     # new token for deployment purposes anyway
-    token = obtain_token(state.outs, state.ins, github_name, user)
+    token = obtain_token(state.outs, state.ins, github_name, user; github_api=state.github_api)
 
     # Create a local repository
     repo_dir = tempname()
@@ -445,15 +455,12 @@ function github_deploy(state::WizardState)
             """)
         end
         # Create the GitHub repository
-        gr = GitHub.create_repo(GitHub.Owner(user),
+        gr = GitHub.create_repo(state.github_api, GitHub.Owner(user),
                 github_name; auth=auth)
-        # Push the empty commit
-        LibGit2.push(repo, remoteurl="https://github.com/$(user)/$(github_name).git",
-            payload=Nullable(LibGit2.UserPasswordCredentials(deepcopy(user),deepcopy(token))),
-            refspecs=["+HEAD:refs/heads/master"])
         # Set up travis
+        push_repo(state.github_api, repo, gr, user, token, ["+HEAD:refs/heads/master"])
         try
-            secure_key = obtain_secure_key(state.outs, token, gr)
+            secure_key = obtain_secure_key(state.outs, token, gr; travis_endpoint=state.travis_endpoint)
             open(joinpath(repo_dir, ".travis.yml"), "w") do f
                 # Create the first part of the .travis.yml file
                 print_travis_file(f, state)
@@ -476,9 +483,8 @@ function github_deploy(state::WizardState)
         LibGit2.add!(repo, "build_tarballs.jl", "LICENSE.md", "README.md",
                            ".travis.yml", ".gitignore")
         LibGit2.commit(repo, "Add autogenerated files to build $(state.name)")
-        LibGit2.push(repo, remoteurl="https://github.com/$(user)/$(github_name).git",
-            payload=Nullable(LibGit2.UserPasswordCredentials(deepcopy(user),token)),
-            refspecs=["+HEAD:refs/heads/master"])
+        push_repo(state.github_api, repo, gr, user, token, ["+HEAD:refs/heads/master"])
+        println(state.outs, "Deployment Complete")
     end
     rm(repo_dir; recursive=true)
 end
