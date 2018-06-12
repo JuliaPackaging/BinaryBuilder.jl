@@ -52,7 +52,7 @@ Returns the URL from which a rootfs image (tarball/squashfs) can be downloaded
 """
 function get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
     # These constants are what should be updated for a new rootfs build:
-    rootfs_urlroot = "https://julialangmirror.s3.amazonaws.com/binarybuilder"
+    rootfs_urlroot = "https://julialangmirror-s3.julialang.org/binarybuilder"
     rootfs_version = "2018-05-26"
 
     shard_name = "rootfs-$(target)"
