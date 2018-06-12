@@ -1,7 +1,7 @@
 FROM julia:0.6
 
-# Install `sudo`, which gets used by BinaryBuilder
-RUN apt-get update && apt-get install -y sudo
+# Install tools which get used by BinaryBuilder.
+RUN apt-get update && apt-get install -y xz-utils
 
 # Set useful envvars
 ENV BINARYBUILDER_USE_SQUASHFS true
