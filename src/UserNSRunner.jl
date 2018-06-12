@@ -91,16 +91,13 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
 
     # Check to see if we need to run privileged containers.
     if runner_override == "privileged"
-        # First, if we're already root, don't do anything.
-        if getuid() != 0
-            # Next, prefer `sudo`, but allow fallback to `su`. Also, force-set
-            # $LD_LIBRARY_PATH with these commands, because it is typically
-            # lost and forgotten.  :(
-            if success(`sudo -V`)
-                sandbox_cmd = `sudo -E LD_LIBRARY_PATH=$(envs["LD_LIBRARY_PATH"]) $sandbox_cmd`
-            else
-                sandbox_cmd = `su root -c "$sandbox_cmd"`
-            end
+        # Next, prefer `sudo`, but allow fallback to `su`. Also, force-set
+        # $LD_LIBRARY_PATH with these commands, because it is typically
+        # lost and forgotten.  :(
+        if sudo_cmd() == `sudo`
+            sandbox_cmd = `$(sudo_cmd()) -E LD_LIBRARY_PATH=$(envs["LD_LIBRARY_PATH"]) $sandbox_cmd`
+        else
+            sandbox_cmd = `$(sudo_cmd()) "$sandbox_cmd"`
         end
     end
 

@@ -205,6 +205,28 @@ function rewrite_squashfs_uids(path, new_uid)
     return nothing
 end
 
+_sudo_cmd = nothing
+function sudo_cmd()
+    global _sudo_cmd
+
+    # Use cached value if we've already run this
+    if _sudo_cmd != nothing
+        return _sudo_cmd
+    end
+
+    if getuid() == 0
+        # If we're already root, don't use any kind of sudo program
+        _sudo_cmd = ``
+    elseif success(`sudo -V`)
+        # If `sudo` is available, use that
+        _sudo_cmd = `sudo`
+    else
+        # Fall back to `su` if all else fails
+        _sudo_cmd = `su root -c`
+    end
+    return _sudo_cmd
+end
+
 """
     update_rootfs(triplets::Vector{AbstractString};
                   automatic::Bool = automatic_apple, verbose::Bool = true,
@@ -247,8 +269,8 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                     # Unmount the mountpoint. It may point to a previous version
                     # of the file. Also, we're about to mess with it
                     if success(`mountpoint $(dest_dir)`)
-                        println("Running `sudo umount $(dest_dir)`")
-                        run(`sudo umount $(dest_dir)`)
+                        Compat.@info("Unmounting $(dest_dir)")
+                        run(`$(sudo_cmd()) umount $(dest_dir)`)
                     end
 
                     # Patch squashfs files for current uid
@@ -263,14 +285,14 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             # Then mount it, if it hasn't already been mounted:
             if mount && Compat.Sys.islinux() && !success(`mountpoint $(dest_dir)`)
                 mkpath(dest_dir)
-                println("Running `sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`")
-                run(`sudo mount $(squashfs_path) $(dest_dir) -o ro,loop`)
+                Compat.@info("Mounting $(squashfs_path) to $(dest_dir)")
+                run(`$(sudo_cmd()) mount $(squashfs_path) $(dest_dir) -o ro,loop`)
             end
         else
             # If it has been mounted previously, unmount here
             if Compat.Sys.islinux() && success(`mountpoint $(dest_dir)`)
-                println("Running `sudo umount $(dest_dir)`")
-                run(`sudo umount $(dest_dir)`)
+                Compat.@info("Unmounting $(dest_dir)`")
+                run(`$(sudo_cmd()) umount $(dest_dir)`)
             end
 
              # If tarball, verify/redownload/reunpack the tarball
