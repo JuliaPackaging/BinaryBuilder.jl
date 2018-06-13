@@ -51,8 +51,13 @@ end
 function clone(url, source_path)
     p = Progress(0, 1, "Cloning: ")
     @compat_gc_preserve p begin
-        callbacks = LibGit2.RemoteCallbacks(transfer_progress=cfunction(transfer_progress, Cint, Tuple{Ptr{GitTransferProgress}, Any}),
-            payload = pointer_from_objref(p))
+        @static if VERSION >= v"0.7-"
+            callbacks = LibGit2.RemoteCallbacks(transfer_progress=@cfunction(transfer_progress, Cint, (Ptr{GitTransferProgress}, Any)),
+                payload = p)
+        else
+            callbacks = LibGit2.RemoteCallbacks(transfer_progress=cfunction(transfer_progress, Cint, Tuple{Ptr{GitTransferProgress}, Any}),
+                payload = pointer_from_objref(p))
+        end
         fetch_opts = LibGit2.FetchOptions(callbacks = callbacks)
         clone_opts = LibGit2.CloneOptions(fetch_opts=fetch_opts, bare = Cint(true))
         return LibGit2.clone(url, source_path, clone_opts)
