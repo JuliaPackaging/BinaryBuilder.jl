@@ -34,12 +34,13 @@ automatic_apple = false
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
+ccache_override = ""
 sandbox_override = ""
 
 function __init__()
     global downloads_cache, rootfs_cache, shards_cache, runner_override
     global qemu_cache, use_squashfs, automatic_apple, allow_ecryptfs
-    global github_auth, use_ccache, sandbox_override
+    global github_auth, use_ccache, ccache_override, sandbox_override
 
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
@@ -86,7 +87,7 @@ function __init__()
     # If the user has overridden our runner selection algorithms, honor that
     runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
     if !(runner_override in ["", "userns", "qemu", "privileged"])
-        Compat.@warn("BINARYBUILDER_RUNNER value is invalid, ignoring...")
+        Compat.@warn("Invalid runner value $runner_override, ignoring...")
         runner_override = ""
     end
 
@@ -109,8 +110,15 @@ function __init__()
     # If the user has asked to use a particular `sandbox` executable, use it!
     sandbox_override = get(ENV, "BINARYBUILDER_SANDBOX_PATH", "")
     if !isempty(sandbox_override) && !isfile(sandbox_override)
-        Compat.@warn("Invalid sandbox override, ignoring...")
+        Compat.@warn("Invalid sandbox path $sandbox_override, ignoring...")
         sandbox_override = ""
+    end
+
+    # If the user asked for the ccache cache to be placed somewhere specific
+    ccache_override = get(ENV, "BINARYBUILDER_CCACHE_PATH", "")
+    if !isempty(ccache_override) && !isdir(ccache_override)
+        Compat.@warn("Invalid ccache directory $ccache_override, ignoring...")
+        ccache_override = ""
     end
 end
 

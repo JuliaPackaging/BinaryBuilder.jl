@@ -20,4 +20,6 @@
 
 * `BINARYBUILDER_USE_CCACHE`: When set to `true`, this causes a `/root/.ccache` volume to be mounted within the build environment, and for the `CC`, `CXX` and `FC` environment variables to have `ccache` prepended to them.  This can significantly accelerate rebuilds of the same package on the same host.  Note that `ccache` will, by default, store 5G of cached data.
 
+* `BINARYBUILDER_CCACHE_PATH`: When set to a valid directory path, overrides the location on the host filesystem the `ccache` cache will be located at.
+
 * `BINARYBUILDER_SANDBOX_PATH`: When set to a valid executable path, overrides the user namespace runner's choice of `sandbox` executable.  This is mostly useful for developing new `sandbox` executables.

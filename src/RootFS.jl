@@ -33,7 +33,16 @@ end
 
 shard_path_squashfs(shard_name) = downloads_dir("rootfs-$(shard_name).squashfs")
 rootfs_path_squashfs() = shard_path_squashfs("base")
-ccache_dir() = shards_dir("ccache")
+
+function ccache_dir()
+    global ccache_override
+
+    if ccache_override != ""
+        return ccache_override
+    else
+        return shards_dir("ccache")
+    end
+end
 
 function sandbox_path()
     global sandbox_override
