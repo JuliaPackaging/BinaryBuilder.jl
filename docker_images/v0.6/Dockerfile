@@ -9,6 +9,7 @@ RUN cd /usr/local/bin && \
 # Set useful envvars
 ENV BINARYBUILDER_USE_SQUASHFS true
 ENV BINARYBUILDER_DOWNLOADS_CACHE /shards
+ENV BINARYBUILDER_CCACHE_PATH /ccache
 ENV BINARYBUILDER_AUTOMATIC_APPLE true
 ENV BINARYBUILDER_USE_CCACHE true
 
@@ -18,4 +19,4 @@ RUN mkdir -p /shards
 # Install BinaryBuilder
 RUN julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryBuilder.jl.git"); using BinaryBuilder'
 
-# The user should mount something in /root/.ccache and /shards
+# The user should mount something in /ccache and /shards so they persist from run to run
