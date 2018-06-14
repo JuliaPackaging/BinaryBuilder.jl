@@ -103,6 +103,11 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         should_override_platforms = true
         platforms = platform_key.(split(ARGS[1], ","))
     end
+        
+    # If we're running on CI (Travis, GitLab CI, etc...) and this is a
+    # tagged release, automatically determine bin_path by building up a URL
+    repo = get_repo_name()
+    tag = get_tag_name()
 
     product_hashes = if !only_buildjl
         # If the user didn't just ask for a `build.jl`, go ahead and actually build
@@ -113,12 +118,12 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
                          products, dependencies; verbose=verbose, debug=debug)
     else
         msg = strip("""
-        Reconstructing product hashes from GitHub Release $(repo_name)/$(tag_name)
+        Reconstructing product hashes from GitHub Release $(repo)/$(tag)
         """)
         Compat.@info(msg)
 
         # Reconstruct product_hashes from github
-        product_hashes_from_github_release(repo_name, tag_name; verbose=verbose)
+        product_hashes_from_github_release(repo, tag; verbose=verbose)
     end
 
     # If we didn't override the default set of platforms OR we asked for only
@@ -127,12 +132,9 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
     # testing, or when we have sharded our tarball construction over multiple
     # invocations.
     if !should_override_platforms || only_buildjl
-        # If we're running on CI (Travis, GitLab CI, etc...) and this is a
-        # tagged release, automatically determine bin_path by building up a URL
-        repo = get_repo_name()
-        tag = get_tag_name()
+        # The location the binaries will be available from
         bin_path = "https:://github.com/$(repo)/releases/download/$(tag)"
-
+        
         # A dummy prefix to pass through products()
         dummy_products = products(Prefix(pwd()))
         print_buildjl(pwd(), dummy_products, product_hashes, bin_path)
