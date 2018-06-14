@@ -97,31 +97,11 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         deleteat!(ARGS, i)
     end
 
-    # If we're only reconstructing a build.jl file, we _need_ this information
-    # otherwise it's useless, so go ahead and error() out here.
-    if only_buildjl && (!all(haskey.(ENV, ["TRAVIS_REPO_SLUG", "TRAVIS_TAG"])))
-        msg = strip("""
-        Must provide repository name and tag through Travis-style environment
-        variables like TRAVIS_REPO_SLUG and TRAVIS_TAG!
-        """)
-        error(replace(msg, "\n" => " "))
-    end
-
     # If the user passed in a platform (or a few, comma-separated) on the
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
         should_override_platforms = true
         platforms = platform_key.(split(ARGS[1], ","))
-    end
-
-    # If we're running on Travis and this is a tagged release, automatically
-    # determine bin_path by building up a URL, otherwise use a default value.
-    # The default value allows local builds to not error out
-    bin_path = "https:://<path to hosted binaries>"
-    if !isempty(get(ENV, "TRAVIS_TAG", ""))
-        repo_name = ENV["TRAVIS_REPO_SLUG"]
-        tag_name = ENV["TRAVIS_TAG"]
-        bin_path = "https://github.com/$(repo_name)/releases/download/$(tag_name)"
     end
 
     product_hashes = if !only_buildjl
@@ -147,18 +127,85 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
     # testing, or when we have sharded our tarball construction over multiple
     # invocations.
     if !should_override_platforms || only_buildjl
-        dummy_prefix = Prefix(pwd())
-        print_buildjl(pwd(), products(dummy_prefix), product_hashes, bin_path)
+        # If we're running on CI (Travis, GitLab CI, etc...) and this is a
+        # tagged release, automatically determine bin_path by building up a URL
+        repo = get_repo_name()
+        tag = get_tag_name()
+        bin_path = "https:://github.com/$(repo)/releases/download/$(tag)"
+
+        # A dummy prefix to pass through products()
+        dummy_products = products(Prefix(pwd()))
+        print_buildjl(pwd(), dummy_products, product_hashes, bin_path)
 
         if verbose
             Compat.@info("Writing out the following reconstructed build.jl:")
-            print_buildjl(STDOUT, products(dummy_prefix), product_hashes, bin_path)
+            print_buildjl(STDOUT, dummy_products, product_hashes, bin_path)
         end
     end
 
     return product_hashes
 end
 
+function get_repo_name()
+    # Helper function to synthesize repository slug from environment variables
+    function get_gitlab_repo_name()
+        owner = get(ENV, "CI_REPO_OWNER", nothing)
+        name = get(ENV, "CI_REPO_NAME", nothing)
+        if owner != nothing && name != nothing
+            return "$(owner)/$(name)"
+        end
+        return nothing
+    end
+
+    # Helper function to guess repository slug from git remote URL
+    function read_git_origin()
+        try
+            repo = LibGit2.GitRepo(".")
+            url = LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
+            owner = basename(dirname(url))
+            if contains(owner, ":")
+                owner = owner[findlast(owner, ':')+1:end]
+            end
+            name = basename(url)
+            if endswith(name, ".git")
+                name = name[1:end-4]
+            end
+            return "$(owner)/$(name)"
+        end
+        return nothing
+    end
+
+    return something(
+        get(ENV, "TRAVIS_REPO_SLUG", nothing),
+        get_gitlab_repo_name(),
+        read_git_origin(),
+        "<repo owner>/<repo name>",
+    )
+end
+
+function get_tag_name()
+    # Helper function to guess tag from current commit taggedness
+    function read_git_tag()
+        try
+            repo = LibGit2.GitRepo(".")
+            head_gitsha = LibGit2.GitHash(LibGit2.head(repo))
+            for tag in LibGit2.tag_list(repo)
+                tag_gitsha = LibGit2.GitHash(LibGit2.GitCommit(repo, tag))
+                if head_gitsha == tag_gitsha
+                    return tag
+                end
+            end
+        end
+        return nothing
+    end
+
+    return something(
+        get(ENV, "TRAVIS_TAG", nothing),
+        get(ENV, "CI_COMMIT_TAG", nothing),
+        read_git_tag(),
+        "<tag>",
+    )
+end
 
 """
     autobuild(dir::AbstractString, src_name::AbstractString, platforms::Vector,
@@ -183,8 +230,8 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                    script::AbstractString, products::Function,
                    dependencies::Vector = AbstractDependency[];
                    verbose::Bool = true, debug::Bool = false)
-    # If we're on Travis and we're not verbose, schedule a task to output a "." every few seconds
-    if haskey(ENV, "TRAVIS") && !verbose
+    # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds
+    if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
         run_travis_busytask = true
         travis_busytask = @async begin
             # Don't let Travis think we're asleep...
@@ -345,7 +392,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
     # At the end of all things, unmount all our shards so as to play nice with others
     unmount_all_shards()
 
-    if haskey(ENV, "TRAVIS") && !verbose
+    if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
         run_travis_busytask = false
         wait(travis_busytask)
         println()
