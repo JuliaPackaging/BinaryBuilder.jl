@@ -330,7 +330,7 @@ end
 
 @testset "build_tarballs() --only-buildjl" begin
     build_path = tempname()
-	mkpath(build_path)
+    mkpath(build_path)
     cd(build_path) do
         # Clone down OggBuilder.jl
         repo = LibGit2.clone("https://github.com/staticfloat/OggBuilder", ".")
@@ -338,36 +338,40 @@ end
         # Check out a known-good tag
         LibGit2.checkout!(repo, hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-4"))))
 
-        # Reconstruct binaries!
+        # Reconstruct binaries!  We don't want it to pick up BinaryBuilder.jl information from CI,
+        # so wipe out those environment variables through withenv:
+        blacklist = ["CI_REPO_OWNER", "CI_REPO_NAME", "TRAVIS_REPO_SLUG", "TRAVIS_TAG", "CI_COMMIT_TAG"]
+        withenv((envvar => nothing for envvar in blacklist)...) do
+            m = Module(:__anon__)
+            eval(m, quote
+                ARGS = ["--only-buildjl"]
+                include(joinpath($(build_path), "build_tarballs.jl"))
+            end)
+        end
+
+        # Read in `products/build.jl` to get download_info
         m = Module(:__anon__)
-		eval(m, quote
-			ARGS = ["--only-buildjl"]
-			include(joinpath($(build_path), "build_tarballs.jl"))
-		end)
+        download_info = eval(m, quote
+            using BinaryProvider
+            # Override BinaryProvider functionality so that it doesn't actually install anything
+            function install(args...; kwargs...); end
+            function write_deps_file(args...; kwargs...); end
 
-		# Read in `products/build.jl` to get download_info
-		m = Module(:__anon__)
-		download_info = eval(m, quote
-			using BinaryProvider
-			# Override BinaryProvider functionality so that it doesn't actually install anything
-			function install(args...; kwargs...); end
-			function write_deps_file(args...; kwargs...); end
+            # Include build.jl file to extract download_info
+            include(joinpath($build_path, "products", "build.jl"))
+            download_info
+        end)
 
-			# Include build.jl file to extract download_info
-			include(joinpath($build_path, "products", "build.jl"))
-			download_info
-		end)
-
-		# Test that we get the info right about some of these platforms
-		bin_prefix = "https://github.com/staticfloat/OggBuilder/releases/download/v1.3.3-4"
-		@test download_info[Linux(:x86_64)] == (
-			"$bin_prefix/Ogg.x86_64-linux-gnu.tar.gz",
-			"e4562248c27c8d4beb7f954fa02bf551e4908e448d825fa3f326ba92d947930c",
-		)
-		@test download_info[Windows(:i686)] == (
-			"$bin_prefix/Ogg.i686-w64-mingw32.tar.gz",
-			"d76691afe57af2b01292478a6eaa6623149341318bbc559b69032cbfb328f974",
-		)
+        # Test that we get the info right about some of these platforms
+        bin_prefix = "https://github.com/staticfloat/OggBuilder/releases/download/v1.3.3-4"
+        @test download_info[Linux(:x86_64)] == (
+            "$bin_prefix/Ogg.x86_64-linux-gnu.tar.gz",
+            "e4562248c27c8d4beb7f954fa02bf551e4908e448d825fa3f326ba92d947930c",
+        )
+        @test download_info[Windows(:i686)] == (
+            "$bin_prefix/Ogg.i686-w64-mingw32.tar.gz",
+            "d76691afe57af2b01292478a6eaa6623149341318bbc559b69032cbfb328f974",
+        )
     end
 end
 
