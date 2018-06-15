@@ -133,7 +133,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
     # invocations.
     if !should_override_platforms || only_buildjl
         # The location the binaries will be available from
-        bin_path = "https:://github.com/$(repo)/releases/download/$(tag)"
+        bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
         
         # A dummy prefix to pass through products()
         dummy_products = products(Prefix(pwd()))
