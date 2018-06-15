@@ -273,7 +273,7 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
 end
 
 function runshell(qr::QemuRunner, args...; kwargs...)
-    println("Setting parent shell interrupt to ^] (use ^C as usual, ^] to exit shell)")
+    println("Setting parent shell interrupt to ^] (use ^C as usual, ^] to interrupt Julia)")
     @static if Compat.Sys.isapple() run(`stty intr ^\]`) end
     run_interactive(qr, `/bin/bash`, args...; kwargs...)
     @static if Compat.Sys.isapple() run(`stty intr ^\C`) end
