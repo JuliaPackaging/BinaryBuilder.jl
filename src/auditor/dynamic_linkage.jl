@@ -129,19 +129,18 @@ end
 # These are libraries we should straight-up ignore, like libsystem on OSX
 function should_ignore_lib(lib, ::ELFHandle)
     ignore_libs = [
-        # Basic runtimes
+        # Basic runtimes for both Linux and FreeBSD
         "libc.so",
         "libc.so.6",
         "libstdc++.so.6",
-        # POSIX libraries
         "libdl.so.2",
         "librt.so.1",
-        # libgcc Linux and FreeBSD style
         "libgcc_s.1.so",
         "libgcc_s.so.1",
         "libm.so.6",
         "libgfortran.so.3",
         "libgfortran.so.4",
+        "libthr.so.3",
         # libpthread and libgomp are pretty safe bets
         "libpthread.so.0",
         "libgomp.so.1",
