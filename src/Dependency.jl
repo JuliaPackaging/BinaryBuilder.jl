@@ -133,7 +133,7 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
                 Compat.@warn("Build failed, launching debug shell")
                 run_interactive(runner, `/bin/bash --init-file /meta/.env`)
             end
-            msg = "Build for $(dep.name) did not complete successfully\n"
+            msg = "Build for $(dep.name) on $(triplet(dep.platform)) did not complete successfully\n"
             error(msg)
         end
 
