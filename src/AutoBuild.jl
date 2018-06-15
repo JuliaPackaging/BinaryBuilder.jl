@@ -148,11 +148,25 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
     return product_hashes
 end
 
+# Helper function to get things from ENV, returning `nothing`
+# if they either don't exist or are empty
+function get_ENV(key)
+    if !haskey(ENV, key)
+        return nothing
+    end
+
+    if isempty(ENV[key])
+        return nothing
+    end
+
+    return ENV[key]
+end
+
 function get_repo_name()
     # Helper function to synthesize repository slug from environment variables
     function get_gitlab_repo_name()
-        owner = get(ENV, "CI_REPO_OWNER", nothing)
-        name = get(ENV, "CI_REPO_NAME", nothing)
+        owner = get_ENV("CI_REPO_OWNER")
+        name = get_ENV("CI_REPO_NAME")
         if owner != nothing && name != nothing
             return "$(owner)/$(name)"
         end
@@ -178,7 +192,7 @@ function get_repo_name()
     end
 
     return something(
-        get(ENV, "TRAVIS_REPO_SLUG", nothing),
+        get_ENV("TRAVIS_REPO_SLUG"),
         get_gitlab_repo_name(),
         read_git_origin(),
         "<repo owner>/<repo name>",
@@ -202,8 +216,8 @@ function get_tag_name()
     end
 
     return something(
-        get(ENV, "TRAVIS_TAG", nothing),
-        get(ENV, "CI_COMMIT_TAG", nothing),
+        get_ENV("TRAVIS_TAG"),
+        get_ENV("CI_COMMIT_TAG"),
         read_git_tag(),
         "<tag>",
     )
