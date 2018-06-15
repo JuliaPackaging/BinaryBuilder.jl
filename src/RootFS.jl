@@ -320,7 +320,7 @@ end
 update_rootfs(triplet::AbstractString; kwargs...) = update_rootfs([triplet]; kwargs...)
 
 # Helper to unmount any shards that may be mounted, so as not to exhaust the number of loopback devices
-function unmount_shard(dest_dir::AbstractString)
+function unmount_shard(dest_dir::AbstractString; fail_on_error::Bool = false)
     # This function only matters on Linux
     @static if !Compat.Sys.islinux()
         return
@@ -328,12 +328,19 @@ function unmount_shard(dest_dir::AbstractString)
 
     if success(`mountpoint $(dest_dir)`)
         Compat.@info("Unmounting $(dest_dir)`")
-        run(`$(sudo_cmd()) umount $(dest_dir)`)
+        try
+            run(pipeline(cmd, stdin=devnull, stdout=devnull, stderr=devnull))
+        catch e
+            # By default we don't error out if this unmounting fails
+            if fail_on_error
+                rethrow(e)
+            end
+        end
     end
     return
 end
 
-function unmount_all_shards()
+function unmount_all_shards(;fail_on_error::Bool = false)
     # This function only matters on Linux
     @static if !Compat.Sys.islinux()
         return
@@ -343,7 +350,7 @@ function unmount_all_shards()
     push!(dest_dirs, rootfs_dir())
 
     for dest_dir in dest_dirs
-        unmount_shard(dest_dir)
+        unmount_shard(dest_dir; fail_on_error = fail_on_error)
     end
     return
 end
