@@ -103,7 +103,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         should_override_platforms = true
         platforms = platform_key.(split(ARGS[1], ","))
     end
-        
+
     # If we're running on CI (Travis, GitLab CI, etc...) and this is a
     # tagged release, automatically determine bin_path by building up a URL
     repo = get_repo_name()
@@ -134,7 +134,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
     if !should_override_platforms || only_buildjl
         # The location the binaries will be available from
         bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
-        
+
         # A dummy prefix to pass through products()
         dummy_products = products(Prefix(pwd()))
         print_buildjl(pwd(), dummy_products, product_hashes, bin_path)
@@ -488,7 +488,7 @@ it from a releases page.
 function product_hashes_from_github_release(repo_name::AbstractString, tag_name::AbstractString;
                                             verbose::Bool = false)
     # Get list of files within this release
-    release = gh_get_json(DEFAULT_API, "/repos/$(repo_name)/releases/tags/$(tag_name)", auth=github_auth)
+    release = gh_get_json(DEFAULT_API, "/repos/$(repo_name)/releases/tags/$(tag_name)", auth=github_auth())
 
     # Try to extract the platform key from each, use that to find all tarballs
     function can_extract_platform(filename)

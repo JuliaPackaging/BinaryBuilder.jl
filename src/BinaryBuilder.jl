@@ -20,8 +20,24 @@ include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
-# This is a global github authentication token that is used everywhere we can
-github_auth = GitHub.AnonymousAuth()
+# This is a global github authentication token that is set the first time
+# we authenticate and then reused
+const _github_auth = Ref{GitHub.Authorization}()
+
+function github_auth()
+    if !isassigned(_github_auth)
+        println("!!!!!!!!! QUERYING GITHUB AUTH !!!!!!!!")
+        @show get(ENV, "GITHUB_AUTH", "")
+        @show length(get(ENV, "GITHUB_AUTH", ""))
+        # If the user is feeding us a GITHUB_AUTH token, use it!
+        if length(get(ENV, "GITHUB_AUTH", "")) == 40
+            _github_auth[] = GitHub.authenticate(ENV["GITHUB_AUTH"])
+        else
+            _github_auth[] = GitHub.AnonymousAuth()
+        end
+    end
+    return _github_auth[]
+end
 
 # These globals store important information such as where we're downloading
 # the rootfs to, and where we're unpacking it.  These constants are initialized
@@ -40,7 +56,7 @@ sandbox_override = ""
 function __init__()
     global downloads_cache, rootfs_cache, shards_cache, runner_override
     global qemu_cache, use_squashfs, automatic_apple, allow_ecryptfs
-    global github_auth, use_ccache, ccache_override, sandbox_override
+    global use_ccache, ccache_override, sandbox_override
 
     # If the user has overridden our rootfs tar location, reflect that here:
     def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
@@ -97,11 +113,6 @@ function __init__()
         allow_ecryptfs = true
     end
 
-    # If the user is feeding us a GITHUB_AUTH token, use it!
-    if length(get(ENV, "GITHUB_AUTH", "")) == 40
-        github_auth = GitHub.authenticate(ENV["GITHUB_AUTH"])
-    end
-
     # If the user has enabled `ccache` support, use it!
     if get(ENV, "BINARYBUILDER_USE_CCACHE", "false") == "true"
         use_ccache = true
@@ -149,7 +160,7 @@ function versioninfo()
                 Compat.@info("$n is NOT encrypted on mountpoint $mountpoint")
             end
         end
-        
+
         print_enc("pkg dir", dirname(@__FILE__))
         print_enc("rootfs dir", rootfs_dir())
         print_enc("shards dir", shards_dir())
