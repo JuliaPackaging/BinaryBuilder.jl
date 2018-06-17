@@ -26,6 +26,9 @@ const _github_auth = Ref{GitHub.Authorization}()
 
 function github_auth()
     if !isassigned(_github_auth)
+        println("!!!!!!!!! QUERYING GITHUB AUTH !!!!!!!!")
+        @show get(ENV, "GITHUB_AUTH", "")
+        @show length(get(ENV, "GITHUB_AUTH", ""))
         # If the user is feeding us a GITHUB_AUTH token, use it!
         if length(get(ENV, "GITHUB_AUTH", "")) == 40
             _github_auth[] = GitHub.authenticate(ENV["GITHUB_AUTH"])
