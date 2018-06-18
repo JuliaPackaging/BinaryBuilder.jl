@@ -20,7 +20,7 @@ using BinaryBuilder
 BinaryBuilder.run_wizard()
 ```
 
-3. The wizard will take you through a process of building your software package. Note that the wizard may need to download a new roofts image for each platform targeted, and there are about a dozen of these at the time of writing.  The output of this stage is a `build_tarballs.jl` file, which will be deployed to GitHub.  The wizard will also configure Travis and GitHub releases for your package.
+3. The wizard will take you through a process of building your software package. Note that the wizard may need to download a new rootfs image for each platform targeted, and there are about a dozen of these at the time of writing.  The output of this stage is a `build_tarballs.jl` file, which will be deployed to GitHub.  The wizard will also configure Travis and GitHub releases for your package.
 
 4. Once you complete the wizard and your repository is created on GitHub, create a new release on the `GitHub Releases` page and Travis will automatically upload binaries for all platforms to your GitHub release. It will also upload a `build.jl` file that you can use in your Julia package to import the binaries you have just built.
 
