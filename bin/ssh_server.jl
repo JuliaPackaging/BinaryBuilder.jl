@@ -185,7 +185,7 @@ while true
                         open(joinpath(dirname(@__FILE__),"..","logs",string(randstring(),".cast")), "w") do f
                             write(f, take!(asciicast_io))
                         end
-                        try; SSH.disconnect(channel.session); end
+                        try; SSH.disconnect(channel.session); catch; end
                     end
                 end
             end

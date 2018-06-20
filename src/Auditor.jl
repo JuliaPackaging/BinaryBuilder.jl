@@ -332,6 +332,7 @@ function collapse_symlinks(files::Vector{String})
     for f in files
         try
             push!(abs_files, realpath(f))
+        catch
         end
     end
 

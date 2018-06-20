@@ -187,6 +187,7 @@ function get_repo_name()
                 name = name[1:end-4]
             end
             return "$(owner)/$(name)"
+        catch
         end
         return nothing
     end
@@ -211,6 +212,7 @@ function get_tag_name()
                     return tag
                 end
             end
+        catch
         end
         return nothing
     end
@@ -266,7 +268,7 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
     mktempdir() do tempdir
         # First, download the source(s), store in ./downloads/
         downloads_dir = joinpath(dir, "downloads")
-        try mkpath(downloads_dir) end
+        try mkpath(downloads_dir) catch; end
 
         # We must prepare our sources.  Download them, hash them, etc...
         sources = Any[s for s in sources]
@@ -323,14 +325,14 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
 
         # Our build products will go into ./products
         out_path = joinpath(dir, "products")
-        try mkpath(out_path) end
+        try mkpath(out_path) catch; end
 
         for platform in platforms
             target = triplet(platform)
 
             # We build in a platform-specific directory
             build_path = joinpath(pwd(), "build", target)
-            try mkpath(build_path) end
+            try mkpath(build_path) catch; end
 
             cd(build_path) do
                 src_paths, src_hashes = collect(zip(sources...))
