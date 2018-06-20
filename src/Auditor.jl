@@ -166,6 +166,7 @@ function audit(prefix::Prefix; io=stderr,
             if !silent
                 warn(io, "Skipping abspath scanning of $(f), as we can't open it")
             end
+        catch
         end
     end
 
@@ -332,6 +333,7 @@ function collapse_symlinks(files::Vector{String})
     for f in files
         try
             push!(abs_files, realpath(f))
+        catch
         end
     end
 
