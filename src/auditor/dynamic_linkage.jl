@@ -194,7 +194,7 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
     if Compat.Sys.isapple(platform)
         install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
-    elseif Compat.Sys.islinux(platform)
+    elseif Compat.Sys.islinux(platform) || Compat.Sys.isbsd(platform)
         patchelf = "/usr/local/bin/patchelf"
         relink_cmd = `$patchelf --replace-needed $(old_libpath) $(libname) $(rel_path)`
     end
@@ -231,7 +231,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     if Compat.Sys.isapple(platform)
         add_rpath = rp -> `$install_name_tool -add_rpath @loader_path/$(rp) $(rel_path)`
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
-    elseif Compat.Sys.islinux(platform)
+    elseif Compat.Sys.islinux(platform) || Compat.Sys.isbsd(platform)
         current_rpaths = [r for r in rpaths(path) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
