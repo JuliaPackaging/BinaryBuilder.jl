@@ -196,10 +196,10 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
     elseif Compat.Sys.islinux(platform)
         patchelf = "/usr/local/bin/patchelf"
-        relink_cmd = `$patchelf --replace-needed $(old_libpath) \$ORIGIN/$(libname) $(rel_path)`
+        relink_cmd = `$patchelf --replace-needed $(old_libpath) $(libname) $(rel_path)`
     end
 
-    # Create a new linkage that looks like $ORIGIN/../lib, or similar
+    # Create a new linkage that looks like @rpath/$lib on OSX, 
     logpath = joinpath(logdir(prefix), "relink_to_rpath_$(basename(rel_path))_$(libname).log")
     run(ur, relink_cmd, logpath; verbose=verbose)
 end
@@ -226,30 +226,27 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
 
     add_rpath = x -> ``
     relink = (x, y) -> ``
-    origin = ""
     patchelf = "/usr/local/bin/patchelf"
     install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
     if Compat.Sys.isapple(platform)
-        origin = "@loader_path"
-        add_rpath = rp -> `$install_name_tool -add_rpath $(joinpath(origin,rp)) $(rel_path)`
+        add_rpath = rp -> `$install_name_tool -add_rpath @loader_path/$(rp) $(rel_path)`
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Compat.Sys.islinux(platform)
-        origin = "\$ORIGIN"
         current_rpaths = [r for r in rpaths(path) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
-            rpaths = unique(vcat(current_rpaths, joinpath(origin,rp)))
+            rpaths = unique(vcat(current_rpaths, rp))
             
             # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
             # it semantically makes a difference, but why not be correct AND beautiful?
-            chomp_dot = path -> begin
+            chomp_slashdot = path -> begin
                 if path[end-1:end] == "/."
                     return path[1:end-2]
                 end
                 return path
             end
 
-            rpath_str = join(chomp_dot.(rpaths), ':')
+            rpath_str = join(chomp_slashdot.(rpaths), ':')
             return `$patchelf --set-rpath $(rpath_str) $(rel_path)`
         end
         relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
@@ -265,7 +262,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         run(ur, cmd, logpath; verbose=verbose)
     end
 
-    # Create a new linkage that depends on $ORIGIN or @rpath to find things.
+    # Create a new linkage that depends on the RPATH to find things.
     # This allows us to split things up into multiple packages, and as long as the
     # libraries that this guy is interested in have been `dlopen()`'ed previously,
     # (and have the appropriate SONAME) things should "just work".
