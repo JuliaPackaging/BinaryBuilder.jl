@@ -455,6 +455,22 @@ end
     end
 end
 
+@testset "Auditor - absolute paths" begin
+    prefix = Prefix(tempname())
+    try
+        sharedir = joinpath(prefix.path, "share")
+        mkpath(sharedir)
+        open(joinpath(sharedir, "foo.conf"), "w") do f
+            write(f, "share_dir = \"$sharedir\"")
+        end
+
+        # Test that `audit()` warns about an absolute path within the prefix
+        Compat.@info("Expecting a warning about share/foo.conf:")
+        BinaryBuilder.audit(prefix)
+    finally
+        rm(prefix.path; recursive=true)
+    end
+end
 @testset "GitHub releases build.jl reconstruction" begin
     # Download some random release that is relatively small
     product_hashes = product_hashes_from_github_release("staticfloat/OggBuilder", "v1.3.3-0")
