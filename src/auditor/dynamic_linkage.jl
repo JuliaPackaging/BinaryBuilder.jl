@@ -236,6 +236,15 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         add_rpath = rp -> begin
             # Join together RPaths to set new one
             rpaths = unique(vcat(current_rpaths, rp))
+
+            # If any rpaths are `.`, map that to `$ORIGIN`
+            remap_to_origin = path -> begin
+                if path == "."
+                    return "\$ORIGIN"
+                end
+                return path
+            end
+            rpaths = remap_to_origin.(rpaths)
             
             # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
             # it semantically makes a difference, but why not be correct AND beautiful?
@@ -245,8 +254,9 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
                 end
                 return path
             end
+            rpaths = chomp_slashdot.(rpaths)
 
-            rpath_str = join(chomp_slashdot.(rpaths), ':')
+            rpath_str = join(rpaths, ':')
             return `$patchelf --set-rpath $(rpath_str) $(rel_path)`
         end
         relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
