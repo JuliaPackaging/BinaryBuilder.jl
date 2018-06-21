@@ -162,7 +162,7 @@ function audit(prefix::Prefix; io=stderr,
                     warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
                 end
             end
-        except
+        catch
             if !silent
                 warn(io, "Skipping abspath scanning of $(f), as we can't open it")
             end
