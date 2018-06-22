@@ -3,8 +3,8 @@ import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256
 
 """
-    build_tarballs(ARGS, src_name, sources, script, platforms, products,
-                   dependencies)
+    build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
+                   products, dependencies)
 
 This should be the top-level function called from a `build_tarballs.jl` file.
 It takes in the information baked into a `build_tarballs.jl` file such as the
@@ -14,8 +14,8 @@ appropriate.  Note that `ARGS` should be the top-level Julia `ARGS` command-
 line arguments object.  This function does some rudimentary parsing of the
 `ARGS`, call it with `--help` in the `ARGS` to see what it can do.
 """
-function build_tarballs(ARGS, src_name, sources, script, platforms, products,
-                        dependencies)
+function build_tarballs(ARGS, src_name, src_version, sources, script,
+                        platforms, products, dependencies)
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
@@ -114,7 +114,7 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         Compat.@info("Building for $(join(triplet.(platforms), ", "))")
 
         # Build the given platforms using the given sources
-        autobuild(pwd(), src_name, platforms, sources, script,
+        autobuild(pwd(), src_name, src_version, sources, script, platforms,
                          products, dependencies; verbose=verbose, debug=debug)
     else
         msg = strip("""
@@ -123,7 +123,10 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
         Compat.@info(msg)
 
         # Reconstruct product_hashes from github
-        product_hashes_from_github_release(repo, tag; verbose=verbose)
+        product_hashes_from_github_release(repo, tag;
+            product_filter="v$(src_version)",
+            verbose=verbose
+        )
     end
 
     # If we didn't override the default set of platforms OR we asked for only
@@ -137,7 +140,8 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
 
         # A dummy prefix to pass through products()
         dummy_products = products(Prefix(pwd()))
-        print_buildjl(pwd(), dummy_products, product_hashes, bin_path)
+        print_buildjl(pwd(), src_name, src_version, dummy_products,
+                      product_hashes, bin_path)
 
         if verbose
             Compat.@info("Writing out the following reconstructed build.jl:")
@@ -146,6 +150,21 @@ function build_tarballs(ARGS, src_name, sources, script, platforms, products,
     end
 
     return product_hashes
+end
+
+function build_tarballs(ARGS, src_name, sources, script, platforms, products,
+                        dependencies)
+    Compat.@warn("build_tarballs now requires a src_version parameter; assuming v\"1.0.0\"")
+    return build_tarballs(
+        ARGS,
+        src_name,
+        v"1.0.0",
+        sources,
+        script,
+        platforms,
+        products,
+        dependencies
+    )
 end
 
 # Helper function to get things from ENV, returning `nothing`
@@ -226,9 +245,11 @@ function get_tag_name()
 end
 
 """
-    autobuild(dir::AbstractString, src_name::AbstractString, platforms::Vector,
-              sources::Vector, script::AbstractString, products::Function,
-              dependencies::Vector; verbose::Bool = true, debug::Bool = false)
+    autobuild(dir::AbstractString, src_name::AbstractString,
+              src_version::VersionNumber, sources::Vector,
+              script::AbstractString, platforms::Vector,
+              products::Function, dependencies::Vector;
+              verbose::Bool = true, debug::Bool = false)
 
 Runs the boiler plate code to download, build, and package a source package
 for a list of platforms.  `src_name` represents the name of the source package
@@ -243,10 +264,14 @@ allow this build process to depend on the results of another build process.
 Setting `debug` to `true` will cause a failed build to drop into an interactive
 shell so that the build can be inspected easily.
 """
-function autobuild(dir::AbstractString, src_name::AbstractString,
-                   platforms::Vector, sources::Vector,
-                   script::AbstractString, products::Function,
-                   dependencies::Vector = AbstractDependency[];
+function autobuild(dir::AbstractString,
+                   src_name::AbstractString,
+                   src_version::VersionNumber,
+                   sources::Vector,
+                   script::AbstractString,
+                   platforms::Vector,
+                   products::Function,
+                   dependencies::Vector;
                    verbose::Bool = true, debug::Bool = false)
     # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds
     if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
@@ -388,7 +413,14 @@ function autobuild(dir::AbstractString, src_name::AbstractString,
                 end
 
                 # Once we're built up, go ahead and package this prefix out
-                tarball_path, tarball_hash = package(prefix, joinpath(out_path, src_name); platform=platform, verbose=verbose, force=true)
+                tarball_path, tarball_hash = package(
+                    prefix,
+                    joinpath(out_path, src_name),
+                    src_version;
+                    platform=platform,
+                    verbose=verbose,
+                    force=true,
+               )
                 product_hashes[target] = (basename(tarball_path), tarball_hash)
 
                 # Destroy the workspace
@@ -474,10 +506,11 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
     """)
 end
 
-function print_buildjl(build_dir::AbstractString, products::Vector,
+function print_buildjl(build_dir::AbstractString, src_name::AbstractString,
+                       src_version::VersionNumber, products::Vector,
                        product_hashes::Dict, bin_path::AbstractString)
     mkpath(joinpath(build_dir, "products"))
-    open(joinpath(build_dir, "products", "build.jl"), "w") do io
+    open(joinpath(build_dir, "products", "build_$(src_name).v$(src_version).jl"), "w") do io
         print_buildjl(io, products, product_hashes, bin_path)
     end
 end
@@ -488,6 +521,7 @@ If you have a sharded build on Github, it would be nice if we could get an auto-
 it from a releases page.
 """
 function product_hashes_from_github_release(repo_name::AbstractString, tag_name::AbstractString;
+                                            product_filter::AbstractString = "",
                                             verbose::Bool = false)
     # Get list of files within this release
     release = gh_get_json(DEFAULT_API, "/repos/$(repo_name)/releases/tags/$(tag_name)", auth=github_auth())
@@ -495,7 +529,7 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
     # Try to extract the platform key from each, use that to find all tarballs
     function can_extract_platform(filename)
         # Short-circuit build.jl because that's quite often there.  :P
-        if filename == "build.jl"
+        if startswith(filename, "build") && endswith(filename, ".jl")
             return false
         end
 
@@ -506,6 +540,7 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
         return !unknown_platform
     end
     assets = [a for a in release["assets"] if can_extract_platform(a["name"])]
+    assets = [a for a in assets if contains(a["name"], product_filter)]
 
     # Download each tarball, hash it, and reconstruct product_hashes.
     product_hashes = Dict()

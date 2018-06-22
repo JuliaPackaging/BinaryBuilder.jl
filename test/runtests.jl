@@ -183,7 +183,7 @@ libfoo_script = """
         end
 
         # Next, package it up as a .tar.gz file
-        tarball_path, tarball_hash = package(prefix, "./libfoo"; verbose=true)
+        tarball_path, tarball_hash = package(prefix, "./libfoo", v"1.0.0"; verbose=true)
         @test isfile(tarball_path)
 
         # Delete the build path
@@ -273,6 +273,7 @@ end
         build_tarballs(
             [], # fake ARGS
             "libfoo",
+            v"1.0.0",
             [local_dir_path],
             libfoo_script,
             [Linux(:x86_64, :glibc)],
@@ -281,8 +282,8 @@ end
         )
 
         # Make sure that worked
-        @test isfile("products/libfoo.x86_64-linux-gnu.tar.gz")
-        @test isfile("products/build.jl")
+        @test isfile("products/libfoo.v1.0.0.x86_64-linux-gnu.tar.gz")
+        @test isfile("products/build_libfoo.v1.0.0.jl")
     end
 end
 
@@ -313,6 +314,7 @@ end
         build_tarballs(
             [], # fake ARGS
             "libfoo",
+            v"1.0.0",
             sources,
             "cd libfoo\n$libfoo_script",
             [Linux(:x86_64, :glibc)],
@@ -321,8 +323,8 @@ end
         )
 
         # Make sure that worked
-        @test isfile("products/libfoo.x86_64-linux-gnu.tar.gz")
-        @test isfile("products/build.jl")
+        @test isfile("products/libfoo.v1.0.0.x86_64-linux-gnu.tar.gz")
+        @test isfile("products/build_libfoo.v1.0.0.jl")
     end
 
     rm(build_path; force=true, recursive=true)
@@ -336,7 +338,7 @@ end
         repo = LibGit2.clone("https://github.com/staticfloat/OggBuilder", ".")
 
         # Check out a known-good tag
-        LibGit2.checkout!(repo, hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-4"))))
+        LibGit2.checkout!(repo, hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-6"))))
 
         # Reconstruct binaries!  We don't want it to pick up BinaryBuilder.jl information from CI,
         # so wipe out those environment variables through withenv:
@@ -358,19 +360,19 @@ end
             function write_deps_file(args...; kwargs...); end
 
             # Include build.jl file to extract download_info
-            include(joinpath($build_path, "products", "build.jl"))
+            include(joinpath($build_path, "products", "build_Ogg.v1.3.3.jl"))
             download_info
         end)
 
         # Test that we get the info right about some of these platforms
-        bin_prefix = "https://github.com/staticfloat/OggBuilder/releases/download/v1.3.3-4"
+        bin_prefix = "https://github.com/staticfloat/OggBuilder/releases/download/v1.3.3-6"
         @test download_info[Linux(:x86_64)] == (
-            "$bin_prefix/Ogg.x86_64-linux-gnu.tar.gz",
-            "e4562248c27c8d4beb7f954fa02bf551e4908e448d825fa3f326ba92d947930c",
+            "$bin_prefix/Ogg.v1.3.3.x86_64-linux-gnu.tar.gz",
+            "6ef771242553b96262d57b978358887a056034a3c630835c76062dca8b139ea6",
         )
         @test download_info[Windows(:i686)] == (
-            "$bin_prefix/Ogg.i686-w64-mingw32.tar.gz",
-            "d76691afe57af2b01292478a6eaa6623149341318bbc559b69032cbfb328f974",
+            "$bin_prefix/Ogg.v1.3.3.i686-w64-mingw32.tar.gz",
+            "3f6f6f524137a178e9df7cb5ea5427de6694c2a44ef78f1491d22bd9c6c8a0e8",
         )
     end
 end
