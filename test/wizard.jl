@@ -204,6 +204,46 @@ let state = BinaryBuilder.WizardState(ins, outs)
     wait(t)
 end
 
+# Step 7 testing
+let state = BinaryBuilder.WizardState(ins, outs)
+    state.step = :step7
+    state.source_urls = ["http://julialang.org/"]
+    state.source_files = ["./julia.tar.gz"]
+    state.source_hashes = ["0"^64]
+    state.history = ""
+    state.files = ["libjulia"]
+    state.file_kinds = [:library]
+    state.file_varnames = [:libjulia]
+    state.dependencies = []
+
+    t = @async do_try(()->BinaryBuilder.step7(state))
+    sleep(1)
+    
+    # Write first project name (ensuring it fails gracefully), then project version:
+    readuntil(pty.master, "This will be used for filenames:")
+    write(pty.master, "\r")
+    readuntil(pty.master, "Name may not be empty!")
+    readuntil(pty.master, "This will be used for filenames:")
+    write(pty.master, "ProjectName\r")
+
+    readuntil(pty.master, "This will be used for filenames:")
+    write(pty.master, "v1.2.3\r")
+    
+    # We should get a build_tarballs.jl spat out now, which ends somewhere around "build_tarballs(...)"
+    readuntil(pty.master, "build_tarballs(")
+    
+    # We should also get a .travis.yml, which ends somewhere around " - julia build_tarballs.jl"
+    readuntil(pty.master, " - julia build_tarballs.jl")
+
+    # Let's not test script deployment
+    readuntil(pty.master, "May I help you with the deployment of these scripts?")
+    wait_for_menu(pty)
+    write(pty.master, "\e[B\e[B\r")
+    
+    # Now wait for that task to finish itself up
+    wait(t)
+end
+
 struct GitHubSimulator <: GitHub.GitHubAPI
 end
 
