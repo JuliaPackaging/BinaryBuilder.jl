@@ -132,6 +132,7 @@ function should_ignore_lib(lib, ::ELFHandle)
         # Basic runtimes for both Linux and FreeBSD
         "libc.so",
         "libc.so.6",
+        "libc.so.7",
         "libstdc++.so.6",
         "libdl.so.2",
         "librt.so.1",
