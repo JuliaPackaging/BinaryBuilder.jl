@@ -45,6 +45,7 @@ mutable struct WizardState
     validated_platforms::Set{Any}
     # Filled in by step 7
     name::Union{Nothing, String}
+    version::Union{Nothing, VersionNumber}
     github_api::GitHub.GitHubAPI
     travis_endpoint::String
 end
@@ -70,6 +71,7 @@ function WizardState()
         Set{Any}(),
         Set{Any}(),
         Set{Any}(),
+        nothing,
         nothing,
         GitHub.DEFAULT_API,
         DEFAULT_TRAVIS_ENDPOINT

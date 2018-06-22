@@ -40,6 +40,9 @@ function print_build_tarballs(io::IO, state::WizardState;
     # `julia build_tarballs.jl --help` to see a usage message.
     using BinaryBuilder
 
+    name = $(repr(state.name))
+    version = $(repr(state.version))
+
     # Collection of sources required to build $(state.name)
     sources = [
         $(sources_string)
@@ -67,7 +70,7 @@ function print_build_tarballs(io::IO, state::WizardState;
     ]
 
     # Build the tarballs, and possibly a `build.jl` as well.
-    build_tarballs(ARGS, $(repr(state.name)), sources, script, platforms, products, dependencies)
+    build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies)
     """)
 end
 
@@ -498,19 +501,29 @@ function step7(state::WizardState)
 
     printstyled(state.outs, "\t\t\t# Step 7: Deployment\n\n", bold=true)
 
-    while true
-        msg = strip("""
-        Pick a name for this project.  This will be used for filenames:
-        """)
-        print(state.outs, msg, "\n> ")
-        state.name = readline(state.ins)
-        println(state.outs)
-        if isempty(state.name)
-            printstyled(state.outs, "Name may not be empty!\n", color=:red)
-            continue
+    function nonempty_line_prompt(name, msg)
+        val = ""
+        while true
+            print(state.outs, msg, "\n> ")
+            val = readline(state.ins)
+            println(state.outs)
+            if !isempty(val)
+                break
+            end
+            printstyled(state.outs, "$(name) may not be empty!\n", color=:red)
         end
-        break
+        return val
     end
+
+    msg = strip("""
+    Enter a name for this project.  This will be used for filenames:
+    """)
+    state.name = nonempty_line_prompt("Name", msg)
+    msg = strip("""
+    Enter a version number for this project.  This will be used for filenames:
+    """)
+    state.version = VersionNumber(nonempty_line_prompt("Version", msg))
+    
     println(state.outs, "Use this as your build_tarballs.jl:")
     println(state.outs, "\n```")
     print_build_tarballs(state.outs, state)
