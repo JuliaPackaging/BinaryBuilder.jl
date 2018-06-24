@@ -140,6 +140,7 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
     return did_succeed
 end
 
+const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
 function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
     if runner_override == "privileged"
         msg = "Running privileged container via `sudo`, may ask for your password:"
@@ -148,16 +149,16 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
 
     cd(rootfs_dir()) do
         cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
-        if stdin isa Base.AbstractCmd || stdin isa Base.TTY
+        if stdin isa AnyRedirectable
             cmd = pipeline(cmd, stdin=stdin)
         end
-        if stdout isa Base.AbstractCmd || stdout isa Base.TTY
+        if stdout isa AnyRedirectable
             cmd = pipeline(cmd, stdout=stdout)
         end
-        if stderr isa Base.AbstractCmd || stderr isa Base.TTY
+        if stderr isa AnyRedirectable
             cmd = pipeline(cmd, stderr=stderr)
         end
-        
+
         if stdout isa IOBuffer
             if !(stdin isa IOBuffer)
                 stdin = devnull
