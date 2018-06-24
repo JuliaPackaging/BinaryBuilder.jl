@@ -259,7 +259,7 @@ static void mount_procfs(const char * root_dir) {
 /*
  * We use this method to get /dev in shape.  If we're running as init, we need to
  * mount full-blown devtmpfs at /dev.  If we're just a sandbox, we only bindmount
- * /dev/null into our root_dir.
+ * /dev/{tty,null,urandom} into our root_dir.
  */
 static void mount_dev(const char * root_dir) {
   char path[PATH_MAX];
@@ -283,6 +283,15 @@ static void mount_dev(const char * root_dir) {
     }
     touch(path);
     check(0 == mount("/dev/null", path, "", MS_BIND, NULL));
+
+    // Bindmount /dev/tty into our root_dir
+    snprintf(path, sizeof(path), "%s/dev/tty", root_dir);
+    if (verbose) {
+      printf("--> Mounting /dev/tty at %s\n", path);
+    }
+    touch(path);
+    check(0 == mount("/dev/tty", path, "", MS_BIND, NULL));
+
 
     // If the host has a /dev/urandom, expose that to the sandboxed process as well.
     if (access("/dev/urandom", F_OK) == 0) {
