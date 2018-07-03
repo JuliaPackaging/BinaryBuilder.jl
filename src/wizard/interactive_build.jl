@@ -494,7 +494,6 @@ function step5c(state::WizardState)
         build_path = tempname()
         mkpath(build_path)
         local ok = true
-        local skip = false
         cd(build_path) do
             prefix, ur = setup_workspace(
                 build_path,
@@ -505,7 +504,7 @@ function step5c(state::WizardState)
                 verbose=false,
                 tee_stream=state.outs
             )
-            prefix == nothing && (skip = false; return)
+            prefix == nothing && (ok = false; return)
             run(ur,
                 `/bin/bash -c $(state.history)`,
                 joinpath(build_path,"out.log");
