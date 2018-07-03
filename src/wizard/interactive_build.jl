@@ -488,11 +488,13 @@ function step5c(state::WizardState)
     println(state.outs)
 
     pred = x -> !(x in state.validated_platforms)
+
     for platform in filter(pred, state.platforms)
         print(state.outs, "Building $platform ")
         build_path = tempname()
         mkpath(build_path)
         local ok = true
+        local skip = false
         cd(build_path) do
             prefix, ur = setup_workspace(
                 build_path,
@@ -503,7 +505,7 @@ function step5c(state::WizardState)
                 verbose=false,
                 tee_stream=state.outs
             )
-
+            prefix == nothing && (skip = false; return)
             run(ur,
                 `/bin/bash -c $(state.history)`,
                 joinpath(build_path,"out.log");
@@ -526,6 +528,10 @@ function step5c(state::WizardState)
                 state.files;
                 silent = true
             ))
+        end
+        if skip
+            warn("Falure with build $platform")
+            continue
         end
         print(state.outs, "[")
         if ok

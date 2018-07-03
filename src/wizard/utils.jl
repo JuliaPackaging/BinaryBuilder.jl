@@ -238,34 +238,38 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     for dep in dependencies
         script = script_for_dep(dep)
         m = Module(:__anon__)
-        eval(m, quote
-            using BinaryProvider
+        try
+            eval(m, quote
+                using BinaryProvider
 
-            # Force the script to download for this platform.
-            platform_key() = $platform
+                # Force the script to download for this platform.
+                platform_key() = $platform
 
-            # We don't want any deps files being written out
-            function write_deps_file(args...) end
+                # We don't want any deps files being written out
+                function write_deps_file(args...) end
 
-            # Override @__DIR__ to return the destination directory,
-            # so that things get installed into there.  This is a protection
-            # against older scripts that ignore `ARGS[1]`, which is set below.
-            # Eventually we should be able to forgo this skullduggery.
-            macro __DIR__(args...); return $destdir; end
+                # Override @__DIR__ to return the destination directory,
+                # so that things get installed into there.  This is a protection
+                # against older scripts that ignore `ARGS[1]`, which is set below.
+                # Eventually we should be able to forgo this skullduggery.
+                macro __DIR__(args...); return $destdir; end
 
-            # Override install() to cache in our downloads directory, to
-            # ignore platforms, and to be verbose if we want it to be.
-            function install(url, hash; kwargs...)
-                BinaryProvider.install(url, hash;
-                    tarball_path=joinpath($downloads_dir, basename(url)),
-                    ignore_platform=true,
-                    verbose=$verbose,
-                    kwargs...,
-                )
-            end
-            ARGS = [$destdir]
-            include_string($(script))
-        end)
+                # Override install() to cache in our downloads directory, to
+                # ignore platforms, and to be verbose if we want it to be.
+                function install(url, hash; kwargs...)
+                    BinaryProvider.install(url, hash;
+                        tarball_path=joinpath($downloads_dir, basename(url)),
+                        ignore_platform=true,
+                        verbose=$verbose,
+                        kwargs...,
+                    )
+                end
+                ARGS = [$destdir]
+                include_string($(script))
+            end)
+        catch e
+            return nothing, ur
+        end
     end
 
     # Run the cmds defined above
