@@ -272,7 +272,7 @@ function init_git_config(repo, state)
     prompt in the future and to set your name and
     email address globally, run
 
-        BinaryProvider.set_global_git_config(username, email)
+        BinaryBuilder.set_global_git_config(username, email)
 
     """
     println(state.outs, msg)
@@ -417,7 +417,7 @@ end
 
 function push_repo(api::GitHub.GitHubWebAPI, lrepo, rrepo, user, token, refspecs)
     # Push the empty commit
-    LibGit2.push(repo, remoteurl="https://github.com/$(GitHub.name(gr)).git",
+    LibGit2.push(lrepo, remoteurl="https://github.com/$(GitHub.name(rrepo)).git",
         payload=Nullable(LibGit2.UserPasswordCredentials(deepcopy(user),deepcopy(token))),
         refspecs=refspecs)
 end
@@ -523,7 +523,6 @@ function step7(state::WizardState)
     Enter a version number for this project.  This will be used for filenames:
     """)
     state.version = VersionNumber(nonempty_line_prompt("Version", msg))
-    
     println(state.outs, "Use this as your build_tarballs.jl:")
     println(state.outs, "\n```")
     print_build_tarballs(state.outs, state)
