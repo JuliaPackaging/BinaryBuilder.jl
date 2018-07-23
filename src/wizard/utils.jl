@@ -140,19 +140,25 @@ function yn_prompt(state::WizardState, question::AbstractString, default = :y)
     end
 end
 
-function script_for_dep(dep)
+function script_for_dep(dep, install_dir)
+    # If dep is a pair, peel it to override install_dir
+    if isa(dep, Pair)
+        dep, install_dir = dep
+    end
+
     # Since remote dependencies are most common, we default plain strings to
     # this in order to keep the build scripts small
     if isa(dep, String)
         dep = RemoteBuildDependency(dep, nothing)
     end
+
     if isa(dep, InlineBuildDependency)
         script = dep.script
     elseif isa(dep, RemoteBuildDependency)
         script = dep.script === nothing ? String(HTTP.get(dep.url).body) :
             dep.script
     end
-    script
+    return script, install_dir
 end
 
 """
@@ -236,7 +242,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
 
     # For each dependency, install it into the prefix
     for dep in dependencies
-        script = script_for_dep(dep)
+        script, install_dir = script_for_dep(dep, destdir)
         m = Module(:__anon__)
         eval(m, quote
             using BinaryProvider
@@ -263,7 +269,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                     kwargs...,
                 )
             end
-            ARGS = [$destdir]
+            ARGS = [$install_dir]
             include_string($(script))
         end)
     end
