@@ -504,7 +504,10 @@ function step5c(state::WizardState)
                 verbose=false,
                 tee_stream=state.outs
             )
-            prefix == nothing && (ok = false; return)
+            if prefix == nothing
+                ok = false
+                return
+            end
             run(ur,
                 `/bin/bash -c $(state.history)`,
                 joinpath(build_path,"out.log");
