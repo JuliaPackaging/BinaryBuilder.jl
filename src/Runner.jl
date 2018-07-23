@@ -48,6 +48,9 @@ function target_envs(target::AbstractString)
     # Start with the default musl ld path:
     lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
 
+    # Add on our glibc-compatibility layer
+    lib_path *= ":/usr/glibc-compat/lib"
+
     # Then add on our target-specific locations
     lib_path *= ":/opt/$(target)/lib64:/opt/$(target)/lib"
     lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
