@@ -528,10 +528,6 @@ function step5c(state::WizardState)
                 silent = true
             ))
         end
-        if skip
-            warn("Falure with build $platform")
-            continue
-        end
         print(state.outs, "[")
         if ok
             printstyled(state.outs, "✓", color=:green)
