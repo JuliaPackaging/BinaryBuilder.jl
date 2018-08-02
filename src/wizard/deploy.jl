@@ -408,11 +408,11 @@ Sets up travis for an existing repository
 """
 function setup_travis(repo)
     # Get user name
-    user = get_github_user(STDOUT, STDIN)
+    user = get_github_user(Base.stdout, Base.stdin)
     gr = GitHub.Repo(repo)
-    token = obtain_token(STDOUT, STDIN, GitHub.name(gr), user)
-    secure_key = obtain_secure_key(STDOUT, token, gr)
-    print_travis_deploy(STDOUT, gr, secure_key)
+    token = obtain_token(Base.stdout, Base.stdin, GitHub.name(gr), user)
+    secure_key = obtain_secure_key(Base.stdout, token, gr)
+    print_travis_deploy(Base.stdout, gr, secure_key)
 end
 
 function push_repo(api::GitHub.GitHubWebAPI, lrepo, rrepo, user, token, refspecs)
