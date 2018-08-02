@@ -75,6 +75,19 @@ function __init__()
     qemu_cache = get(ENV, "BINARYBUILDER_QEMU_DIR", def_qemu_cache)
     qemu_cache = abspath(qemu_cache)
 
+    # If the user has signalled that they really want us to automatically
+    # accept apple EULAs, do that.
+    if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
+        automatic_apple = true
+    end
+
+    # If the user has overridden our runner selection algorithms, honor that
+    runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
+    if !(runner_override in ["", "userns", "qemu", "privileged"])
+        Compat.@warn("Invalid runner value $runner_override, ignoring...")
+        runner_override = ""
+    end
+
     # If the user has asked for squashfs mounting instead of tarball mounting,
     # use that here.  Note that on Travis, we default to using squashfs, unless
     # BINARYBUILDER_USE_SQUASHFS is set to "false", which overrides this
@@ -89,19 +102,12 @@ function __init__()
         if get(ENV, "TRAVIS", "") == "true"
             use_squashfs = true
         end
-    end
 
-    # If the user has signalled that they really want us to automatically
-    # accept apple EULAs, do that.
-    if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
-        automatic_apple = true
-    end
-
-    # If the user has overridden our runner selection algorithms, honor that
-    runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
-    if !(runner_override in ["", "userns", "qemu", "privileged"])
-        Compat.@warn("Invalid runner value $runner_override, ignoring...")
-        runner_override = ""
+        # If it hasn't been specified but we're going to use the QEMU runner,
+        # then set `use_squashfs` to `true` here.
+        if preferred_runner() == QemuRunner
+            use_squashfs = true
+        end
     end
 
     # If the user has signified that they want to allow mounting of ecryptfs
