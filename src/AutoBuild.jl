@@ -145,7 +145,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         if verbose
             Compat.@info("Writing out the following reconstructed build.jl:")
-            print_buildjl(STDOUT, dummy_products, product_hashes, bin_path)
+            print_buildjl(Base.stdout, dummy_products, product_hashes, bin_path)
         end
     end
 
