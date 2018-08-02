@@ -236,7 +236,7 @@ function is_ecryptfs(path::AbstractString; verbose::Bool=false)
         if verbose
             Compat.@info("Couldn't open /proc/mounts, returning...")
         end
-        return false
+        return false, path
     end
     mounts = String(read("/proc/mounts"))
 
