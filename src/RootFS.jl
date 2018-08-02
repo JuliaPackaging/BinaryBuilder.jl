@@ -319,6 +319,9 @@ end
 # Helper for when you're only asking for a single triplet
 update_rootfs(triplet::AbstractString; kwargs...) = update_rootfs([triplet]; kwargs...)
 
+# Helper for when you just want all the good little shardlings
+download_all_shards() = update_rootfs.(triplet.(supported_platforms()))
+
 # Helper to unmount any shards that may be mounted, so as not to exhaust the number of loopback devices
 function unmount_shard(dest_dir::AbstractString; fail_on_error::Bool = false)
     # This function only matters on Linux
