@@ -4,3 +4,4 @@
 global_prefix
 .vscode/
 deps/usr
+deps/build.log
