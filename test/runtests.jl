@@ -79,10 +79,16 @@ end
 
 @testset "UserNS utilities" begin
     # Test that is_ecryptfs works for something we're certain isn't encrypted
-    isecfs = (false, "/proc/")
-    @test BinaryBuilder.is_ecryptfs("/proc"; verbose=true) == isecfs
-    @test BinaryBuilder.is_ecryptfs("/proc/"; verbose=true) == isecfs
-    @test BinaryBuilder.is_ecryptfs("/proc/not_a_file"; verbose=true) == isecfs
+    if isdir("/proc")
+        isecfs = (false, "/proc/")
+        @test BinaryBuilder.is_ecryptfs("/proc"; verbose=true) == isecfs
+        @test BinaryBuilder.is_ecryptfs("/proc/"; verbose=true) == isecfs
+        @test BinaryBuilder.is_ecryptfs("/proc/not_a_file"; verbose=true) == isecfs
+    else
+        @test BinaryBuilder.is_ecryptfs("/proc"; verbose=true) == (false, "/proc")
+        @test BinaryBuilder.is_ecryptfs("/proc/"; verbose=true) == (false, "/proc/")
+        @test BinaryBuilder.is_ecryptfs("/proc/not_a_file"; verbose=true) == (false, "/proc/not_a_file")
+    end
 end
 
 @testset "Builder Dependency" begin
