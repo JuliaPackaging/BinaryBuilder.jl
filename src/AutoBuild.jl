@@ -392,7 +392,7 @@ function autobuild(dir::AbstractString,
 
                 # Remove the files of any dependencies
                 for dependency in dependencies
-                    dep_script = script_for_dep(dependency)
+                    dep_script = script_for_dep(dependency, prefix.path)[1]
                     m = Module(:__anon__)
                     eval(m, quote
                         using BinaryProvider
