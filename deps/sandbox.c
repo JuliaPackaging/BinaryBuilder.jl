@@ -907,10 +907,9 @@ int main(int sandbox_argc, char **sandbox_argv) {
     read_sandbox_env(cmdline_fd);
 
     // We've received all of our configuration data.
-    // Acknowledge receipt and close the file descriptor.
+    // Acknowledge receipt so that Julia know's we're up and running.
     uint8_t ok = 0;
     check(1 == write(cmdline_fd, &ok, sizeof(uint8_t)));
-    close(cmdline_fd);
 
     // Take over the terminal
     setsid();
@@ -925,7 +924,11 @@ int main(int sandbox_argc, char **sandbox_argv) {
     setup_vm_networking();
 
     // Run sandbox_main to Enter The Sandbox (TM)
-    sandbox_main("/tmp", new_cd, sandbox_argc, sandbox_argv);
+    int result = sandbox_main("/tmp", new_cd, sandbox_argc, sandbox_argv);
+
+    // Send the exit status over to Julia, then close the sidechannel socket
+    check(sizeof(int) == write(cmdline_fd, &result, sizeof(int)));
+    close(cmdline_fd);
 
     // Don't forget to `sync()` so that we don't lose any pending writes to the filesystem!
     sync();
