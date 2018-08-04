@@ -333,7 +333,7 @@ static void mount_workspaces(struct map_list * workspaces, const char * dest) {
 
     if (strncmp("9p/", current_entry->outside_path, 3) == 0) {
       // If we're running as init within QEMU, the workspace is a plan 9 mount
-      check(0 == mount(current_entry->outside_path+3, path, "9p", 0, "trans=virtio,version=9p2000.L"));
+      check(0 == mount(current_entry->outside_path+3, path, "9p", 0, "trans=virtio,version=9p2000.L,cache=loose"));
     } else {
       // We don't expect workspace to have any submounts in normal operation.
       // However, for runshell(), workspace could be an arbitrary directory,
@@ -928,12 +928,12 @@ int main(int sandbox_argc, char **sandbox_argv) {
 
     // Send the exit status over to Julia, then close the sidechannel socket
     check(sizeof(int) == write(cmdline_fd, &result, sizeof(int)));
-    close(cmdline_fd);
 
     // Don't forget to `sync()` so that we don't lose any pending writes to the filesystem!
     sync();
 
     // Goodnight, my sweet prince
+    close(cmdline_fd);
     check(0 == reboot(RB_POWER_OFF));
 
     // This is never reached, but it's nice for completionism
