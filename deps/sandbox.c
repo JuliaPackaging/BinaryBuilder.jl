@@ -606,8 +606,10 @@ static int sandbox_main(const char * root_dir, const char * new_cd, int sandbox_
   check(0 == chdir(root_dir));
   check(0 == chroot("."));
 
-  // If we've got a directory to change to, do so
+  // If we've got a directory to change to, do so, possibly creating it if we need to
   if (new_cd) {
+    int result = mkdir(new_cd, 0777);
+    check((0 == result) || (errno == EEXIST));
     check(0 == chdir(new_cd));
   }
 
