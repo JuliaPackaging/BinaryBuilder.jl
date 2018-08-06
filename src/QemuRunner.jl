@@ -13,6 +13,9 @@ mutable struct QemuRunner <: Runner
     sandbox_cmd::Cmd
     env::Dict{String, String}
     platform::Platform
+
+    comm_task
+    exit_code::Cint
 end
 
 qemu_url = "https://github.com/Keno/QemuBuilder/releases/download/rebased/qemu.x86_64-apple-darwin14.tar.gz"
@@ -69,60 +72,43 @@ end
 qemu_path() = joinpath(qemu_cache, "bin/qemu-system-x86_64")
 kernel_path() = joinpath(qemu_cache, "bzImage")
 
-function platform_def_mappings(platform)
-    tp = triplet(platform)
-    mapping = Pair{String,String}[
-        shard_path_squashfs(tp) => joinpath("/opt", tp)
-    ]
-
-    # We might also need the x86_64-linux-gnu platform for bootstrapping,
-    # so make sure that's always included
-    if platform != Linux(:x86_64)
-        ltp = triplet(Linux(:x86_64))
-        push!(mapping, shard_path_squashfs(ltp) => joinpath("/opt", ltp))
-    end
-
-    # If we're trying to run macOS and we have an SDK directory, mount that!
-    if platform == MacOS()
-        sdk_version = "MacOSX10.10.sdk"
-        sdk_shard_path = joinpath(shards_cache, sdk_version)
-        push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
-    end
-
-    # Reverse mapping order, because `sandbox` reads them backwards
-    reverse!(mapping)
-    return mapping
-end
-
-platform_accelerator() = Compat.Sys.islinux() ? "kvm" : "hvf"
-
 function QemuRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
                       mappings::Vector = platform_def_mappings(platform),
                       workspaces::Vector = [])
-    global use_ccache
+    global use_ccache, use_squashfs
 
-    # Ensure the rootfs for this platform is downloaded and up to date
-    update_rootfs(
-        platform != Linux(:x86_64) ?
-        [triplet(platform), triplet(Linux(:x86_64))] :
-        triplet(platform); verbose=verbose, squashfs=true, mount=false)
+    # Ensure the rootfs for this platform is downloaded and up to date.
+    # Also, since we require the Linux(:x86_64) shard for HOST_CC....
+    update_rootfs(triplet.([platform, Linux(:x86_64)]);
+                  verbose=verbose, squashfs=use_squashfs, mount=false)
     update_qemu(;verbose=verbose)
 
-    # Default to allowing up to 3/4 of system memory to be used in Qemu
+    # Construct environment variables we'll use from here on out
+    envs = merge(target_envs(triplet(platform)), extra_env)
+
+    # Resource limits for QEMU.  For some reason, it seems to crash if we use too many CPUs....
     memory_limit = Int64(div(Sys.total_memory()*3, 4*1024^2))
+    core_limit = min(Sys.CPU_THREADS, 3)
 
     qemu_cmd = ```
-        $(qemu_path()) -kernel $(kernel_path()) -m $(memory_limit)M
-        -M accel=$(platform_accelerator()) -nographic
-        -drive if=virtio,file=$(rootfs_path_squashfs()),format=raw
-        -nodefaults -rtc base=utc,driftfix=slew
-        -device virtio-serial -chardev stdio,id=charconsole0
+        $(qemu_path()) -kernel $(kernel_path())
+        -m $(memory_limit)M
+        -cpu host
+        -smp 2
+        -M accel=$(Compat.Sys.islinux() ? "kvm" : "hvf")
+        -nographic
+        -drive if=virtio,file=$(rootfs_path()),format=raw
+        -nodefaults
+        -rtc base=utc,driftfix=slew
+        -device virtio-serial
+        -chardev stdio,id=charconsole0
         -device virtconsole,chardev=charconsole0,id=console0
         -device virtserialport,chardev=charcomm0,id=comm0
-        -device virtio-net-pci,netdev=networking -netdev user,id=networking
+        -device virtio-net-pci,netdev=networking
+        -netdev user,id=networking
     ```
     append_line = "quiet console=hvc0 root=/dev/vda rootflags=ro rootfstype=squashfs noinitrd init=/sandbox"
 
@@ -170,7 +156,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         end
     end
 
-    QemuRunner(qemu_cmd, append_line, sandbox_cmd, merge(target_envs(triplet(platform)), extra_env), platform)
+    return QemuRunner(qemu_cmd, append_line, sandbox_cmd, envs, platform, nothing, 0)
 end
 
 
@@ -183,7 +169,7 @@ function show(io::IO, x::QemuRunner)
 end
 
 function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
-    @async begin
+    qr.comm_task = @async begin
         # This is what we'll send to `sandbox`
         sandbox_args = String.(`$(qr.sandbox_cmd) -- $(cmd)`.exec)
         sandbox_env = ["$k=$v" for (k, v) in qr.env]
@@ -193,6 +179,7 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
         while !issocket(comm_socket_path)
             sleep(0.01)
             if time() - start_time > 2
+                start_time = time()
                 Compat.@info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
             end
         end
@@ -222,8 +209,15 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
         end
 
         # Wait for acknowledgement
-        read(commsock, UInt8)
+        ack = read(commsock, UInt8)
+        if ack != 0
+            Compat.@warn("Acknowledgement from sandbox nonzero! $(ack)")
+        end
 
+        # Read exit status
+        qr.exit_code = read(commsock, Cint)
+
+        # Close communications socket
         close(commsock)
     end
 
@@ -236,6 +230,22 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
     return `$long_cmd`
 end
 
+function qemu_wait(qr, oc)
+    # Wait for QEMU to finish running
+    did_succeed = wait(oc)
+
+    if !did_succeed
+        Compat.@warn("QEMU failed to run")
+        return false
+    end
+
+    # Wait for our communications task to finish
+    wait(qr.comm_task)
+
+    # Check return code
+    return qr.exit_code == 0
+end
+
 function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
     return temp_prefix() do prefix
         comm_socket_path = joinpath(prefix.path, "qemu_comm.socket")
@@ -243,7 +253,7 @@ function Base.run(qr::QemuRunner, cmd, logpath::AbstractString; verbose::Bool = 
         cmd = qemu_gen_cmd(qr, cmd, comm_socket_path)
 
         oc = OutputCollector(cmd; verbose=verbose, tee_stream=tee_stream)
-        did_succeed = wait(oc)
+        did_succeed = qemu_wait(qr, oc)
 
         if !isempty(logpath)
             # Write out the logfile, regardless of whether it was successful
