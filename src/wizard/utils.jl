@@ -221,6 +221,10 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                 LibGit2.checkout!(repo, src_hash)
             end
         else
+            if verbose
+                push!(cmds, "echo \"Extracting $(basename(src_path))...\"")
+            end
+
             # For consistency, we use the tar inside the sandbox to unpack
             cp(src_path, joinpath(srcdir, basename(src_path)))
             if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
