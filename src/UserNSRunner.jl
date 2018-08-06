@@ -164,7 +164,7 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
                 stdin = devnull
             end
             out, process = open(cmd, "r", stdin)
-            @schedule begin
+            @async begin
                 while !eof(out)
                     write(stdout, read(out))
                 end

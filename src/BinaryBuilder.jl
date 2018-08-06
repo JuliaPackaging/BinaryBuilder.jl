@@ -2,7 +2,7 @@
 # __precompile__()
 
 module BinaryBuilder
-using Compat, Compat.Libdl, Compat.LibGit2, Compat.Random
+using Compat, Compat.Libdl, Compat.LibGit2, Compat.Random, Compat.Sockets
 using Reexport
 using ObjectFile
 using Nullables

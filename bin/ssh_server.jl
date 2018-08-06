@@ -79,9 +79,8 @@ while true
             # Check if access is enabled for this user
             github_username = strip(String(responses[1]))
             @show github_username
-            if contains(github_username,"/") || contains(github_username,"%") ||
-                contains(github_username,"%") || contains(github_username,"@") ||
-                contains(github_username,"#")
+            if occursin("/", github_username) || occursin("%", github_username) ||
+               occursin("@", github_username) || occursin("#", github_username)
                 SSH.disconnect(session)
                 return false
             end
