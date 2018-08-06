@@ -16,6 +16,7 @@ include("Runner.jl")
 include("RootFS.jl")
 include("UserNSRunner.jl")
 include("QemuRunner.jl")
+include("DockerRunner.jl")
 include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
@@ -83,7 +84,7 @@ function __init__()
 
     # If the user has overridden our runner selection algorithms, honor that
     runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
-    if !(runner_override in ["", "userns", "qemu", "privileged"])
+    if !(runner_override in ["", "userns", "qemu", "privileged", "docker"])
         Compat.@warn("Invalid runner value $runner_override, ignoring...")
         runner_override = ""
     end
@@ -107,6 +108,11 @@ function __init__()
         # then set `use_squashfs` to `true` here.
         if preferred_runner() == QemuRunner
             use_squashfs = true
+        end
+
+        # Conversely, if we're dock'ing it up, don't use it.
+        if preferred_runner() == DockerRunner
+            use_squashfs = false
         end
     end
 
