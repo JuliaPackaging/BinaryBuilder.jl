@@ -157,7 +157,7 @@ function audit(prefix::Prefix; io=stderr,
     for f in all_files
         try
             file_contents = String(read(f))
-            if contains(file_contents, prefix.path)
+            if occursin(prefix.path, file_contents)
                 if !silent
                     warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
                 end

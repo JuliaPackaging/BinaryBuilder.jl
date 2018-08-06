@@ -254,10 +254,10 @@ end
     @test isfile(env_file)
 
     # Test that exit 1 is in .bash_history
-    @test contains(read(open(hist_file), String), "\nexit 1\n")
+    @test occursin("\nexit 1\n", read(open(hist_file), String))
 
     # Test that MARKER=1 is in .env:
-    @test contains(read(open(env_file), String), "\nMARKER=1\n")
+    @test occursin("\nMARKER=1\n", read(open(env_file), String))
 
     # Delete the build path
     rm(build_path, recursive = true)

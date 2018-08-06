@@ -21,7 +21,7 @@ end
 function target_dlext(target::AbstractString)
     if endswith(target, "-mingw32")
         return "dll"
-    elseif contains(target, "-apple-")
+    elseif occursin("-apple-", target)
         return "dylib"
     else
         return "so"
@@ -100,7 +100,7 @@ function target_envs(target::AbstractString)
     # On all of our clangy platforms we actually have GCC tools available as well,
     # they're just not used by default.  Override these environment variables in
     # your scripts if you want to use them.
-    if contains(target, "-apple-") || contains(target, "-freebsd")
+    if occursin("-apple-", target) || occursin("-freebsd", target)
         mapping["AR"] = tool("llvm-ar")
         mapping["AS"] = tool("llvm-as")
         mapping["CC"] = tool("clang")
@@ -125,7 +125,7 @@ function target_envs(target::AbstractString)
     end
 
     # On OSX, we need to do a little more work.
-    if contains(target, "-apple-")
+    if occursin("-apple-", target)
         # First, tell CMake what our deployment target is, so that it tries to
         # set -mmacosx-version-min and such appropriately
         mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"

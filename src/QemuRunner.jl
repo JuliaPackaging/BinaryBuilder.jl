@@ -279,7 +279,7 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
                 stdin = devnull
             end
             out, process = open(cmd, "r", stdin)
-            @schedule begin
+            @async begin
                 while !eof(out)
                     write(stdout, read(out))
                 end
