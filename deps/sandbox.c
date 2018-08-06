@@ -86,9 +86,13 @@ Then run it, mounting in a rootfs with a workspace and a single map:
 
 /**** Global Variables ***/
 
-// TODO: NABIL: Explain what these are better
+// sandbox_root is the location of the rootfs on disk.  This is required for non-init execution
 char *sandbox_root = NULL;
+
+// new_cd is where we will cd to once we start running.
 char *new_cd = NULL;
+
+// verbose sets whether we're in verbose mode.
 unsigned char verbose = 0;
 
 // Linked list of volume mappings
@@ -107,6 +111,18 @@ enum {
   INIT_MODE,
 };
 static int execution_mode;
+
+// These track plan 9 filesystem mounting options.  This is mostly for debugging performance issues.
+int plan9_msize = 1024*1024;
+const char * plan9_cache = "fscache";
+
+static const char * get_plan9_opts() {
+  static char plan9_opts[1024] = {0};
+  if( plan9_opts[0] == 0 ) {
+    snprintf(plan9_opts, sizeof(plan9_opts), "trans=virtio,version=9p2000.L,cache=%s,access=any,msize=%d,noatime", plan9_cache, plan9_msize);
+  }
+  return &plan9_opts[0];
+}
 
 
 
@@ -137,7 +153,7 @@ static void touch(const char * path) {
   close(fd);
 }
 
-/**** 2: User namespaces
+/**** User namespaces
  *
  * For a general overview on user namespaces, see the corresponding manual page
  * user_namespaces(7). In general, user namespaces allow unprivileged users to
@@ -333,7 +349,7 @@ static void mount_workspaces(struct map_list * workspaces, const char * dest) {
 
     if (strncmp("9p/", current_entry->outside_path, 3) == 0) {
       // If we're running as init within QEMU, the workspace is a plan 9 mount
-      check(0 == mount(current_entry->outside_path+3, path, "9p", 0, "trans=virtio,version=9p2000.L,cache=loose"));
+      check(0 == mount(current_entry->outside_path+3, path, "9p", 0, get_plan9_opts()));
     } else {
       // We don't expect workspace to have any submounts in normal operation.
       // However, for runshell(), workspace could be an arbitrary directory,
@@ -395,7 +411,7 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
       check(0 == mount(current_entry->outside_path, path, "squashfs", 0, ""));
     } else if (strncmp(current_entry->outside_path, "9p/", 3) == 0) {
       // if we're running on qemu, we pass in mappings as plan 9 shares
-      check(0 == mount(current_entry->outside_path+3, path, "9p", MS_RDONLY, "trans=virtio,version=9p2000.L"));
+      check(0 == mount(current_entry->outside_path+3, path, "9p", MS_RDONLY, get_plan9_opts()));
     } else {
       // if it's a normal directory, just bind mount it in
       check(0 == mount(current_entry->outside_path, path, "", MS_BIND, NULL));
