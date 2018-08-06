@@ -31,8 +31,23 @@ function shards_dir(postfix::String = "")
     return joinpath(shards_cache, postfix)
 end
 
-shard_path_squashfs(shard_name) = downloads_dir("rootfs-$(shard_name).squashfs")
-rootfs_path_squashfs() = shard_path_squashfs("base")
+
+function shard_path(shard_name)
+    global use_squashfs
+    if use_squashfs
+        return downloads_dir("rootfs-$(shard_name).squashfs")
+    else
+        return shards_dir(shard_name)
+    end
+end
+function rootfs_path()
+    global use_squashfs
+    if use_squashfs
+        return downloads_dir("rootfs-base.squashfs")
+    else
+        return rootfs_dir()
+    end
+end
 
 function ccache_dir()
     global ccache_override
@@ -64,6 +79,11 @@ function get_shard_url(target::String = "base"; squashfs::Bool = use_squashfs)
     rootfs_urlroot = "https://julialangmirror-s3.julialang.org/binarybuilder"
     rootfs_version = "2018-05-26"
 
+    # Updated base, this is a temporary measure to get a new sandbox
+    if target == "base"
+        rootfs_version = "2018-08-05"
+    end
+
     shard_name = "rootfs-$(target)"
     ext = squashfs ? "squashfs" : "tar.gz"
 
@@ -84,7 +104,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
         "aarch64-linux-musl" => "631c6acd70a32b07d6c202369bea24ece17a1a09f85257f3a88a3dc6cd9ff281",
         "arm-linux-gnueabihf" => "e74ec696b2396267f4ca9b4ac04abe94d092f994435234ac4503d13a20aaaa04",
         "arm-linux-musleabihf" => "1c9d3c6e3f082459b70ea49370641ee8f00c5b058732d140bf10e445d65fbca5",
-        "base" => "154a39efdefe67d680184869a15c9322594e93ce4c03621c81a35b17bd392e4b",
+        "base" => "a6f4d6827e0d9bf08586ba533fdb96d300ed70f4f066fb3c1555cf6b802ffa39",
         "i686-linux-gnu" => "75cad3c1e5566edd6e162aadee5e54c45db49ae984abeed165a3c0fe36463eb6",
         "i686-linux-musl" => "7488e2c6e810b6c738d3af07a4c43e49d0018dd5ab613bc838de9692b8e63543",
         "i686-w64-mingw32" => "7eeeee6959f5d411941b17539b0bee07d2a1523930a1ec6e17dc45d08ae1a940",
@@ -100,7 +120,7 @@ function get_shard_hash(triplet::String = "base"; squashfs::Bool = use_squashfs)
         "aarch64-linux-musl" => "3b0b832c7a498b6c778045038efedcc8f06778f0d653e093fc29d6fa4feb3f58",
         "arm-linux-gnueabihf" => "2b4f224c3c7f43b4ecdc63edd37ab73cd42411b9288bf3cc0d01599ea53541e1",
         "arm-linux-musleabihf" => "04b2a8a26721fc07045a67e4f867f715fe48a7d2e0e29636ece62e2e243fd3d9",
-        "base" => "ecc87a85e79d3a64e853634678ce8e182a12367fdc062dbd046164f2ba0dbd3d",
+        "base" => "f6509762fedbb92538e6afa512ad45cabd764db13936d8d15079d84b276a9edb",
         "i686-linux-gnu" => "848726ca7acc7dc23f5b43f9992d8235761b694260ae4336ff177b6952e3f759",
         "i686-linux-musl" => "b7a429b48cafd5fada36af52b24492f08ff67579211ee7c6854489ee214858df",
         "i686-w64-mingw32" => "7c64955cc3d1bc70bdeed05cdd0d4df140d2ec68ebb3e4c907db74f7370d1616",
@@ -262,15 +282,15 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             dest_dir = shards_dir(shard_name)
         end
 
+        shpath = shard_path(shard_name)
         if squashfs
-            squashfs_path = shard_path_squashfs(shard_name)
-            file_existed = isfile(squashfs_path)
+            file_existed = isfile(shpath)
 
             # If squashfs, verify/redownload the squashfs image
             if !(download_verify(
                 url,
                 hash,
-                squashfs_path;
+                shpath;
                 verbose = verbose,
                 force = true
             ) && file_existed)
@@ -280,19 +300,19 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                     unmount_shard(dest_dir)
 
                     # Patch squashfs files for current uid
-                    rewrite_squashfs_uids(squashfs_path, getuid())
+                    rewrite_squashfs_uids(shpath, getuid())
 
                     # Touch SHA file to prevent re-verifcation from blowing the
                     # fs away
-                    touch(string(squashfs_path,".sha256"))
+                    touch(string(shpath,".sha256"))
                 end
             end
 
             # Then mount it, if it hasn't already been mounted:
             if mount && Compat.Sys.islinux() && !success(`mountpoint $(dest_dir)`)
                 mkpath(dest_dir)
-                Compat.@info("Mounting $(squashfs_path) to $(dest_dir)")
-                run(`$(sudo_cmd()) mount $(squashfs_path) $(dest_dir) -o ro,loop`)
+                Compat.@info("Mounting $(shpath) to $(dest_dir)")
+                run(`$(sudo_cmd()) mount $(shpath) $(dest_dir) -o ro,loop`)
             end
         else
             # If it has been mounted previously, unmount here
@@ -456,4 +476,35 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
         mv(dir_in_dir, "$(dirname(dir_in_dir))2")
         mv("$(dirname(dir_in_dir))2", dest; remove_destination=true)
     end
+end
+
+
+"""
+    platform_def_mappings(platform)
+
+Return the default mappings for a platform
+"""
+function platform_def_mappings(platform)
+    tp = triplet(platform)
+    mapping = Pair{String,String}[
+        shard_path(tp) => joinpath("/opt", tp)
+    ]
+
+    # We might also need the x86_64-linux-gnu platform for bootstrapping,
+    # so make sure that's always included
+    if platform != Linux(:x86_64)
+        ltp = triplet(Linux(:x86_64))
+        push!(mapping, shard_path(ltp) => joinpath("/opt", ltp))
+    end
+
+    # If we're trying to run macOS and we have an SDK directory, mount that!
+    if platform == MacOS()
+        sdk_version = "MacOSX10.10.sdk"
+        sdk_shard_path = joinpath(shards_cache, sdk_version)
+        push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
+    end
+
+    # Reverse mapping order, because `sandbox` reads them backwards
+    reverse!(mapping)
+    return mapping
 end

@@ -310,13 +310,3 @@ function runshell(qr::QemuRunner, args...; kwargs...)
     run_interactive(qr, `/bin/bash`, args...; kwargs...)
     @static if Compat.Sys.isapple() run(`stty intr ^\C`) end
 end
-
-function runshell(::Type{QemuRunner}, platform::Platform = platform_key(); verbose::Bool = false)
-    qr = QemuRunner(
-        pwd();
-        cwd="/workspace/",
-        platform=platform,
-        verbose=verbose
-    )
-    return runshell(qr)
-end

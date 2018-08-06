@@ -15,42 +15,18 @@ mutable struct UserNSRunner <: Runner
     platform::Platform
 end
 
-function platform_def_mapping(platform)
-    tp = triplet(platform)
-    mapping = Pair{String,String}[
-        shards_dir(tp) => joinpath("/opt", tp)
-    ]
-
-    # We might also need the x86_64-linux-gnu platform for bootstrapping,
-    # so make sure that's always included
-    if platform != Linux(:x86_64)
-        ltp = triplet(Linux(:x86_64))
-        push!(mapping, shards_dir(ltp) => joinpath("/opt", ltp))
-    end
-
-    # If we're trying to run macOS and we have an SDK directory, mount that!
-    if platform == MacOS()
-        sdk_version = "MacOSX10.10.sdk"
-        sdk_shard_path = shards_dir(sdk_version)
-        push!(mapping, sdk_shard_path => joinpath("/opt", tp, sdk_version))
-    end
-
-    # Reverse mapping order, because `sandbox` reads them backwards
-    reverse!(mapping)
-    return mapping
-end
-
 function UserNSRunner(workspace_root::String; cwd = nothing,
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
-                      mappings::Vector = platform_def_mapping(platform),
+                      mappings::Vector = platform_def_mappings(platform),
                       workspaces::Vector = Pair[])
-    global use_ccache
+    global use_ccache, use_squashfs
 
     # Ensure the rootfs for this platform is downloaded and up to date.
     # Also, since we require the Linux(:x86_64) shard for HOST_CC....
-    update_rootfs(triplet.([platform, Linux(:x86_64)]); verbose=verbose)
+    update_rootfs(triplet.([platform, Linux(:x86_64)]);
+                  verbose=verbose, squashfs=use_squashfs, mount=false)
 
     # Check to make sure we're not going to try and bindmount within an
     # encrypted directory, as that triggers kernel bugs
@@ -174,20 +150,6 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
             run(cmd)
         end
     end
-end
-
-function runshell(ur::UserNSRunner, args...; kwargs...)
-    run_interactive(ur, `/bin/bash`, args...; kwargs...)
-end
-
-function runshell(::Type{UserNSRunner}, platform::Platform = platform_key(); verbose::Bool = false)
-    ur = UserNSRunner(
-        pwd();
-        cwd="/workspace/",
-        platform=platform,
-        verbose=verbose
-    )
-    return runshell(ur)
 end
 
 function probe_unprivileged_containers(;verbose::Bool=false)
