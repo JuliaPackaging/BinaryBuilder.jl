@@ -152,6 +152,8 @@ function preferred_runner()
             return UserNSRunner
         elseif runner_override in ["qemu"]
             return QemuRunner
+        elseif runner_override in ["docker"]
+            return DockerRunner
         end
     end
 
