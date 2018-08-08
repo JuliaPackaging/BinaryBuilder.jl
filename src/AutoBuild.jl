@@ -394,7 +394,7 @@ function autobuild(dir::AbstractString,
                 for dependency in dependencies
                     dep_script = script_for_dep(dependency, prefix.path)[1]
                     m = Module(:__anon__)
-                    eval(m, quote
+                    Core.eval(m, quote
                         using BinaryProvider
                         # Override BinaryProvider functionality so that it doesn't actually install anything
                         platform_key() = $platform
