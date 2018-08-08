@@ -39,8 +39,8 @@ end
 
 
 function open_fake_pty()
-    const O_RDWR = Base.Filesystem.JL_O_RDWR
-    const O_NOCTTY = Base.Filesystem.JL_O_NOCTTY
+    O_RDWR = Base.Filesystem.JL_O_RDWR
+    O_NOCTTY = Base.Filesystem.JL_O_NOCTTY
 
     fdm = ccall(:posix_openpt, Cint, (Cint,), O_RDWR|O_NOCTTY)
     fdm == -1 && error("Failed to open PTY master")
