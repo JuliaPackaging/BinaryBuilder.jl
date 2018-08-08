@@ -2,7 +2,7 @@ using BinaryProvider
 using BinaryBuilder
 using BinaryBuilder: preferred_runner
 using ObjectFile
-using Base.Test
+using Test
 using SHA
 using Compat, Compat.Random, Compat.LibGit2, Compat.Libdl
 
@@ -314,7 +314,7 @@ end
         # Now build that git repository for Linux x86_64
         sources = [
             git_path =>
-            LibGit2.hex(LibGit2.GitHash(commit)),
+            LibGit2.string(LibGit2.GitHash(commit)),
         ]
 
         build_tarballs(
@@ -344,7 +344,7 @@ end
         repo = LibGit2.clone("https://github.com/staticfloat/OggBuilder", ".")
 
         # Check out a known-good tag
-        LibGit2.checkout!(repo, hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-6"))))
+        LibGit2.checkout!(repo, string(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-6"))))
 
         # Reconstruct binaries!  We don't want it to pick up BinaryBuilder.jl information from CI,
         # so wipe out those environment variables through withenv:
