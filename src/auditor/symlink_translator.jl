@@ -9,7 +9,7 @@ function translate_symlinks(root::AbstractString; verbose::Bool=false)
     for f in collect_files(root, islink)
         link_target = readlink(f)
         if isabspath(link_target) && startswith(link_target, "/workspace")
-            new_link_target = relpath(link_target, replace(dirname(f), root, "/workspace/destdir"))
+            new_link_target = relpath(link_target, replace(dirname(f), root => "/workspace/destdir"))
             if verbose
                 @info("Translating $f to point to $(new_link_target)")
             end
