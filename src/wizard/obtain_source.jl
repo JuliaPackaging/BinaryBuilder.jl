@@ -113,7 +113,7 @@ function download_source(state::WizardState)
         catch
             LibGit2.GitObject(repo, "origin/$treeish")
         end
-        source_hash = LibGit2.hex(LibGit2.GitHash(obj))
+        source_hash = LibGit2.string(LibGit2.GitHash(obj))
 
         # Tell the user what we recorded the current commit as
         print(state.outs, "Recorded as ")

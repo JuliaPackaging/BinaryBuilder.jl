@@ -5,7 +5,6 @@ module BinaryBuilder
 using Compat, Compat.Libdl, Compat.LibGit2, Compat.Random, Compat.Sockets
 using Reexport
 using ObjectFile
-using Nullables
 using GitHub
 
 @reexport using BinaryProvider
@@ -153,7 +152,7 @@ function versioninfo()
 
     # Get BinaryBuilder.jl's git sha
     repo = LibGit2.GitRepo(Pkg.dir("BinaryBuilder"))
-    gitsha = hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
+    gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
     Compat.@info("BinaryBuilder.jl version: $(gitsha)")
     @static if Compat.Sys.isunix()
         Compat.@info("Kernel version: $(readchomp(`uname -r`))")

@@ -167,7 +167,7 @@ while true
                                     print(asciicast_io, c)
                                 else
                                     print(asciicast_io, "\\u")
-                                    print(asciicast_io, hex(c, 4))
+                                    print(asciicast_io, string(c, base=16, pad=4))
                                 end
                             end
                             println(asciicast_io, "\"]")

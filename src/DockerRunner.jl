@@ -43,19 +43,27 @@ function DockerRunner(workspace_root::String; cwd = nothing,
     docker_cmd = `docker run`
 
     if cwd != nothing
-        docker_cmd = `$docker_cmd -w $cwd`
+        docker_cmd = `$docker_cmd -w $(abspath(cwd))`
     end
 
     # Add in read-only mappings and read-write workspaces
     for (outside, inside) in reverse!(mappings)
+        # Docker needs these things canonicalized, otherwise its mappings can get denied
+        if isdir(outside) || isfile(outside)
+            outside = realpath(outside)
+        end
+
         if occursin("x86_64-apple-darwin", outside)
-            docker_cmd = `$docker_cmd -v $outside:$inside`
+            docker_cmd = `$docker_cmd -v $(outside):$inside`
         else
-            docker_cmd = `$docker_cmd -v $outside:$inside:ro`
+            docker_cmd = `$docker_cmd -v $(outside):$inside:ro`
         end
     end
     for (outside, inside) in workspaces
-        docker_cmd = `$docker_cmd -v $outside:$inside`
+        if isdir(outside) || isfile(outside)
+            outside = realpath(outside)
+        end
+        docker_cmd = `$docker_cmd -v $(outside):$inside`
     end
 
     # Build up environment mappings
@@ -70,7 +78,7 @@ end
 
 function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
     did_succeed = true
-    oc = OutputCollector(`$(dr.docker_cmd) -t staticfloat/julia_crossbase:x64 $(cmd)`; verbose=verbose, tee_stream=tee_stream)
+    oc = OutputCollector(`$(dr.docker_cmd) staticfloat/julia_crossbase:x64 $(cmd)`; verbose=verbose, tee_stream=tee_stream)
     did_succeed = wait(oc)
 
     if !isempty(logpath)
