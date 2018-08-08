@@ -41,11 +41,7 @@ function transfer_progress(progress::Ptr{GitTransferProgress}, p::Any)
 end
 
 macro compat_gc_preserve(args...)
-    if VERSION >= v"0.7-"
-        esc(Expr(:macrocall, Expr(:., :GC, QuoteNode(Symbol("@preserve"))), args...))
-    else
-        esc(args[end])
-    end
+    esc(Expr(:macrocall, Expr(:., :GC, QuoteNode(Symbol("@preserve"))), args...))
 end
 
 function clone(url, source_path)
