@@ -248,7 +248,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     for dep in dependencies
         script, install_dir = script_for_dep(dep, destdir)
         m = Module(:__anon__)
-        eval(m, quote
+        Core.eval(m, quote
             using BinaryProvider
 
             # Force the script to download for this platform.
