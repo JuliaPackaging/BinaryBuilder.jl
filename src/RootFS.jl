@@ -31,10 +31,15 @@ function shards_dir(postfix::String = "")
     return joinpath(shards_cache, postfix)
 end
 
-
-function shard_path(shard_name)
+function shard_download_target(shard_name)
     global use_squashfs
-    if use_squashfs
+    ext = use_squashfs ? "squashfs" : "tar.gz"
+    return downloads_dir("rootfs-$(shard_name).$(ext)")
+end
+
+function shard_path(shard_name, runner = preferred_runner())
+    global use_squashfs
+    if use_squashfs && runner == QemuRunner
         return downloads_dir("rootfs-$(shard_name).squashfs")
     else
         return shards_dir(shard_name)
@@ -283,7 +288,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             dest_dir = shards_dir(shard_name)
         end
 
-        shpath = shard_path(shard_name)
+        shpath = shard_download_target(shard_name)
         if squashfs
             file_existed = isfile(shpath)
 
@@ -324,7 +329,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 url,
                 hash,
                 dest_dir;
-                tarball_path = downloads_dir("rootfs-$(shard_name).tar.gz"),
+                tarball_path = shpath,
                 verbose = verbose,
                 force = true,
             )
@@ -481,7 +486,7 @@ end
 
 
 """
-    platform_def_mappings(platform)
+    platform_def_mappings(platform, runner)
 
 Return the default mappings for a platform
 """
