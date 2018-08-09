@@ -143,6 +143,17 @@ function audit(prefix::Prefix; io=stderr,
                 mv(f, joinpath(prefix, "bin", basename(f)))
             end
         end
+
+        # We also cannot allow any symlinks in Windows because it requires
+        # Admin privileges to create them.  Orz
+        symlinks = collect_files(prefix, f -> islink(f))
+        for f in symlinks
+            src_path = realpath(f)
+            if isfile(src_path) || isdir(src_path)
+                rm(f; force=true)
+                cp(src_path, f)
+            end
+        end
     end
 
     # Search _every_ file in the prefix path to find hardcoded paths
