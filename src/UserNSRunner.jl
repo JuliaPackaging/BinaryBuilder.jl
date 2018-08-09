@@ -77,7 +77,7 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
 			sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
 			environment variable to "privileged" before starting Julia.
 			""")
-			Compat.@warn(replace(msg, "\n" => " "))
+			@warn(replace(msg, "\n" => " "))
 			runner_override = "privileged"
 		else
 			runner_override = "userns"
@@ -104,7 +104,7 @@ function show(io::IO, x::UserNSRunner)
     p = x.platform
     # Displays as, e.g., Linux x86_64 (glibc) UserNSRunner
     write(io, "$(typeof(p).name.name)", " ", arch(p), " ",
-          Compat.Sys.islinux(p) ? "($(p.libc)) " : "",
+          Sys.islinux(p) ? "($(p.libc)) " : "",
           "UserNSRunner")
 end
 
@@ -184,7 +184,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
     cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
 
     if verbose
-        Compat.@info("Probing for unprivileged container capability...")
+        @info("Probing for unprivileged container capability...")
     end
     oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
     return wait(oc) && merge(oc) == "hello julia\n"
@@ -209,13 +209,13 @@ function is_ecryptfs(path::AbstractString; verbose::Bool=false)
     end
 
     if verbose
-        Compat.@info("Checking to see if $path is encrypted...")
+        @info("Checking to see if $path is encrypted...")
     end
 
     # Get a listing of the current mounts.  If we can't do this, just give up
     if !isfile("/proc/mounts")
         if verbose
-            Compat.@info("Couldn't open /proc/mounts, returning...")
+            @info("Couldn't open /proc/mounts, returning...")
         end
         return false, path
     end

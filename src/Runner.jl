@@ -157,7 +157,7 @@ function preferred_runner()
         end
     end
 
-    @static if Compat.Sys.islinux()
+    @static if Sys.islinux()
         return UserNSRunner
     else
         return QemuRunner

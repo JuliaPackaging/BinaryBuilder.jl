@@ -192,10 +192,10 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
     libname = basename(old_libpath)
     relink_cmd = ``
 
-    if Compat.Sys.isapple(platform)
+    if Sys.isapple(platform)
         install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
-    elseif Compat.Sys.islinux(platform) || Compat.Sys.isbsd(platform)
+    elseif Sys.islinux(platform) || Sys.isbsd(platform)
         patchelf = "/usr/local/bin/patchelf"
         relink_cmd = `$patchelf --replace-needed $(old_libpath) $(libname) $(rel_path)`
     end
@@ -218,7 +218,7 @@ they do not encode paths or RPaths within their executables.
 function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                         old_libpath, new_libpath; verbose::Bool = false)
     # Windows doesn't do updating of linkage
-    if Compat.Sys.iswindows(platform)
+    if Sys.iswindows(platform)
         return
     end
 
@@ -229,10 +229,10 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     relink = (x, y) -> ``
     patchelf = "/usr/local/bin/patchelf"
     install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
-    if Compat.Sys.isapple(platform)
+    if Sys.isapple(platform)
         add_rpath = rp -> `$install_name_tool -add_rpath @loader_path/$(rp) $(rel_path)`
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
-    elseif Compat.Sys.islinux(platform) || Compat.Sys.isbsd(platform)
+    elseif Sys.islinux(platform) || Sys.isbsd(platform)
         current_rpaths = [r for r in rpaths(path) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
@@ -279,7 +279,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     # (and have the appropriate SONAME) things should "just work".
     logpath = joinpath(logdir(prefix), "update_linkage_$(basename(path))_$(basename(old_libpath)).log")
     new_libpath = relpath(new_libpath, dirname(path))
-    if Compat.Sys.isapple(platform)
+    if Sys.isapple(platform)
         # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
         new_libpath = joinpath("@rpath", new_libpath)
     end
