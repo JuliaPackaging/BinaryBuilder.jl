@@ -1,10 +1,7 @@
-using VT100
 using BinaryBuilder
-using GitHub
-using Compat
-using Compat.Test
+using GitHub, Test, VT100
 
-if Compat.Sys.islinux()
+if Sys.islinux()
 
 # Create fake terminal to communicate with BinaryBuilder over
 pty = VT100.create_pty(false)
