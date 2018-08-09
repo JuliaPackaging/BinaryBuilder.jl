@@ -403,7 +403,7 @@ function autobuild(dir::AbstractString,
 
                         # Include build.jl file to extract download_info
                         ARGS = [$(prefix.path)]
-                        include_string($(dep_script))
+                        include_string($(m), $(dep_script))
 
                         # Grab the information we need in order to extract a manifest, then uninstall it
                         url, hash = download_info[platform_key()]
