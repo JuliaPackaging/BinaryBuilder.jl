@@ -303,7 +303,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 if mount && Sys.islinux()
                     # Unmount the mountpoint. It may point to a previous version
                     # of the file. Also, we're about to mess with it
-                    unmount_shard(dest_dir)
+                    unmount_shard(dest_dir; verbose=verbose)
 
                     # Patch squashfs files for current uid
                     rewrite_squashfs_uids(shpath, getuid())
@@ -322,7 +322,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             end
         else
             # If it has been mounted previously, unmount here
-            unmount_shard(dest_dir)
+            unmount_shard(dest_dir; verbose=verbose)
 
              # If tarball, verify/redownload/reunpack the tarball
             download_verify_unpack(
@@ -349,14 +349,16 @@ update_rootfs(triplet::AbstractString; kwargs...) = update_rootfs([triplet]; kwa
 download_all_shards() = update_rootfs.(triplet.(supported_platforms()))
 
 # Helper to unmount any shards that may be mounted, so as not to exhaust the number of loopback devices
-function unmount_shard(dest_dir::AbstractString; fail_on_error::Bool = false)
+function unmount_shard(dest_dir::AbstractString; fail_on_error::Bool = false, verbose::Bool = false)
     # This function only matters on Linux
     @static if !Sys.islinux()
         return
     end
 
     if success(`mountpoint $(dest_dir)`)
-        @info("Unmounting $(dest_dir)`")
+        if verbose
+            @info("Unmounting $(dest_dir)`")
+        end
         try
             run(pipeline(cmd, stdin=devnull, stdout=devnull, stderr=devnull))
         catch e
@@ -369,7 +371,7 @@ function unmount_shard(dest_dir::AbstractString; fail_on_error::Bool = false)
     return
 end
 
-function unmount_all_shards(;fail_on_error::Bool = false)
+function unmount_all_shards(;fail_on_error::Bool = false, verbose::Bool = false)
     # This function only matters on Linux
     @static if !Sys.islinux()
         return
@@ -379,7 +381,7 @@ function unmount_all_shards(;fail_on_error::Bool = false)
     push!(dest_dirs, rootfs_dir())
 
     for dest_dir in dest_dirs
-        unmount_shard(dest_dir; fail_on_error = fail_on_error)
+        unmount_shard(dest_dir; fail_on_error = fail_on_error, verbose = verbose)
     end
     return
 end
