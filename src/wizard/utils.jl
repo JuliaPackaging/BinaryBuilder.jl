@@ -67,7 +67,7 @@ function match_files(state::WizardState, prefix::Prefix,
         readmeta(f) do oh
             if !is_for_platform(oh, platform)
                 if !silent
-                    Compat.@warn(state.outs, "Skipping binary `$f` with incorrect platform")
+                    Compat.@warn("Skipping binary `$f` with incorrect platform")
                 end
                 return false
             end
@@ -80,7 +80,7 @@ function match_files(state::WizardState, prefix::Prefix,
     d = setdiff(norm_files, norm_prefix_files)
     if !isempty(d)
         if !silent
-            Compat.@warn(state.outs, "Could not find correspondences for $(join(d, ' '))")
+            Compat.@warn("Could not find correspondences for $(join(d, ' '))")
         end
     end
     return d
