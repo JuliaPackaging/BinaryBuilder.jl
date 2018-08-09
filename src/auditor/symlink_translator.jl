@@ -11,7 +11,7 @@ function translate_symlinks(root::AbstractString; verbose::Bool=false)
         if isabspath(link_target) && startswith(link_target, "/workspace")
             new_link_target = relpath(link_target, replace(dirname(f), root, "/workspace/destdir"))
             if verbose
-                Compat.@info("Translating $f to point to $(new_link_target)")
+                @info("Translating $f to point to $(new_link_target)")
             end
             rm(f; force=true)
             symlink(new_link_target, f)

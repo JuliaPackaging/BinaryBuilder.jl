@@ -85,9 +85,9 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
         # Verbose mode tells us what's going on
         if verbose
             if !should_build
-                Compat.@info("Force-building $(dep.name) despite its satisfaction")
+                @info("Force-building $(dep.name) despite its satisfaction")
             else
-                Compat.@info("Building $(dep.name) as it is unsatisfied")
+                @info("Building $(dep.name) as it is unsatisfied")
             end
         end
 
@@ -130,7 +130,7 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
         did_succeed = run(runner, `/bin/bash -c $(trapped_script)`, logpath; verbose=verbose)
         if !did_succeed
             if debug
-                Compat.@warn("Build failed, launching debug shell")
+                @warn("Build failed, launching debug shell")
                 run_interactive(runner, `/bin/bash --init-file /meta/.env`)
             end
             msg = "Build for $(dep.name) on $(triplet(dep.platform)) did not complete successfully\n"
@@ -153,11 +153,11 @@ function build(runner, dep::Dependency; verbose::Bool = false, force::Bool = fal
         # Finally, check to see if we are now satisfied
         if !satisfied(dep; verbose=verbose, isolate=true)
             if verbose
-                Compat.@warn("Built $(dep.name) but still unsatisfied!")
+                @warn("Built $(dep.name) but still unsatisfied!")
             end
         end
     elseif !should_build && verbose
-        Compat.@info("Not building as $(dep.name) is already satisfied")
+        @info("Not building as $(dep.name) is already satisfied")
     end
     return true
 end

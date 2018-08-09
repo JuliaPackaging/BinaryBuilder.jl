@@ -2,7 +2,7 @@
 # __precompile__()
 
 module BinaryBuilder
-using Compat, Compat.Libdl, Compat.LibGit2, Compat.Random, Compat.Sockets
+using Libdl, LibGit2, Random, Sockets
 using Reexport
 using ObjectFile
 using GitHub
@@ -84,7 +84,7 @@ function __init__()
     # If the user has overridden our runner selection algorithms, honor that
     runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
     if !(runner_override in ["", "userns", "qemu", "privileged", "docker"])
-        Compat.@warn("Invalid runner value $runner_override, ignoring...")
+        @warn("Invalid runner value $runner_override, ignoring...")
         runner_override = ""
     end
 
@@ -129,14 +129,14 @@ function __init__()
     # If the user has asked to use a particular `sandbox` executable, use it!
     sandbox_override = get(ENV, "BINARYBUILDER_SANDBOX_PATH", "")
     if !isempty(sandbox_override) && !isfile(sandbox_override)
-        Compat.@warn("Invalid sandbox path $sandbox_override, ignoring...")
+        @warn("Invalid sandbox path $sandbox_override, ignoring...")
         sandbox_override = ""
     end
 
     # If the user asked for the ccache cache to be placed somewhere specific
     ccache_override = get(ENV, "BINARYBUILDER_CCACHE_PATH", "")
     if !isempty(ccache_override) && !isdir(ccache_override)
-        Compat.@warn("Invalid ccache directory $ccache_override, ignoring...")
+        @warn("Invalid ccache directory $ccache_override, ignoring...")
         ccache_override = ""
     end
 end
@@ -147,25 +147,25 @@ end
 Helper function to print out some debugging information
 """
 function versioninfo()
-    Compat.@info("Julia versioninfo(): ")
+    @info("Julia versioninfo(): ")
     Base.versioninfo()
 
     # Get BinaryBuilder.jl's git sha
     repo = LibGit2.GitRepo(Pkg.dir("BinaryBuilder"))
     gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
-    Compat.@info("BinaryBuilder.jl version: $(gitsha)")
-    @static if Compat.Sys.isunix()
-        Compat.@info("Kernel version: $(readchomp(`uname -r`))")
+    @info("BinaryBuilder.jl version: $(gitsha)")
+    @static if Sys.isunix()
+        @info("Kernel version: $(readchomp(`uname -r`))")
     end
 
     # Dump if some important directories are encrypted:
-    @static if Compat.Sys.islinux()
+    @static if Sys.islinux()
         print_enc(n, path) = begin
             is_encrypted, mountpoint = is_ecryptfs(path)
             if is_encrypted
-                Compat.@info("$n is encrypted on mountpoint $mountpoint")
+                @info("$n is encrypted on mountpoint $mountpoint")
             else
-                Compat.@info("$n is NOT encrypted on mountpoint $mountpoint")
+                @info("$n is NOT encrypted on mountpoint $mountpoint")
             end
         end
 
@@ -175,7 +175,7 @@ function versioninfo()
     end
 
     # Dump any relevant environment variables:
-    Compat.@info("Relevant envionment variables:")
+    @info("Relevant envionment variables:")
     env_var_suffixes = [
         "AUTOMATIC_APPLE",
         "USE_SQUASHFS",
@@ -190,15 +190,15 @@ function versioninfo()
     for e in env_var_suffixes
         envvar = "BINARYBUILDER_$(e)"
         if haskey(ENV, envvar)
-            Compat.@info("  $(envvar): \"$(ENV[envvar])\"")
+            @info("  $(envvar): \"$(ENV[envvar])\"")
         end
     end
 
     # Print out the preferred runner stuff here:
-    Compat.@info("Preferred runner: $(preferred_runner())")
+    @info("Preferred runner: $(preferred_runner())")
 
     # Try to run 'echo julia' in Linux x86_64 environment
-    Compat.@info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
+    @info("Trying to run `echo hello julia` within a Linux x86_64 environment...")
 
     runner = preferred_runner()(
         pwd();
@@ -210,7 +210,7 @@ function versioninfo()
 
     # If we use ccache, dump the ccache stats
     if use_ccache
-        Compat.@info("ccache stats:")
+        @info("ccache stats:")
         runner = preferred_runner()(
             pwd();
             cwd="/workspace/",

@@ -1,7 +1,6 @@
-using Compat
-using Compat.REPL
-using Compat.REPL.Terminals
-using TerminalMenus
+using REPL
+using REPL.Terminals
+using REPL.TerminalMenus
 using ObjectFile.ELF
 using HTTP
 import PkgLicenses

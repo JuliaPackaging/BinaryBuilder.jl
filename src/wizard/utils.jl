@@ -67,7 +67,7 @@ function match_files(state::WizardState, prefix::Prefix,
         readmeta(f) do oh
             if !is_for_platform(oh, platform)
                 if !silent
-                    Compat.@warn("Skipping binary `$f` with incorrect platform")
+                    @warn("Skipping binary `$f` with incorrect platform")
                 end
                 return false
             end
@@ -80,7 +80,7 @@ function match_files(state::WizardState, prefix::Prefix,
     d = setdiff(norm_files, norm_prefix_files)
     if !isempty(d)
         if !silent
-            Compat.@warn("Could not find correspondences for $(join(d, ' '))")
+            @warn("Could not find correspondences for $(join(d, ' '))")
         end
     end
     return d
@@ -181,7 +181,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          extra_env::Dict{String, String} =
                              Dict{String, String}();
                          verbose::Bool = false,
-                         tee_stream::IO = Compat.stdout,
+                         tee_stream::IO = stdout,
                          downloads_dir = nothing)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()

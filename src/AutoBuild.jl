@@ -84,10 +84,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
     # --part=n/m builds only part n out of m divisions
     # of the platforms list.
-    i = Compat.findlast(x -> startswith(x, "--part="), ARGS)
+    i = findlast(x -> startswith(x, "--part="), ARGS)
     should_override_platforms = i !== nothing
     if should_override_platforms
-        if i != Compat.findfirst(x -> startswith(x, "--part="), ARGS)
+        if i != findfirst(x -> startswith(x, "--part="), ARGS)
             error("multiple --part arguments are not allowed")
         end
         p = parse.(Int, split(ARGS[i][8:end], '/'))
@@ -111,7 +111,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
     product_hashes = if !only_buildjl
         # If the user didn't just ask for a `build.jl`, go ahead and actually build
-        Compat.@info("Building for $(join(triplet.(platforms), ", "))")
+        @info("Building for $(join(triplet.(platforms), ", "))")
 
         # Build the given platforms using the given sources
         autobuild(pwd(), src_name, src_version, sources, script, platforms,
@@ -120,7 +120,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         msg = strip("""
         Reconstructing product hashes from GitHub Release $(repo)/$(tag)
         """)
-        Compat.@info(msg)
+        @info(msg)
 
         # Reconstruct product_hashes from github
         product_hashes_from_github_release(repo, tag;
@@ -144,7 +144,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                       product_hashes, bin_path)
 
         if verbose
-            Compat.@info("Writing out the following reconstructed build.jl:")
+            @info("Writing out the following reconstructed build.jl:")
             print_buildjl(Base.stdout, dummy_products, product_hashes, bin_path)
         end
     end
@@ -154,7 +154,7 @@ end
 
 function build_tarballs(ARGS, src_name, sources, script, platforms, products,
                         dependencies)
-    Compat.@warn("build_tarballs now requires a src_version parameter; assuming v\"1.0.0\"")
+    @warn("build_tarballs now requires a src_version parameter; assuming v\"1.0.0\"")
     return build_tarballs(
         ARGS,
         src_name,
@@ -278,7 +278,7 @@ function autobuild(dir::AbstractString,
         run_travis_busytask = true
         travis_busytask = @async begin
             # Don't let Travis think we're asleep...
-            Compat.@info("Brewing a pot of coffee for Travis...")
+            @info("Brewing a pot of coffee for Travis...")
             while run_travis_busytask
                 sleep(4)
                 print(".")
@@ -535,7 +535,7 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
 
         unknown_platform = typeof(extract_platform_key(filename)) <: UnknownPlatform
         if unknown_platform && verbose
-            Compat.@info("Ignoring file $(filename); can't extract its platform key")
+            @info("Ignoring file $(filename); can't extract its platform key")
         end
         return !unknown_platform
     end
@@ -561,7 +561,7 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
             product_hashes[file_triplet] = (asset["name"], hash)
 
             if verbose
-                Compat.@info("Calculated $hash for $(asset["name"])")
+                @info("Calculated $hash for $(asset["name"])")
             end
         end
     end

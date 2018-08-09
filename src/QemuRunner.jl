@@ -98,7 +98,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         -m $(memory_limit)M
         -cpu host
         -smp 2
-        -M accel=$(Compat.Sys.islinux() ? "kvm" : "hvf")
+        -M accel=$(Sys.islinux() ? "kvm" : "hvf")
         -nographic
         -drive if=virtio,file=$(rootfs_path()),format=raw
         -nodefaults
@@ -164,7 +164,7 @@ function show(io::IO, x::QemuRunner)
     p = x.platform
     # Displays as, e.g., Linux x86_64 (glibc) QemuRunner
     write(io, "$(typeof(p).name.name)", " ", arch(p), " ",
-          Compat.Sys.islinux(p) ? "($(p.libc)) " : "",
+          Sys.islinux(p) ? "($(p.libc)) " : "",
           "QemuRunner")
 end
 
@@ -180,7 +180,7 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
             sleep(0.01)
             if time() - start_time > 2
                 start_time = time()
-                Compat.@info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
+                @info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
             end
         end
 
@@ -211,7 +211,7 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
         # Wait for acknowledgement
         ack = read(commsock, UInt8)
         if ack != 0
-            Compat.@warn("Acknowledgement from sandbox nonzero! $(ack)")
+            @warn("Acknowledgement from sandbox nonzero! $(ack)")
         end
 
         # Read exit status
@@ -235,7 +235,7 @@ function qemu_wait(qr, oc)
     did_succeed = wait(oc)
 
     if !did_succeed
-        Compat.@warn("QEMU failed to run")
+        @warn("QEMU failed to run")
         return false
     end
 
@@ -301,12 +301,12 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
     end
 
     # Qemu appears to mess with our terminal
-    Base.reseteof(Compat.stdin)
+    Base.reseteof(stdin)
 end
 
 function runshell(qr::QemuRunner, args...; kwargs...)
     println("Setting parent shell interrupt to ^] (use ^C as usual, ^] to interrupt Julia)")
-    @static if Compat.Sys.isapple() run(`stty intr ^\]`) end
+    @static if Sys.isapple() run(`stty intr ^\]`) end
     run_interactive(qr, `/bin/bash`, args...; kwargs...)
-    @static if Compat.Sys.isapple() run(`stty intr ^\C`) end
+    @static if Sys.isapple() run(`stty intr ^\C`) end
 end

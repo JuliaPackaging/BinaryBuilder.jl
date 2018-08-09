@@ -1,9 +1,7 @@
 julia 0.7.0-rc3
 BinaryProvider 0.4.0
-ObjectFile 0.2.0
-Compat 0.55.0
+ObjectFile 0.3.0
 Reexport
-TerminalMenus
 MbedTLS
 GitHub
 PkgLicenses

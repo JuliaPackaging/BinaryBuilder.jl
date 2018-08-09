@@ -275,7 +275,7 @@ for more details on this.
 """
 function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                        verbose::Bool = false, squashfs::Bool = use_squashfs,
-                       mount::Bool=use_squashfs && Compat.Sys.islinux()) where {S <: AbstractString}
+                       mount::Bool=use_squashfs && Sys.islinux()) where {S <: AbstractString}
     # Check to make sure we have the latest version of both the base and the
     # given shard downloaded properly, and extracted if it's not a squashfs.
     for shard_name in ["base", triplets...]
@@ -300,7 +300,7 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
                 verbose = verbose,
                 force = true
             ) && file_existed)
-                if mount && Compat.Sys.islinux()
+                if mount && Sys.islinux()
                     # Unmount the mountpoint. It may point to a previous version
                     # of the file. Also, we're about to mess with it
                     unmount_shard(dest_dir)
@@ -315,9 +315,9 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             end
 
             # Then mount it, if it hasn't already been mounted:
-            if mount && Compat.Sys.islinux() && !success(`mountpoint $(dest_dir)`)
+            if mount && Sys.islinux() && !success(`mountpoint $(dest_dir)`)
                 mkpath(dest_dir)
-                Compat.@info("Mounting $(shpath) to $(dest_dir)")
+                @info("Mounting $(shpath) to $(dest_dir)")
                 run(`$(sudo_cmd()) mount $(shpath) $(dest_dir) -o ro,loop`)
             end
         else
@@ -351,12 +351,12 @@ download_all_shards() = update_rootfs.(triplet.(supported_platforms()))
 # Helper to unmount any shards that may be mounted, so as not to exhaust the number of loopback devices
 function unmount_shard(dest_dir::AbstractString; fail_on_error::Bool = false)
     # This function only matters on Linux
-    @static if !Compat.Sys.islinux()
+    @static if !Sys.islinux()
         return
     end
 
     if success(`mountpoint $(dest_dir)`)
-        Compat.@info("Unmounting $(dest_dir)`")
+        @info("Unmounting $(dest_dir)`")
         try
             run(pipeline(cmd, stdin=devnull, stdout=devnull, stderr=devnull))
         catch e
@@ -371,7 +371,7 @@ end
 
 function unmount_all_shards(;fail_on_error::Bool = false)
     # This function only matters on Linux
-    @static if !Compat.Sys.islinux()
+    @static if !Sys.islinux()
         return
     end
 
@@ -423,7 +423,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
     # If it already exists, return out
     if isdir(dest)
         if verbose
-            Compat.@info("macOS SDK $(dest) already exists")
+            @info("macOS SDK $(dest) already exists")
         end
         return
     end
@@ -436,7 +436,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
             to download and install the macOS SDK, see the docstring for the
             `download_osx_sdk()` method for more details.
             """)
-            Compat.@warn(msg)
+            @warn(msg)
             return
         end
         msg = strip("""
@@ -463,7 +463,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
         end
     else
         if verbose
-            Compat.@info("Automatic macOS SDK install initiated")
+            @info("Automatic macOS SDK install initiated")
         end
     end
 
