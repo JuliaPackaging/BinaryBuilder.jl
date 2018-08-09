@@ -69,12 +69,23 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
         println(state.outs, "The build has produced several libraries and executables.")
         println(state.outs, "Please select which of these you want to consider `products`.")
         println(state.outs, "These are generally those artifacts you will load or use from julia.")
-        selected = collect(request(
-            terminal,
-            "",
-            MultiSelectMenu(state.files)))
-        state.file_kinds = map(x->state.file_kinds[x], selected)
-        state.files = map(x->state.files[x], selected)
+        while true
+            selected = collect(request(
+                terminal,
+                "",
+                MultiSelectMenu(state.files))
+            )
+            selected_file_kinds = map(x->state.file_kinds[x], selected)
+            selected_files = map(x->state.files[x], selected)
+
+            if !isempty(selected_files)
+                state.file_kinds = selected_file_kinds
+                state.files = selected_files
+                break
+            else
+                println(state.outs, "You must make at least one selection.")
+            end
+        end
     end
 
     state.file_varnames = Symbol[]
