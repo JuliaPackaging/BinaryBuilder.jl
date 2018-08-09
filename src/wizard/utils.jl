@@ -6,12 +6,12 @@ Given a filename, normalize it, stripping out extensions.  E.g. the file path
 """
 function normalize_name(file::AbstractString)
     file = basename(file)
-    idx = findfirst(equalto('.'), file)
+    idx = findfirst(isequal('.'), file)
     if idx !== nothing
         file = file[1:prevind(file, idx)]
     end
     # Strip -123, which is a common thing for libraries on windows
-    idx = findlast(equalto('-'), file)
+    idx = findlast(isequal('-'), file)
     if idx !== nothing && all(isnumber, file[nextind(file, idx):end])
         file = file[1:prevind(file, idx)]
     end
