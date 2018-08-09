@@ -480,7 +480,7 @@ function download_osx_sdk(;automatic::Bool = automatic_apple,
     dir_in_dir = joinpath(dest, basename(dest))
     if isdir(dir_in_dir)
         mv(dir_in_dir, "$(dirname(dir_in_dir))2")
-        mv("$(dirname(dir_in_dir))2", dest; remove_destination=true)
+        mv("$(dirname(dir_in_dir))2", dest; force=true)
     end
 end
 
