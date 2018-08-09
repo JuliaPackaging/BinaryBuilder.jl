@@ -274,7 +274,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                 )
             end
             ARGS = [$install_dir]
-            include_string($(script))
+            include_string($(m), $(script))
         end)
     end
 
