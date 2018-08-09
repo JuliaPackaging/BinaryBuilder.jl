@@ -158,10 +158,10 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
             if !(stdin isa IOBuffer)
                 stdin = devnull
             end
-            out, process = open(cmd, "r", stdin)
+            process = open(cmd, "r", stdin)
             @async begin
-                while !eof(out)
-                    write(stdout, read(out))
+                while !eof(process)
+                    write(stdout, read(process))
                 end
             end
             wait(process)
