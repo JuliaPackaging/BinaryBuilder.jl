@@ -21,17 +21,17 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
                       verbose::Bool = false,
                       mappings::Vector = platform_def_mappings(platform),
                       workspaces::Vector = Pair[])
-    global use_ccache, use_squashfs
+    global use_ccache, use_squashfs, runner_override
 
     # Ensure the rootfs for this platform is downloaded and up to date.
     # Also, since we require the Linux(:x86_64) shard for HOST_CC....
     update_rootfs(triplet.([platform, Linux(:x86_64)]);
-                  verbose=verbose, squashfs=use_squashfs, mount=false)
+                  verbose=verbose, squashfs=use_squashfs)
 
     # Check to make sure we're not going to try and bindmount within an
     # encrypted directory, as that triggers kernel bugs
     check_encryption(workspace_root; verbose=verbose)
-
+	
     # Construct environment variables we'll use from here on out
     envs = merge(target_envs(triplet(platform)), extra_env)
 
@@ -64,6 +64,25 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     for (outside, inside) in workspaces
         sandbox_cmd = `$sandbox_cmd --workspace $outside:$inside`
     end
+
+	# If runner_override is not yet set, let's probe to see if we can use
+	# unprivileged containers, and if we can't, switch over to privileged.
+	if runner_override == ""
+		if !probe_unprivileged_containers()
+			msg = strip("""
+			Unable to run unprivileged containers on this system!
+			This may be because your kernel does not support mounting overlay
+			filesystems within user namespaces. To work around this, we will
+			switch to using privileged containers. This requires the use of
+			sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
+			environment variable to "privileged" before starting Julia.
+			""")
+			Compat.@warn(replace(msg, "\n" => " "))
+			runner_override = "privileged"
+		else
+			runner_override = "userns"
+		end
+	end
 
     # Check to see if we need to run privileged containers.
     if runner_override == "privileged"
@@ -154,7 +173,7 @@ end
 
 function probe_unprivileged_containers(;verbose::Bool=false)
     # Ensure the base rootfs is available
-    update_rootfs(String[]; verbose=false)
+    update_rootfs(String[]; verbose=false, mount=false)
 
     # Ensure we're not about to make fools of ourselves by trying to mount an
     # encrypted directory, which triggers kernel bugs.  :(
