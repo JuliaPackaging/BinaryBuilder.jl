@@ -1,7 +1,7 @@
 using BinaryProvider
 using BinaryBuilder
 using BinaryBuilder: preferred_runner
-using Random, Libdl, Test, ObjectFile, SHA
+using Random, LibGit2, Libdl, Test, ObjectFile, SHA
 
 # The platform we're running on
 const platform = platform_key()

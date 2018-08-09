@@ -288,10 +288,10 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
             if !(stdin isa IOBuffer)
                 stdin = devnull
             end
-            out, process = open(cmd, "r", stdin)
+            process = open(cmd, "r", stdin)
             @async begin
-                while !eof(out)
-                    write(stdout, read(out))
+                while !eof(process)
+                    write(stdout, read(process))
                 end
             end
             wait(process)
