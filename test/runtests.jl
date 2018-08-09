@@ -1,16 +1,13 @@
 using BinaryProvider
 using BinaryBuilder
 using BinaryBuilder: preferred_runner
-using ObjectFile
-using Test
-using SHA
-using Compat, Compat.Random, Compat.LibGit2, Compat.Libdl
+using Random, Libdl, Test, ObjectFile, SHA
 
 # The platform we're running on
 const platform = platform_key()
 
 # On windows, the `.exe` extension is very important
-const exe_ext = Compat.Sys.iswindows() ? ".exe" : ""
+const exe_ext = Sys.iswindows() ? ".exe" : ""
 
 # We are going to build/install libfoo a lot, so here's our function to make sure the
 # library is working properly
@@ -473,7 +470,7 @@ end
         end
 
         # Test that `audit()` warns about an absolute path within the prefix
-        Compat.@info("Expecting a warning about share/foo.conf:")
+        @info("Expecting a warning about share/foo.conf:")
         BinaryBuilder.audit(prefix)
     finally
         rm(prefix.path; recursive=true)
