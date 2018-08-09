@@ -348,7 +348,7 @@ end
         blacklist = ["CI_REPO_OWNER", "CI_REPO_NAME", "TRAVIS_REPO_SLUG", "TRAVIS_TAG", "CI_COMMIT_TAG"]
         withenv((envvar => nothing for envvar in blacklist)...) do
             m = Module(:__anon__)
-            eval(m, quote
+            Core.eval(m, quote
                 ARGS = ["--only-buildjl"]
                 include(joinpath($(build_path), "build_tarballs.jl"))
             end)
@@ -356,7 +356,7 @@ end
 
         # Read in `products/build.jl` to get download_info
         m = Module(:__anon__)
-        download_info = eval(m, quote
+        download_info = Core.eval(m, quote
             using BinaryProvider
             # Override BinaryProvider functionality so that it doesn't actually install anything
             function install(args...; kwargs...); end

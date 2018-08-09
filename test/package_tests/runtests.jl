@@ -30,7 +30,7 @@ function clone_build_test(builder_url, package_url, package_deps)
         cd(builder_dir) do
             @info("Building $(basename(builder_url))")
             m = Module(:__anon__)
-            eval(m, quote
+            Core.eval(m, quote
                 ARGS = [$(triplet(platform_key()))]
                 product_hashes = include(joinpath($(builder_dir), "build_tarballs.jl"))
 
