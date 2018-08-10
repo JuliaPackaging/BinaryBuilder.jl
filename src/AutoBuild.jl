@@ -403,8 +403,9 @@ function autobuild(dir::AbstractString,
 
                         # Include build.jl file to extract download_info
                         ARGS = [$(prefix.path)]
-                        include_string($(m), $(dep_script))
-
+                    end)
+                    include_string(m, dep_script)
+                    Core.eval(m, quote
                         # Grab the information we need in order to extract a manifest, then uninstall it
                         url, hash = download_info[platform_key()]
                         manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
