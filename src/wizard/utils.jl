@@ -158,7 +158,11 @@ function script_for_dep(dep, install_dir)
         script = dep.script === nothing ? String(HTTP.get(dep.url).body) :
             dep.script
     elseif isa(dep, TarballDependency)
-        script = "install($(repr(dep.url)), $(repr(dep.hash)), prefix=Prefix(ARGS[1]))"
+        script = """
+        prefix = Prefix(ARGS[1])
+        install($(repr(dep.url)), $(repr(dep.hash)), prefix=Prefix(ARGS[1]))
+        download_info = Dict(platform_key() => ($(repr(dep.url)), $(repr(dep.hash))))
+        """
     end
     return script, install_dir
 end
