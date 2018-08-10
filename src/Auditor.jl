@@ -259,7 +259,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                         # If it is, point to that file instead!
                         new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
 
-                        if verbose
+                        if verbose && new_link !== nothing
                             msg = replace("""
                             Linked library $(libname) has been auto-mapped to
                             $(new_link)
