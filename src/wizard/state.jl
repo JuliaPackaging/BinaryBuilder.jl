@@ -8,6 +8,10 @@ struct RemoteBuildDependency <: AbstractDependency
     url::String
     script::Union{String, Nothing}
 end
+struct TarballDependency <: AbstractDependency
+    url::String
+    hash::String
+end
 
 """
     WizardState

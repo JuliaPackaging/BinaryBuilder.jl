@@ -157,6 +157,8 @@ function script_for_dep(dep, install_dir)
     elseif isa(dep, RemoteBuildDependency)
         script = dep.script === nothing ? String(HTTP.get(dep.url).body) :
             dep.script
+    elseif isa(dep, TarballDependency)
+        script = "install($(repr(dep.url)), $(repr(dep.hash)), prefix=Prefix(ARGS[1]))"
     end
     return script, install_dir
 end
