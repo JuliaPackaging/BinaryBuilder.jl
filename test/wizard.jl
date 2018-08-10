@@ -1,5 +1,6 @@
 using BinaryBuilder
-using GitHub, Test, VT100
+using GitHub, Test, VT100, Sockets
+import Pkg
 
 if Sys.islinux()
 
@@ -24,7 +25,7 @@ catch e
     Base.display_error(stderr, e, bt)
 
     # If a do_try fails, panic
-    Base.Test.@test false
+    Test.@test false
 end
 
 
@@ -33,7 +34,8 @@ end
 using HTTP
 
 r = HTTP.Router()
-tar_libfoo() = read(`tar czf - -C $(Pkg.dir("BinaryBuilder","test"))/build_tests libfoo`)
+build_tests_dir = joinpath(dirname(dirname(pathof("BinaryBuilder"))), "test", "build_tests")
+tar_libfoo() = read(`tar czf - -C $(build_tests_dir) libfoo`)
 function serve_tgz(req)
     HTTP.Response(200, tar_libfoo())
 end
