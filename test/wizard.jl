@@ -379,3 +379,6 @@ rm(tempspace; force=true, recursive=true)
 # Make sure canonicalization does what we expect
 zmq_url = "https://github.com/zeromq/zeromq3-x/releases/download/v3.2.5/zeromq-3.2.5.tar.gz"
 @test BinaryBuilder.canonicalize_source_url(zmq_url) == zmq_url
+this_url = "https://github.com/JuliaPackaging/BinaryBuilder.jl/blob/1fee900486baedfce66ddb24872133ef36b9d899/test/wizard.jl"
+this_url_ans = "https://raw.githubusercontent.com/JuliaPackaging/BinaryBuilder.jl/1fee900486baedfce66ddb24872133ef36b9d899/test/wizard.jl"
+@test BinaryBuilder.canonicalize_source_url(this_url) == this_url_ans
