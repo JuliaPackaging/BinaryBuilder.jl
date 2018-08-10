@@ -350,8 +350,8 @@ end
             m = Module(:__anon__)
             Core.eval(m, quote
                 ARGS = ["--only-buildjl"]
-                include(joinpath($(build_path), "build_tarballs.jl"))
             end)
+            Base.include(m, joinpath(build_path, "build_tarballs.jl"))
         end
 
         # Read in `products/build.jl` to get download_info
@@ -361,11 +361,10 @@ end
             # Override BinaryProvider functionality so that it doesn't actually install anything
             function install(args...; kwargs...); end
             function write_deps_file(args...; kwargs...); end
-
-            # Include build.jl file to extract download_info
-            include(joinpath($build_path, "products", "build_Ogg.v1.3.3.jl"))
-            download_info
         end)
+        # Include build.jl file to extract download_info
+        Base.include(m, joinpath(build_path, "products", "build_Ogg.v1.3.3.jl"))
+        download_info = Core.eval(m, :(download_info))
 
         # Test that we get the info right about some of these platforms
         bin_prefix = "https://github.com/staticfloat/OggBuilder/releases/download/v1.3.3-6"
