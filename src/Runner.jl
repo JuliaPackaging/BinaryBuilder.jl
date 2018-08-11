@@ -97,6 +97,9 @@ function target_envs(target::AbstractString)
         "CXX_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/g++",
         "BUILD_CXX"     => "/opt/x86_64-linux-gnu/bin/g++",
         "HOSTCXX"       => "/opt/x86_64-linux-gnu/bin/g++",
+        "FC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gfortran",
+        "BUILD_FC"     => "/opt/x86_64-linux-gnu/bin/gfortran",
+        "HOSTFC"       => "/opt/x86_64-linux-gnu/bin/gfortran",
     )
 
     # If we're on MacOS or FreeBSD, we default to LLVM tools instead of GCC.
@@ -140,7 +143,9 @@ function target_envs(target::AbstractString)
     # If we're using `ccache`, prepend it to `CC`, `CXX`, `FC`, etc....
     if use_ccache
         for k in ("CC", "CXX", "FC")
-            mapping[k] = string("ccache ", mapping[k])
+            for m in (k, "HOST$(k)", "$(k)_FOR_BUILD")
+                mapping[m] = string("ccache ", mapping[m])
+            end
         end
     end
 
