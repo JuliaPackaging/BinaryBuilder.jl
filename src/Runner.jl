@@ -91,9 +91,12 @@ function target_envs(target::AbstractString)
 
         # There is no broad agreement of what this should be called,
         # so we set all the environment variables that we've seen it called as:
-        "CC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gcc",
-        "BUILD_CC"     => "/opt/x86_64-linux-gnu/bin/gcc",
-        "HOSTCC"       => "/opt/x86_64-linux-gnu/bin/gcc",
+        "CC_FOR_BUILD"  => "/opt/x86_64-linux-gnu/bin/gcc",
+        "BUILD_CC"      => "/opt/x86_64-linux-gnu/bin/gcc",
+        "HOSTCC"        => "/opt/x86_64-linux-gnu/bin/gcc",
+        "CXX_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/g++",
+        "BUILD_CXX"     => "/opt/x86_64-linux-gnu/bin/g++",
+        "HOSTCXX"       => "/opt/x86_64-linux-gnu/bin/g++",
     )
 
     # If we're on MacOS or FreeBSD, we default to LLVM tools instead of GCC.
