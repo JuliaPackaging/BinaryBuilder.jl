@@ -236,12 +236,13 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
                endswith(src_path, ".tgz") || endswith(src_path, ".tar.bz") ||
                endswith(src_path, ".tar.bz2") || endswith(src_path, ".tar.xz") ||
-               endswith(src_path, ".tar.Z")
+               endswith(src_path, ".tar.Z") || endswith(src_path, ".txz")
                 push!(cmds, "tar xof $(basename(src_path))")
+                push!(cmds, "rm $(basename(src_path))")
             elseif endswith(src_path, ".zip")
                 push!(cmds, "unzip -q $(basename(src_path))")
+                push!(cmds, "rm $(basename(src_path))")
             end
-            push!(cmds, "rm $(basename(src_path))")
         end
     end
 
