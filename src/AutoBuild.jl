@@ -199,7 +199,7 @@ function get_repo_name()
             url = LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
             owner = basename(dirname(url))
             if occursin(":", owner)
-                owner = owner[findlast(owner, ':')+1:end]
+                owner = owner[findlast(isequal(':'), owner)+1:end]
             end
             name = basename(url)
             if endswith(name, ".git")
