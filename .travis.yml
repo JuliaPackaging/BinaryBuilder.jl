@@ -5,8 +5,8 @@ os:
   # We don't have docker on OSX on travis at the moment...
   #- osx
 julia:
-  - 0.6
-  - nightly
+  - 1.0
+ #- nightly
 notifications:
   email: false
 git:
@@ -21,32 +21,43 @@ env:
   global:
     - BINARYBUILDER_AUTOMATIC_APPLE=true
     - BINARYBUILDER_FULL_SHARD_TEST=false
-  matrix:
-    # Test with squashfs, also doing a full shard test
-    - BINARYBUILDER_USE_SQUASHFS=true BINARYBUILDER_FULL_SHARD_TEST=true
-
-    # Add a job that uses squashfs and also runs the package tests
-    - BINARYBUILDER_USER_SQUASHFS=true BINARYBUILDER_PACKAGE_TESTS=true
 cache:
   directories:
     - deps/downloads
 
 jobs:
   include:
+    # Test with squashfs, also doing a full shard test
+    - julia: 1.0
+      env:
+        - BINARYBUILDER_USE_SQUASHFS=true
+        - BINARYBUILDER_FULL_SHARD_TEST=true
+
+    # Add a job that uses squashfs and also runs the package tests
+    - julia: 1.0
+      env:
+        - BINARYBUILDER_USER_SQUASHFS=true
+        - BINARYBUILDER_PACKAGE_TESTS=true
+    
     # Add a job that doesn't use the squashfs but otherwise does normal tests
     # We don't have the disk space available to do a full shard test here.
-    - julia: 0.6
+    - julia: 1.0
       env:
         - BINARYBUILDER_USE_SQUASHFS=false
 
     # Add a job that uses the privileged builder
-    - julia: 0.6
+    - julia: 1.0
       env:
         - BINARYBUILDER_RUNNER=privileged
 
+    # Add a job that uses the docker builder
+    - julia: 1.0
+      env:
+        - BINARYBUILDER_RUNNER=docker
+
     # Add a test job that builds a new version of the sandbox and runs tests with that.
     - stage: test
-      julia: 0.6
+      julia: 1.0
       env:
         - BINARYBUILDER_USE_SQUASHFS=false
         - BINARYBUILDER_SANDBOX_PATH=/tmp/sandbox
