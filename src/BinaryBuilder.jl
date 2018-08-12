@@ -6,6 +6,7 @@ using Libdl, LibGit2, Random, Sockets
 using Reexport
 using ObjectFile
 using GitHub
+import InteractiveUtils
 
 @reexport using BinaryProvider
 
@@ -148,10 +149,10 @@ Helper function to print out some debugging information
 """
 function versioninfo()
     @info("Julia versioninfo(): ")
-    Base.versioninfo()
+    InteractiveUtils.versioninfo()
 
     # Get BinaryBuilder.jl's git sha
-    repo = LibGit2.GitRepo(Pkg.dir("BinaryBuilder"))
+    repo = LibGit2.GitRepo(dirname(@__DIR__))
     gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
     @info("BinaryBuilder.jl version: $(gitsha)")
     @static if Sys.isunix()
@@ -218,6 +219,7 @@ function versioninfo()
         )
         run_interactive(runner, `/usr/local/bin/ccache -s`)
     end
+    return nothing
 end
 
 end # module
