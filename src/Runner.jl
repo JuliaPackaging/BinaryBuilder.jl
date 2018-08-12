@@ -37,14 +37,15 @@ build environment to force compiles toward the defined target architecture.
 Examples of things set are `PATH`, `CC`, `RANLIB`, as well as nonstandard
 things like `target`.
 """
-function target_envs(target::AbstractString)
+function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     global use_ccache
 
     # Helper function to generate paths such as /opt/x86_64-apple-darwin14/bin/llvm-ar
-    tool = x -> "/opt/$(target)/bin/$(x)"
+    tool_path = (n, t = target) -> "/opt/$(t)/bin/$(n)"
     # Helper function to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
-    target_tool = x -> tool("$(target)-$(x)")
-
+    target_tool_path = (n, t = target) -> tool_path("$(t)-$(n)", t)
+    super_binutil = n -> "/opt/super_binutils/bin/$(n)"
+    
     # Start with the default musl ld path:
     lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
 
@@ -70,9 +71,18 @@ function target_envs(target::AbstractString)
         "LD_LIBRARY_PATH" => lib_path,
 
         # binutils/toolchain envvars
-        "STRIP" => target_tool("strip"),
-        "LIBTOOL" => target_tool("libtool"),
-        "LIPO" => target_tool("lipo"),
+        "LIBTOOL" => target_tool_path("libtool"),
+        "LIPO" => target_tool_path("lipo"),
+        "OTOOL" => target_tool_path("otool"),
+        "INSTALL_NAME_TOOL" => target_tool_path("install_name_tool"),
+        "OBJCOPY" => super_binutil("objcopy"),
+        "OBJDUMP" => super_binutil("objdump"),
+        "READELF" => super_binutil("readelf"),
+        "STRIP" => super_binutil("strip"),
+        "WINDRES" => super_binutil("windres"),
+        "WINMC" => super_binutil("winmc"),
+        "LLVM_TARGET" => target,
+        "LLVM_HOST_TARGET" => host_target,
 
         # Useful tools for our buildscripts
         "target" => target,
@@ -88,18 +98,6 @@ function target_envs(target::AbstractString)
 
         # We like to be able to get at our .bash_history afterwards. :)
         "HISTFILE"=>"/meta/.bash_history",
-
-        # There is no broad agreement of what this should be called,
-        # so we set all the environment variables that we've seen it called as:
-        "CC_FOR_BUILD"  => "/opt/x86_64-linux-gnu/bin/gcc",
-        "BUILD_CC"      => "/opt/x86_64-linux-gnu/bin/gcc",
-        "HOSTCC"        => "/opt/x86_64-linux-gnu/bin/gcc",
-        "CXX_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/g++",
-        "BUILD_CXX"     => "/opt/x86_64-linux-gnu/bin/g++",
-        "HOSTCXX"       => "/opt/x86_64-linux-gnu/bin/g++",
-        "FC_FOR_BUILD" => "/opt/x86_64-linux-gnu/bin/gfortran",
-        "BUILD_FC"     => "/opt/x86_64-linux-gnu/bin/gfortran",
-        "HOSTFC"       => "/opt/x86_64-linux-gnu/bin/gfortran",
     )
 
     # If we're on MacOS or FreeBSD, we default to LLVM tools instead of GCC.
@@ -107,27 +105,24 @@ function target_envs(target::AbstractString)
     # they're just not used by default.  Override these environment variables in
     # your scripts if you want to use them.
     if occursin("-apple-", target) || occursin("-freebsd", target)
-        mapping["AR"] = tool("llvm-ar")
-        mapping["AS"] = tool("llvm-as")
-        mapping["CC"] = tool("clang")
-        mapping["CXX"] = tool("clang++")
+        mapping["AR"] = tool_path("llvm-ar")
+        mapping["AS"] = tool_path("llvm-as")
+        mapping["CC"] = tool_path("clang")
+        mapping["CXX"] = tool_path("clang++")
         # flang isn't a realistic option yet, so we still use gfortran here
-        mapping["FC"] = target_tool("gfortran")
-        mapping["LD"] = tool("llvm-ld")
-        mapping["NM"] = tool("llvm-nm")
-        mapping["OTOOL"] = target_tool("otool")
-        mapping["INSTALL_NAME_TOOL"] = target_tool("install_name_tool")
-        mapping["LLVM_TARGET"] = target
-        mapping["RANLIB"] = tool("llvm-ranlib")
+        mapping["FC"] = target_tool_path("gfortran")
+        mapping["LD"] = tool_path("llvm-ld")
+        mapping["NM"] = tool_path("llvm-nm")
+        mapping["RANLIB"] = tool_path("llvm-ranlib")
     else
-        mapping["AR"] = target_tool("ar")
-        mapping["AS"] = target_tool("as")
-        mapping["CC"] = target_tool("gcc")
-        mapping["CXX"] = target_tool("g++")
-        mapping["FC"] = target_tool("gfortran")
-        mapping["LD"] = target_tool("ld")
-        mapping["NM"] = target_tool("nm")
-        mapping["RANLIB"] = target_tool("ranlib")
+        mapping["AR"] = super_binutil("ar")
+        mapping["AS"] = super_binutil("as")
+        mapping["CC"] = target_tool_path("gcc")
+        mapping["CXX"] = target_tool_path("g++")
+        mapping["FC"] = target_tool_path("gfortran")
+        mapping["LD"] = super_binutil("ld")
+        mapping["NM"] = super_binutil("nm")
+        mapping["RANLIB"] = super_binutil("ranlib")
     end
 
     # On OSX, we need to do a little more work.
@@ -140,10 +135,29 @@ function target_envs(target::AbstractString)
         mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
     end
 
-    # If we're using `ccache`, prepend it to `CC`, `CXX`, `FC`, etc....
+    # There is no broad agreement on what host compilers should be called,
+    # so we set all the environment variabels that we've seen it called as,
+    # and hope for the best.
+    for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)")
+        mapping[host_map("AR")] = super_binutil("ar") #target_tool_path("ar", "x86_64-linux-gnu")
+        mapping[host_map("AS")] = super_binutil("as") #target_tool_path("as", "x86_64-linux-gnu")
+        mapping[host_map("CC")] = target_tool_path("gcc", "x86_64-linux-gnu")
+        mapping[host_map("CXX")] = target_tool_path("g++", "x86_64-linux-gnu")
+        mapping[host_map("FC")] = target_tool_path("gfortran", "x86_64-linux-gnu")
+        mapping[host_map("LIPO")] = target_tool_path("lipo", "x86_64-linux-gnu")
+        mapping[host_map("LD")] = super_binutil("ld") #target_tool_path("ld", "x86_64-linux-gnu")
+        mapping[host_map("NM")] = super_binutil("nm") #target_tool_path("nm", "x86_64-linux-gnu")
+        mapping[host_map("RANLIB")] = super_binutil("ranlib") #target_tool_path("ranlib", "x86_64-linux-gnu")
+        mapping[host_map("READELF")] = super_binutil("readelf") #target_tool_path("readelf", "x86_64-linux-gnu")
+        mapping[host_map("OBJCOPY")] = super_binutil("objcopy") #target_tool_path("objcopy", "x86_64-linux-gnu")
+        mapping[host_map("OBJDUMP")] = super_binutil("objdump") #target_tool_path("objdump", "x86_64-linux-gnu")
+        mapping[host_map("STRIP")] = super_binutil("strip") #target_tool_path("strip", "x86_64-linux-gnu")
+    end
+    
+    # If we're using `ccache`, prepend it to `CC`, `CXX`, `FC`, `HOSTCC`, etc....
     if use_ccache
-        for k in ("CC", "CXX", "FC")
-            for m in (k, "HOST$(k)", "$(k)_FOR_BUILD")
+        for tool in ("CC", "CXX", "FC")
+            for m in (tool, "BUILD_$(tool)", "HOST$(tool)", "$(tool)_FOR_BUILD")
                 mapping[m] = string("ccache ", mapping[m])
             end
         end
