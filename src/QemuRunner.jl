@@ -301,7 +301,9 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
     end
 
     # Qemu appears to mess with our terminal
-    Base.reseteof(stdin)
+    if stdin !== nothing
+        Base.reseteof(stdin)
+    end
 end
 
 function runshell(qr::QemuRunner, args...; kwargs...)
