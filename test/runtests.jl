@@ -58,7 +58,7 @@ end
               "powerpc64le-linux-gnu", "x86_64-apple-darwin14"]
         @test BinaryBuilder.target_nbits(t) == "64"
     end
-    
+
     for t in ["x86_64-linux-gnu", "x86_64-apple-darwin14", "i686-w64-mingw32"]
         @test BinaryBuilder.target_proc_family(t) == "intel"
     end
@@ -390,7 +390,7 @@ end
         main_avx = ExecutableProduct(prefix, "main_avx", :main_avx)
         main_avx2 = ExecutableProduct(prefix, "main_avx2", :main_avx2)
         products = [main_sse, main_avx, main_avx2]
-        
+
         cd(joinpath(dirname(@__FILE__),"build_tests","isa_tests")) do
             run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
@@ -477,41 +477,53 @@ end
 end
 @testset "GitHub releases build.jl reconstruction" begin
     # Download some random release that is relatively small
-    product_hashes = product_hashes_from_github_release("staticfloat/OggBuilder", "v1.3.3-0")
+    product_hashes = product_hashes_from_github_release("staticfloat/OggBuilder", "v1.3.3-6")
 
     # Ground truth hashes for each product
     true_product_hashes = Dict(
-        "aarch64-linux-gnu" => (
-            "Ogg.aarch64-linux-gnu.tar.gz",
-            "4150d19fe0dc773ef3917498379a9148cd780d44322fc30e44cf4a241fb8e688"
+        "arm-linux-gnueabihf"        => (
+            "Ogg.v1.3.3.arm-linux-gnueabihf.tar.gz",
+            "a70830decaee040793b5c6a8f8900ed81720aee51125a3aab22440b26e45997a"
         ),
-        "i686-w64-mingw32" => (
-            "Ogg.i686-w64-mingw32.tar.gz",
-            "3f9940c1c8614fbb40f35ab28dac9237226e3e7fcfb45d1fe7488e0289284ff8"
+        "x86_64-unknown-freebsd11.1" => (
+            "Ogg.v1.3.3.x86_64-unknown-freebsd11.1.tar.gz",
+            "a87e432f1e80880200b18decc33df87634129a2f9d06200cae89ad8ddde477b6"
         ),
-        "powerpc64le-linux-gnu" => (
-            "Ogg.powerpc64le-linux-gnu.tar.gz",
-            "cf519a13c3b343334aed8771d50b991d7ea00d0bbbd490ee0c8f5ffbd3ba65f4"
+        "i686-w64-mingw32"           => (
+            "Ogg.v1.3.3.i686-w64-mingw32.tar.gz",
+            "3f6f6f524137a178e9df7cb5ea5427de6694c2a44ef78f1491d22bd9c6c8a0e8"
         ),
-        "x86_64-linux-gnu" => (
-            "Ogg.x86_64-linux-gnu.tar.gz",
-            "3952d4def1505ad5090622a50662b6e0a38d1977abb7bb61d2483a47b626c807"
+        "powerpc64le-linux-gnu"      => (
+            "Ogg.v1.3.3.powerpc64le-linux-gnu.tar.gz",
+            "b133194a9527f087bbf942f77bf6a953cb8c277c98f609479bce976a31a5ba39"
         ),
-        "x86_64-apple-darwin14" => (
-            "Ogg.x86_64-apple-darwin14.tar.gz",
-            "e6c0fec453c4f833a0364fbf92a4a6e4bc738aa8de84059e12f1ee40f02dbba1"
+        "x86_64-linux-gnu"           => (
+            "Ogg.v1.3.3.x86_64-linux-gnu.tar.gz",
+            "6ef771242553b96262d57b978358887a056034a3c630835c76062dca8b139ea6"
         ),
-        "x86_64-w64-mingw32" => (
-            "Ogg.x86_64-w64-mingw32.tar.gz",
-            "a47c33147f7e572f40178d47de54ad3a0a04e6b17a9fe3cf15791ba11203544e"
+        "x86_64-apple-darwin14"      => (
+            "Ogg.v1.3.3.x86_64-apple-darwin14.tar.gz",
+            "077898aed79bbce121c5e3d5cd2741f50be1a7b5998943328eab5406249ac295"
         ),
-        "arm-linux-gnueabihf" => (
-            "Ogg.arm-linux-gnueabihf.tar.gz",
-            "dcafb1c46b4363f84fc194c28732e3080be82227e36938d883a2d0e381cae20c"
+        "x86_64-linux-musl"          => (
+            "Ogg.v1.3.3.x86_64-linux-musl.tar.gz",
+            "a7ff6bf9b28e1109fe26c4afb9c533f7df5cf04ace118aaae76c2fbb4c296b99"
         ),
-        "i686-linux-gnu" => (
-            "Ogg.i686-linux-gnu.tar.gz",
-            "f5227b205ee64e03f7b030af0c6b6eb9ddb6a3175efe1c650935e71dcd3ae658"
+        "aarch64-linux-gnu"          => (
+            "Ogg.v1.3.3.aarch64-linux-gnu.tar.gz",
+            "ce2329057df10e4f1755da696a5d5e597e1a9157a85992f143d03857f4af259c"
+        ),
+        "i686-linux-musl"            => (
+            "Ogg.v1.3.3.i686-linux-musl.tar.gz",
+            "d8fc3c201ea40feeb05bc84d7159286584427f54776e316ef537ff32347c4007"
+        ),
+        "x86_64-w64-mingw32"         => (
+            "Ogg.v1.3.3.x86_64-w64-mingw32.tar.gz",
+            "c6afdfb19d9b0d20b24a6802e49a1fbb08ddd6a2d1da7f14b68f8627fd55833a"
+        ),
+        "i686-linux-gnu"             => (
+            "Ogg.v1.3.3.i686-linux-gnu.tar.gz",
+            "1045d82da61ff9574d91f490a7be0b9e6ce17f6777b6e9e94c3c897cc53dd284"
         ),
     )
 
