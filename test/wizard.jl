@@ -34,7 +34,7 @@ end
 using HTTP
 
 r = HTTP.Router()
-build_tests_dir = joinpath(dirname(dirname(pathof("BinaryBuilder"))), "test", "build_tests")
+build_tests_dir = joinpath(dirname(dirname(pathof(BinaryBuilder))), "test", "build_tests")
 tar_libfoo() = read(`tar czf - -C $(build_tests_dir) libfoo`)
 function serve_tgz(req)
     HTTP.Response(200, tar_libfoo())
