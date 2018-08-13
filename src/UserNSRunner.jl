@@ -116,19 +116,17 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
     end
 
     did_succeed = true
-    cd(rootfs_dir()) do
-        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
+    oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
 
-        did_succeed = wait(oc)
+    did_succeed = wait(oc)
 
-        if !isempty(logpath)
-            # Write out the logfile, regardless of whether it was successful
-            mkpath(dirname(logpath))
-            open(logpath, "w") do f
-                # First write out the actual command, then the command output
-                println(f, cmd)
-                print(f, merge(oc))
-            end
+    if !isempty(logpath)
+        # Write out the logfile, regardless of whether it was successful
+        mkpath(dirname(logpath))
+        open(logpath, "w") do f
+            # First write out the actual command, then the command output
+            println(f, cmd)
+            print(f, merge(oc))
         end
     end
 
@@ -143,32 +141,30 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
         BinaryProvider.info_onchange(msg, "privileged", "userns_run_privileged")
     end
 
-    cd(rootfs_dir()) do
-        cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
-        if stdin isa AnyRedirectable
-            cmd = pipeline(cmd, stdin=stdin)
-        end
-        if stdout isa AnyRedirectable
-            cmd = pipeline(cmd, stdout=stdout)
-        end
-        if stderr isa AnyRedirectable
-            cmd = pipeline(cmd, stderr=stderr)
-        end
+    cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
+    if stdin isa AnyRedirectable
+        cmd = pipeline(cmd, stdin=stdin)
+    end
+    if stdout isa AnyRedirectable
+        cmd = pipeline(cmd, stdout=stdout)
+    end
+    if stderr isa AnyRedirectable
+        cmd = pipeline(cmd, stderr=stderr)
+    end
 
-        if stdout isa IOBuffer
-            if !(stdin isa IOBuffer)
-                stdin = devnull
-            end
-            process = open(cmd, "r", stdin)
-            @async begin
-                while !eof(process)
-                    write(stdout, read(process))
-                end
-            end
-            wait(process)
-        else
-            run(cmd)
+    if stdout isa IOBuffer
+        if !(stdin isa IOBuffer)
+            stdin = devnull
         end
+        process = open(cmd, "r", stdin)
+        @async begin
+            while !eof(process)
+                write(stdout, read(process))
+            end
+        end
+        wait(process)
+    else
+        run(cmd)
     end
 end
 

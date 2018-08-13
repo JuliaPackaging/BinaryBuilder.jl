@@ -359,74 +359,72 @@ function autobuild(dir::AbstractString,
             build_path = joinpath(pwd(), "build", target)
             try mkpath(build_path) catch; end
 
-            cd(build_path) do
-                src_paths, src_hashes = collect(zip(sources...))
+            src_paths, src_hashes = collect(zip(sources...))
 
-                # Convert from tuples to arrays, if need be
-                src_paths = collect(src_paths)
-                src_hashes = collect(src_hashes)
-                prefix, ur = setup_workspace(
-                    build_path,
-                    src_paths,
-                    src_hashes,
-                    dependencies,
-                    platform;
-                    verbose=verbose,
-                    downloads_dir=downloads_dir
-                )
+            # Convert from tuples to arrays, if need be
+            src_paths = collect(src_paths)
+            src_hashes = collect(src_hashes)
+            prefix, ur = setup_workspace(
+                build_path,
+                src_paths,
+                src_hashes,
+                dependencies,
+                platform;
+                verbose=verbose,
+                downloads_dir=downloads_dir
+            )
 
-                # Don't keep the downloads directory around
-                rm(joinpath(prefix, "downloads"); force=true, recursive=true)
+            # Don't keep the downloads directory around
+            rm(joinpath(prefix, "downloads"); force=true, recursive=true)
 
-                # Collect dependency manifests so that our auditing doesn't touch these files that
-                # were installed by dependencies
-                manifest_dir = joinpath(prefix, "manifests")
-                dep_manifests = if isdir(manifest_dir)
-                   [joinpath(prefix, "manifests", f) for f in readdir(manifest_dir)]
-                else
-                    String[]
-                end
-
-                dep = Dependency(src_name, products(prefix), script, platform, prefix)
-                build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests, debug=debug)
-
-                # Remove the files of any dependencies
-                for dependency in dependencies
-                    dep_script = script_for_dep(dependency, prefix.path)[1]
-                    m = Module(:__anon__)
-                    Core.eval(m, quote
-                        using BinaryProvider
-                        # Override BinaryProvider functionality so that it doesn't actually install anything
-                        platform_key() = $platform
-                        function write_deps_file(args...; kwargs...); end
-                        function install(args...; kwargs...); end
-
-                        # Include build.jl file to extract download_info
-                        ARGS = [$(prefix.path)]
-                    end)
-                    include_string(m, dep_script)
-                    Core.eval(m, quote
-                        # Grab the information we need in order to extract a manifest, then uninstall it
-                        url, hash = download_info[platform_key()]
-                        manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
-                        BinaryProvider.uninstall(manifest_path; verbose=$verbose)
-                    end)
-                end
-
-                # Once we're built up, go ahead and package this prefix out
-                tarball_path, tarball_hash = package(
-                    prefix,
-                    joinpath(out_path, src_name),
-                    src_version;
-                    platform=platform,
-                    verbose=verbose,
-                    force=true,
-               )
-                product_hashes[target] = (basename(tarball_path), tarball_hash)
-
-                # Destroy the workspace
-                rm(dirname(prefix.path); recursive=true)
+            # Collect dependency manifests so that our auditing doesn't touch these files that
+            # were installed by dependencies
+            manifest_dir = joinpath(prefix, "manifests")
+            dep_manifests = if isdir(manifest_dir)
+               [joinpath(prefix, "manifests", f) for f in readdir(manifest_dir)]
+            else
+                String[]
             end
+
+            dep = Dependency(src_name, products(prefix), script, platform, prefix)
+            build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests, debug=debug)
+
+            # Remove the files of any dependencies
+            for dependency in dependencies
+                dep_script = script_for_dep(dependency, prefix.path)[1]
+                m = Module(:__anon__)
+                Core.eval(m, quote
+                    using BinaryProvider
+                    # Override BinaryProvider functionality so that it doesn't actually install anything
+                    platform_key() = $platform
+                    function write_deps_file(args...; kwargs...); end
+                    function install(args...; kwargs...); end
+
+                    # Include build.jl file to extract download_info
+                    ARGS = [$(prefix.path)]
+                end)
+                include_string(m, dep_script)
+                Core.eval(m, quote
+                    # Grab the information we need in order to extract a manifest, then uninstall it
+                    url, hash = download_info[platform_key()]
+                    manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
+                    BinaryProvider.uninstall(manifest_path; verbose=$verbose)
+                end)
+            end
+
+            # Once we're built up, go ahead and package this prefix out
+            tarball_path, tarball_hash = package(
+                prefix,
+                joinpath(out_path, src_name),
+                src_version;
+                platform=platform,
+                verbose=verbose,
+                force=true,
+            )
+            product_hashes[target] = (basename(tarball_path), tarball_hash)
+
+            # Destroy the workspace
+            rm(dirname(prefix.path); recursive=true)
 
             # If the whole build_path is empty, then remove it too.  If it's not, it's probably
             # because some other build is doing something simultaneously with this target, and we
