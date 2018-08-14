@@ -103,7 +103,20 @@ function audit(prefix::Prefix; io=stderr,
             # try to do something silly like `dlopen()` a .so file that uses
             # LLVM in interesting ways on startup, it doesn't kill our main
             # Julia process.
-            if !success(`$(Base.julia_cmd()) -e "using Libdl; Libdl.dlopen(\"$f\")"`)
+            dlopen_cmd = """
+            using Libdl
+            try
+                dlopen($(repr(f)))
+                return 0
+            catch e
+                if $(repr(verbose))
+                    Base.display_error(e)
+                end
+                return 1
+            end
+            """
+            p = run(`$(Base.julia_cmd()) -e $dlopen_cmd`)
+            if p.exitcode != 0
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
 
