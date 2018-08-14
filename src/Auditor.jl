@@ -232,6 +232,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = true)
+    all_ok = true
     # If it's a dynamic binary, check its linkage
     if isdynamic(oh)
         rp = RPath(oh)
@@ -287,7 +288,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                         if !silent
                             warn(io, strip(msg))
                         end
-                        return false
+                        all_ok = false
                     end
                 else
                     msg = replace("""
@@ -297,7 +298,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                     if !silent
                         warn(io, strip(msg))
                     end
-                    return false
+                    all_ok = false
                 end
             elseif !startswith(libs[libname], prefix.path)
                 msg = replace("""
@@ -307,7 +308,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                 if !silent
                     warn(io, strip(msg))
                 end
-                return false
+                all_ok = false
             end
         end
 
@@ -315,7 +316,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
             info(io, "Ignored system libraries $(join(ignored_libraries, ", "))")
         end
     end
-    return true
+    return all_ok
 end
 
 
