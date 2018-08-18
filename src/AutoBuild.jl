@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, print_buildjl, product_hashes_from_github_release
+export build_tarballs, autobuild, print_buildjl, product_hashes_from_github_release, build
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256
 
@@ -386,8 +386,8 @@ function autobuild(dir::AbstractString,
                 String[]
             end
 
-            dep = Dependency(src_name, products(prefix), script, platform, prefix)
-            build(ur, dep; verbose=verbose, autofix=true, ignore_manifests=dep_manifests, debug=debug)
+            build(ur, src_name, products(prefix), script, platform, prefix;
+                  verbose=verbose, autofix=true, ignore_manifests=dep_manifests, debug=debug)
 
             # Remove the files of any dependencies
             for dependency in dependencies
@@ -450,6 +450,99 @@ function autobuild(dir::AbstractString,
     # Return our product hashes
     return product_hashes
 end
+
+function build(runner::Runner, name::AbstractString,
+               results::Vector{P}, script::AbstractString,
+               platform::Platform, prefix::Prefix;
+               verbose::Bool = false, force::Bool = false,
+               autofix::Bool = false, ignore_audit_errors::Bool = true,
+               ignore_manifests::Vector = [], debug::Bool = false) where {P <: Product}
+    # First, look to see whether our results are satisfied or not
+    s = result -> satisfied(result; verbose=verbose, platform=platform, isolate=true)
+    should_build = !all(s(result) for result in results)
+
+    # If it is not satisfied, (or we're forcing the issue) build it
+    if force || should_build
+        # Verbose mode tells us what's going on
+        if verbose
+            if !should_build
+                @info("Force-building $(name) despite its satisfaction")
+            else
+                @info("Building $(name) as it is unsatisfied")
+            end
+        end
+
+        # This `bash trap` snippet causes each command to get written out to bash
+        # history so that, if we fail and fall into a debug shell, we can just
+        # up-arrow to get to the last run command.
+        trapped_script = """
+        save_history() {
+            if [[ "$(verbose)" == "true" ]]; then
+                echo " ---> \$BASH_COMMAND" >&2
+            fi
+            history -s "\$BASH_COMMAND"
+            history -a
+        }
+
+        save_env() {
+            set +x
+            set > /meta/.env
+            # Ignore read-only variables
+            for l in BASHOPTS BASH_VERSINFO UID EUID PPID SHELLOPTS; do
+                grep -v "^\$l=" /meta/.env > /meta/.env2
+                mv /meta/.env2 /meta/.env
+            done
+            echo "cd \$(pwd)" >> /meta/.env
+        }
+
+        # If /meta is mounted, then we want to save history and environment
+        if [[ -d /meta ]]; then
+            trap save_history DEBUG
+            trap save_env INT TERM EXIT ERR
+        fi
+
+        # Stop if we hit any errors.
+        set -e
+
+        $(script)
+        """
+
+        logpath = joinpath(logdir(prefix), "$(name).log")
+        did_succeed = run(runner, `/bin/bash -c $(trapped_script)`, logpath; verbose=verbose)
+        if !did_succeed
+            if debug
+                @warn("Build failed, launching debug shell")
+                run_interactive(runner, `/bin/bash --init-file /meta/.env`)
+            end
+            msg = "Build for $(name) on $(triplet(platform)) did not complete successfully\n"
+            error(msg)
+        end
+
+        # Run an audit of the prefix to ensure it is properly relocatable
+        audit_result = audit(prefix; platform=platform,
+                             verbose=verbose, autofix=autofix,
+                             ignore_manifests=ignore_manifests) 
+        if !audit_result && !ignore_audit_errors
+            msg = replace("""
+            Audit failed for $(prefix.path).
+            Address the errors above to ensure relocatability.
+            To override this check, set `ignore_audit_errors = true`.
+            """, '\n' => ' ')
+            error(strip(msg))
+        end
+
+        # Finally, check to see if we are now satisfied
+        if !all(s(result) for result in results)
+            if verbose
+                @warn("Built $(name) but still unsatisfied!")
+            end
+        end
+    elseif !should_build && verbose
+        @info("Not building as $(name) is already satisfied")
+    end
+    return true
+end
+
 
 function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
                        bin_path::AbstractString)
