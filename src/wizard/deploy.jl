@@ -392,7 +392,7 @@ function get_github_user(outs, ins, cfg=LibGit2.GitConfig())
     # Get user name
     user = LibGit2.get(cfg, "github.user", "")
     if isempty(user)
-        println(state.outs, """
+        println(outs, """
         GitHub username not globally configured. You will have to enter your
         GitHub username below. To avoid this prompt in the future, set your
         GitHub username using `git config --global github.user <username>`.
