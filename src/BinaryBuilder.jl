@@ -17,7 +17,6 @@ include("RootFS.jl")
 include("UserNSRunner.jl")
 include("QemuRunner.jl")
 include("DockerRunner.jl")
-include("Dependency.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
