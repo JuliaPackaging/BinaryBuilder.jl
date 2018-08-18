@@ -502,7 +502,7 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
     end
 
     # Write out a deps.jl file that will contain mappings for our products
-    write_deps_file(joinpath(@__DIR__, "deps.jl"), products)
+    write_deps_file(joinpath(@__DIR__, "deps.jl"), products, verbose=verbose)
     """)
 end
 
