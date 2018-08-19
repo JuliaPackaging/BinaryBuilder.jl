@@ -19,21 +19,29 @@ include("wizard/deploy.jl")
 # This is here so that if the wizard crashes, we may have a shot at resuming.
 last_wizard_state = WizardState()
 
-function run_wizard(state::WizardState = WizardState())
+function run_wizard(state::Union{Nothing,WizardState} = nothing)
     global last_wizard_state
 
-    if last_wizard_state.step != :done && last_wizard_state.step != :step1
-        terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
-        choice = request(terminal,
-            "Would you like to resume the previous incomplete wizard run?",
-            RadioMenu([
-                "Resume previous run",
-                "Start from scratch",
-            ]),
-        )
+    if state === nothing
+        # If we weren't given a state, check to see if we'd like to resume a
+        # previous run or start from scratch again.
+        if last_wizard_state.step != :done && last_wizard_state.step != :step1
+            terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
+            choice = request(terminal,
+                "Would you like to resume the previous incomplete wizard run?",
+                RadioMenu([
+                    "Resume previous run",
+                    "Start from scratch",
+                ]),
+            )
 
-        if choice == 1
-            state = last_wizard_state
+            if choice == 1
+                state = last_wizard_state
+            else
+                state = WizardState()
+            end
+        else
+            state = WizardState()
         end
     end
 
