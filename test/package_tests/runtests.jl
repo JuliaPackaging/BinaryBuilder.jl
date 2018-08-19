@@ -32,7 +32,7 @@ function clone_build_test(builder_url, package_url, package_deps)
             m = Module(:__anon__)
             Core.eval(m, quote
                 ARGS = [$(triplet(platform_key()))]
-                product_hashes = include(joinpath($(builder_dir), "build_tarballs.jl"))
+                product_hashes = Base.include($m, joinpath($(builder_dir), "build_tarballs.jl"))
 
                 # Write out a build.jl file that points to this tarball
                 bin_path = joinpath($(builder_dir), "products")
@@ -44,7 +44,7 @@ function clone_build_test(builder_url, package_url, package_deps)
         end
     catch e
         display(e)
-        warn("Building $(basename(builder_url)) failed.")
+        @warn("Building $(basename(builder_url)) failed.")
         return false
     end
 
@@ -68,7 +68,7 @@ function clone_build_test(builder_url, package_url, package_deps)
         run(setenv(`$(Base.julia_cmd()) $(joinpath(package_dir, "deps", "build.jl"))`, pkg_env))
     catch e
        display(e)
-        warn("Building $(basename(package_url)) failed.")
+        @warn("Building $(basename(package_url)) failed.")
         return false
     end
 
@@ -80,7 +80,7 @@ function clone_build_test(builder_url, package_url, package_deps)
         end
     catch e
         display(e)
-        warn("Testing $(basename(package_url)) failed.")
+        @warn("Testing $(basename(package_url)) failed.")
         return false
     end
     return true

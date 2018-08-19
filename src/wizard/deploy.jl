@@ -61,12 +61,12 @@ function print_build_tarballs(io::IO, state::WizardState;
 
     # The products that we will ensure are always built
     products(prefix) = [
-        $products_string
+        $(products_string)
     ]
 
     # Dependencies that must be installed before this package can be built
     dependencies = [
-        $dependencies_string
+        $(dependencies_string)
     ]
 
     # Build the tarballs, and possibly a `build.jl` as well.
@@ -193,7 +193,7 @@ end
 
 function obtain_token(outs, ins, repo_name, user; github_api=Github.DEFAULT_API)
     println(outs)
-    printstyled("Creating a github access token.\n", bold=true)
+    printstyled(outs, "Creating a github access token.\n", bold=true)
     println(outs, """
     We will use this token to create to repository, and then pass it to travis
     for future uploads of binary artifacts.
@@ -211,7 +211,7 @@ function obtain_token(outs, ins, repo_name, user; github_api=Github.DEFAULT_API)
     )
     while true
         print(outs, "Please enter the github.com password for $(user): ")
-        terminal = Base.Terminals.TTYTerminal("xterm", ins, outs, outs)
+        terminal = Terminals.TTYTerminal("xterm", ins, outs, outs)
         old = set_terminal_echo(Base._fd(ins), false)
         pass = try
             readline(ins)
@@ -472,12 +472,12 @@ function github_deploy(state::WizardState)
                 print_travis_deploy(f, gr, secure_key)
             end
         catch e
-            Base.display_error(stderr, e, catch_backtrace())
-            println(:red, """
+            Base.display_error(state.outs, e, catch_backtrace())
+            printstyled(state.outs, """
                 Something went wrong generating the deployment steps.
                 We will finish pushing to GitHub, but you may have to setup
                 deployment manually.
-            """)
+            """, color = :red)
             open(joinpath(repo_dir, ".travis.yml"), "w") do f
                 # Create the first part of the .travis.yml file
                 print_travis_file(f, state)
