@@ -291,10 +291,6 @@ function autobuild(dir::AbstractString,
 
     # If we end up packaging any local directories into tarballs, we'll store them here
     mktempdir() do tempdir
-        # First, download the source(s), store in ./downloads/
-        downloads_dir = joinpath(dir, "downloads")
-        try mkpath(downloads_dir) catch; end
-
         # We must prepare our sources.  Download them, hash them, etc...
         sources = Any[s for s in sources]
         for idx in 1:length(sources)
@@ -318,7 +314,7 @@ function autobuild(dir::AbstractString,
 
                 # If it's a .git url, clone it
                 if endswith(src_url, ".git")
-                    src_path = joinpath(downloads_dir, basename(src_url))
+                    src_path = joinpath(downloads_cache, basename(src_url))
                     if !isdir(src_path)
                         repo = LibGit2.clone(src_url, src_path; isbare=true)
                     else
@@ -336,7 +332,7 @@ function autobuild(dir::AbstractString,
                         verify(src_path, src_hash; verbose=verbose)
                     else
                         # Otherwise, download and verify
-                        src_path = joinpath(downloads_dir, basename(src_url))
+                        src_path = joinpath(downloads_cache, basename(src_url))
                         download_verify(src_url, src_hash, src_path; verbose=verbose)
                     end
                 end
@@ -371,7 +367,7 @@ function autobuild(dir::AbstractString,
                 dependencies,
                 platform;
                 verbose=verbose,
-                downloads_dir=downloads_dir
+                downloads_dir=downloads_cache
             )
 
             # Don't keep the downloads directory around
