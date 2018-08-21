@@ -159,8 +159,7 @@ function script_for_dep(dep, install_dir)
             dep.script
     elseif isa(dep, TarballDependency)
         script = """
-        prefix = Prefix(ARGS[1])
-        install($(repr(dep.url)), $(repr(dep.hash)), prefix=Prefix(ARGS[1]))
+        download_verify_unpack($(repr(dep.url)), $(repr(dep.hash)), ARGS[1]; force=true, ignore_existence=true)
         download_info = Dict(platform_key() => ($(repr(dep.url)), $(repr(dep.hash))))
         """
     end
@@ -276,6 +275,16 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                 BinaryProvider.install(url, hash;
                     tarball_path=joinpath($downloads_dir, basename(url)),
                     ignore_platform=true,
+                    verbose=$verbose,
+                    kwargs...,
+                )
+            end
+
+            # Override download_verify_unpack() in a very similar way
+            function download_verify_unpack(url, hash, dest; tarball_path=nothing, kwargs...)
+                BinaryProvider.download_verify_unpack(
+                    url, hash, dest;
+                    tarball_path=joinpath($downloads_dir, basename(url)),
                     verbose=$verbose,
                     kwargs...,
                 )
