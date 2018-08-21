@@ -448,14 +448,20 @@ function autobuild(dir::AbstractString,
 end
 
 function build(runner::Runner, name::AbstractString,
-               results::Vector{P}, script::AbstractString,
+               products::Vector{P}, script::AbstractString,
                platform::Platform, prefix::Prefix;
                verbose::Bool = false, force::Bool = false,
                autofix::Bool = false, ignore_audit_errors::Bool = true,
                ignore_manifests::Vector = [], debug::Bool = false) where {P <: Product}
-    # First, look to see whether our results are satisfied or not
-    s = result -> satisfied(result; verbose=verbose, platform=platform, isolate=true)
-    should_build = !all(s(result) for result in results)
+    # First, look to see whether our products are satisfied or not
+    if isempty(products)
+        # If we've been given no products, always build and always say it's satisfied
+        s = product -> true
+        should_build = true
+    else
+        s = p -> satisfied(p; verbose=verbose, platform=platform, isolate=true)
+        should_build = !all(s(p) for p in products)
+    end
 
     # If it is not satisfied, (or we're forcing the issue) build it
     if force || should_build
@@ -528,7 +534,7 @@ function build(runner::Runner, name::AbstractString,
         end
 
         # Finally, check to see if we are now satisfied
-        if !all(s(result) for result in results)
+        if !all(s(p) for p in products)
             if verbose
                 @warn("Built $(name) but still unsatisfied!")
             end
