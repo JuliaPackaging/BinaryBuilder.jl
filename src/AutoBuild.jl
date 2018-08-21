@@ -4,7 +4,7 @@ import SHA: sha256
 
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
-                   products, dependencies)
+                   products, dependencies; kwargs...)
 
 This should be the top-level function called from a `build_tarballs.jl` file.
 It takes in the information baked into a `build_tarballs.jl` file such as the
@@ -15,7 +15,7 @@ line arguments object.  This function does some rudimentary parsing of the
 `ARGS`, call it with `--help` in the `ARGS` to see what it can do.
 """
 function build_tarballs(ARGS, src_name, src_version, sources, script,
-                        platforms, products, dependencies)
+                        platforms, products, dependencies; kwargs...)
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
@@ -115,7 +115,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         # Build the given platforms using the given sources
         autobuild(pwd(), src_name, src_version, sources, script, platforms,
-                         products, dependencies; verbose=verbose, debug=debug)
+                         products, dependencies; verbose=verbose, debug=debug, kwargs...)
     else
         msg = strip("""
         Reconstructing product hashes from GitHub Release $(repo)/$(tag)
@@ -383,7 +383,7 @@ function autobuild(dir::AbstractString,
             end
 
             build(ur, src_name, products(prefix), script, platform, prefix;
-                  verbose=verbose, autofix=true, ignore_manifests=dep_manifests, debug=debug)
+                  verbose=verbose, ignore_manifests=dep_manifests, debug=debug)
 
             # Remove the files of any dependencies
             for dependency in dependencies
@@ -451,7 +451,8 @@ function build(runner::Runner, name::AbstractString,
                products::Vector{P}, script::AbstractString,
                platform::Platform, prefix::Prefix;
                verbose::Bool = false, force::Bool = false,
-               autofix::Bool = false, ignore_audit_errors::Bool = true,
+               autofix::Bool = true, ignore_audit_errors::Bool = true,
+               skip_audit::Bool = false,
                ignore_manifests::Vector = [], debug::Bool = false) where {P <: Product}
     # First, look to see whether our products are satisfied or not
     if isempty(products)
@@ -521,16 +522,18 @@ function build(runner::Runner, name::AbstractString,
         end
 
         # Run an audit of the prefix to ensure it is properly relocatable
-        audit_result = audit(prefix; platform=platform,
-                             verbose=verbose, autofix=autofix,
-                             ignore_manifests=ignore_manifests) 
-        if !audit_result && !ignore_audit_errors
-            msg = replace("""
-            Audit failed for $(prefix.path).
-            Address the errors above to ensure relocatability.
-            To override this check, set `ignore_audit_errors = true`.
-            """, '\n' => ' ')
-            error(strip(msg))
+        if !skip_audit
+            audit_result = audit(prefix; platform=platform,
+                                 verbose=verbose, autofix=autofix,
+                                 ignore_manifests=ignore_manifests) 
+            if !audit_result && !ignore_audit_errors
+                msg = replace("""
+                Audit failed for $(prefix.path).
+                Address the errors above to ensure relocatability.
+                To override this check, set `ignore_audit_errors = true`.
+                """, '\n' => ' ')
+                error(strip(msg))
+            end
         end
 
         # Finally, check to see if we are now satisfied
