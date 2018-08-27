@@ -152,21 +152,6 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     return product_hashes
 end
 
-function build_tarballs(ARGS, src_name, sources, script, platforms, products,
-                        dependencies)
-    @warn("build_tarballs now requires a src_version parameter; assuming v\"1.0.0\"")
-    return build_tarballs(
-        ARGS,
-        src_name,
-        v"1.0.0",
-        sources,
-        script,
-        platforms,
-        products,
-        dependencies
-    )
-end
-
 # Helper function to get things from ENV, returning `nothing`
 # if they either don't exist or are empty
 function get_ENV(key)
