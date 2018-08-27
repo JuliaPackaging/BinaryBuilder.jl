@@ -64,13 +64,12 @@ jobs:
         - TEST_SANDBOX=true
 
 script:
-   - julia -e 'Pkg.clone(pwd())'
-   - julia -e 'Pkg.build("BinaryBuilder")'
+   - julia --project -e 'using Pkg; Pkg.build("BinaryBuilder")'
    - if [ ${TEST_SANDBOX:-false} = true ]; then
-         julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -std=c99 -o /tmp/sandbox sandbox.c`)';
+         julia -e 'cd("deps"); run(`gcc -std=c99 -o /tmp/sandbox sandbox.c`)';
      fi
-   - julia -e 'Pkg.checkout("BinaryProvider", "master")'
-   - julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
+   - julia --project -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryProvider", rev="master"))'
+   - julia --project --color=yes --check-bounds=yes -e 'using Pkg; Pkg.test("BinaryBuilder", coverage=true)'
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
@@ -84,7 +83,7 @@ addons:
 
 after_success:
   # push coverage results to Codecov
-  - julia -e 'cd(Pkg.dir("BinaryBuilder")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
   # Build docs
-  - julia -e 'Pkg.add("Documenter")'
-  - julia -e 'cd(Pkg.dir("BinaryBuilder")); include(joinpath("docs", "make.jl"))'
+  - julia -e 'using Pkg; Pkg.add("Documenter")'
+  - julia -e 'using Pkg; include(joinpath("docs", "make.jl"))'
