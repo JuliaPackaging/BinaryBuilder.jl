@@ -159,7 +159,7 @@ function script_for_dep(dep, install_dir)
             dep.script
     elseif isa(dep, TarballDependency)
         script = """
-        download_verify_unpack($(repr(dep.url)), $(repr(dep.hash)), ARGS[1]; force=true, ignore_existence=true)
+        install($(repr(dep.url)), $(repr(dep.hash)); prefix=prefix force=true)
         download_info = Dict(platform_key() => ($(repr(dep.url)), $(repr(dep.hash))))
         """
     end
@@ -231,16 +231,17 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             end
 
             # For consistency, we use the tar inside the sandbox to unpack
-            cp(src_path, joinpath(srcdir, basename(src_path)))
+            src_path_v = string(src_hash, "-", basename(src_path))
+            cp(src_path, joinpath(srcdir, src_path_v))
             if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
                endswith(src_path, ".tgz") || endswith(src_path, ".tar.bz") ||
                endswith(src_path, ".tar.bz2") || endswith(src_path, ".tar.xz") ||
                endswith(src_path, ".tar.Z") || endswith(src_path, ".txz")
-                push!(cmds, "tar xof $(basename(src_path))")
-                push!(cmds, "rm $(basename(src_path))")
+                push!(cmds, "tar xvof $(src_path_v)")
+                push!(cmds, "rm $(src_path_v)")
             elseif endswith(src_path, ".zip")
-                push!(cmds, "unzip -q $(basename(src_path))")
-                push!(cmds, "rm $(basename(src_path))")
+                push!(cmds, "unzip -q $(src_path_v)")
+                push!(cmds, "rm $(src_path_v)")
             end
         end
     end
@@ -273,22 +274,13 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             # ignore platforms, and to be verbose if we want it to be.
             function install(url, hash; kwargs...)
                 BinaryProvider.install(url, hash;
-                    tarball_path=joinpath($downloads_dir, basename(url)),
+                    tarball_path=joinpath($downloads_dir, string(hash, "-", basename(url))),
                     ignore_platform=true,
                     verbose=$verbose,
                     kwargs...,
                 )
             end
 
-            # Override download_verify_unpack() in a very similar way
-            function download_verify_unpack(url, hash, dest; tarball_path=nothing, kwargs...)
-                BinaryProvider.download_verify_unpack(
-                    url, hash, dest;
-                    tarball_path=joinpath($downloads_dir, basename(url)),
-                    verbose=$verbose,
-                    kwargs...,
-                )
-            end
             ARGS = [$install_dir]
             include_string($(m), $(script))
         end)

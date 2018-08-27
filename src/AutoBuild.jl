@@ -249,7 +249,7 @@ end
               src_version::VersionNumber, sources::Vector,
               script::AbstractString, platforms::Vector,
               products::Function, dependencies::Vector;
-              verbose::Bool = true, debug::Bool = false)
+              verbose::Bool = true, kwargs...)
 
 Runs the boiler plate code to download, build, and package a source package
 for a list of platforms.  `src_name` represents the name of the source package
@@ -272,7 +272,8 @@ function autobuild(dir::AbstractString,
                    platforms::Vector,
                    products::Function,
                    dependencies::Vector;
-                   verbose::Bool = true, debug::Bool = false)
+                   verbose::Bool = true,
+                   kwargs...)
     # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds
     if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
         run_travis_busytask = true
@@ -307,8 +308,12 @@ function autobuild(dir::AbstractString,
                     bytes2hex(sha256(f))
                 end
 
+                # Move it to a filename that has the hash as a part of it (to avoid name collisions)
+                tarball_pathv = joinpath(tempdir, string(tarball_hash, "-", basename(sources[idx]), ".tar.gz"))
+                mv(tarball_path, tarball_pathv)
+
                 # Now that it's packaged, store this into sources[idx]
-                sources[idx] = (tarball_path => tarball_hash)
+                sources[idx] = (tarball_pathv => tarball_hash)
             elseif typeof(sources[idx]) <: Pair
                 src_url, src_hash = sources[idx]
 
@@ -383,7 +388,7 @@ function autobuild(dir::AbstractString,
             end
 
             build(ur, src_name, products(prefix), script, platform, prefix;
-                  verbose=verbose, ignore_manifests=dep_manifests, debug=debug)
+                  verbose=verbose, ignore_manifests=dep_manifests, kwargs...)
 
             # Remove the files of any dependencies
             for dependency in dependencies
