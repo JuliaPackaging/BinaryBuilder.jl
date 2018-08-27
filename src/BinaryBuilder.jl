@@ -107,11 +107,12 @@ function __init__()
         # then set `use_squashfs` to `true` here.
         if preferred_runner() == QemuRunner
             use_squashfs = true
-        end
-
-        # Conversely, if we're dock'ing it up, don't use it.
-        if preferred_runner() == DockerRunner
+        elseif preferred_runner() == DockerRunner
+            # Conversely, if we're dock'ing it up, don't use it.
             use_squashfs = false
+        elseif runner_override == "privileged"
+            # If we're forcing a privileged runner, go ahead and default to squashfs
+            use_squashfs = true
         end
     end
 
