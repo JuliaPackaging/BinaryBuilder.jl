@@ -164,7 +164,7 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
                 stdin = devnull
             end
             out, process = open(cmd, "r", stdin)
-            @schedule begin
+            @async begin
                 while !eof(out)
                     write(stdout, read(out))
                 end
@@ -268,7 +268,7 @@ function check_encryption(workspace_root::AbstractString;
         return
     end
     msg = []
-    
+
     is_encrypted, mountpoint = is_ecryptfs(workspace_root; verbose=verbose)
     if is_encrypted
         push!(msg, replace(strip("""
