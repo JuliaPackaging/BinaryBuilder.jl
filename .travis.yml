@@ -6,6 +6,7 @@ os:
   #- osx
 julia:
   - 0.6
+  - 1.0
   - nightly
 notifications:
   email: false
@@ -53,13 +54,13 @@ jobs:
         - TEST_SANDBOX=true
 
 script:
-   - julia -e 'Pkg.clone(pwd())'
-   - julia -e 'Pkg.build("BinaryBuilder")'
+   - julia -e 'VERSION >= v"0.7.0-" && using Pkg; Pkg.clone(pwd())'
+   - julia -e 'VERSION >= v"0.7.0-" && using Pkg; Pkg.build("BinaryBuilder")'
    - if [ ${TEST_SANDBOX:-false} = true ]; then
-         julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -std=c99 -o /tmp/sandbox sandbox.c`)';
+         julia -e 'VERSION >= v"0.7.0-" && using Pkg; cd(kg.dir("BinaryBuilder","deps")); run(`gcc -std=c99 -o /tmp/sandbox sandbox.c`)';
      fi
-   - julia -e 'Pkg.checkout("BinaryProvider", "master")'
-   - julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
+   - julia -e 'VERSION >= v"0.7.0-" && using Pkg; Pkg.checkout("BinaryProvider", "master")'
+   - julia --color=yes --check-bounds=yes -e 'VERSION >= v"0.7.0-" && using Pkg; Pkg.test("BinaryBuilder", coverage=true)'
 
 # Ironic.  He could provide binaries for others but not himself...
 addons:
@@ -73,7 +74,7 @@ addons:
 
 after_success:
   # push coverage results to Codecov
-  - julia -e 'cd(Pkg.dir("BinaryBuilder")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
+  - julia -e 'VERSION >= v"0.7.0-" && using Pkg; cd(Pkg.dir("BinaryBuilder")); Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
   # Build docs
-  - julia -e 'Pkg.add("Documenter")'
-  - julia -e 'cd(Pkg.dir("BinaryBuilder")); include(joinpath("docs", "make.jl"))'
+  - julia -e 'VERSION >= v"0.7.0-" && using Pkg; Pkg.add("Documenter")'
+  - julia -e 'VERSION >= v"0.7.0-" && using Pkg; cd(Pkg.dir("BinaryBuilder")); include(joinpath("docs", "make.jl"))'
