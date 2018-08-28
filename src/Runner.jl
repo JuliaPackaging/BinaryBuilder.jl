@@ -73,7 +73,7 @@ function target_envs(target::AbstractString)
 
         # Useful tools for our buildscripts
         "target" => target,
-        "nproc" => "$(Sys.CPU_CORES)",
+        "nproc" => "$(Sys.CPU_THREADS)",
         "nbits" => target_nbits(target),
         "proc_family" => target_proc_family(target),
         "dlext" => target_dlext(target),

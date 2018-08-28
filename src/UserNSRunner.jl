@@ -253,7 +253,7 @@ function is_ecryptfs(path::AbstractString; verbose::Bool=false)
     else
         # Find the longest prefix mount:
         parent_mounts = [m for m in mounts if startswith(path, m[1])]
-        parent_mounts[indmax(map(m->length(m[1]), parent_mounts))]
+        parent_mounts[argmax(map(m->length(m[1]), parent_mounts))]
     end
 
     # Return true if this mountpoint is an ecryptfs mount
