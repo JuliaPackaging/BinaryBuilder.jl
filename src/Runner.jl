@@ -44,7 +44,6 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     tool_path = (n, t = target) -> "/opt/$(t)/bin/$(n)"
     # Helper function to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
     target_tool_path = (n, t = target) -> tool_path("$(t)-$(n)", t)
-    super_binutil = n -> "/opt/super_binutils/bin/$(n)"
     
     # Start with the default musl ld path:
     lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
@@ -63,7 +62,7 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
     # Slip our tools into the front
-    path = "/opt/super_binutils/bin:/opt/$(target)/bin:" * path
+    path = "/opt/$(target)/bin:" * path
 
     mapping = Dict(
         # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
@@ -75,12 +74,12 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
         "LIPO" => target_tool_path("lipo"),
         "OTOOL" => target_tool_path("otool"),
         "INSTALL_NAME_TOOL" => target_tool_path("install_name_tool"),
-        "OBJCOPY" => super_binutil("objcopy"),
-        "OBJDUMP" => super_binutil("objdump"),
-        "READELF" => super_binutil("readelf"),
-        "STRIP" => super_binutil("strip"),
-        "WINDRES" => super_binutil("windres"),
-        "WINMC" => super_binutil("winmc"),
+        "OBJCOPY" => target_tool_path("objcopy"),
+        "OBJDUMP" => target_tool_path("objdump"),
+        "READELF" => target_tool_path("readelf"),
+        "STRIP" => target_tool_path("strip"),
+        "WINDRES" => target_tool_path("windres"),
+        "WINMC" => target_tool_path("winmc"),
         "LLVM_TARGET" => target,
         "LLVM_HOST_TARGET" => host_target,
 
@@ -115,14 +114,14 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
         mapping["NM"] = tool_path("llvm-nm")
         mapping["RANLIB"] = tool_path("llvm-ranlib")
     else
-        mapping["AR"] = super_binutil("ar")
-        mapping["AS"] = super_binutil("as")
+        mapping["AR"] = target_tool_path("ar")
+        mapping["AS"] = target_tool_path("as")
         mapping["CC"] = target_tool_path("gcc")
         mapping["CXX"] = target_tool_path("g++")
         mapping["FC"] = target_tool_path("gfortran")
-        mapping["LD"] = super_binutil("ld")
-        mapping["NM"] = super_binutil("nm")
-        mapping["RANLIB"] = super_binutil("ranlib")
+        mapping["LD"] = target_tool_path("ld")
+        mapping["NM"] = target_tool_path("nm")
+        mapping["RANLIB"] = target_tool_path("ranlib")
     end
 
     # On OSX, we need to do a little more work.
@@ -139,19 +138,19 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     # so we set all the environment variabels that we've seen it called as,
     # and hope for the best.
     for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)")
-        mapping[host_map("AR")] = super_binutil("ar") #target_tool_path("ar", "x86_64-linux-gnu")
-        mapping[host_map("AS")] = super_binutil("as") #target_tool_path("as", "x86_64-linux-gnu")
+        mapping[host_map("AR")] = target_tool_path("ar", "x86_64-linux-gnu")
+        mapping[host_map("AS")] = target_tool_path("as", "x86_64-linux-gnu")
         mapping[host_map("CC")] = target_tool_path("gcc", "x86_64-linux-gnu")
         mapping[host_map("CXX")] = target_tool_path("g++", "x86_64-linux-gnu")
         mapping[host_map("FC")] = target_tool_path("gfortran", "x86_64-linux-gnu")
         mapping[host_map("LIPO")] = target_tool_path("lipo", "x86_64-linux-gnu")
-        mapping[host_map("LD")] = super_binutil("ld") #target_tool_path("ld", "x86_64-linux-gnu")
-        mapping[host_map("NM")] = super_binutil("nm") #target_tool_path("nm", "x86_64-linux-gnu")
-        mapping[host_map("RANLIB")] = super_binutil("ranlib") #target_tool_path("ranlib", "x86_64-linux-gnu")
-        mapping[host_map("READELF")] = super_binutil("readelf") #target_tool_path("readelf", "x86_64-linux-gnu")
-        mapping[host_map("OBJCOPY")] = super_binutil("objcopy") #target_tool_path("objcopy", "x86_64-linux-gnu")
-        mapping[host_map("OBJDUMP")] = super_binutil("objdump") #target_tool_path("objdump", "x86_64-linux-gnu")
-        mapping[host_map("STRIP")] = super_binutil("strip") #target_tool_path("strip", "x86_64-linux-gnu")
+        mapping[host_map("LD")] = target_tool_path("ld", "x86_64-linux-gnu")
+        mapping[host_map("NM")] = target_tool_path("nm", "x86_64-linux-gnu")
+        mapping[host_map("RANLIB")] = target_tool_path("ranlib", "x86_64-linux-gnu")
+        mapping[host_map("READELF")] = target_tool_path("readelf", "x86_64-linux-gnu")
+        mapping[host_map("OBJCOPY")] = target_tool_path("objcopy", "x86_64-linux-gnu")
+        mapping[host_map("OBJDUMP")] = target_tool_path("objdump", "x86_64-linux-gnu")
+        mapping[host_map("STRIP")] = target_tool_path("strip", "x86_64-linux-gnu")
     end
     
     # If we're using `ccache`, prepend it to `CC`, `CXX`, `FC`, `HOSTCC`, etc....
