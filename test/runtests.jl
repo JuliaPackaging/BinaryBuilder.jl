@@ -2,9 +2,9 @@ using BinaryProvider
 using BinaryBuilder
 using BinaryBuilder: preferred_runner
 using ObjectFile
-using Base.Test
-using SHA
 using Compat, Compat.Random, Compat.LibGit2, Compat.Libdl
+using Compat.Test
+using SHA
 
 # The platform we're running on
 const platform = platform_key()
@@ -61,7 +61,7 @@ end
               "powerpc64le-linux-gnu", "x86_64-apple-darwin14"]
         @test BinaryBuilder.target_nbits(t) == "64"
     end
-    
+
     for t in ["x86_64-linux-gnu", "x86_64-apple-darwin14", "i686-w64-mingw32"]
         @test BinaryBuilder.target_proc_family(t) == "intel"
     end
@@ -248,10 +248,10 @@ end
     @test isfile(env_file)
 
     # Test that exit 1 is in .bash_history
-    @test contains(read(open(hist_file), String), "\nexit 1\n")
+    @test occursin("\nexit 1\n", read(open(hist_file), String))
 
     # Test that MARKER=1 is in .env:
-    @test contains(read(open(env_file), String), "\nMARKER=1\n")
+    @test occursin("\nMARKER=1\n", read(open(env_file), String))
 
     # Delete the build path
     rm(build_path, recursive = true)
@@ -308,7 +308,7 @@ end
         # Now build that git repository for Linux x86_64
         sources = [
             git_path =>
-            LibGit2.hex(LibGit2.GitHash(commit)),
+            string(LibGit2.GitHash(commit)),
         ]
 
         build_tarballs(
@@ -338,7 +338,7 @@ end
         repo = LibGit2.clone("https://github.com/staticfloat/OggBuilder", ".")
 
         # Check out a known-good tag
-        LibGit2.checkout!(repo, hex(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-6"))))
+        LibGit2.checkout!(repo, string(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-6"))))
 
         # Reconstruct binaries!  We don't want it to pick up BinaryBuilder.jl information from CI,
         # so wipe out those environment variables through withenv:
@@ -388,7 +388,7 @@ end
         main_avx = ExecutableProduct(prefix, "main_avx", :main_avx)
         main_avx2 = ExecutableProduct(prefix, "main_avx2", :main_avx2)
         products = [main_sse, main_avx, main_avx2]
-        
+
         cd(joinpath(dirname(@__FILE__),"build_tests","isa_tests")) do
             run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
