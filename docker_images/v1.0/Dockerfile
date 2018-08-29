@@ -17,7 +17,8 @@ ENV BINARYBUILDER_USE_CCACHE true
 RUN mkdir -p /shards
 
 # Install BinaryBuilder (and BinaryProvider, both on `master` versions)
-RUN julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryProvider.jl.git")'
-RUN julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryBuilder.jl.git"); using BinaryBuilder'
+RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryProvider", rev="master"))'
+RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master"))'
+RUN julia -e 'using Pkg; Pkg.API.precompile();'
 
 # The user should mount something in /ccache and /shards so they persist from run to run
