@@ -4,7 +4,8 @@ import SHA: sha256
 
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
-                   products, dependencies)
+                   products, dependencies;
+                   deploy_prefix="https://github.com/$(repo)/releases/download/$(tag)")
 
 This should be the top-level function called from a `build_tarballs.jl` file.
 It takes in the information baked into a `build_tarballs.jl` file such as the
@@ -13,9 +14,14 @@ download, build and package the tarballs, generating a `build.jl` file when
 appropriate.  Note that `ARGS` should be the top-level Julia `ARGS` command-
 line arguments object.  This function does some rudimentary parsing of the
 `ARGS`, call it with `--help` in the `ARGS` to see what it can do.
+
+By default this will assume you are deploying to GitHub Releases, but you can
+override this by setting `deploy_prefix`. This will affect the download paths
+in the generated `build.jl` file.
 """
 function build_tarballs(ARGS, src_name, src_version, sources, script,
-                        platforms, products, dependencies)
+                        platforms, products, dependencies;
+                        deploy_prefix=nothing)
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
@@ -136,16 +142,18 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # invocations.
     if !should_override_platforms || only_buildjl
         # The location the binaries will be available from
-        bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
+        if deploy_prefix === nothing
+            deploy_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
+        end
 
         # A dummy prefix to pass through products()
         dummy_products = products(Prefix(pwd()))
         print_buildjl(pwd(), src_name, src_version, dummy_products,
-                      product_hashes, bin_path)
+                      product_hashes, deploy_prefix)
 
         if verbose
             Compat.@info("Writing out the following reconstructed build.jl:")
-            print_buildjl(STDOUT, dummy_products, product_hashes, bin_path)
+            print_buildjl(STDOUT, dummy_products, product_hashes, deploy_prefix)
         end
     end
 
