@@ -345,9 +345,9 @@ end
         blacklist = ["CI_REPO_OWNER", "CI_REPO_NAME", "TRAVIS_REPO_SLUG", "TRAVIS_TAG", "CI_COMMIT_TAG"]
         withenv((envvar => nothing for envvar in blacklist)...) do
             m = Module(:__anon__)
-            eval(m, quote
+            Core.eval(m, quote
                 ARGS = ["--only-buildjl"]
-                include(joinpath($(build_path), "build_tarballs.jl"))
+                Base.include($m, joinpath($(build_path), "build_tarballs.jl"))
             end)
         end
 
@@ -360,7 +360,7 @@ end
             function write_deps_file(args...; kwargs...); end
 
             # Include build.jl file to extract download_info
-            include(joinpath($build_path, "products", "build_Ogg.v1.3.3.jl"))
+            Base.include($m, joinpath($build_path, "products", "build_Ogg.v1.3.3.jl"))
             download_info
         end)
 
