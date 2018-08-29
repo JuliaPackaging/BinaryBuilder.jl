@@ -116,6 +116,7 @@ function audit(prefix::Prefix; io=stderr,
             end
             """
             p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
+            wait(p)
             if p.exitcode != 0
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
