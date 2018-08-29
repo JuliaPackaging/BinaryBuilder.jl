@@ -125,6 +125,8 @@ end
             LibGit2.string(LibGit2.GitHash(commit)),
         ]
 
+        @show sources
+
         build_tarballs(
             [], # fake ARGS
             "libfoo",
