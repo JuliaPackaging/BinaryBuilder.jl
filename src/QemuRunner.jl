@@ -256,13 +256,10 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
             if !(stdin isa IOBuffer)
                 stdin = devnull
             end
-            out, process = open(cmd, "r", stdin)
-            @schedule begin
-                while !eof(out)
-                    write(stdout, read(out))
-                end
+            process = open(cmd, "r", stdin)
+            while !eof(process)
+                write(stdout, read(process))
             end
-            wait(process)
         else
             run(cmd)
         end

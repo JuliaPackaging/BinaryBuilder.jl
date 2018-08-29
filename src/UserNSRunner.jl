@@ -163,13 +163,10 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
             if !(stdin isa IOBuffer)
                 stdin = devnull
             end
-            out, process = open(cmd, "r", stdin)
-            @schedule begin
-                while !eof(out)
-                    write(stdout, read(out))
-                end
+            process = open(cmd, "r", stdin)
+            while !eof(process)
+                write(stdout, read(process))
             end
-            wait(process)
         else
             run(cmd)
         end
@@ -253,7 +250,7 @@ function is_ecryptfs(path::AbstractString; verbose::Bool=false)
     else
         # Find the longest prefix mount:
         parent_mounts = [m for m in mounts if startswith(path, m[1])]
-        parent_mounts[indmax(map(m->length(m[1]), parent_mounts))]
+        parent_mounts[argmax(map(m->length(m[1]), parent_mounts))]
     end
 
     # Return true if this mountpoint is an ecryptfs mount
@@ -268,7 +265,7 @@ function check_encryption(workspace_root::AbstractString;
         return
     end
     msg = []
-    
+
     is_encrypted, mountpoint = is_ecryptfs(workspace_root; verbose=verbose)
     if is_encrypted
         push!(msg, replace(strip("""

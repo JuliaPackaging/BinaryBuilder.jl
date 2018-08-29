@@ -145,7 +145,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         if verbose
             Compat.@info("Writing out the following reconstructed build.jl:")
-            print_buildjl(STDOUT, dummy_products, product_hashes, bin_path)
+            print_buildjl(stdout, dummy_products, product_hashes, bin_path)
         end
     end
 
@@ -198,7 +198,7 @@ function get_repo_name()
             repo = LibGit2.GitRepo(".")
             url = LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
             owner = basename(dirname(url))
-            if contains(owner, ":")
+            if occursin(":", owner)
                 owner = owner[findlast(owner, ':')+1:end]
             end
             name = basename(url)
@@ -540,7 +540,7 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
         return !unknown_platform
     end
     assets = [a for a in release["assets"] if can_extract_platform(a["name"])]
-    assets = [a for a in assets if contains(a["name"], product_filter)]
+    assets = [a for a in assets if occursin(product_filter, a["name"])]
 
     # Download each tarball, hash it, and reconstruct product_hashes.
     product_hashes = Dict()

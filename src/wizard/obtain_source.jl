@@ -42,7 +42,7 @@ end
 
 macro compat_gc_preserve(args...)
     if VERSION >= v"0.7-"
-        esc(Expr(:macrocall, Expr(:., :Base, QuoteNode(Symbol("@gc_preserve"))), args...))
+        esc(Expr(:macrocall, Expr(:., :GC, QuoteNode(Symbol("@preserve"))), args...))
     else
         esc(args[end])
     end
@@ -269,7 +269,7 @@ function obtain_binary_deps(state::WizardState)
             elseif bindep_select == 3
                 break
             end
-            
+
             q = "Would you like to provide additional dependencies? "
             if yn_prompt(state, q, :n) != :y
                 println(state.outs)
