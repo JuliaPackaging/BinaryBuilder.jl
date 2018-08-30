@@ -245,7 +245,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             platform_key() = $platform
 
             # We don't want any deps files being written out
-            function write_deps_file(args...) end
+            function write_deps_file(args...; kwargs...) end
 
             # Override @__DIR__ to return the destination directory,
             # so that things get installed into there.  This is a protection
