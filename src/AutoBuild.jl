@@ -398,7 +398,7 @@ function autobuild(dir::AbstractString,
                         using BinaryProvider
                         # Override BinaryProvider functionality so that it doesn't actually install anything
                         platform_key() = $platform
-                        function write_deps_file(args...); end
+                        function write_deps_file(args...; kwargs...); end
                         function install(args...; kwargs...); end
 
                         # Include build.jl file to extract download_info
