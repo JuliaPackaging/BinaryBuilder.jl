@@ -5,7 +5,7 @@ import SHA: sha256
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
                    products, dependencies;
-                   deploy_prefix="https://github.com/$(repo)/releases/download/$(tag)")
+                   deploy_prefix="https://github.com/\$(repo)/releases/download/\$(tag)")
 
 This should be the top-level function called from a `build_tarballs.jl` file.
 It takes in the information baked into a `build_tarballs.jl` file such as the
