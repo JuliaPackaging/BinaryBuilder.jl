@@ -61,7 +61,7 @@ end
               "powerpc64le-linux-gnu", "x86_64-apple-darwin14"]
         @test BinaryBuilder.target_nbits(t) == "64"
     end
-    
+
     for t in ["x86_64-linux-gnu", "x86_64-apple-darwin14", "i686-w64-mingw32"]
         @test BinaryBuilder.target_proc_family(t) == "intel"
     end
@@ -388,7 +388,7 @@ end
         main_avx = ExecutableProduct(prefix, "main_avx", :main_avx)
         main_avx2 = ExecutableProduct(prefix, "main_avx2", :main_avx2)
         products = [main_sse, main_avx, main_avx2]
-        
+
         cd(joinpath(dirname(@__FILE__),"build_tests","isa_tests")) do
             run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
@@ -522,6 +522,12 @@ end
         @test product_platform == true_product_platform
         @test product_hashes[target][2] == true_product_hashes[target][2]
     end
+end
+
+@testset "URL Hashing convenience function" begin
+    bin_prefix = "https://github.com/staticfloat/OggBuilder/releases/download/v1.3.3-6"
+    @test url_hash("$bin_prefix/Ogg.v1.3.3.x86_64-linux-gnu.tar.gz") ==
+        "6ef771242553b96262d57b978358887a056034a3c630835c76062dca8b139ea6"
 end
 
 include("wizard.jl")

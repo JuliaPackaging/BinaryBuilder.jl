@@ -9,6 +9,7 @@ using Nullables
 using GitHub
 
 @reexport using BinaryProvider
+export url_hash
 
 include("compat.jl")
 include("Auditor.jl")
@@ -206,6 +207,13 @@ function versioninfo()
             platform=Linux(:x86_64),
         )
         run_interactive(runner, `/usr/local/bin/ccache -s`)
+    end
+end
+
+function url_hash(url::AbstractString)
+    path = download(url)
+    open(path) do io
+        bytes2hex(BinaryProvider.sha256(io))
     end
 end
 
