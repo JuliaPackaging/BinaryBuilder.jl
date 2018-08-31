@@ -183,7 +183,7 @@ function step1(state::WizardState)
             "Select operating systems",
             MultiSelectMenu(map(repr, oses))
         )
-        result = map(x->oses[x], result)
+        result = map(x->oses[x], collect(result))
         state.platforms = collect(filter(x->typeof(x) in result, supported_platforms()))
     elseif platform_select == 3
         arches = sort(unique(map(arch, supported_platforms())), by = repr)
@@ -191,7 +191,7 @@ function step1(state::WizardState)
             "Select architectures",
             MultiSelectMenu(map(repr, arches))
         )
-        result = map(x->arches[x], result)
+        result = map(x->arches[x], collect(result))
         state.platforms = collect(filter(x->arch(x) in result, supported_platforms()))
     elseif platform_select == 4
         platfs = supported_platforms()
@@ -199,7 +199,7 @@ function step1(state::WizardState)
             "Select platforms",
             MultiSelectMenu(map(repr, platfs))
         )
-        state.platforms = collect(map(x->platfs[x], result))
+        state.platforms = collect(map(x->platfs[x], collect(result)))
     else
         error("Somehow platform_select was not a valid choice!")
     end
