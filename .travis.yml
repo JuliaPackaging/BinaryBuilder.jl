@@ -58,7 +58,7 @@ script:
    - if [ ${TEST_SANDBOX:-false} = true ]; then
          julia -e 'cd(Pkg.dir("BinaryBuilder","deps")); run(`gcc -std=c99 -o /tmp/sandbox sandbox.c`)';
      fi
-   - julia -e 'Pkg.checkout("BinaryProvider", "master")'
+   - julia -e 'Pkg.add("BinaryProvider")'
    - julia --color=yes --check-bounds=yes -e 'Pkg.test("BinaryBuilder", coverage=true)'
 
 # Ironic.  He could provide binaries for others but not himself...
