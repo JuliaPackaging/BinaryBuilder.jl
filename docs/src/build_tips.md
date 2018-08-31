@@ -45,7 +45,7 @@ Here are examples of autoconfigure build scripts:
 For CMake, the wizard will suggest a template for running CMake. Typically, this will look like:
 
 ```sh
-make -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_TOOLCHAIN_FILE=/opt/$target/$target.toolchain
+cmake -DCMAKE_INSTALL_PREFIX=$prefix -DCMAKE_TOOLCHAIN_FILE=/opt/$target/$target.toolchain
 ```
 
 The toolchain file sets up several CMake environment variables for better cross-platform support: 
