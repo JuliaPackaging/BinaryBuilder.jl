@@ -80,6 +80,39 @@ function WizardState()
     )
 end
 
+function serializeable_fields(::WizardState)
+    # We can't serialize TTY's, in general.
+    bad_fields = [:ins, :outs, :github_api]
+    return [f for f in fieldnames(WizardState) if !(f in bad_fields)]
+end
+
+# Serialize a WizardState out into a JLD2 dictionary-like object
+function serialize(io, x::WizardState)
+    for field in serializeable_fields(x)
+        io[string(field)] = getproperty(x, field)
+    end
+
+    # For unnecessarily complicated fields (such as `x.github_api`) store the internal data raw:
+    io["github_api"] = string(x.github_api.endpoint)
+
+    # For non-serializable fields (such as `x.ins` and `x.outs`) we just recreate them in unserialize().
+end
+
+function unserialize(io)
+    x = WizardState()
+
+    for field in serializeable_fields(x)
+        setproperty!(x, field, io[string(field)])
+    end
+
+    # Manually recreate `ins` and `outs`.  Note that this just sets them to their default values
+    x.ins = stdin
+    x.outs = stdout
+    x.github_api = GitHub.GitHubWebAPI(HTTP.URI(io["github_api"]))
+
+    return x
+end
+
 function show(io::IO, x::WizardState)
     print(io, "WizardState [$(x.step)]")
 end

@@ -175,30 +175,52 @@ function step1(state::WizardState)
     println(state.outs)
 
     # Set `state.platforms` accordingly
+    result = nothing
     if platform_select == 1
         state.platforms = supported_platforms()
     elseif platform_select == 2
         oses = sort(unique(map(typeof, supported_platforms())), by = repr)
-        result = request(terminal,
-            "Select operating systems",
-            MultiSelectMenu(map(repr, oses))
-        )
-        result = map(x->oses[x], collect(result))
+        while true
+            result = request(terminal,
+                "Select operating systems",
+                MultiSelectMenu(map(repr, oses))
+            )
+            result = map(x->oses[x], collect(result))
+            if isempty(result)
+                println("Must select at least one operating system (CTRL-C to cancel)")
+            else
+                break
+            end
+        end
         state.platforms = collect(filter(x->typeof(x) in result, supported_platforms()))
     elseif platform_select == 3
         arches = sort(unique(map(arch, supported_platforms())), by = repr)
-        result = request(terminal,
-            "Select architectures",
-            MultiSelectMenu(map(repr, arches))
-        )
-        result = map(x->arches[x], collect(result))
+        while true
+            result = request(terminal,
+                "Select architectures",
+                MultiSelectMenu(map(repr, arches))
+            )
+            result = map(x->arches[x], collect(result))
+            if isempty(result)
+                println("Must select at least one architecture (CTRL-C to cancel)")
+            else
+                break
+            end
+        end
         state.platforms = collect(filter(x->arch(x) in result, supported_platforms()))
     elseif platform_select == 4
         platfs = supported_platforms()
-        result = request(terminal,
-            "Select platforms",
-            MultiSelectMenu(map(repr, platfs))
-        )
+        while true
+            result = request(terminal,
+                "Select platforms",
+                MultiSelectMenu(map(repr, platfs))
+            )
+            if isempty(result)
+                println("Must select at least one platform (CTRL-C to cancel)")
+            else
+                break
+            end
+        end
         state.platforms = collect(map(x->platfs[x], collect(result)))
     else
         error("Somehow platform_select was not a valid choice!")
