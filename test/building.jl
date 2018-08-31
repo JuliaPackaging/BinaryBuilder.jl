@@ -6,7 +6,7 @@
         if !endswith(f, ".tar.gz") && !endswith(f, ".tar.gz.256")
             continue
         end
-        @show "Deleting $(joinpath(@__DIR__, f))"
+        @info("Deleting $(joinpath(@__DIR__, f))")
         rm(joinpath(@__DIR__, f); force=true)
     end
 
@@ -103,6 +103,11 @@ end
 
 # Testset to make sure we can build_tarballs() from a git repository
 @testset "build_tarballs() Git-Based" begin
+    # Skip this testset on Travis, because its libgit2 is broken right now.
+    if get(ENV, "TRAVIS", "") == "true"
+        return
+    end
+
     build_path = tempname()
     git_path = joinpath(build_path, "libfoo.git")
     mkpath(git_path)
@@ -124,8 +129,6 @@ end
             git_path =>
             LibGit2.string(LibGit2.GitHash(commit)),
         ]
-
-        @show sources
 
         build_tarballs(
             [], # fake ARGS

@@ -292,7 +292,6 @@ function GitHub.create_repo(api::GitHubSimulator, owner, name::String, params=Di
 end
 
 function emulate_travis(req)
-    @show "IN TRAVIS!"
     if req.target == "/travis/auth/github"
         HTTP.Response(200; body=Vector{UInt8}("""
         {"access_token":"some_token"}
