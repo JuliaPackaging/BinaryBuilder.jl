@@ -25,7 +25,6 @@ mutable struct WizardState
     step::Symbol
     ins::IO
     outs::IO
-    global_git_cfg::LibGit2.GitConfig
     # Filled in by step 1
     platforms::Union{Nothing, Vector{P}} where {P <: Platform}
     # Filled in by step 2
@@ -60,7 +59,6 @@ function WizardState()
         :step1,
         stdin,
         stdout,
-        LibGit2.GitConfig(),
         nothing,
         nothing,
         nothing,

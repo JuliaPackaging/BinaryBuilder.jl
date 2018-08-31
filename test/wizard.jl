@@ -347,7 +347,6 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
     state.source_hashes = [bytes2hex(tar_hash)]
-    state.global_git_cfg = LibGit2.GitConfig(joinpath(tempspace, ".gitconfig"))
     state.github_api = GitHubSimulator()
     state.files = String[]
     state.file_kinds = Symbol[]
@@ -357,7 +356,6 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.version = v"1.2.3"
     state.history = ""
     state.travis_endpoint = "http://127.0.0.1:14444/travis/"
-    LibGit2.set!(state.global_git_cfg, "github.user", "TestUser")
     t = @async BinaryBuilder.github_deploy(state)
     readuntil(pty.master, "Enter the desired name for the new repository: ")
     write(pty.master, "TestRepo\n")
