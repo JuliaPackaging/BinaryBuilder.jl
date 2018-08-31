@@ -287,7 +287,7 @@ function init_git_config(repo, state)
     end
 end
 
-function common_git_repo_setup(repo_dir, repo, state)
+function common_git_repo_setup(repo_dir, repo, state; git_cfg = LibGit2.GitConfig())
     local license_text
     while true
         print(state.outs, "Enter your desired license [MIT]: ")
@@ -311,7 +311,7 @@ function common_git_repo_setup(repo_dir, repo, state)
         try
             return LibGit2.get(T, cfg, name)
         catch e
-            if typeof(e) <: GitError
+            if typeof(e) <: LibGit2.GitError
                 return nothing
             end
             rethrow(e)
@@ -319,8 +319,8 @@ function common_git_repo_setup(repo_dir, repo, state)
     end
 
     # check to see if the user has already setup git config settings
-    if (lg2get(state.global_git_cfg, "user.name") == nothing ||
-        lg2get(state.global_git_cfg, "user.email") == nothing) &&
+    if (lg2get(String, git_cfg, "user.name") == nothing ||
+        lg2get(String, git_cfg, "user.email") == nothing) &&
         (LibGit2.getconfig(repo, "user.name", nothing) == nothing ||
          LibGit2.getconfig(repo, "user.email", nothing) == nothing)
         # If they haven't, prompt them to make a global one, and then actually
@@ -347,10 +347,10 @@ function common_git_repo_setup(repo_dir, repo, state)
     end
 end
 
-function local_deploy(state::WizardState)
+function local_deploy(state::WizardState; git_cfg = LibGit2.GitConfig())
     repo_dir = tempname()
     LibGit2.with(LibGit2.init(repo_dir)) do repo
-        common_git_repo_setup(repo_dir, repo, state)
+        common_git_repo_setup(repo_dir, repo, state; git_cfg = git_cfg)
         open(joinpath(repo_dir, ".travis.yml"), "w") do f
             # Create the first part of the .travis.yml file
             print_travis_file(f, state)
@@ -434,7 +434,7 @@ function push_repo(api::GitHub.GitHubWebAPI, lrepo, rrepo, user, token, refspecs
         refspecs=refspecs)
 end
 
-function github_deploy(state::WizardState)
+function github_deploy(state::WizardState; git_cfg = LibGit2.GitConfig())
     println(state.outs, """
     Let's deploy a builder repository to GitHub. This repository will be set up
     to use Travis CI to build binaries and then upload them to GitHub releases.
@@ -444,7 +444,7 @@ function github_deploy(state::WizardState)
     print(state.outs, "Enter the desired name for the new repository: ")
     github_name = readline(state.ins)
 
-    user = get_github_user(state.outs, state.ins, state.global_git_cfg)
+    user = get_github_user(state.outs, state.ins, git_cfg)
 
     # Could re-use the package manager's token here, but we need to create a
     # new token for deployment purposes anyway
@@ -454,7 +454,7 @@ function github_deploy(state::WizardState)
     repo_dir = tempname()
     auth = GitHub.OAuth2(token)
     LibGit2.with(LibGit2.init(repo_dir)) do repo
-        common_git_repo_setup(repo_dir, repo, state)
+        common_git_repo_setup(repo_dir, repo, state; git_cfg = git_cfg)
         # Create the README file
         open(joinpath(repo_dir, "README.md"), "w") do f
             print(f, """
