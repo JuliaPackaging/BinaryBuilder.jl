@@ -306,11 +306,20 @@ function common_git_repo_setup(repo_dir, repo, state)
         break
     end
 
+    # Helper function to get around LibGit2's strange `get()` behavior
+    function lg2get(T, cfg, name)
+        try
+            return LibGit2.get(T, cfg, name)
+        catch
+            return nothing
+        end
+    end
+
     # check to see if the user has already setup git config settings
-    if (LibGit2.get(state.global_git_cfg, "user.name", nothing) == nothing ||
-        LibGit2.get(state.global_git_cfg, "user.email", nothing) == nothing) &&
-        (LibGit2.getconfig(repo, "user.name", nothing) == nothing) ||
-        (LibGit2.getconfig(repo, "user.email", nothing) == nothing)
+    if (lg2get(state.global_git_cfg, "user.name") == nothing ||
+        lg2get(state.global_git_cfg, "user.email") == nothing) &&
+        (LibGit2.getconfig(repo, "user.name", nothing) == nothing ||
+         LibGit2.getconfig(repo, "user.email", nothing) == nothing)
         # If they haven't, prompt them to make a global one, and then actually
         # make a repository-local config right now.
         init_git_config(repo, state)
