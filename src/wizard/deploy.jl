@@ -295,8 +295,8 @@ function common_git_repo_setup(repo_dir, repo, state; git_cfg = LibGit2.GitConfi
         isempty(lic) && (lic = "MIT")
         license_text = try
             PkgLicenses.readlicense(lic)
-        catch
-            printstyled("License $lic is not available.", color=:red)
+        catch e
+            printstyled("License $lic is not available.\n", color=:red)
             println("Available licenses are:")
             foreach(PkgLicenses.LICENSES) do lic
                 println("- $(lic[1])")

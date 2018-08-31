@@ -6,3 +6,6 @@ qemu/
 
 # Ignore sandbox executable
 sandbox
+
+# Ignore state cache
+wizard.state
