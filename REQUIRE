@@ -4,7 +4,7 @@ ObjectFile 0.3.0
 Reexport
 MbedTLS
 GitHub
-PkgLicenses
+PkgLicenses 0.2.0
 JSON
 HTTP 0.6.3
 ProgressMeter
