@@ -310,8 +310,11 @@ function common_git_repo_setup(repo_dir, repo, state)
     function lg2get(T, cfg, name)
         try
             return LibGit2.get(T, cfg, name)
-        catch
-            return nothing
+        catch e
+            if typeof(e) <: GitError
+                return nothing
+            end
+            rethrow(e)
         end
     end
 
