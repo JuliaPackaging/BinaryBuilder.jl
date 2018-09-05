@@ -324,7 +324,16 @@ function update_rootfs(triplets::Vector{S}; automatic::Bool = automatic_apple,
             # If it has been mounted previously, unmount here
             unmount_shard(dest_dir; verbose=verbose)
 
-             # If tarball, verify/redownload/reunpack the tarball
+            # It is possible that we used to have a .squashfs mounted here, and when we switch from
+            # .squashfs -> .tar.gz, we end up with an empty mountpoint directory.  This causes the
+            # `download_verify_unpack()` call to think the destination already exists.  We don't
+            # want that, so what we do is just delete an empty mountpoint if it exists.
+            try
+                rm(dest_dir; force=true, recursive=false)
+            catch
+            end
+
+            # If tarball, verify/redownload/reunpack the tarball
             download_verify_unpack(
                 url,
                 hash,
