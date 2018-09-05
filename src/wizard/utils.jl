@@ -159,7 +159,8 @@ function script_for_dep(dep, install_dir)
             dep.script
     elseif isa(dep, TarballDependency)
         script = """
-        install($(repr(dep.url)), $(repr(dep.hash)); prefix=prefix force=true)
+        prefix = Prefix(ARGS[1])
+        install($(repr(dep.url)), $(repr(dep.hash)); prefix=prefix, force=true)
         download_info = Dict(platform_key() => ($(repr(dep.url)), $(repr(dep.hash))))
         """
     end
@@ -282,8 +283,8 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             end
 
             ARGS = [$install_dir]
-            include_string($(m), $(script))
         end)
+        include_string(m, script)
     end
 
     # Run the cmds defined above

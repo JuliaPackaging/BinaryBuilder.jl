@@ -48,8 +48,10 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     # Start with the default musl ld path:
     lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
 
+    # Add on compiler library path (for getting libc.so.6)
+    #lib_path *= ":/opt/x86_64-linux-gnu/x86_64-linux-gnu/sys-root/lib64"
     # Add on our glibc-compatibility layer
-    lib_path *= ":/usr/glibc-compat/lib"
+    #lib_path *= ":/usr/glibc-compat/lib"
 
     # Then add on our target-specific locations
     lib_path *= ":/opt/$(target)/lib64:/opt/$(target)/lib"
@@ -61,8 +63,8 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     # Start with the standard PATH:
     path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
-    # Slip our tools into the front
-    path = "/opt/$(target)/bin:" * path
+    # Slip our tools into the front, followed by host tools
+    path = "/opt/$(target)/bin:/opt/$(host_target)/bin:" * path
 
     mapping = Dict(
         # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
