@@ -305,12 +305,28 @@ function autobuild(dir::AbstractString,
                 # If it's a .git url, clone it
                 if endswith(src_url, ".git")
                     src_path = joinpath(downloads_cache, basename(src_url))
-                    if !isdir(src_path)
-                        repo = LibGit2.clone(src_url, src_path; isbare=true)
-                    else
+
+                    # If this git repository already exists, ensure that its origin remote actually matches
+                    if isdir(src_path)
+                        origin_url = LibGit2.with(LibGit2.GitRepo(src_path)) do repo
+                            LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
+                        end
+
+                        # If the origin url doesn't match, wipe out this git repo.  We'd rather have a
+                        # thrashed cache than an incorrect cache.
+                        if origin_url != src_url
+                            rm(src_path; recursive=true, force=true)
+                        end
+                    end
+
+                    if isdir(src_path)
+                        # If we didn't just mercilessly obliterate the cached git repo, use it!
                         LibGit2.with(LibGit2.GitRepo(src_path)) do repo
                             LibGit2.fetch(repo)
                         end
+                    else
+                        # If there is no src_path yet, clone it down.
+                        repo = LibGit2.clone(src_url, src_path; isbare=true)
                     end
                 else
                     if isfile(src_url)
