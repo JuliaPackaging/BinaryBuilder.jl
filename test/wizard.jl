@@ -78,6 +78,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
     state.source_hashes = [bytes2hex(tar_hash)]
+    state.platforms = [Linux(:x86_64)]
     t = @async do_try(()->BinaryBuilder.step34(state))
     write(pty.master, "cd libfoo/\n")
     write(pty.master, "make install\n")
@@ -106,8 +107,8 @@ let state = BinaryBuilder.WizardState(ins, outs)
     t = @async do_try(()->BinaryBuilder.step34(state))
 
     # If we get this far we've already won, follow through for good measure
-    write(pty.master, "mkdir -p \$WORKSPACE/destdir/bin\n")
-    write(pty.master, "cp /bin/bash \$WORKSPACE/destdir/bin/\n")
+    write(pty.master, "mkdir -p \$prefix/bin\n")
+    write(pty.master, "cp /bin/bash \$prefix/bin/\n")
     write(pty.master, "exit\n")
     # We do not want to edit the script now
     readuntil(pty.master, "Would you like to edit this script now?")
@@ -135,6 +136,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
     state.source_hashes = [bytes2hex(tar_hash)]
+    state.platforms = [Linux(:x86_64)]
     t = @async do_try(()->BinaryBuilder.step34(state))
     sleep(1)
     write(pty.master, "cd libfoo/\n")
@@ -165,6 +167,7 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
     state.source_files = [joinpath(tempspace, "source.tar.gz")]
     state.source_hashes = [bytes2hex(tar_hash)]
+    state.platforms = [Linux(:x86_64)]
     t = @async do_try(()->while state.step == :step3
         BinaryBuilder.step34(state)
     end)
@@ -356,7 +359,13 @@ let state = BinaryBuilder.WizardState(ins, outs)
     state.version = v"1.2.3"
     state.history = ""
     state.travis_endpoint = "http://127.0.0.1:14444/travis/"
-    t = @async BinaryBuilder.github_deploy(state)
+
+    git_cfg = LibGit2.GitConfig(joinpath(tempspace, ".gitconfig"))
+    LibGit2.set!(git_cfg, "user.name", "TestUser")
+    LibGit2.set!(git_cfg, "github.user", "TestUser")
+    LibGit2.set!(git_cfg, "user.email", "test@user.email")
+
+    t = @async do_try(()->BinaryBuilder.github_deploy(state; git_cfg=git_cfg))
     readuntil(pty.master, "Enter the desired name for the new repository: ")
     write(pty.master, "TestRepo\n")
     readuntil(pty.master, "Please enter the github.com password for TestUser:")
@@ -365,15 +374,9 @@ let state = BinaryBuilder.WizardState(ins, outs)
     write(pty.master, "12345\n")
     readuntil(pty.master, "Enter your desired license [MIT]: ")
     write(pty.master, "\n")
-    readuntil(pty.master, "Enter your name:")
-    write(pty.master, "Test User\ntest@user.email\n")
     readuntil(pty.master, "Deployment Complete")
 
-    # TODO: I'm pretty sure that our `travis_endpoint` stuff isn't working properly
-    # and that we're not actually testing Travis deployment, it's erroring out and
-    # the errors are getting silently eaten by the task.  God willing, this is going
-    # to go away in favor of the mono builder repo idea though, so it's good enough
-    # for now.
+    wait(t)
 end
 
 # We're done with the server
