@@ -361,6 +361,21 @@ static void mount_workspaces(struct map_list * workspaces, const char * dest) {
   }
 }
 
+static void mkpath(const char * dir) {
+  DIR * dir = opendir(dir);
+  // If this directory already exists, back out.
+  if( dir ) {
+    closedir(dir);
+    return;
+  }
+  // Otherwise, first make sure our parent exists
+  mkpath(dirname(dir));
+
+  // then create our directory
+  int result = mkdir(dir, 0777);
+  check((0 == result) || (errno == EEXIST));
+}
+
 /*
  * This will mount the rootfs and shards within the given root directory.
  * `root_dir`  is the path where the rootfs is mounted on the outside.
@@ -401,9 +416,10 @@ static void mount_rootfs_and_shards(const char * root_dir, const char * dest,
       printf("--> mapping %s to %s\n", current_entry->outside_path, path);
     }
 
-    // create the inside directory, not freaking out if it already exists.
-    int result = mkdir(path, 0777);
-    check((0 == result) || (errno == EEXIST));
+    // create all directories leading up to our `path`, not freaking out if any
+    // of them exist.  This is important, otherwise if we try to mount things in
+    // new and exciting places, we are unable to.
+    mkpath(path);
 
     if (strncmp(current_entry->outside_path, "/dev", 4) == 0) {
       // if we're running on qemu, we pass mounts in as virtual devices, which we
