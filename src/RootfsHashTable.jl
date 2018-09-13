@@ -213,7 +213,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("LLVM", v"6.0.1", Linux(:x86_64, libc=:glibc), :squashfs)
       => "702893921da7c02fb5d0b23d72af502c06ea8d5fedd1ee6d96c0f72eae0eae46",
     CompilerShard("Rootfs", v"2018.8.27", Linux(:x86_64, libc=:glibc), :targz)
-      => "ab0d5e6743762621e3fca74a55b7acff15738c7cd0d682ea99280a82f6eeda5b",
+      => "877208570a19524f694ea2fcaa6c14a8efabf67acc6b1708f47df114bdfd5806",
     CompilerShard("Rootfs", v"2018.8.27", Linux(:x86_64, libc=:glibc), :squashfs)
-      => "ae37cf5c4ff1548c913a57de9860de2de71f90cdbffa8c751a809cbec98d9476",
+      => "2d3c84bb47a06f04276e93031da94ac3ffa4eb96e1bd555d3250f15a8f191135",
 )
