@@ -304,7 +304,7 @@ function autobuild(dir::AbstractString,
 
                 # If it's a .git url, clone it
                 if endswith(src_url, ".git")
-                    src_path = joinpath(downloads_cache, basename(src_url))
+                    src_path = storage_dir("downloads", basename(src_url))
 
                     # If this git repository already exists, ensure that its origin remote actually matches
                     if isdir(src_path)
@@ -338,7 +338,7 @@ function autobuild(dir::AbstractString,
                         verify(src_path, src_hash; verbose=verbose)
                     else
                         # Otherwise, download and verify
-                        src_path = joinpath(downloads_cache, basename(src_url))
+                        src_path = storage_dir("downloads", basename(src_url))
                         download_verify(src_url, src_hash, src_path; verbose=verbose)
                     end
                 end
@@ -373,7 +373,7 @@ function autobuild(dir::AbstractString,
                 dependencies,
                 platform;
                 verbose=verbose,
-                downloads_dir=downloads_cache
+                downloads_dir=storage_dir("downloads"),
             )
 
             # Don't keep the downloads directory around
@@ -434,14 +434,8 @@ function autobuild(dir::AbstractString,
             if isempty(readdir(build_path))
                 rm(build_path; recursive=true)
             end
-
-            # Clean up this particular shard, so as not to run out of loopback devices
-            unmount_shard(shards_dir(triplet(platform)))
         end
     end
-
-    # At the end of all things, unmount all our shards so as to play nice with others
-    unmount_all_shards()
 
     if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
         run_travis_busytask = false
@@ -481,18 +475,32 @@ function build(runner::Runner, name::AbstractString,
             end
         end
 
-        # This `bash trap` snippet causes each command to get written out to bash
-        # history so that, if we fail and fall into a debug shell, we can just
-        # up-arrow to get to the last run command.
+        # We setup our bash session to do three things:
+        #   - Save bash history on every command issued (so we have a fake ~/.bash_history)
+        #   - Save environment on quit (so that we can regenerate all environment variables
+        #     when we're debugging, etc...)
+        #   - Copy the current srcdir over to disk if something breaks.  This is done so
+        #     that if we want to debug a build halfway through, we can get at it.  We normally
+        #     build with a tmpfs mounted at `$WORKSPACE/srcdir`.
         trapped_script = """
-        save_history() {
+        vecho() {
             if [[ "$(verbose)" == "true" ]]; then
-                echo " ---> \$BASH_COMMAND" >&2
+                echo "\$@"
             fi
+        }
+        vecho_red() {
+            (vecho "\$@" >&2)
+        }
+
+        # Save bash history (and optionally echo it out as it happens)
+        save_history() {
+            vecho_red " ---> \$BASH_COMMAND"
             history -s "\$BASH_COMMAND"
             history -a
         }
 
+        # Save our environment into `/meta/.env`, eliminating read-only variables
+        # so that this file can be sourced upon entering a debug shell.
         save_env() {
             set +x
             set > /meta/.env
@@ -504,14 +512,42 @@ function build(runner::Runner, name::AbstractString,
             echo "cd \$(pwd)" >> /meta/.env
         }
 
+        # We do a little sleight-of-hand here; we want to build inside of a tmpfs
+        # because `srcdir` might be mapped in through a networked filesystem, which
+        # totally wrecks our I/O performance.  So what we do instead is bind-mount
+        # `srcdir` to another location so that we can always get at it, copy its
+        # contents to a new tmpfs we mount at the location of `srcdir`, then when
+        # we exit on an error, we copy everything back over again
+        tmpify_srcdir() {
+            vecho "Copying srcdir to tmpfs..."
+            mkdir -p \$WORKSPACE/.true_srcdir
+            mount --bind \$WORKSPACE/srcdir \$WORKSPACE/.true_srcdir
+            mount -t tmpfs tmpfs \$WORKSPACE/srcdir
+            cp -a \$WORKSPACE/.true_srcdir/. \$WORKSPACE/srcdir/
+            ls -la \$WORKSPACE/.true_srcdir/
+            ls -la \$WORKSPACE/srcdir/
+        }
+
+        # Copy our tmpfs version of `srcdir` back onto disk.
+        save_srcdir() {
+            vecho_red "Saving srcdir due to previous error..."
+            cp -af \$WORKSPACE/srcdir/ \$WORKSPACE/.true_srcdir/
+        }
+
         # If /meta is mounted, then we want to save history and environment
         if [[ -d /meta ]]; then
             trap save_history DEBUG
-            trap save_env INT TERM EXIT ERR
+            trap "save_env" EXIT
+            trap "save_env; save_srcdir" INT TERM ERR
         fi
 
         # Stop if we hit any errors.
         set -e
+
+        # Swap out srcdir from underneath our feet
+        set -x
+        tmpify_srcdir
+        set +x
 
         $(script)
         """

@@ -38,12 +38,14 @@ qemu_dependencies = [
         "d921114efca229f53b4faaac3d6d153862559aa38bc6df1b702732036394c634",
 ]
 
+qemu_path() = storage_dir("qemu", "bin", "qemu-system-x86_64")
+kernel_path() = storage_dir("qemu", "bzImage")
 
 """
     update_qemu(;verbose::Bool = false)
 
-Update our QEMU and Linux kernel installations, downloading and installing them
-into the `qemu_cache` directory that defaults to `deps/qemu`.
+Update our QEMU and Linux kernel installations, downloading and installing both
+into `<storage_dir>/qemu`.
 """
 function update_qemu(;verbose::Bool = false)
 	should_delete = false
@@ -51,43 +53,45 @@ function update_qemu(;verbose::Bool = false)
         should_delete |= !download_verify(
             url,
             hash,
-            downloads_dir(basename(url));
+            storage_dir("downloads", basename(url));
             verbose=verbose,
             force=true
         )
     end
+    qemu_cache = storage_dir("qemu")
     if should_delete
         rm(qemu_cache; recursive=true, force=true)
     end
     if !isdir(qemu_cache)
         for (url, hash) in [qemu_dependencies; qemu_url=>qemu_hash]
-            unpack(downloads_dir(basename(url)), qemu_cache; verbose=verbose)
+            unpack(storage_dir("downloads", basename(url)), qemu_cache; verbose=verbose)
         end
     end
     if !isfile(kernel_path())
-        unpack(downloads_dir(basename(kernel_url)), qemu_cache; verbose=verbose)
+        unpack(storage_dir("downloads", basename(kernel_url)), qemu_cache; verbose=verbose)
     end
 end
 
-qemu_path() = joinpath(qemu_cache, "bin/qemu-system-x86_64")
-kernel_path() = joinpath(qemu_cache, "bzImage")
+function QemuRunner(workspace_root::String;
+                    cwd = nothing,
+                    platform::Platform = platform_key_abi(),
+                    workspaces::Vector = [],
+                    extra_env=Dict{String, String}(),
+                    verbose::Bool = false)
+    global use_ccache
 
-function QemuRunner(workspace_root::String; cwd = nothing,
-                      platform::Platform = platform_key(),
-                      extra_env=Dict{String, String}(),
-                      verbose::Bool = false,
-                      mappings::Vector = platform_def_mappings(platform),
-                      workspaces::Vector = [])
-    global use_ccache, use_squashfs
+    # Choose and prepare our shards
+    shards = choose_shards(platform)
+    prepare_shard.(shards; mount_squashfs = false)
 
-    # Ensure the rootfs for this platform is downloaded and up to date.
-    # Also, since we require the Linux(:x86_64) shard for HOST_CC....
-    update_rootfs(triplet.([platform, Linux(:x86_64)]);
-                  verbose=verbose, squashfs=use_squashfs, mount=false)
+    # QEMU can use the .squashfs files directly, so we don't use `mount_path()`.
+    qemu_mount_path(cs) = cs.archive_type == :squashfs ? download_path(cs) : mount_path(cs)
+
+    # Download/unpack Qemu (TODO: Make this a Qemu.jll package and just rely on it.)
     update_qemu(;verbose=verbose)
 
     # Construct environment variables we'll use from here on out
-    envs = merge(target_envs(triplet(platform)), extra_env)
+    envs = merge(platform_envs(platform), extra_env)
 
     # Resource limits for QEMU.  For some reason, it seems to crash if we use too many CPUs....
     memory_limit = Int64(div(Sys.total_memory()*3, 4*1024^2))
@@ -100,7 +104,6 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         -smp 2
         -M accel=$(Sys.islinux() ? "kvm" : "hvf")
         -nographic
-        -drive if=virtio,file=$(rootfs_path()),format=raw
         -nodefaults
         -rtc base=utc,driftfix=slew
         -device virtio-serial
@@ -112,6 +115,9 @@ function QemuRunner(workspace_root::String; cwd = nothing,
     ```
     append_line = "quiet console=hvc0 root=/dev/vda rootflags=ro rootfstype=squashfs noinitrd init=/sandbox"
 
+    # First shard is always the rootfs
+    qemu_cmd = `$qemu_cmd -drive if=virtio,file=$(qemu_mount_path(shards[1])),format=raw`
+
     sandbox_cmd = ``
     if verbose
         # We put --verbose at the beginning here so that we can see argument parsing
@@ -122,7 +128,7 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
 
-    # We always include the workspace as one of our read-write workspace mountings, and always as the first
+    # We always include the destdir and  workspace as one of our read-write workspace mountings, and always as the first
     insert!(workspaces, 1, workspace_root => "/workspace")
 
     # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
@@ -142,16 +148,16 @@ function QemuRunner(workspace_root::String; cwd = nothing,
         devnum += 1
     end
 
-    # Mount in read-only mappings over plan9 if they're raw directories, and directly if they're .squashfs files
-    for (outside, inside) in mappings
+    # Mount in compiler shards (excluding the rootfs shard)
+    for shard in shards[2:end]
         # Squashfs files get mounted in directly, actual directories have to be shared over plan9:
-        if endswith(outside, ".squashfs")
-            qemu_cmd = `$qemu_cmd -drive if=virtio,file=$(outside),format=raw`
-            sandbox_cmd = `$sandbox_cmd --map /dev/vd$(devchr):$(inside)`
+        if shard.archive_type == :squashfs
+            qemu_cmd = `$qemu_cmd -drive if=virtio,file=$(qemu_mount_path(shard)),format=raw`
+            sandbox_cmd = `$sandbox_cmd --map /dev/vd$(devchr):$(map_target(shard))`
             devchr = Char(Int(devchr) + 1)
         else
-            qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$(devnum),path=$(outside),readonly -device virtio-9p-pci,id=fs$(devnum),fsdev=fsdev$(devnum),mount_tag=mapping$(devnum)`
-            sandbox_cmd = `$sandbox_cmd --map 9p/mapping$(devnum):$(inside)`
+            qemu_cmd = `$qemu_cmd -fsdev local,security_model=none,id=fsdev$(devnum),path=$(qemu_mount_path(shard)),readonly -device virtio-9p-pci,id=fs$(devnum),fsdev=fsdev$(devnum),mount_tag=mapping$(devnum)`
+            sandbox_cmd = `$sandbox_cmd --map 9p/mapping$(devnum):$(map_target(shard))`
             devnum += 1
         end
     end
@@ -180,7 +186,9 @@ function qemu_gen_cmd(qr::QemuRunner, cmd::Cmd, comm_socket_path::String)
             sleep(0.01)
             if time() - start_time > 2
                 start_time = time()
-                @info("Unable to establish communication with QEMU, does $(comm_socket_path) exist?")
+                @warn("Unable to establish communication with QEMU on $(comm_socket_path); quitting QEMU comms task")
+                qr.exit_code = -5040
+                return
             end
         end
 
@@ -288,6 +296,7 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
             if !(stdin isa IOBuffer)
                 stdin = devnull
             end
+
             process = open(cmd, "r", stdin)
             @async begin
                 while !eof(process)
@@ -296,7 +305,14 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
             end
             wait(process)
         else
+            @static if Sys.isapple()
+                println("Setting parent shell interrupt to ^] (use ^C as usual, ^] to interrupt Julia)")
+                run(`stty intr ^\]`)
+            end
             run(cmd)
+            @static if Sys.isapple()
+                run(`stty intr ^\C`)
+            end
         end
     end
 
@@ -307,8 +323,5 @@ function run_interactive(qr::QemuRunner, cmd::Cmd; stdin = nothing, stdout = not
 end
 
 function runshell(qr::QemuRunner, args...; kwargs...)
-    println("Setting parent shell interrupt to ^] (use ^C as usual, ^] to interrupt Julia)")
-    @static if Sys.isapple() run(`stty intr ^\]`) end
     run_interactive(qr, `/bin/bash`, args...; kwargs...)
-    @static if Sys.isapple() run(`stty intr ^\C`) end
 end

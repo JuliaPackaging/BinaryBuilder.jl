@@ -15,25 +15,24 @@ mutable struct UserNSRunner <: Runner
     platform::Platform
 end
 
-function UserNSRunner(workspace_root::String; cwd = nothing,
+function UserNSRunner(workspace_root::String;
+                      cwd = nothing,
+                      workspaces::Vector = Pair[],
                       platform::Platform = platform_key(),
                       extra_env=Dict{String, String}(),
-                      verbose::Bool = false,
-                      mappings::Vector = platform_def_mappings(platform),
-                      workspaces::Vector = Pair[])
+                      verbose::Bool = false)
     global use_ccache, use_squashfs, runner_override
-
-    # Ensure the rootfs for this platform is downloaded and up to date.
-    # Also, since we require the Linux(:x86_64) shard for HOST_CC....
-    update_rootfs(triplet.([platform, Linux(:x86_64)]);
-                  verbose=verbose, squashfs=use_squashfs)
 
     # Check to make sure we're not going to try and bindmount within an
     # encrypted directory, as that triggers kernel bugs
     check_encryption(workspace_root; verbose=verbose)
+
+    # Choose and prepare our shards
+    shards = choose_shards(platform)
+    prepare_shard.(shards; mount_squashfs = false)
 	
     # Construct environment variables we'll use from here on out
-    envs = merge(target_envs(triplet(platform)), extra_env)
+    envs = merge(platform_envs(platform), extra_env)
 
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")
@@ -46,7 +45,6 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
         push!(workspaces, ccache_dir() => "/root/.ccache")
     end
 
-
     # Construct sandbox command
     sandbox_cmd = `$(sandbox_path())`
     if verbose
@@ -58,11 +56,13 @@ function UserNSRunner(workspace_root::String; cwd = nothing,
     end
 
     # Add in read-only mappings and read-write workspaces
-    for (outside, inside) in mappings
-        sandbox_cmd = `$sandbox_cmd --map $outside:$inside`
-    end
     for (outside, inside) in workspaces
         sandbox_cmd = `$sandbox_cmd --workspace $outside:$inside`
+    end
+
+    # Mount in compiler shards (excluding the rootfs shard)
+    for shard in shards[2:end]
+        sandbox_cmd = `$sandbox_cmd --map $(mount_path(shard)):$(map_target(shard))`
     end
 
 	# If runner_override is not yet set, let's probe to see if we can use
@@ -256,22 +256,12 @@ function check_encryption(workspace_root::AbstractString;
         """), "\n" => " "))
     end
 
-    is_encrypted, mountpoint = is_ecryptfs(rootfs_dir(); verbose=verbose)
+    is_encrypted, mountpoint = is_ecryptfs(storage_dir(); verbose=verbose)
     if is_encrypted
         push!(msg, replace(strip("""
         Cannot mount rootfs at $(rootfs_dir()), it has been encrypted!  Change
         your rootfs cache directory to one outside of $(mountpoint) by setting
         the BINARYBUILDER_ROOTFS_DIR environment variable and try again.
-        """), "\n" => " "))
-    end
-
-    is_encrypted, mountpoint = is_ecryptfs(shards_dir(); verbose=verbose)
-    if is_encrypted
-        push!(msg, replace(strip("""
-        Cannot mount rootfs shards within $(shards_dir()), it has been
-        encrypted!  Change your shard cache directory to one outside of
-        $(mountpoint) by setting the BINARYBUILDER_SHARDS_DIR environment
-        variable and try again.
         """), "\n" => " "))
     end
 
