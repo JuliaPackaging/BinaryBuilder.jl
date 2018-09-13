@@ -29,21 +29,25 @@ function target_dlext(target::AbstractString)
 end
 
 """
-    target_envs(target::String)
+    platform_envs(platform::Platform)
 
-Given a `target` (this term is used interchangeably with `triplet`), generate a
-`Dict` mapping representing all the environment variables to be set within the
-build environment to force compiles toward the defined target architecture.
-Examples of things set are `PATH`, `CC`, `RANLIB`, as well as nonstandard
-things like `target`.
+Given a `platform`, generate a `Dict` mapping representing all the environment
+variables to be set within the build environment to force compiles toward the
+defined target architecture.  Examples of things set are `PATH`, `CC`,
+`RANLIB`, as well as nonstandard things like `target`.
 """
-function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
+function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
     global use_ccache
+
+    # Convert platform to a triplet, but strip out the ABI parts
+    target = triplet(abi_agnostic(platform))
 
     # Helper function to generate paths such as /opt/x86_64-apple-darwin14/bin/llvm-ar
     tool_path = (n, t = target) -> "/opt/$(t)/bin/$(n)"
-    # Helper function to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
+    # Helper functions to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
     target_tool_path = (n, t = target) -> tool_path("$(t)-$(n)", t)
+    host_tool_path = (n, t = host_target) -> tool_path("$(t)-$(n)", t)
+    llvm_tool_path = (n) -> "/opt/$(host_target)/tools/$(n)"
     
     # Start with the default musl ld path:
     lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
@@ -64,12 +68,17 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
 
     # Slip our tools into the front, followed by host tools
-    path = "/opt/$(target)/bin:/opt/$(host_target)/bin:" * path
+    path = "/opt/$(target)/bin:/opt/$(host_target)/bin:/opt/$(host_target)/tools:" * path
 
     mapping = Dict(
         # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
         "PATH" => path,
         "LD_LIBRARY_PATH" => lib_path,
+
+        # We conditionally add on some compiler flags; we'll cull empty ones at the end
+        "CFLAGS" => "",
+        "CPPFLAGS" => "",
+        "LDFLAGS" => "",
 
         # binutils/toolchain envvars
         "LIBTOOL" => target_tool_path("libtool"),
@@ -79,6 +88,7 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
         "OBJCOPY" => target_tool_path("objcopy"),
         "OBJDUMP" => target_tool_path("objdump"),
         "READELF" => target_tool_path("readelf"),
+        "RANLIB" => target_tool_path("ranlib"),
         "STRIP" => target_tool_path("strip"),
         "WINDRES" => target_tool_path("windres"),
         "WINMC" => target_tool_path("winmc"),
@@ -106,15 +116,16 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     # they're just not used by default.  Override these environment variables in
     # your scripts if you want to use them.
     if occursin("-apple-", target) || occursin("-freebsd", target)
-        mapping["AR"] = tool_path("llvm-ar")
-        mapping["AS"] = tool_path("llvm-as")
-        mapping["CC"] = tool_path("clang")
-        mapping["CXX"] = tool_path("clang++")
+        mapping["AR"] = llvm_tool_path("llvm-ar")
+        mapping["AS"] = llvm_tool_path("llvm-as")
+        # Because there's only a single `clang` binary, we store it in `x86_64-linux-gnu`,
+        # but LLVMBuilder puts the `clang` binary into `tools`, not `bin`.
+        mapping["CC"] = llvm_tool_path("clang -target $(target) -isysroot /opt/$(target)/$(target)/sys-root")
+        mapping["CXX"] = llvm_tool_path("clang++ -target $(target) -isysroot /opt/$(target)/$(target)/sys-root")
         # flang isn't a realistic option yet, so we still use gfortran here
         mapping["FC"] = target_tool_path("gfortran")
-        mapping["LD"] = tool_path("llvm-ld")
-        mapping["NM"] = tool_path("llvm-nm")
-        mapping["RANLIB"] = tool_path("llvm-ranlib")
+        mapping["LD"] = llvm_tool_path("llvm-ld")
+        mapping["NM"] = llvm_tool_path("llvm-nm")
     else
         mapping["AR"] = target_tool_path("ar")
         mapping["AS"] = target_tool_path("as")
@@ -123,7 +134,6 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
         mapping["FC"] = target_tool_path("gfortran")
         mapping["LD"] = target_tool_path("ld")
         mapping["NM"] = target_tool_path("nm")
-        mapping["RANLIB"] = target_tool_path("ranlib")
     end
 
     # On OSX, we need to do a little more work.
@@ -137,22 +147,22 @@ function target_envs(target::AbstractString, host_target="x86_64-linux-gnu")
     end
 
     # There is no broad agreement on what host compilers should be called,
-    # so we set all the environment variabels that we've seen it called as,
+    # so we set all the environment variables that we've seen them called
     # and hope for the best.
     for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)")
-        mapping[host_map("AR")] = target_tool_path("ar", "x86_64-linux-gnu")
-        mapping[host_map("AS")] = target_tool_path("as", "x86_64-linux-gnu")
-        mapping[host_map("CC")] = target_tool_path("gcc", "x86_64-linux-gnu")
-        mapping[host_map("CXX")] = target_tool_path("g++", "x86_64-linux-gnu")
-        mapping[host_map("FC")] = target_tool_path("gfortran", "x86_64-linux-gnu")
-        mapping[host_map("LIPO")] = target_tool_path("lipo", "x86_64-linux-gnu")
-        mapping[host_map("LD")] = target_tool_path("ld", "x86_64-linux-gnu")
-        mapping[host_map("NM")] = target_tool_path("nm", "x86_64-linux-gnu")
-        mapping[host_map("RANLIB")] = target_tool_path("ranlib", "x86_64-linux-gnu")
-        mapping[host_map("READELF")] = target_tool_path("readelf", "x86_64-linux-gnu")
-        mapping[host_map("OBJCOPY")] = target_tool_path("objcopy", "x86_64-linux-gnu")
-        mapping[host_map("OBJDUMP")] = target_tool_path("objdump", "x86_64-linux-gnu")
-        mapping[host_map("STRIP")] = target_tool_path("strip", "x86_64-linux-gnu")
+        mapping[host_map("AR")] = host_tool_path("ar")
+        mapping[host_map("AS")] = host_tool_path("as")
+        mapping[host_map("CC")] = host_tool_path("gcc")
+        mapping[host_map("CXX")] = host_tool_path("g++")
+        mapping[host_map("FC")] = host_tool_path("gfortran")
+        mapping[host_map("LIPO")] = host_tool_path("lipo")
+        mapping[host_map("LD")] = host_tool_path("ld")
+        mapping[host_map("NM")] = host_tool_path("nm")
+        mapping[host_map("RANLIB")] = host_tool_path("ranlib")
+        mapping[host_map("READELF")] = host_tool_path("readelf")
+        mapping[host_map("OBJCOPY")] = host_tool_path("objcopy")
+        mapping[host_map("OBJDUMP")] = host_tool_path("objdump")
+        mapping[host_map("STRIP")] = host_tool_path("strip")
     end
     
     # If we're using `ccache`, prepend it to `CC`, `CXX`, `FC`, `HOSTCC`, etc....

@@ -212,11 +212,10 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
              )
         ),
         verbose = verbose,
-        workspaces = [metadir => "/meta"],
+        workspaces = [
+            metadir => "/meta",
+        ],
     )
-
-    # Unpack the sources into the srcdir
-    cmds = Any[""]
 
     # For each source path, unpack it
     for (src_path, src_hash) in zip(src_paths, src_hashes)
@@ -228,21 +227,21 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             end
         else
             if verbose
-                push!(cmds, "echo \"Extracting $(basename(src_path))...\"")
+                @info "Extracting $(basename(src_path))..."
             end
 
-            # For consistency, we use the tar inside the sandbox to unpack
-            src_path_v = string(src_hash, "-", basename(src_path))
-            cp(src_path, joinpath(srcdir, src_path_v))
-            if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
-               endswith(src_path, ".tgz") || endswith(src_path, ".tar.bz") ||
-               endswith(src_path, ".tar.bz2") || endswith(src_path, ".tar.xz") ||
-               endswith(src_path, ".tar.Z") || endswith(src_path, ".txz")
-                push!(cmds, "tar xvof $(src_path_v)")
-                push!(cmds, "rm $(src_path_v)")
-            elseif endswith(src_path, ".zip")
-                push!(cmds, "unzip -q $(src_path_v)")
-                push!(cmds, "rm $(src_path_v)")
+            # Extract with host tools because it is _much_ faster on e.g. OSX.
+            # If this becomes a compatibility problem, we'll just have to install
+            # our own `tar` and `unzip` through BP as dependencies for BB.
+            cd(joinpath(build_path, nonce, "srcdir")) do
+                if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
+                   endswith(src_path, ".tgz") || endswith(src_path, ".tar.bz") ||
+                   endswith(src_path, ".tar.bz2") || endswith(src_path, ".tar.xz") ||
+                   endswith(src_path, ".tar.Z") || endswith(src_path, ".txz")
+                    run(`tar xvof $(src_path)`)
+                elseif endswith(src_path, ".zip")
+                    run(`unzip -q $(src_path)`)
+                end
             end
         end
     end
@@ -285,11 +284,6 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             ARGS = [$install_dir]
         end)
         include_string(m, script)
-    end
-
-    # Run the cmds defined above
-    if !isempty(cmds)
-        run(ur, `/bin/bash -c $(join(cmds, '\n'))`, ""; verbose=verbose, tee_stream=tee_stream)
     end
 
     # Return the prefix and the runner
