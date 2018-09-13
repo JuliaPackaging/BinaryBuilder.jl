@@ -78,7 +78,7 @@ end
 """
     filename(cs::CompilerShard)
 
-Return the filename of this shard.  Used by e.g. `url()` or `download()`.
+Return the filename of this shard.  Used by e.g. `url()` or `download_path()`.
 """
 function filename(cs::CompilerShard)
     ext = Dict(:squashfs => "squashfs", :targz => "tar.gz")[cs.archive_type]
