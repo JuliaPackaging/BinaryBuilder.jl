@@ -7,57 +7,84 @@ to use while he's on the plane to JuliaCon to whip up said JuliaCon presentation
 """
 mutable struct DockerRunner <: Runner
     docker_cmd::Cmd
+    rootfs_version::VersionNumber
     platform::Platform
 end
 
+docker_image(version::VersionNumber) = "julia_binarybuilder_rootfs:v$(version)"
+docker_image(rootfs::CompilerShard) = docker_image(rootfs.version)
 
-function DockerRunner(workspace_root::String; cwd = nothing,
-                      platform::Platform = platform_key(),
+"""
+    import_docker_image(rootfs::CompilerShard; verbose::Bool = false)
+
+Checks to see if the given rootfs has been imported into docker yet; if it
+hasn't, then do so so that we can run things like:
+
+    docker run -ti binarybuilder_rootfs:v2018.08.27 /bin/bash
+
+Which, after all, is the foundation upon which this whole doodad is built.
+"""
+function import_docker_image(rootfs::CompilerShard; verbose::Bool = false)
+    if rootfs.archive_type != :targz
+        throw(ArgumentError("Unable to import squashfs into docker!  Use .tar.gz shards!"))
+    end
+
+    # Does this image already exist?  If so, we're done!
+    if success(`docker inspect --type=image $(docker_image(rootfs))`)
+        if verbose
+            @info("Docker base image already exists, skipping import...")
+        end
+        return
+    end
+
+    # Otherwise, import it!
+    dockerfile_cmds = "ENTRYPOINT [\"/docker_entrypoint.sh\"]"
+    run(`docker import $(download_path(rootfs)) -c $(dockerfile_cmds) $(docker_image(rootfs))`)
+    return
+end
+
+function DockerRunner(workspace_root::String;
+                      cwd = nothing,
+                      platform::Platform = platform_key_abi(),
+                      workspaces::Vector = [],
                       extra_env=Dict{String, String}(),
-                      verbose::Bool = false,
-                      mappings::Vector = platform_def_mappings(platform),
-                      workspaces::Vector = [])
+                      verbose::Bool = false)
     global use_ccache
 
-    # Ensure the rootfs for this platform is downloaded and up to date.
-    # Also, since we require the Linux(:x86_64) shard for HOST_CC....
-    update_rootfs(triplet.([platform, Linux(:x86_64)]);
-                  verbose=verbose, squashfs=false, mount=true)
-
     # Check to make sure we're not going to try and bindmount within an
-    # encrypted directory, as that triggers kernel bugs
+    # encrypted directory, as that can trigger kernel bugs
     check_encryption(workspace_root; verbose=verbose)
 
+    # Choose and prepare our shards
+    shards = choose_shards(platform)
+    prepare_shard.(shards; mount_squashfs = false)
+
+    # Import docker image
+    import_docker_image(shards[1]; verbose=verbose)
+    
     # Construct environment variables we'll use from here on out
-    envs = merge(target_envs(triplet(platform)), extra_env)
+    envs = merge(platform_envs(platform), extra_env)
 
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")
 
-    # If we're enabling ccache, then map in a docker volume for it
+    # If we're enabling ccache, then map in a named docker volume for it
     if use_ccache
         push!(workspaces, "binarybuilder_ccache" => "/root/.ccache")
     end
 
     # Construct docker command
-    docker_cmd = `docker run`
+    docker_cmd = `docker run --privileged `#--cap-add SYS_ADMIN`
 
     if cwd != nothing
         docker_cmd = `$docker_cmd -w $(abspath(cwd))`
     end
 
     # Add in read-only mappings and read-write workspaces
-    for (outside, inside) in reverse!(mappings)
-        # Docker needs these things canonicalized, otherwise its mappings can get denied
-        if isdir(outside) || isfile(outside)
-            outside = realpath(outside)
-        end
-
-        if occursin("x86_64-apple-darwin", outside)
-            docker_cmd = `$docker_cmd -v $(outside):$inside`
-        else
-            docker_cmd = `$docker_cmd -v $(outside):$inside:ro`
-        end
+    for shard in shards[2:end]
+        outside = realpath(mount_path(shard))
+        inside = map_target(shard)
+        docker_cmd = `$docker_cmd -v $(outside):$(inside):ro`
     end
     for (outside, inside) in workspaces
         if isdir(outside) || isfile(outside)
@@ -72,13 +99,13 @@ function DockerRunner(workspace_root::String; cwd = nothing,
     end
 
     # Finally, return the DockerRunner in all its glory
-    return DockerRunner(docker_cmd, platform)
+    return DockerRunner(docker_cmd, shards[1].version, platform)
 end
 
 
 function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
     did_succeed = true
-    oc = OutputCollector(`$(dr.docker_cmd) staticfloat/julia_crossbase:x64 $(cmd)`; verbose=verbose, tee_stream=tee_stream)
+    oc = OutputCollector(`$(dr.docker_cmd) $(docker_image(dr.rootfs_version)) $(cmd)`; verbose=verbose, tee_stream=tee_stream)
     did_succeed = wait(oc)
 
     if !isempty(logpath)
@@ -96,7 +123,7 @@ function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool 
 end
 
 function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
-    cmd = `$(dr.docker_cmd) -ti staticfloat/julia_crossbase:x64 $(cmd)`
+    cmd = `$(dr.docker_cmd) -ti $(docker_image(dr.rootfs_version)) $(cmd)`
     if stdin isa AnyRedirectable
         cmd = pipeline(cmd, stdin=stdin)
     end

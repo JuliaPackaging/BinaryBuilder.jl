@@ -14,6 +14,7 @@ include("compat.jl")
 include("Auditor.jl")
 include("Runner.jl")
 include("RootFS.jl")
+include("RootFSHashTable.jl")
 include("UserNSRunner.jl")
 include("QemuRunner.jl")
 include("DockerRunner.jl")
@@ -36,44 +37,32 @@ function github_auth()
     return _github_auth[]
 end
 
+# This is the location that all binary builder-related files are stored under.
+# downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
+function storage_dir(args::AbstractString...)
+    global storage_cache
+    return joinpath(storage_cache, args...)
+end
+ccache_dir() = storage_dir("ccache")
+
+
 # These globals store important information such as where we're downloading
 # the rootfs to, and where we're unpacking it.  These constants are initialized
 # by `__init__()` to allow for environment variable overrides from the user.
-downloads_cache = ""
-rootfs_cache = ""
-shards_cache = ""
-qemu_cache = ""
+storage_cache = ""
 automatic_apple = false
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
-ccache_override = ""
 sandbox_override = ""
 
 function __init__()
-    global downloads_cache, rootfs_cache, shards_cache, runner_override
-    global qemu_cache, use_squashfs, automatic_apple, allow_ecryptfs
-    global use_ccache, ccache_override, sandbox_override
+    global runner_override, use_squashfs, automatic_apple, allow_ecryptfs
+    global use_ccache, sandbox_override, storage_cache
 
-    # If the user has overridden our rootfs tar location, reflect that here:
-    def_dl_cache = joinpath(dirname(@__FILE__), "..", "deps", "downloads")
-    downloads_cache = get(ENV, "BINARYBUILDER_DOWNLOADS_CACHE", def_dl_cache)
-    downloads_cache = abspath(downloads_cache)
-
-    # If the user has overridden our rootfs unpack location, reflect that here:
-    def_rootfs_cache = joinpath(dirname(@__FILE__),  "..", "deps", "root")
-    rootfs_cache = get(ENV, "BINARYBUILDER_ROOTFS_DIR", def_rootfs_cache)
-    rootfs_cache = abspath(rootfs_cache)
-
-    # If the user has overridden our shards unpack location, reflect that here:
-    def_shards_cache = joinpath(dirname(@__FILE__),  "..", "deps", "shards")
-    shards_cache = get(ENV, "BINARYBUILDER_SHARDS_DIR", def_shards_cache)
-    shards_cache = abspath(shards_cache)
-
-    # If the user has overridden our qemu unpack location, reflect that here:
-    def_qemu_cache = joinpath(dirname(@__FILE__), "..", "deps", "qemu")
-    qemu_cache = get(ENV, "BINARYBUILDER_QEMU_DIR", def_qemu_cache)
-    qemu_cache = abspath(qemu_cache)
+    # Allow the user to override the default value for `storage_dir`
+    storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",
+                        joinpath(@__DIR__, "..", "deps"))
 
     # If the user has signalled that they really want us to automatically
     # accept apple EULAs, do that.
@@ -132,13 +121,6 @@ function __init__()
     if !isempty(sandbox_override) && !isfile(sandbox_override)
         @warn("Invalid sandbox path $sandbox_override, ignoring...")
         sandbox_override = ""
-    end
-
-    # If the user asked for the ccache cache to be placed somewhere specific
-    ccache_override = get(ENV, "BINARYBUILDER_CCACHE_PATH", "")
-    if !isempty(ccache_override) && !isdir(ccache_override)
-        @warn("Invalid ccache directory $ccache_override, ignoring...")
-        ccache_override = ""
     end
 end
 

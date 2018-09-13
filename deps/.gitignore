@@ -1,8 +1,9 @@
 # Ignore rootfs artifacts
 root/
 downloads/
-shards/
 qemu/
+ccache/
+mounts/
 
 # Ignore sandbox executable
 sandbox
