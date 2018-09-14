@@ -45,12 +45,16 @@ function UserNSRunner(workspace_root::String;
         push!(workspaces, ccache_dir() => "/root/.ccache")
     end
 
+    rootfs_shard = first(filter(is_rootfs, shards))
+    rootfs_dir = mount_path(rootfs_shard)
+    sandbox_path = joinpath(rootfs_dir, "sandbox")
+
     # Construct sandbox command
-    sandbox_cmd = `$(sandbox_path())`
+    sandbox_cmd = `$(sandbox_path)`
     if verbose
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
-    sandbox_cmd = `$sandbox_cmd --rootfs $(rootfs_dir())`
+    sandbox_cmd = `$sandbox_cmd --rootfs $(rootfs_dir)`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
@@ -68,7 +72,7 @@ function UserNSRunner(workspace_root::String;
 	# If runner_override is not yet set, let's probe to see if we can use
 	# unprivileged containers, and if we can't, switch over to privileged.
 	if runner_override == ""
-		if !probe_unprivileged_containers()
+		if !probe_unprivileged_containers(sandbox_path, rootfs_dir)
 			msg = strip("""
 			Unable to run unprivileged containers on this system!
 			This may be because your kernel does not support mounting overlay
@@ -168,16 +172,13 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
     end
 end
 
-function probe_unprivileged_containers(;verbose::Bool=false)
-    # Ensure the base rootfs is available
-    update_rootfs(String[]; verbose=false, mount=false)
-
+function probe_unprivileged_containers(sandbox_path, rootfs_dir; verbose::Bool=false)
     # Ensure we're not about to make fools of ourselves by trying to mount an
     # encrypted directory, which triggers kernel bugs.  :(
     check_encryption(pwd())
 
     # Construct an extremely simple sandbox command
-    sandbox_cmd = `$(sandbox_path()) --rootfs $(rootfs_dir())`
+    sandbox_cmd = `$(sandbox_path) --rootfs $(rootfs_dir)`
     cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
 
     if verbose

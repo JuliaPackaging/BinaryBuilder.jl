@@ -39,13 +39,13 @@ using BinaryProvider: compiler_abi
 struct CompilerShard
     # Something like "RootFS", or "GCC"
     name::String
-    
+
     # Something like v"7.1.0"
     version::VersionNumber
 
     # Something like `Linux(:x86_64)`
     platform::Platform
-    
+
     # :squashfs or :targz.  Possibly more in the future.
     archive_type::Symbol
 
@@ -65,6 +65,7 @@ struct CompilerShard
         return new(name, version, platform, archive_type)
     end
 end
+is_rootfs(c::CompilerShard) = lowercase(c.name) == "rootfs"
 
 """
     abi_agnostic(p::Platform)
@@ -127,7 +128,7 @@ Return the location this compiler shard should be mounted at.  We basically
 analyze the name and platform of this shard and return a path based on that.
 """
 function map_target(cs::CompilerShard)
-    if lowercase(cs.name) == "rootfs"
+    if is_rootfs(cs)
         return "/"
     elseif lowercase(cs.name) in ("gcc", "llvm", "basecompilershard")
         return joinpath("/opt", triplet(cs.platform), "$(cs.name)-$(cs.version)")
@@ -142,6 +143,7 @@ end
 Return the location this shard will be downloaded to.
 """
 download_path(cs::CompilerShard) = storage_dir("downloads", filename(cs))
+
 """
     mount_path(cs::CompilerShard)
 
@@ -537,7 +539,7 @@ function shard_mappings(shards::Vector{CompilerShard})
     mappings = Pair{String,String}[]
     for shard in shards
         # No mapping for the main rootfs shard
-        if lowercase(shard.name) == "rootfs"
+        if is_rootfs(shard)
             continue
         end
 
