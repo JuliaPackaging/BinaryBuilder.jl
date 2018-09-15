@@ -15,6 +15,8 @@ mutable struct UserNSRunner <: Runner
     platform::Platform
 end
 
+sandbox_path(rootfs) = joinpath(mount_path(rootfs), "sandbox")
+
 function UserNSRunner(workspace_root::String;
                       cwd = nothing,
                       workspaces::Vector = Pair[],
@@ -46,11 +48,11 @@ function UserNSRunner(workspace_root::String;
     end
 
     # Construct sandbox command
-    sandbox_cmd = `$(sandbox_path())`
+    sandbox_cmd = `$(sandbox_path(shards[1]))`
     if verbose
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
-    sandbox_cmd = `$sandbox_cmd --rootfs $(rootfs_dir())`
+    sandbox_cmd = `$sandbox_cmd --rootfs $(mount_path(shards[1]))`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
@@ -169,22 +171,25 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
 end
 
 function probe_unprivileged_containers(;verbose::Bool=false)
-    # Ensure the base rootfs is available
-    update_rootfs(String[]; verbose=false, mount=false)
+    # Choose and prepare our shards
+    root_shard = choose_shards(Linux(:x86_64))[1]
+    prepare_shard(root_shard)
 
     # Ensure we're not about to make fools of ourselves by trying to mount an
     # encrypted directory, which triggers kernel bugs.  :(
-    check_encryption(pwd())
+    check_encryption(tempdir())
 
-    # Construct an extremely simple sandbox command
-    sandbox_cmd = `$(sandbox_path()) --rootfs $(rootfs_dir())`
-    cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
+    return cd(tempdir()) do
+        # Construct an extremely simple sandbox command
+        sandbox_cmd = `$(sandbox_path(root_shard)) --rootfs $(mount_path(root_shard))`
+        cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
 
-    if verbose
-        @info("Probing for unprivileged container capability...")
+        if verbose
+            @info("Probing for unprivileged container capability...")
+        end
+        oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
+        return wait(oc) && merge(oc) == "hello julia\n"
     end
-    oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
-    return wait(oc) && merge(oc) == "hello julia\n"
 end
 
 """
@@ -259,7 +264,7 @@ function check_encryption(workspace_root::AbstractString;
     is_encrypted, mountpoint = is_ecryptfs(storage_dir(); verbose=verbose)
     if is_encrypted
         push!(msg, replace(strip("""
-        Cannot mount rootfs at $(rootfs_dir()), it has been encrypted!  Change
+        Cannot mount rootfs at $(storage_dir()), it has been encrypted!  Change
         your rootfs cache directory to one outside of $(mountpoint) by setting
         the BINARYBUILDER_ROOTFS_DIR environment variable and try again.
         """), "\n" => " "))

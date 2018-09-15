@@ -54,11 +54,10 @@ automatic_apple = false
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
-sandbox_override = ""
 
 function __init__()
     global runner_override, use_squashfs, automatic_apple, allow_ecryptfs
-    global use_ccache, sandbox_override, storage_cache
+    global use_ccache, storage_cache
 
     # Allow the user to override the default value for `storage_dir`
     storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",
@@ -114,13 +113,6 @@ function __init__()
     # If the user has enabled `ccache` support, use it!
     if get(ENV, "BINARYBUILDER_USE_CCACHE", "false") == "true"
         use_ccache = true
-    end
-
-    # If the user has asked to use a particular `sandbox` executable, use it!
-    sandbox_override = get(ENV, "BINARYBUILDER_SANDBOX_PATH", "")
-    if !isempty(sandbox_override) && !isfile(sandbox_override)
-        @warn("Invalid sandbox path $sandbox_override, ignoring...")
-        sandbox_override = ""
     end
 end
 
