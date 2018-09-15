@@ -89,11 +89,11 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCC", v"4.8.5", MacOS(:x86_64), :squashfs)
       => "e42e2f09f80b0dd95e3f476dfab04d4de67d07ae89da121ba1a9267886002c92",
     CompilerShard("GCC", v"4.8.5", Linux(:x86_64, libc=:glibc), :targz)
-      => "50b4b0276db194c49f5ebbd22a7e3e1db70b853ee32cda160a873711320ca944",
+      => "13861c1227662d3bd32f20e59d19080effa2c7fd61500e181933430768aed582",
     CompilerShard("GCC", v"4.8.5", Linux(:x86_64, libc=:glibc), :squashfs)
       => "e01014d26c16a1cd7a1b07f399feb34baf966c50b4e262932acbb576ac91a3e8",
     CompilerShard("GCC", v"4.8.5", Linux(:x86_64, libc=:musl), :targz)
-      => "64645dcfe1f2232319de011a129234adf450c8c2229b9352ad4a647164d634c3",
+      => "4b0d370edc1603845096505f3f22012f156d26fcbe2d29c9be64327879e86667",
     CompilerShard("GCC", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs)
       => "0a935f5837966531ea40d3c2adde3b73109bae62a9b7f108e9f3281107e341ff",
     CompilerShard("GCC", v"4.8.5", FreeBSD(:x86_64), :targz)
