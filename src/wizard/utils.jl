@@ -238,7 +238,8 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                    endswith(src_path, ".tgz") || endswith(src_path, ".tar.bz") ||
                    endswith(src_path, ".tar.bz2") || endswith(src_path, ".tar.xz") ||
                    endswith(src_path, ".tar.Z") || endswith(src_path, ".txz")
-                    run(`tar xvof $(src_path)`)
+                   tar_flags = verbose ? "xvof" : "xof"
+                   run(`tar $(tar_flags) $(src_path)`)
                 elseif endswith(src_path, ".zip")
                     run(`unzip -q $(src_path)`)
                 end
