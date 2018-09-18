@@ -49,17 +49,19 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
     host_tool_path = (n, t = host_target) -> tool_path("$(t)-$(n)", t)
     llvm_tool_path = (n) -> "/opt/$(host_target)/tools/$(n)"
     
-    # Start with the default musl ld path:
+    # Start with the default musl ld path
     lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
 
-    # Add on compiler library path (for getting libc.so.6)
-    #lib_path *= ":/opt/x86_64-linux-gnu/x86_64-linux-gnu/sys-root/lib64"
-    # Add on our glibc-compatibility layer
-    #lib_path *= ":/usr/glibc-compat/lib"
+    # Add our glibc directory (this coupled with our Glibc patches to reject musl
+    # binaries gives us a dual-libc environment)
+    lib_path *= ":/lib64"
 
     # Then add on our target-specific locations
     lib_path *= ":/opt/$(target)/lib64:/opt/$(target)/lib"
-    lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
+    #lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
+
+    # Add on our host-target location:
+    lib_path *= ":/opt/$(host_target)/lib64:/opt/$(host_target)/lib"
 
     # Finally add on our destination location
     lib_path *= ":/workspace/destdir/lib64:/workspace/destdir/lib"
@@ -69,6 +71,9 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
 
     # Slip our tools into the front, followed by host tools
     path = "/opt/$(target)/bin:/opt/$(host_target)/bin:/opt/$(host_target)/tools:" * path
+
+    # Then slip $prefix/bin onto the end, so that dependencies naturally show up
+    path = path * ":/workspace/destdir/bin"
 
     mapping = Dict(
         # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
@@ -81,6 +86,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         "LDFLAGS" => "",
 
         # binutils/toolchain envvars
+        "DSYMUTIL" => llvm_tool_path("llvm-dsymutil"),
         "LIBTOOL" => target_tool_path("libtool"),
         "LIPO" => target_tool_path("lipo"),
         "OTOOL" => target_tool_path("otool"),
@@ -154,6 +160,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         mapping[host_map("AS")] = host_tool_path("as")
         mapping[host_map("CC")] = host_tool_path("gcc")
         mapping[host_map("CXX")] = host_tool_path("g++")
+        mapping[host_map("DSYMUTIL")] = llvm_tool_path("llvm-dsymutil")
         mapping[host_map("FC")] = host_tool_path("gfortran")
         mapping[host_map("LIPO")] = host_tool_path("lipo")
         mapping[host_map("LD")] = host_tool_path("ld")
