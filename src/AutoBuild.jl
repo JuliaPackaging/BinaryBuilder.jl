@@ -483,6 +483,8 @@ function build(runner::Runner, name::AbstractString,
         #     that if we want to debug a build halfway through, we can get at it.  We normally
         #     build with a tmpfs mounted at `$WORKSPACE/srcdir`.
         trapped_script = """
+        alias ll='ls -la'
+
         vecho() {
             if [[ "$(verbose)" == "true" ]]; then
                 echo "\$@"
@@ -523,15 +525,13 @@ function build(runner::Runner, name::AbstractString,
             mkdir -p \$WORKSPACE/.true_srcdir
             mount --bind \$WORKSPACE/srcdir \$WORKSPACE/.true_srcdir
             mount -t tmpfs tmpfs \$WORKSPACE/srcdir
-            cp -a \$WORKSPACE/.true_srcdir/. \$WORKSPACE/srcdir/
-            ls -la \$WORKSPACE/.true_srcdir/
-            ls -la \$WORKSPACE/srcdir/
+            rsync -rlptD \$WORKSPACE/.true_srcdir/ \$WORKSPACE/srcdir
         }
 
         # Copy our tmpfs version of `srcdir` back onto disk.
         save_srcdir() {
             vecho_red "Saving srcdir due to previous error..."
-            cp -af \$WORKSPACE/srcdir/ \$WORKSPACE/.true_srcdir/
+            rsync -rlptD \$WORKSPACE/srcdir/ \$WORKSPACE/.true_srcdir --delete
         }
 
         # If /meta is mounted, then we want to save history and environment
