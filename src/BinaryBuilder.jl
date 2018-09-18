@@ -145,8 +145,7 @@ function versioninfo()
         end
 
         print_enc("pkg dir", dirname(@__FILE__))
-        print_enc("rootfs dir", rootfs_dir())
-        print_enc("shards dir", shards_dir())
+        print_enc("storage dir", storage_dir())
     end
 
     # Dump any relevant environment variables:
@@ -155,9 +154,7 @@ function versioninfo()
         "AUTOMATIC_APPLE",
         "USE_SQUASHFS",
         "DOWNLOADS_CACHE",
-        "ROOTFS_DIR",
-        "SHARDS_DIR",
-        "QEMU_DIR",
+        "STORAGE_DIR",
         "RUNNER",
         "ALLOW_ECRYPTFS",
         "USE_CCACHE",
