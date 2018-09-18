@@ -1103,10 +1103,10 @@ mnemonics_by_category = Dict(
 
 
 """
-    instruction_mnemonics(path::AbstractString)
+    instruction_mnemonics(path::AbstractString, platform::Platform)
 
-Dump a binary object with `objdump` from our super-binutils, returning a list
-of instruction mnemonics for further analysis with `analyze_instruction_set()`.
+Dump a binary object with `objdump`, returning a list of instruction mnemonics
+for further analysis with `analyze_instruction_set()`.
 
 Note that this function only really makes sense for x86/x64 binaries.  Don't
 run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
@@ -1114,7 +1114,7 @@ run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
 This function returns the list of mnemonics as well as the counts of each,
 binned by the mapping defined within `instruction_categories`.
 """
-function instruction_mnemonics(path::AbstractString)
+function instruction_mnemonics(path::AbstractString, platform::Platform)
     # The outputs we are calculating
     counts = Dict(k => 0 for k in keys(instruction_categories))
     mnemonics = String[]
@@ -1122,14 +1122,14 @@ function instruction_mnemonics(path::AbstractString)
     ur = preferred_runner()(
         abspath(dirname(path));
         cwd="/workspace/",
-        platform=Linux(:x86_64),
+        platform=platform,
         verbose=false,
     )
     output = IOBuffer()
 
     # Run objdump to disassemble the input binary
-    objdump = "/opt/super_binutils/bin/objdump"
-    run_interactive(ur, `$objdump -d $(basename(path))`; stdout=output)
+    objdump = "/opt/$(triplet(abi_agnostic(platform)))/bin/objdump"
+    run_interactive(ur, `$(objdump) -d $(basename(path))`; stdout=output)
     seekstart(output)
 
     for line in eachline(output)
@@ -1185,7 +1185,7 @@ end
 
 
 """
-    analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false)
+    analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
 
 Analyze the instructions within the binary located at the given path for which
 minimum instruction set it requires, taking note of groups of instruction sets
@@ -1201,9 +1201,9 @@ if `verbose` is set to `true`.
 Note that this function only really makes sense for x86/x64 binaries.  Don't
 run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
 """
-function analyze_instruction_set(oh::ObjectHandle; verbose::Bool = false, io::IO = stdout)
+function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::Bool = false, io::IO = stdout)
     # Get list of mnemonics
-    mnemonics, counts = instruction_mnemonics(path(oh))
+    mnemonics, counts = instruction_mnemonics(path(oh), platform)
 
     # Analyze for minimum instruction set
     min_isa = minimum_instruction_set(counts, is64bit(oh))

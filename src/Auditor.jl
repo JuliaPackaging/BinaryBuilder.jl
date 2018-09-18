@@ -72,7 +72,7 @@ function audit(prefix::Prefix; io=stderr,
                     all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
                                                     io=io, platform=platform, silent=silent,
                                                     verbose=verbose, autofix=autofix)
-                    all_ok &= check_isa(oh, prefix; io=io, verbose=verbose, silent=silent)
+                    all_ok &= check_isa(oh, platform, prefix; io=io, verbose=verbose, silent=silent)
                 end
             end
         catch e
@@ -197,13 +197,13 @@ function audit(prefix::Prefix; io=stderr,
     return all_ok
 end
 
-function check_isa(oh, prefix;
+function check_isa(oh, platform, prefix;
                    io::IO = stderr,
                    verbose::Bool = false,
                    silent::Bool = false)
     # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
     if arch(platform_for_object(oh)) in [:x86_64, :i686]
-        instruction_set = analyze_instruction_set(oh; verbose=verbose, io=io)
+        instruction_set = analyze_instruction_set(oh, platform; verbose=verbose, io=io)
         if is64bit(oh) && instruction_set != :core2
             if !silent
                 msg = replace("""
