@@ -4,7 +4,7 @@
     begin
         build_path = tempname()
         mkpath(build_path)
-        isa_platform = Linux(:x86_64)
+        isa_platform = Linux(:x86_64; compiler_abi=CompilerABI(:gcc8, :cxx_any))
         prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], isa_platform)
 
         main_sse = ExecutableProduct(prefix, "main_sse", :main_sse)
@@ -30,17 +30,17 @@
 
         # Next, test isa of these files
         readmeta(locate(main_sse)) do oh
-            isa_sse = BinaryBuilder.analyze_instruction_set(oh; verbose=true)
+            isa_sse = BinaryBuilder.analyze_instruction_set(oh, isa_platform; verbose=true)
             @test isa_sse == :core2
         end
 
         readmeta(locate(main_avx)) do oh
-            isa_avx = BinaryBuilder.analyze_instruction_set(oh; verbose=true)
+            isa_avx = BinaryBuilder.analyze_instruction_set(oh, isa_platform; verbose=true)
             @test isa_avx == :sandybridge
         end
 
         readmeta(locate(main_avx2)) do oh
-            isa_avx2 = BinaryBuilder.analyze_instruction_set(oh; verbose=true)
+            isa_avx2 = BinaryBuilder.analyze_instruction_set(oh, isa_platform; verbose=true)
             @test isa_avx2 == :haswell
         end
 

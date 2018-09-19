@@ -54,7 +54,7 @@ end
 if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"
     # Perform a sanity test on each and every shard.
     @testset "Shard sanity tests" begin
-        for shard_platform in supported_platforms()
+        for shard_platform in expand_gcc_versions(supported_platforms())
             build_path = tempname()
             mkpath(build_path)
             prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], shard_platform)
