@@ -545,9 +545,7 @@ function build(runner::Runner, name::AbstractString,
         set -e
 
         # Swap out srcdir from underneath our feet
-        set -x
         tmpify_srcdir
-        set +x
 
         $(script)
         """
