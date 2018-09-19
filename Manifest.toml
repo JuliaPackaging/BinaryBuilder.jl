@@ -3,7 +3,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryProvider]]
 deps = ["Libdl", "Pkg", "SHA", "Test"]
-git-tree-sha1 = "db50308be75fd1a0a1f73f919f1a5e47f3a79952"
+git-tree-sha1 = "f3f9fdba4267b0880cf6316def7e17d26a07b4d0"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaPackaging/BinaryProvider.jl.git"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
@@ -23,9 +23,9 @@ version = "1.1.0"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "REPL", "Random", "Serialization", "Test"]
-git-tree-sha1 = "2afbbd0294306b0b74a753c196be50b35edb625c"
+git-tree-sha1 = "5162c360c52e9265e0bfafb71415c31f746f7e04"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.11.1"
+version = "0.12.0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -69,9 +69,9 @@ uuid = "b77e0a4c-d291-57a0-90e8-8db25a27a240"
 
 [[JLD2]]
 deps = ["CodecZlib", "DataStructures", "FileIO", "LinearAlgebra", "Mmap", "Printf", "Random", "Test"]
-git-tree-sha1 = "8f0b471c05fd5c256932bd08bb71729cbb7b966f"
+git-tree-sha1 = "3ba90ff93e1d5b9b2103588051c2d349fae54dac"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.1.1"
+version = "0.1.2"
 
 [[JSON]]
 deps = ["Dates", "Distributed", "Mmap", "Pkg", "Sockets", "Test", "Unicode"]
