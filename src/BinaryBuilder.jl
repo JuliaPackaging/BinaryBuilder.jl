@@ -188,7 +188,7 @@ function versioninfo()
             cwd="/workspace/",
             platform=Linux(:x86_64),
         )
-        run_interactive(runner, `/usr/local/bin/ccache -s`)
+        run_interactive(runner, `/usr/bin/ccache -s`)
     end
     return nothing
 end
