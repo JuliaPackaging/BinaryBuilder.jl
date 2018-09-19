@@ -526,6 +526,9 @@ function build(runner::Runner, name::AbstractString,
             mount --bind \$WORKSPACE/srcdir \$WORKSPACE/.true_srcdir
             mount -t tmpfs tmpfs \$WORKSPACE/srcdir
             rsync -rlptD \$WORKSPACE/.true_srcdir/ \$WORKSPACE/srcdir
+
+            # We may have changed what pwd() means out from underneath ourselves
+            cd \$(pwd)
         }
 
         # Copy our tmpfs version of `srcdir` back onto disk.
