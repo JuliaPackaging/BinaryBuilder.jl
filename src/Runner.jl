@@ -125,8 +125,8 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         mapping["AS"] = llvm_tool_path("llvm-as")
         # Because there's only a single `clang` binary, we store it in `x86_64-linux-gnu`,
         # but LLVMBuilder puts the `clang` binary into `tools`, not `bin`.
-        mapping["CC"] = llvm_tool_path("clang -target $(target) -isysroot /opt/$(target)/$(target)/sys-root")
-        mapping["CXX"] = llvm_tool_path("clang++ -target $(target) -isysroot /opt/$(target)/$(target)/sys-root")
+        mapping["CC"] = llvm_tool_path("clang -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
+        mapping["CXX"] = llvm_tool_path("clang++ -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
         # flang isn't a realistic option yet, so we still use gfortran here
         mapping["FC"] = target_tool_path("gfortran")
         mapping["LD"] = llvm_tool_path("llvm-ld")
