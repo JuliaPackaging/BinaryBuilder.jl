@@ -1128,8 +1128,8 @@ function instruction_mnemonics(path::AbstractString, platform::Platform)
     output = IOBuffer()
 
     # Run objdump to disassemble the input binary
-    objdump = "/opt/$(triplet(abi_agnostic(platform)))/bin/objdump"
-    run_interactive(ur, `$(objdump) -d $(basename(path))`; stdout=output)
+    objdump_cmd = "\$OBJDUMP -d $(basename(path))"
+    run_interactive(ur, `/bin/bash -c "\$OBJDUMP -d $(basename(path))"`; stdout=output)
     seekstart(output)
 
     for line in eachline(output)

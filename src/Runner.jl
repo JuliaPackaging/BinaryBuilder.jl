@@ -92,7 +92,6 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         "OTOOL" => target_tool_path("otool"),
         "INSTALL_NAME_TOOL" => target_tool_path("install_name_tool"),
         "OBJCOPY" => target_tool_path("objcopy"),
-        "OBJDUMP" => target_tool_path("objdump"),
         "READELF" => target_tool_path("readelf"),
         "RANLIB" => target_tool_path("ranlib"),
         "STRIP" => target_tool_path("strip"),
@@ -132,6 +131,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         mapping["FC"] = target_tool_path("gfortran")
         mapping["LD"] = llvm_tool_path("llvm-ld")
         mapping["NM"] = llvm_tool_path("llvm-nm")
+        mapping["OBJDUMP"] = llvm_tool_path("llvm-objdump")
     else
         mapping["AR"] = target_tool_path("ar")
         mapping["AS"] = target_tool_path("as")
@@ -140,6 +140,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         mapping["FC"] = target_tool_path("gfortran")
         mapping["LD"] = target_tool_path("ld")
         mapping["NM"] = target_tool_path("nm")
+        mapping["OBJDUMP"] = target_tool_path("objdump")
     end
 
     # On OSX, we need to do a little more work.
