@@ -1,4 +1,4 @@
-export supported_platforms
+export supported_platforms, expand_gcc_versions
 using BinaryProvider: compiler_abi
 
 ## The build environment is broken up into multiple parts:
@@ -437,11 +437,10 @@ function expand_gcc_versions(p::Platform)
     end
 
     # Otherwise, generate new versions!
-    gcc_versions = [:gcc4, :gcc5, :gcc6]
+    gcc_versions = [:gcc4, :gcc7, :gcc8]
     function replace_gcc(p, gcc_version)
-        cabi = compiler_abi(p)
-        new_cabi = CompilerABI(gcc_version=gcc_version, cxx_abi=cabi.cxx_abi)
-        return typeof(p)(arch(p), libc(p), call_abi(p); compiler_abi=new_cabi)
+        new_cabi = CompilerABI(gcc_version, compiler_abi(p).cxx_abi)
+        return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
     end
     return replace_gcc.(Ref(p), gcc_versions)
 end
@@ -449,7 +448,7 @@ end
 function expand_gcc_versions(ps::Vector{P}) where {P <: Platform}
     expanded_ps = Platform[]
     for p in ps
-        append!(expanded_ps, expand_gcc_abi(p))
+        append!(expanded_ps, expand_gcc_versions(p))
     end
     return expanded_ps
 end
