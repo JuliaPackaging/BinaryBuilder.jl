@@ -43,26 +43,32 @@ struct CompilerShard
     # Something like v"7.1.0"
     version::VersionNumber
 
-    # Something like `Linux(:x86_64)`
-    platform::Platform
+    # Things like Windows(:x86_64; gcc_version=:gcc7)
+    target::Union{Nothing,Platform}
+
+    # Right now, always `Linux(:x86_64)`
+    host::Platform
     
     # :squashfs or :targz.  Possibly more in the future.
     archive_type::Symbol
 
-    function CompilerShard(name, version, platform, archive_type)
+    function CompilerShard(name, version, host, archive_type; target = nothing)
         # Ensure we have the right archive type
         if !(archive_type in (:squashfs, :targz))
             error("Invalid archive type '$(archive_type)'")
         end
 
-        # Ensure the platform has no ABI portion (that is only used
+        # Ensure the platforms have no ABI portion (that is only used
         # by higher-level things to choose e.g. which version of GCC
         # to use, but once we're at this level we only care about the
-        # target, not the ABI).
-        platform = abi_agnostic(platform)
+        # larger-scale things, not the ABI).
+        host = abi_agnostic(host)
+        if target != nothing
+            target = abi_agnostic(target)
+        end
 
         # Construct our shiny new CompilerShard object
-        return new(name, version, platform, archive_type)
+        return new(name, version, target, host, archive_type)
     end
 end
 
@@ -82,7 +88,7 @@ Return the filename of this shard.  Used by e.g. `url()` or `download_path()`.
 """
 function filename(cs::CompilerShard)
     ext = Dict(:squashfs => "squashfs", :targz => "tar.gz")[cs.archive_type]
-    return "$(cs.name).v$(cs.version).$(triplet(cs.platform)).$(ext)"
+    return string(dir_name(cs), ".", ext)
 end
 
 """
@@ -117,7 +123,11 @@ Return a "directory name" for a compiler shard; used by e.g. `extraction_path()`
 or `mount_path()`, to create names like "Rootfs.v2018.08.27-x86_64-linux-gnu".
 """
 function dir_name(cs::CompilerShard)
-    return "$(cs.name).v$(cs.version).$(triplet(cs.platform))"
+    target = ""
+    if cs.target != nothing
+        target = "-$(triplet(cs.target))"
+    end
+    return "$(cs.name)$(target).v$(cs.version).$(triplet(cs.host))"
 end
 
 """
@@ -129,8 +139,10 @@ analyze the name and platform of this shard and return a path based on that.
 function map_target(cs::CompilerShard)
     if lowercase(cs.name) == "rootfs"
         return "/"
-    elseif lowercase(cs.name) in ("gcc", "llvm", "basecompilershard")
-        return joinpath("/opt", triplet(cs.platform), "$(cs.name)-$(cs.version)")
+    elseif lowercase(cs.name) in ("gcc", "basecompilershard")
+        return joinpath("/opt", triplet(cs.target), "$(cs.name)-$(cs.version)")
+    elseif lowercase(cs.name) == "llvm"
+        return joinpath("/opt", triplet(cs.host), "$(cs.name)-$(cs.version)")
     else
         error("Unknown mapping for shard named $(cs.name)")
     end
@@ -253,7 +265,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
     # or if the SDK has been downloaded in the past.
     global automatic_apple
-    if typeof(cs.platform) <: MacOS && !automatic_apple && !macos_sdk_already_installed()
+    if typeof(cs.target) <: MacOS && !automatic_apple && !macos_sdk_already_installed()
         if !isinteractive()
             msg = strip("""
             This is not an interactive Julia session, so we will not prompt you
@@ -340,8 +352,8 @@ mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
-            rootfs_build::VersionNumber=v"2018.08.27",
-            bcs_build::VersionNumber=v"2018.08.27",
+            rootfs_build::VersionNumber=v"2018.09.18",
+            bcs_build::VersionNumber=v"2018.09.18",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"7.1.0", v"8.1.0"],
             LLVM_build::VersionNumber=v"6.0.1",
             archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
@@ -360,9 +372,9 @@ function choose_shards(p::Platform;
         # We always need our Rootfs for Linux(:x86_64)
         CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
         # BCS contains our binutils, libc, etc...
-        CompilerShard("BaseCompilerShard", bcs_build, p, archive_type),
+        CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=p),
         # GCC gets a particular version that was chosen above
-        CompilerShard("GCC", GCC_build, p, archive_type),
+        CompilerShard("GCC", GCC_build, host_platform, archive_type; target=p),
         # God bless LLVM; a single binary that targets all platforms!
         CompilerShard("LLVM", LLVM_build, host_platform, archive_type),
     ]
@@ -370,8 +382,8 @@ function choose_shards(p::Platform;
     # If we're not building for the host platform, then add host shard for things
     # like HOSTCC, HOSTCXX, etc...
     if !(typeof(p) <: typeof(host_platform)) || (arch(p) != arch(host_platform) || libc(p) != libc(host_platform))
-        push!(shards, CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type))
-        push!(shards, CompilerShard("GCC", GCC_build, host_platform, archive_type))
+        push!(shards, CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=host_platform))
+        push!(shards, CompilerShard("GCC", GCC_build, host_platform, archive_type; target=host_platform))
     end
     return shards
 end
