@@ -4,7 +4,7 @@ using BinaryBuilder: preferred_runner
 using Random, LibGit2, Libdl, Test, ObjectFile, SHA
 
 # The platform we're running on
-const platform = platform_key()
+const platform = platform_key_abi()
 
 # On windows, the `.exe` extension is very important
 const exe_ext = Sys.iswindows() ? ".exe" : ""
@@ -35,8 +35,8 @@ libfoo_products(prefix) = [
     ExecutableProduct(prefix, "fooifier", :fooifier)
 ]
 libfoo_script = """
-/usr/bin/make clean
-/usr/bin/make install
+make clean
+make install
 """
 
 # Helper function to try something and panic if it doesn't work
