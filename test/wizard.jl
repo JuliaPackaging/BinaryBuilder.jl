@@ -381,7 +381,6 @@ end
 
 # We're done with the server
 put!(server.in, HTTP.Servers.KILL)
+rm(tempspace; force=true, recursive=true)
 
 end #if
-
-rm(tempspace; force=true, recursive=true)
