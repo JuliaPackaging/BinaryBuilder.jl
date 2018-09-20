@@ -3,7 +3,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryProvider]]
 deps = ["Libdl", "Pkg", "SHA", "Test"]
-git-tree-sha1 = "f3f9fdba4267b0880cf6316def7e17d26a07b4d0"
+git-tree-sha1 = "aeb326d58a74bfd866f7a5912f4364f18316a801"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaPackaging/BinaryProvider.jl.git"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
