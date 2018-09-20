@@ -11,7 +11,7 @@ include("auditor/symlink_translator.jl")
 #   something can't be opened.  Possibly use that within BinaryProvider too?
 
 """
-    audit(prefix::Prefix; platform::Platform = platform_key();
+    audit(prefix::Prefix; platform::Platform = platform_key_abi();
                           verbose::Bool = false,
                           silent::Bool = false,
                           autofix::Bool = false)
@@ -27,7 +27,7 @@ actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
 function audit(prefix::Prefix; io=stderr,
-                               platform::Platform = platform_key(),
+                               platform::Platform = platform_key_abi(),
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = false,
@@ -89,7 +89,7 @@ function audit(prefix::Prefix; io=stderr,
 
     # Inspect all shared library files for our platform (but only if we're
     # running native, don't try to load library files from other platforms)
-    if platform == platform_key()
+    if BinaryProvider.platform_matches(platform, platform_key_abi())
         # Find all dynamic libraries
         predicate = f -> valid_dl_path(f, platform) && !(f in ignore_files)
         shlib_files = collect_files(prefix, predicate)
@@ -229,7 +229,7 @@ end
 
 function check_dynamic_linkage(oh, prefix, bin_files;
                                io::IO = stderr,
-                               platform::Platform = platform_key(),
+                               platform::Platform = platform_key_abi(),
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = true)
