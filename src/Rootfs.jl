@@ -225,7 +225,7 @@ function unmount(cs::CompilerShard; verbose::Bool = false, fail_on_error::Bool =
             @info("Unmounting $(mount_path(cs))`")
         end
         try
-            cmd = `umount $(mount_path(cs))`
+            cmd = `$(sudo_cmd()) umount $(mount_path(cs))`
             run(pipeline(cmd, stdin=devnull, stdout=devnull, stderr=devnull))
 
             # Remove mountpoint directory
