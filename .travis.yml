@@ -44,10 +44,10 @@ jobs:
       env:
         - BINARYBUILDER_RUNNER=privileged
 
-    # Add a job that uses the docker builder
-    - julia: 1.0
-      env:
-        - BINARYBUILDER_RUNNER=docker
+    # Add a job that uses the docker builder (disabled for now, because it's not working on Travis)
+    #- julia: 1.0
+    #  env:
+    #    - BINARYBUILDER_RUNNER=docker
 
 script:
    - julia --project -e 'using Pkg; Pkg.build("BinaryBuilder")'
