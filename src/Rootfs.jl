@@ -175,7 +175,8 @@ function mount(cs::CompilerShard)
     # Skip out if we're not Linux with a UserNSRunner trying to use a .squashfs
     if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
                           preferred_runner() != DockerRunner) ||
-                         cs.archive_type != :squashfs
+                         cs.archive_type != :squashfs ||
+                         is_mounted(cs)
         return
     end
 
@@ -226,15 +227,15 @@ function unmount(cs::CompilerShard; verbose::Bool = false, fail_on_error::Bool =
         try
             cmd = `umount $(mount_path(cs))`
             run(pipeline(cmd, stdin=devnull, stdout=devnull, stderr=devnull))
+
+            # Remove mountpoint directory
+            rm(mount_path(cs); force=true, recursive=false)
         catch e
             # By default we don't error out if this unmounting fails
             if fail_on_error
                 rethrow(e)
             end
         end
-
-        # Remove mountpoint directory
-        rm(mount_path(cs); force=true, recursive=false)
     end
 end
 
