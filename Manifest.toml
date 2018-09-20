@@ -3,7 +3,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryProvider]]
 deps = ["Libdl", "Pkg", "SHA", "Test"]
-git-tree-sha1 = "aeb326d58a74bfd866f7a5912f4364f18316a801"
+git-tree-sha1 = "48c147e63431adbcee69bc40b04c3f0fec0a4982"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaPackaging/BinaryProvider.jl.git"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
@@ -97,10 +97,10 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[MbedTLS]]
-deps = ["BinaryProvider", "Compat", "Libdl", "Pkg", "Sockets"]
-git-tree-sha1 = "17d5a81dbb1e682d4ff707c01f0afe5948068fa6"
+deps = ["BinaryProvider", "Libdl", "Pkg", "Random", "Sockets", "Test"]
+git-tree-sha1 = "3ad21c8ff4cb16a816eb628bcb16be819da5946b"
 uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
-version = "0.6.0"
+version = "0.6.1"
 
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
