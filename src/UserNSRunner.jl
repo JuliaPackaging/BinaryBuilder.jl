@@ -20,7 +20,7 @@ sandbox_path(rootfs) = joinpath(mount_path(rootfs), "sandbox")
 function UserNSRunner(workspace_root::String;
                       cwd = nothing,
                       workspaces::Vector = Pair[],
-                      platform::Platform = platform_key(),
+                      platform::Platform = platform_key_abi(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false)
     global use_ccache, use_squashfs, runner_override

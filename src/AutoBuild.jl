@@ -101,7 +101,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
         should_override_platforms = true
-        platforms = platform_key.(split(ARGS[1], ","))
+        platforms = platform_key_abi.(split(ARGS[1], ","))
     end
 
     # If we're running on CI (Travis, GitLab CI, etc...) and this is a
@@ -399,6 +399,7 @@ function autobuild(dir::AbstractString,
                     using BinaryProvider
                     # Override BinaryProvider functionality so that it doesn't actually install anything
                     platform_key() = $platform
+                    platform_key_abi() = $platform
                     function write_deps_file(args...; kwargs...); end
                     function install(args...; kwargs...); end
 
@@ -408,7 +409,7 @@ function autobuild(dir::AbstractString,
                 include_string(m, dep_script)
                 Core.eval(m, quote
                     # Grab the information we need in order to extract a manifest, then uninstall it
-                    url, hash = download_info[platform_key()]
+                    url, hash = download_info[platform_key_abi()]
                     manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
                     BinaryProvider.uninstall(manifest_path; verbose=$verbose)
                 end)
@@ -620,7 +621,7 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
     println(io, "download_info = Dict(")
     for platform in sort(collect(keys(product_hashes)))
         fname, hash = product_hashes[platform]
-        pkey = platform_key(platform)
+        pkey = platform_key_abi(platform)
         println(io, "    $(pkey) => (\"\$bin_prefix/$(fname)\", \"$(hash)\"),")
     end
     println(io, ")\n")
@@ -628,8 +629,8 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
     print(io, """
     # Install unsatisfied or updated dependencies:
     unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
-    if haskey(download_info, platform_key())
-        url, tarball_hash = download_info[platform_key()]
+    if haskey(download_info, platform_key_abi())
+        url, tarball_hash = download_info[platform_key_abi()]
         if unsatisfied || !isinstalled(url, tarball_hash; prefix=prefix)
             # Download and install binaries
             install(url, tarball_hash; prefix=prefix, force=true, verbose=verbose)
@@ -638,7 +639,7 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
         # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
         # Alternatively, you could attempt to install from a separate provider,
         # build from source or something even more ambitious here.
-        error("Your platform \$(triplet(platform_key())) is not supported by this package!")
+        error("Your platform (\"\$(Sys.MACHINE)\", parsed as \"\$(triplet(platform_key_abi()))\") is not supported by this package!")
     end
 
     # Write out a deps.jl file that will contain mappings for our products

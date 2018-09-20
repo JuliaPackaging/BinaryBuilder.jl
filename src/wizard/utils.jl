@@ -161,7 +161,7 @@ function script_for_dep(dep, install_dir)
         script = """
         prefix = Prefix(ARGS[1])
         install($(repr(dep.url)), $(repr(dep.hash)); prefix=prefix, force=true)
-        download_info = Dict(platform_key() => ($(repr(dep.url)), $(repr(dep.hash))))
+        download_info = Dict(platform_key_abi() => ($(repr(dep.url)), $(repr(dep.hash))))
         """
     end
     return script, install_dir
@@ -261,6 +261,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
 
             # Force the script to download for this platform.
             platform_key() = $platform
+            platform_key_abi() = $platform
 
             # We don't want any deps files being written out
             function write_deps_file(args...; kwargs...) end

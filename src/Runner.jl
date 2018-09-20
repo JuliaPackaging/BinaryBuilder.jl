@@ -206,12 +206,12 @@ function preferred_runner()
 end
 
 """
-    runshell(platform::Platform = platform_key())
+    runshell(platform::Platform = platform_key_abi())
 
 Launch an interactive shell session within the user namespace, with environment
 setup to target the given `platform`.
 """
-function runshell(platform::Platform = platform_key(); verbose::Bool = false)
+function runshell(platform::Platform = platform_key_abi(); verbose::Bool = false)
     runshell(preferred_runner(), platform; verbose=verbose)
 end
 
@@ -219,6 +219,6 @@ function runshell(r::Runner, args...; kwargs...)
     run_interactive(r, `/bin/bash`, args...; kwargs...)
 end
 
-function runshell(::Type{R}, platform::Platform = platform_key(); verbose::Bool = false) where {R <: Runner}
+function runshell(::Type{R}, platform::Platform = platform_key_abi(); verbose::Bool = false) where {R <: Runner}
     return runshell(R(pwd(); cwd="/workspace/", platform=platform, verbose=verbose))
 end
