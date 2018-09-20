@@ -173,8 +173,8 @@ in a no-op from this function.
 """
 function mount(cs::CompilerShard)
     # Skip out if we're not Linux with a UserNSRunner trying to use a .squashfs
-    if !Sys.islinux() || preferred_runner() != UserNSRunner ||
-                         preferred_runner() != DockerRunner ||
+    if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
+                          preferred_runner() != DockerRunner) ||
                          cs.archive_type != :squashfs
         return
     end
