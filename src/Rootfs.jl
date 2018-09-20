@@ -457,6 +457,14 @@ Wrapper around libc's `getuid()` function
 function getuid()
     return ccall(:getuid, Cint, ())
 end
+"""
+    getgid()
+
+Wrapper around libc's `getgid()` function
+"""
+function getgid()
+    return ccall(:getgid, Cint, ())
+end
 
 # Note: produce these values by #including squashfs_fs.h from linux in Cxx.jl
 # and running the indicated command

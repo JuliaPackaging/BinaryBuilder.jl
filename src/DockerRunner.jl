@@ -7,6 +7,7 @@ to use while he's on the plane to JuliaCon to whip up said JuliaCon presentation
 """
 mutable struct DockerRunner <: Runner
     docker_cmd::Cmd
+    destdir::AbstractString
     rootfs_version::VersionNumber
     platform::Platform
 end
@@ -99,9 +100,27 @@ function DockerRunner(workspace_root::String;
     end
 
     # Finally, return the DockerRunner in all its glory
-    return DockerRunner(docker_cmd, shards[1].version, platform)
+    return DockerRunner(docker_cmd, joinpath(workspace_root, "destdir"), shards[1].version, platform)
 end
 
+"""
+    chown_cleanup(dr::DockerRunner)
+
+On Linux, the user id inside of the docker container doesn't correspond to ours
+on the outside, so permissions get all kinds of screwed up.  To fix this, we
+have to `chown -R \$(id -u):\$(id -g) \$prefix`, which really sucks, but is
+still better than nothing.  This is why we prefer the UserNSRunner on Linux.
+"""
+function chown_cleanup(dr::DockerRunner; verbose::Bool = false)
+    if !Sys.islinux()
+        return
+    end
+
+    if verbose
+        @info("chown'ing prefix back to us...")
+    end
+    run(`$(sudo_cmd()) chown $(getuid()):$(getgid()) -R $(dr.destdir)`)
+end
 
 function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
     did_succeed = true
@@ -117,6 +136,9 @@ function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool 
             print(f, merge(oc))
         end
     end
+
+    # Cleanup permissions, if we need to.
+    chown_cleanup(dr; verbose=verbose)
 
     # Return whether we succeeded or not
     return did_succeed
@@ -149,4 +171,7 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
     else
         run(cmd)
     end
+    
+    # Cleanup permissions, if we need to.
+    chown_cleanup(dr)
 end
