@@ -639,7 +639,7 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
         # If we don't have a BinaryProvider-compatible .tar.gz to download, complain.
         # Alternatively, you could attempt to install from a separate provider,
         # build from source or something even more ambitious here.
-        error("Your platform (\"\$(Sys.MACHINE)\", parsed as \"\$(triplet(platform_key_abi()))\") is not supported by this package!")
+        error("Your platform (\\\"\$(Sys.MACHINE)\\\", parsed as \\\"\$(triplet(platform_key_abi()))\\\") is not supported by this package!")
     end
 
     # Write out a deps.jl file that will contain mappings for our products
