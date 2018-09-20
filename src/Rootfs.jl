@@ -418,6 +418,11 @@ function supported_platforms()
     ]
 end
 
+function replace_gcc_version(p::Platform, gcc_version::Symbol)
+    new_cabi = CompilerABI(gcc_version, compiler_abi(p).cxx_abi)
+    return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
+end
+
 """
     expand_gcc_versions(p::Platform)
 
@@ -436,11 +441,7 @@ function expand_gcc_versions(p::Platform)
 
     # Otherwise, generate new versions!
     gcc_versions = [:gcc4, :gcc7, :gcc8]
-    function replace_gcc(p, gcc_version)
-        new_cabi = CompilerABI(gcc_version, compiler_abi(p).cxx_abi)
-        return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
-    end
-    return replace_gcc.(Ref(p), gcc_versions)
+    return replace_gcc_version.(Ref(p), gcc_versions)
 end
 
 function expand_gcc_versions(ps::Vector{P}) where {P <: Platform}

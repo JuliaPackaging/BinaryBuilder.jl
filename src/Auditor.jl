@@ -3,10 +3,10 @@ export audit, collect_files, collapse_symlinks
 include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")
 include("auditor/symlink_translator.jl")
+include("auditor/compiler_abi.jl")
 
 # AUDITOR TODO LIST:
 #
-# * Auto-determine minimum glibc version (to sate our own curiosity)
 # * Build dlopen() clone that inspects and tries to figure out why
 #   something can't be opened.  Possibly use that within BinaryProvider too?
 
@@ -69,10 +69,14 @@ function audit(prefix::Prefix; io=stderr,
                         warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
                     end
                 else
+                    # Check that this binary file's dynamic linkage works properly
                     all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
                                                     io=io, platform=platform, silent=silent,
                                                     verbose=verbose, autofix=autofix)
+                    # Check that the ISA isn't too high
                     all_ok &= check_isa(oh, platform, prefix; io=io, verbose=verbose, silent=silent)
+                    # Check that the libgfortran ABI matches
+                    all_ok &= check_gcc_version(oh, platform; io=io, verbose=verbose)
                 end
             end
         catch e

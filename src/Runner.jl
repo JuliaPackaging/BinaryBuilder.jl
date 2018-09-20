@@ -144,13 +144,19 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
     end
 
     # On OSX, we need to do a little more work.
-    if occursin("-apple-", target)
+    if typeof(platform) <: MacOS
         # First, tell CMake what our deployment target is, so that it tries to
         # set -mmacosx-version-min and such appropriately
         mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
 
         # Also put this into LDFLAGS because some packages are hard of hearing
-        mapping["LDFLAGS"] = "-mmacosx-version-min=10.8"
+        mapping["LDFLAGS"] *= " -mmacosx-version-min=10.8"
+
+        # If we're on an old GCC, the -syslibroot that gets passed in isn't
+        # calculated correctly, so we have to manually add it in.
+        if compiler_abi(platform).gcc_version in (:gcc4, :gcc_any)
+            mapping["LDFLAGS"] *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
+        end
     end
 
     # There is no broad agreement on what host compilers should be called,

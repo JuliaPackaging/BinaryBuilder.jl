@@ -141,6 +141,7 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libm.so.6",
         "libgfortran.so.3",
         "libgfortran.so.4",
+        "libgfortran.so.5",
         "libthr.so.3",
         # libpthread and libgomp are pretty safe bets
         "libpthread.so.0",
@@ -167,6 +168,7 @@ function should_ignore_lib(lib, ::COFFHandle)
         "libgcc_s_sjlj-1.dll",
         "libgfortran-3.dll",
         "libgfortran-4.dll",
+        "libgfortran-5.dll",
         "libstdc++-6.dll",
     ]
     return lowercase(basename(lib)) in ignore_libs
@@ -180,6 +182,7 @@ function is_default_lib(lib, ::MachOHandle)
         "libgcc_s.1.dylib",
         "libgfortran.3.dylib",
         "libgfortran.4.dylib",
+        "libgfortran.5.dylib",
         "libquadmath.0.dylib",
     ]
     return lowercase(basename(lib)) in default_libs
