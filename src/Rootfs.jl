@@ -171,7 +171,7 @@ using a `.squashfs` shard, with a UserNS or Docker runner, on Linux.
 All other combinations of shard archive type, runner and platform result
 in a no-op from this function.
 """
-function mount(cs::CompilerShard)
+function mount(cs::CompilerShard; verbose::Bool = false)
     # Skip out if we're not Linux with a UserNSRunner trying to use a .squashfs
     if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
                           preferred_runner() != DockerRunner) ||
@@ -181,7 +181,9 @@ function mount(cs::CompilerShard)
     end
 
     # Signal to the user what's going on, since this probably requires sudo.
-    @info("Mounting $(download_path(cs)) to $(mount_path(cs))", maxlog=5)
+    if verbose
+        @info("Mounting $(download_path(cs)) to $(mount_path(cs))")
+    end
 
     # If the destination directory does not already exist, create it
     mkpath(mount_path(cs))
@@ -222,7 +224,7 @@ function unmount(cs::CompilerShard; verbose::Bool = false, fail_on_error::Bool =
     # Only try to unmount if it's mounted
     if is_mounted(cs)
         if verbose
-            @info("Unmounting $(mount_path(cs))`", maxlog=5)
+            @info("Unmounting $(mount_path(cs))`")
         end
         try
             cmd = `$(sudo_cmd()) umount $(mount_path(cs))`
@@ -318,7 +320,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
         )
 
         # Finally, mount this shard (if we need to)
-        mount(cs)
+        mount(cs; verbose=verbose)
     elseif cs.archive_type == :squashfs
         download_verify(
             url(cs),
@@ -333,7 +335,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
 
         # Finally, mount this shard (if we need to)
         if mount_squashfs
-            mount(cs)
+            mount(cs; verbose=verbose)
         end
     end
 end
