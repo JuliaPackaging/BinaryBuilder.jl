@@ -320,7 +320,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
         # Finally, mount this shard (if we need to)
         mount(cs)
     elseif cs.archive_type == :squashfs
-        file_changed = !download_verify(
+        download_verify(
             url(cs),
             hash(cs),
             download_path(cs);
@@ -328,13 +328,8 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
             force = true
         )
 
-        # If the .squashfs file was just changed, rewrite uids and touch `.sha256` path.
-        # This is necessary so that `downloda_verify()` doesn't check the checksum again
-        # in the future, since we will have invalidated it.        
-        if file_changed
-            rewrite_squashfs_uids(download_path(cs), getuid())
-            touch(string(download_path(cs), ".sha256"))
-        end
+        rewrite_squashfs_uids(download_path(cs), getuid(); verbose=verbose)
+        touch(string(download_path(cs), ".sha256"))
 
         # Finally, mount this shard (if we need to)
         if mount_squashfs
@@ -482,7 +477,7 @@ enough that if the id table is uncompressed, we can just manually patch the uids
 to be what we need. This functions performs this operation, by rewriting all
 uids/gids to new_uid.
 """
-function rewrite_squashfs_uids(path, new_uid)
+function rewrite_squashfs_uids(path, new_uid; verbose::Bool = false)
     open(path, "r+") do file
        # Check magic
        if read(file, UInt32) != SQUASHFS_MAGIC
@@ -509,8 +504,11 @@ function rewrite_squashfs_uids(path, new_uid)
        end
        p = position(file)
        uid = read(file, UInt32)
-       if uid != 0
-           error("Expected all uids to be 0 (not $(uid)) inside the image")
+       if uid == new_uid
+           return
+       end
+       if verbose
+           @info("Rewriting $(basename(path)) from UID $(uid) -> $(new_uid)")
        end
        seek(file, p)
        write(file, UInt32(new_uid))
