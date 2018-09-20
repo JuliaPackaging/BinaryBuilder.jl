@@ -89,7 +89,7 @@ function audit(prefix::Prefix; io=stderr,
 
     # Inspect all shared library files for our platform (but only if we're
     # running native, don't try to load library files from other platforms)
-    if BinaryProvider.platform_matches(platform, platform_key_abi())
+    if BinaryProvider.platforms_match(platform, platform_key_abi())
         # Find all dynamic libraries
         predicate = f -> valid_dl_path(f, platform) && !(f in ignore_files)
         shlib_files = collect_files(prefix, predicate)
