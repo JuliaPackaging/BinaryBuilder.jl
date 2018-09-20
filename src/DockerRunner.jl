@@ -123,7 +123,8 @@ function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool 
 end
 
 function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
-    cmd = `$(dr.docker_cmd) -ti $(docker_image(dr.rootfs_version)) $(cmd)`
+    run_flags = (stdin === nothing && stdout === nothing && stderr === nothing) ? "-ti" : "-i"
+    cmd = `$(dr.docker_cmd) $(run_flags) -i $(docker_image(dr.rootfs_version)) $(cmd)`
     if stdin isa AnyRedirectable
         cmd = pipeline(cmd, stdin=stdin)
     end
