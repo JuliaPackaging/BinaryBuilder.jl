@@ -181,7 +181,7 @@ function mount(cs::CompilerShard)
     end
 
     # Signal to the user what's going on, since this probably requires sudo.
-    @info("Mounting $(download_path(cs)) to $(mount_path(cs))")
+    @info("Mounting $(download_path(cs)) to $(mount_path(cs))", maxlog=5)
 
     # If the destination directory does not already exist, create it
     mkpath(mount_path(cs))
@@ -222,7 +222,7 @@ function unmount(cs::CompilerShard; verbose::Bool = false, fail_on_error::Bool =
     # Only try to unmount if it's mounted
     if is_mounted(cs)
         if verbose
-            @info("Unmounting $(mount_path(cs))`")
+            @info("Unmounting $(mount_path(cs))`", maxlog=5)
         end
         try
             cmd = `$(sudo_cmd()) umount $(mount_path(cs))`
