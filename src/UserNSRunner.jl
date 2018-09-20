@@ -31,7 +31,7 @@ function UserNSRunner(workspace_root::String;
 
     # Choose and prepare our shards
     shards = choose_shards(platform)
-    prepare_shard.(shards)
+    prepare_shard.(shards; verbose=verbose)
 	
     # Construct environment variables we'll use from here on out
     envs = merge(platform_envs(platform), extra_env)

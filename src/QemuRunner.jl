@@ -82,7 +82,7 @@ function QemuRunner(workspace_root::String;
 
     # Choose and prepare our shards
     shards = choose_shards(platform)
-    prepare_shard.(shards; mount_squashfs = false)
+    prepare_shard.(shards; mount_squashfs = false, verbose=verbose)
 
     # QEMU can use the .squashfs files directly, so we don't use `mount_path()`.
     qemu_mount_path(cs) = cs.archive_type == :squashfs ? download_path(cs) : mount_path(cs)

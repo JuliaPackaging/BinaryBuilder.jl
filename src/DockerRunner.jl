@@ -57,7 +57,7 @@ function DockerRunner(workspace_root::String;
 
     # Choose and prepare our shards
     shards = choose_shards(platform)
-    prepare_shard.(shards; mount_squashfs = false)
+    prepare_shard.(shards; mount_squashfs = false, verbose=verbose)
 
     # Import docker image
     import_docker_image(shards[1]; verbose=verbose)
