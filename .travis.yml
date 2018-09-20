@@ -2,7 +2,7 @@
 language: julia
 os:
   - linux
-  # We don't have docker on OSX on travis at the moment...
+  # We don't have docker on OSX on travis at the moment... :(
   #- osx
 julia:
   - 1.0
@@ -27,12 +27,6 @@ cache:
 
 jobs:
   include:
-    # Test with squashfs, also doing a full shard test
-    - julia: 1.0
-      env:
-        - BINARYBUILDER_USE_SQUASHFS=true
-        - BINARYBUILDER_FULL_SHARD_TEST=true
-
     # Add a job that uses squashfs and also runs the package tests
     - julia: 1.0
       env:
@@ -54,14 +48,6 @@ jobs:
     - julia: 1.0
       env:
         - BINARYBUILDER_RUNNER=docker
-
-    # Add a test job that builds a new version of the sandbox and runs tests with that.
-    - stage: test
-      julia: 1.0
-      env:
-        - BINARYBUILDER_USE_SQUASHFS=false
-        - BINARYBUILDER_SANDBOX_PATH=/tmp/sandbox
-        - TEST_SANDBOX=true
 
 script:
    - julia --project -e 'using Pkg; Pkg.build("BinaryBuilder")'
