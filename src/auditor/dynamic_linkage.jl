@@ -142,6 +142,7 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libgfortran.so.3",
         "libgfortran.so.4",
         "libgfortran.so.5",
+        "libquadmath.so.0",
         "libthr.so.3",
         # libpthread and libgomp are pretty safe bets
         "libpthread.so.0",
