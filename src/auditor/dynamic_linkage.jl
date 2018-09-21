@@ -138,6 +138,7 @@ function should_ignore_lib(lib, ::ELFHandle)
         "librt.so.1",
         "libgcc_s.1.so",
         "libgcc_s.so.1",
+        "libm.so.5",
         "libm.so.6",
         "libgfortran.so.3",
         "libgfortran.so.4",
