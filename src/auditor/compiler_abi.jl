@@ -22,7 +22,18 @@ end
 function check_gcc_version(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
     # First, check the GCC version to see if it is a superset of `platform`.  If it's
     # not, then we have a problem!
-    gcc_version = detect_libgfortran_abi(oh, platform)
+    gcc_version = :gcc_any
+
+    try
+        gcc_version = detect_libgfortran_abi(oh, platform)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
+        warn(io, "$(path(oh)) could not be scanned for libgfortran dependency!")
+        warn(io, e)
+        return true
+    end
 
     if verbose && gcc_version != :gcc_any
         info(io, "$(path(oh)) locks us to $(gcc_version)")
