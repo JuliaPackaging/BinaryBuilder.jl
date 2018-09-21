@@ -7,7 +7,7 @@ to use while he's on the plane to JuliaCon to whip up said JuliaCon presentation
 """
 mutable struct DockerRunner <: Runner
     docker_cmd::Cmd
-    destdir::AbstractString
+    prefix::AbstractString
     rootfs_version::VersionNumber
     platform::Platform
 end
@@ -100,7 +100,7 @@ function DockerRunner(workspace_root::String;
     end
 
     # Finally, return the DockerRunner in all its glory
-    return DockerRunner(docker_cmd, joinpath(workspace_root, "destdir"), shards[1].version, platform)
+    return DockerRunner(docker_cmd, workspace_root, shards[1].version, platform)
 end
 
 """
@@ -119,7 +119,7 @@ function chown_cleanup(dr::DockerRunner; verbose::Bool = false)
     if verbose
         @info("chown'ing prefix back to us...")
     end
-    run(`$(sudo_cmd()) chown $(getuid()):$(getgid()) -R $(dr.destdir)`)
+    run(`$(sudo_cmd()) chown $(getuid()):$(getgid()) -R $(dr.prefix)`)
 end
 
 function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
