@@ -29,15 +29,14 @@ function check_gcc_version(oh::ObjectHandle, platform::Platform; io::IO = stdout
     end
 
     if compiler_abi(platform).gcc_version == :gcc_any && gcc_version != :gcc_any
-        msg = replace("""
+        msg = strip(replace("""
         $(path(oh)) links to libgfortran!  This causes incompatibilities across
         major versions of GCC.  To remedy this, you must build a tarball for
         each major version of GCC.  To do this, immediately after your `products`
         definition in your `build_tarballs.jl` file, add the line:
-        
-            products = expand_gcc_versions(products)
-        """, '\n' => ' ')
-        warn(io, strip(msg))
+        """, '\n' => ' '))
+        msg *= "\n\n    products = expand_gcc_versions(products)"
+        warn(io, msg)
         return false
     end
     return true
