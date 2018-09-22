@@ -278,15 +278,19 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         run(ur, cmd, logpath; verbose=verbose)
     end
 
-    # Create a new linkage that depends on the RPATH to find things.
+    # Create a new linkage that uses the RPATH and/or environment variables to find things.
     # This allows us to split things up into multiple packages, and as long as the
     # libraries that this guy is interested in have been `dlopen()`'ed previously,
     # (and have the appropriate SONAME) things should "just work".
     logpath = joinpath(logdir(prefix), "update_linkage_$(basename(path))_$(basename(old_libpath)).log")
-    new_libpath = relpath(new_libpath, dirname(path))
     if Sys.isapple(platform)
         # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
-        new_libpath = joinpath("@rpath", new_libpath)
+        # Note that this is still overridable through DYLD_FALLBACK_LIBRARY_PATH
+        new_libpath = joinpath("@rpath", basename(new_libpath))
+    else
+        # We just use the basename on all other systems (e.g. Linux).  Note that using
+        # $ORIGIN, while cute, doesn't allow for overrides via LD_LIBRARY_PATH.  :[
+        new_libpath = basename(new_libpath)
     end
     cmd = relink(old_libpath, new_libpath)
     run(ur, cmd, logpath; verbose=verbose)
