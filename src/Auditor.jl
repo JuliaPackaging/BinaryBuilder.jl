@@ -69,14 +69,16 @@ function audit(prefix::Prefix; io=stderr,
                         warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
                     end
                 else
-                    # Check that this binary file's dynamic linkage works properly
-                    all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
-                                                    io=io, platform=platform, silent=silent,
-                                                    verbose=verbose, autofix=autofix)
                     # Check that the ISA isn't too high
                     all_ok &= check_isa(oh, platform, prefix; io=io, verbose=verbose, silent=silent)
                     # Check that the libgfortran ABI matches
                     all_ok &= check_gcc_version(oh, platform; io=io, verbose=verbose)
+                    # Check that this binary file's dynamic linkage works properly.  Note to always
+                    # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
+                    # checks to freak out a little bit.
+                    all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
+                                                    io=io, platform=platform, silent=silent,
+                                                    verbose=verbose, autofix=autofix)
                 end
             end
         catch e
