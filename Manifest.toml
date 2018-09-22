@@ -4,10 +4,8 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 [[BinaryProvider]]
 deps = ["Libdl", "Pkg", "SHA", "Test"]
 git-tree-sha1 = "48c147e63431adbcee69bc40b04c3f0fec0a4982"
-repo-rev = "master"
-repo-url = "https://github.com/JuliaPackaging/BinaryProvider.jl.git"
 uuid = "b99e7846-7c00-51b0-8f62-c81ae34c0232"
-version = "0.4.2+"
+version = "0.5.0"
 
 [[CodecZlib]]
 deps = ["BinaryProvider", "Libdl", "Pkg", "Test", "TranscodingStreams"]
@@ -22,10 +20,10 @@ uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
 version = "1.1.0"
 
 [[DataStructures]]
-deps = ["InteractiveUtils", "REPL", "Random", "Serialization", "Test"]
-git-tree-sha1 = "5162c360c52e9265e0bfafb71415c31f746f7e04"
+deps = ["InteractiveUtils", "OrderedCollections", "REPL", "Random", "Serialization", "Test"]
+git-tree-sha1 = "70c9a5215aa61d216f2f6ef209a8e190c3c17b40"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.12.0"
+version = "0.13.0"
 
 [[Dates]]
 deps = ["Printf"]
@@ -53,9 +51,9 @@ version = "5.0.0"
 
 [[HTTP]]
 deps = ["Base64", "Dates", "Distributed", "IniFile", "MbedTLS", "Sockets", "Test"]
-git-tree-sha1 = "8a0f75e8b09df01d9f1ba9ad3fbf8b4983595d20"
+git-tree-sha1 = "16499da36240bf80df9a7e9b0f228710be1fe37c"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "0.6.14"
+version = "0.7.0"
 
 [[IniFile]]
 deps = ["Test"]
@@ -110,6 +108,12 @@ deps = ["Reexport", "StructIO", "Test"]
 git-tree-sha1 = "1222547c57de96eaebc9f5d2579359db5d1a479d"
 uuid = "d8793406-e978-5875-9003-1fc021f44a92"
 version = "0.3.1"
+
+[[OrderedCollections]]
+deps = ["Pkg", "Random", "Serialization", "Test"]
+git-tree-sha1 = "41da1edba028376b58520ca01d9a41e29f855d55"
+uuid = "bac558e1-5e72-5ebc-8fee-abe8a469f55d"
+version = "1.0.1"
 
 [[Pkg]]
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]

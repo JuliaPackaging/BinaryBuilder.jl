@@ -1,6 +1,6 @@
-julia 0.7.0-rc3
-BinaryProvider 0.4.0
-ObjectFile 0.3.0
+julia 1.0
+BinaryProvider 0.5.0
+ObjectFile 0.3.1
 Reexport
 MbedTLS
 GitHub
