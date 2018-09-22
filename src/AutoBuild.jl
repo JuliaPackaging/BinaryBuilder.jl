@@ -629,7 +629,7 @@ function print_buildjl(io::IO, products::Vector, product_hashes::Dict,
     print(io, """
     # Install unsatisfied or updated dependencies:
     unsatisfied = any(!satisfied(p; verbose=verbose) for p in products)
-    dl_info = choose_download(download_info)
+    dl_info = choose_download(download_info, platform_key_abi())
     if dl_info === nothing && unsatisfied
         # If we don't have a compatible .tar.gz to download, complain.
         # Alternatively, you could attempt to install from a separate provider,
