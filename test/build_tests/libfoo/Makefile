@@ -1,4 +1,4 @@
-all: install
+all: fooifier
 
 # We provide sane defaults, but BinaryBuilder may override most of these values.
 prefix ?= /usr/local
@@ -8,6 +8,7 @@ CC ?= gcc
 
 ifeq ($(shell uname),Darwin)
 CFLAGS = -target x86_64-apple-macosx10.7
+CXXFLAGS = -target x86_64-apple-macosx10.7
 INSTALL_NAME ?= -install_name '@rpath/libfoo.$(SHLIB_EXT)'
 SHLIB_EXT ?= dylib
 RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
@@ -25,11 +26,8 @@ $(bindir):
 $(libdir):
 	mkdir -p $(libdir)
 
-# We explicitly do not have `fooifier` depend on `libfoo` so that the user has
-# to make first libfoo and then `fooifier`, in order to properly test that
-# BinaryBuilder can build dependent objects
-fooifier$(EXE_EXT): fooifier.c Makefile | libfoo
-	$(CC) $(CFLAGS) fooifier.c -g -o $@ -L"$(shell pwd)" $(RPATH) -lfoo
+fooifier$(EXE_EXT): fooifier.cpp Makefile | libfoo
+	$(CXX) $(CXXFLAGS) fooifier.cpp -g -o $@ -L"$(shell pwd)" $(RPATH) -lfoo
 install-fooifier: $(bindir) fooifier$(EXE_EXT)
 	cp fooifier$(EXE_EXT) $(bindir)/
 
