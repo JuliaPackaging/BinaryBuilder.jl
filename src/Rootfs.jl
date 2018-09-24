@@ -453,6 +453,17 @@ function expand_gcc_versions(ps::Vector{P}) where {P <: Platform}
 end
 
 """
+    download_all_shards(; verbose::Bool=false)
+
+Helper function to download all (.tar.gz AND .squashfs) shards, so that no
+matter what happens, you don't need an internet connection to build your
+precious, precious binaries.
+"""
+function download_all_shards(; verbose::Bool = false)
+    prepare_shard.(keys(shard_hash_table); mount_squashfs=false, verbose=verbose)
+end
+
+"""
     getuid()
 
 Wrapper around libc's `getuid()` function
