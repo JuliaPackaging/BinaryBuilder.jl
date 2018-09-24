@@ -134,6 +134,8 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libc.so.6",
         "libc.so.7",
         "libstdc++.so.6",
+        "libc++.so.1",
+        "libcxxrt.so.1",
         "libdl.so.2",
         "librt.so.1",
         "libgcc_s.1.so",
