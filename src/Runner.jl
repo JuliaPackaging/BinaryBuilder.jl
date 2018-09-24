@@ -43,25 +43,23 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
     target = triplet(abi_agnostic(platform))
 
     # Helper function to generate paths such as /opt/x86_64-apple-darwin14/bin/llvm-ar
-    tool_path = (n, t = target) -> "/opt/$(t)/bin/$(n)"
+    tool_path(n, t = target) = "/opt/$(t)/bin/$(n)"
     # Helper functions to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
-    target_tool_path = (n, t = target) -> tool_path("$(t)-$(n)", t)
-    host_tool_path = (n, t = host_target) -> tool_path("$(t)-$(n)", t)
-    llvm_tool_path = (n) -> "/opt/$(host_target)/tools/$(n)"
+    target_tool_path(n, t = target) = tool_path("$(t)-$(n)", t)
+    target_lib_dir(t) = "/opt/$(t)/lib64:/opt/$(t)/lib:/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
+    host_tool_path(n, t = host_target) = tool_path("$(t)-$(n)", t)
+    llvm_tool_path(n) = "/opt/$(host_target)/tools/$(n)"
     
     # Start with the default musl ld path
-    lib_path = "/usr/local/lib64:/usr/local/lib:/lib:/usr/local/lib:/usr/lib"
+    lib_path = "/usr/local/lib64:/usr/local/lib:/usr/local/lib:/usr/lib"
 
     # Add our glibc directory (this coupled with our Glibc patches to reject musl
     # binaries gives us a dual-libc environment)
-    lib_path *= ":/lib64"
+    lib_path *= ":/lib64:/lib"
 
-    # Then add on our target-specific locations
-    lib_path *= ":/opt/$(target)/lib64:/opt/$(target)/lib"
-    #lib_path *= ":/opt/$(target)/$(target)/lib64:/opt/$(target)/$(target)/lib"
-
-    # Add on our host-target location:
-    lib_path *= ":/opt/$(host_target)/lib64:/opt/$(host_target)/lib"
+    # Then add on our target-specific library directories and our host-target library directories
+    lib_path *= target_lib_dir(target)
+    lib_path *= target_lib_dir(host_target)
 
     # Finally add on our destination location
     lib_path *= ":/workspace/destdir/lib64:/workspace/destdir/lib"
