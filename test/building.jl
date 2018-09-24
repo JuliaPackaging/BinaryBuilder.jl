@@ -1,54 +1,50 @@
 ## Tests involing building packages and whatnot
 
 @testset "Builder Packaging" begin
-    # Clear out previous build products
-    for f in readdir(@__DIR__)
-        if !endswith(f, ".tar.gz") && !endswith(f, ".tar.gz.256")
-            continue
-        end
-        @info("Deleting $(joinpath(@__DIR__, f))")
-        rm(joinpath(@__DIR__, f); force=true)
-    end
-
     # Gotta set this guy up beforehand
     tarball_path = nothing
     tarball_hash = nothing
 
-    begin
-        build_path = tempname()
-        mkpath(build_path)
-        prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], platform)
-        cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
-            run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
-            @test build(ur, "foo", libfoo_products(prefix), libfoo_script, platform, prefix)
-        end
+	# Test building with both `make` and `cmake`
+    for script in (libfoo_make_script, libfoo_cmake_script)
+        product_storage = tempname()
+        mkpath(product_storage)
 
-        # Next, package it up as a .tar.gz file
-        tarball_path, tarball_hash = package(prefix, "./libfoo", v"1.0.0"; verbose=true)
-        @test isfile(tarball_path)
+		begin
+			build_path = tempname()
+			mkpath(build_path)
+			prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], platform)
+			cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
+				run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
+				@test build(ur, "foo", libfoo_products(prefix), script, platform, prefix)
+			end
 
-        # Delete the build path
-        rm(build_path, recursive = true)
+			# Next, package it up as a .tar.gz file
+            tarball_path, tarball_hash = package(prefix, joinpath(product_storage, "libfoo"), v"1.0.0"; verbose=true)
+			@test isfile(tarball_path)
+
+			# Delete the build path
+			rm(build_path, recursive = true)
+		end
+
+		# Test that we can inspect the contents of the tarball
+		contents = list_tarball_files(tarball_path)
+		@test "bin/fooifier" in contents
+		@test "lib/libfoo.$(Libdl.dlext)" in contents
+
+		# Install it within a new Prefix
+		temp_prefix() do prefix
+			# Install the thing
+			@test install(tarball_path, tarball_hash; prefix=prefix, verbose=true)
+
+			# Ensure we can use it
+			fooifier_path = joinpath(bindir(prefix), "fooifier")
+			libfoo_path = joinpath(libdir(prefix), "libfoo.$(Libdl.dlext)")
+			check_foo(fooifier_path, libfoo_path)
+		end
+
+        rm(product_storage; recursive=true, force=true)
     end
-
-    # Test that we can inspect the contents of the tarball
-    contents = list_tarball_files(tarball_path)
-    @test "bin/fooifier" in contents
-    @test "lib/libfoo.$(Libdl.dlext)" in contents
-
-    # Install it within a new Prefix
-    temp_prefix() do prefix
-        # Install the thing
-        @test install(tarball_path, tarball_hash; prefix=prefix, verbose=true)
-
-        # Ensure we can use it
-        fooifier_path = joinpath(bindir(prefix), "fooifier")
-        libfoo_path = joinpath(libdir(prefix), "libfoo.$(Libdl.dlext)")
-        check_foo(fooifier_path, libfoo_path)
-    end
-
-    rm(tarball_path; force=true)
-    rm("$(tarball_path).sha256"; force=true)
 end
 
 if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"
@@ -57,15 +53,26 @@ if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"
         for shard_platform in expand_gcc_versions(supported_platforms())
             build_path = tempname()
             mkpath(build_path)
+
+            # build with make
             prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], shard_platform)
             cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
                 run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
 
                 # Build libfoo, warn if we fail
-                @test build(ur, "foo", libfoo_products(prefix), libfoo_script, shard_platform, prefix)
+                @test build(ur, "foo", libfoo_products(prefix), libfoo_make_script, shard_platform, prefix)
             end
+            rm(build_path, recursive = true)
 
-            # Delete the build path
+            # build again with cmake
+            mkpath(build_path)
+            prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], shard_platform)
+			cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
+                run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
+
+                # Build libfoo, warn if we fail
+                @test build(ur, "foo", libfoo_products(prefix), libfoo_cmake_script, shard_platform, prefix)
+            end
             rm(build_path, recursive = true)
         end
     end
@@ -89,7 +96,7 @@ end
             "libfoo",
             v"1.0.0",
             [local_dir_path],
-            libfoo_script,
+            libfoo_make_script,
             [Linux(:x86_64, :glibc)],
             libfoo_products,
             [], # no dependencies
@@ -119,7 +126,7 @@ end
         LibGit2.commit(repo, "Initial empty commit")
         libfoo_dir = joinpath(@__DIR__, "build_tests", "libfoo")
         run(`cp -r $(libfoo_dir)/$(readdir(libfoo_dir)) $git_path/`)
-        for file in ["fooifier.c", "libfoo.c", "Makefile"]
+        for file in ["fooifier.cpp", "libfoo.c", "Makefile"]
             LibGit2.add!(repo, file)
         end
         commit = LibGit2.commit(repo, "Add libfoo files")
@@ -135,7 +142,7 @@ end
             "libfoo",
             v"1.0.0",
             sources,
-            "cd libfoo\n$libfoo_script",
+            "cd libfoo\n$libfoo_make_script",
             [Linux(:x86_64, :glibc)],
             libfoo_products,
             [], # no dependencies
