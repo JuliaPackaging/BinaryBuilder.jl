@@ -34,8 +34,14 @@ libfoo_products(prefix) = [
     LibraryProduct(prefix, "libfoo", :libfoo)
     ExecutableProduct(prefix, "fooifier", :fooifier)
 ]
-libfoo_script = """
+libfoo_make_script = """
 make clean
+make install
+"""
+libfoo_cmake_script = raw"""
+mkdir build
+cd build
+cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=/opt/${target}/${target}.toolchain ..
 make install
 """
 
