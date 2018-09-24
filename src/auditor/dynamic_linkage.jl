@@ -148,8 +148,10 @@ function should_ignore_lib(lib, ::ELFHandle)
         # libpthread and libgomp are pretty safe bets
         "libpthread.so.0",
         "libgomp.so.1",
-        # dynamic loaders from our alpine environment
+        # dynamic loaders
         "ld-linux-x86-64.so.2",
+        "ld-linux.so.2",
+        "ld-musl-x86_64.so.1",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
