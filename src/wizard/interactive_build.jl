@@ -46,8 +46,8 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
 
         choice = request(terminal, "How would you like to proceed?",
             RadioMenu([
-                "Return to build enviornment",
-                "Retry with a clean build enviornment",
+                "Return to build environment",
+                "Retry with a clean build environment",
                 "Edit the script"
             ]))
         println(state.outs)
