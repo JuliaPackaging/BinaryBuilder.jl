@@ -226,22 +226,28 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                 LibGit2.checkout!(repo, src_hash)
             end
         else
-            if verbose
-                @info "Extracting $(basename(src_path))..."
-            end
-
             # Extract with host tools because it is _much_ faster on e.g. OSX.
             # If this becomes a compatibility problem, we'll just have to install
             # our own `tar` and `unzip` through BP as dependencies for BB.
+            tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
+                              ".tar.xz", ".tar.Z", ".txz"]
             cd(joinpath(build_path, nonce, "srcdir")) do
-                if endswith(src_path, ".tar") || endswith(src_path, ".tar.gz") ||
-                   endswith(src_path, ".tgz") || endswith(src_path, ".tar.bz") ||
-                   endswith(src_path, ".tar.bz2") || endswith(src_path, ".tar.xz") ||
-                   endswith(src_path, ".tar.Z") || endswith(src_path, ".txz")
-                   tar_flags = verbose ? "xvof" : "xof"
-                   run(`tar $(tar_flags) $(src_path)`)
+                if any(endswith(src_path, ext) for ext in tar_extensions)
+                    if verbose
+                        @info "Extracting tarball $(basename(src_path))..."
+                    end
+                    tar_flags = verbose ? "xvof" : "xof"
+                    run(`tar $(tar_flags) $(src_path)`)
                 elseif endswith(src_path, ".zip")
+                    if verbose
+                        @info "Extracting zipball $(basename(src_path))..."
+                    end
                     run(`unzip -q $(src_path)`)
+               else
+                   if verbose
+                       @info "Copying in $(basename(src_path))..."
+                   end
+                   cp(src_path, basename(src_path))
                 end
             end
         end
