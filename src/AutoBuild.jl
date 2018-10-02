@@ -409,7 +409,7 @@ function autobuild(dir::AbstractString,
                 include_string(m, dep_script)
                 Core.eval(m, quote
                     # Grab the information we need in order to extract a manifest, then uninstall it
-                    url, hash = download_info[platform_key_abi()]
+                    url, hash = choose_download(download_info, platform_key_abi())
                     manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
                     BinaryProvider.uninstall(manifest_path; verbose=$verbose)
                 end)
