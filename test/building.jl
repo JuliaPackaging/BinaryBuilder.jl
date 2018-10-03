@@ -48,9 +48,11 @@
 end
 
 if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"
+    @info("Beginning full shard test...")
     # Perform a sanity test on each and every shard.
     @testset "Shard sanity tests" begin
         for shard_platform in expand_gcc_versions(supported_platforms())
+            @info(" --> $(triplet(shard_platform))")
             build_path = tempname()
             mkpath(build_path)
 
