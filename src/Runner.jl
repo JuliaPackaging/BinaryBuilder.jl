@@ -125,6 +125,17 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         # but LLVMBuilder puts the `clang` binary into `tools`, not `bin`.
         mapping["CC"] = llvm_tool_path("clang -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
         mapping["CXX"] = llvm_tool_path("clang++ -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
+
+        # FreeBSD is special-cased within the LLVM source tree to not allow for
+        # things like the -gcc-toolchain option, which means that we have to manually add
+        # the location of libgcc_s.  LE SIGH.
+        # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
+        if occursin("-freebsd", target)
+            mapping["LDFLAGS"] *= " -L/opt/$(target)/$(target)/lib"
+        else
+            mapping["CC"] *= " -gcc-toolchain /opt/$(target)"
+            mapping["CXX"] *= " -gcc-toolchain /opt/$(target)"
+        end
         # flang isn't a realistic option yet, so we still use gfortran here
         mapping["FC"] = target_tool_path("gfortran")
         mapping["LD"] = llvm_tool_path("llvm-ld")

@@ -27,13 +27,13 @@ $(libdir):
 	mkdir -p $(libdir)
 
 fooifier$(EXE_EXT): fooifier.cpp Makefile | libfoo
-	$(CXX) $(CXXFLAGS) fooifier.cpp -g -o $@ -L"$(shell pwd)" $(RPATH) -lfoo
+	$(CXX) $(CXXFLAGS) fooifier.cpp -g -o $@ -L"$(shell pwd)" $(LDFLAGS) $(RPATH) -lfoo
 install-fooifier: $(bindir) fooifier$(EXE_EXT)
 	cp fooifier$(EXE_EXT) $(bindir)/
 
 
 libfoo.$(SHLIB_EXT): libfoo.c Makefile
-	$(CC) $(CFLAGS) libfoo.c -g -o $@ $(INSTALL_NAME) -shared
+	$(CC) $(CFLAGS) libfoo.c -g -o $@ $(INSTALL_NAME) $(LDFLAGS) -shared
 libfoo: libfoo.$(SHLIB_EXT)
 install-libfoo: $(libdir) libfoo.$(SHLIB_EXT)
 	cp libfoo.$(SHLIB_EXT) $(libdir)/
