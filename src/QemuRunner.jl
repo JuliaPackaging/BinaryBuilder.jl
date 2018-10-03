@@ -18,8 +18,8 @@ mutable struct QemuRunner <: Runner
     exit_code::Cint
 end
 
-qemu_url = "https://github.com/Keno/QemuBuilder/releases/download/rebased/qemu.x86_64-apple-darwin14.tar.gz"
-qemu_hash = "dbbfde0b70736d7b670c67d2a000b60dfc9c0b82503c96c61797fa1d3808979a"
+qemu_url = "https://github.com/Keno/QemuBuilder/releases/download/v2.12.50-0/Qemu.v2.12.50.x86_64-apple-darwin14.tar.gz"
+qemu_hash = "98210f754e39008d982f447cad60043f75ed8831b3ff36d464856ac24d7c603c"
 kernel_url = "https://github.com/Keno/LinuxBuilder/releases/download/v4.15-rc2/linux.x86_64-linux-gnu.tar.gz"
 kernel_hash = "0d02413529e635d4af6d2122f6aba22d261f43616bb286da3855325988f9ac3b"
 
