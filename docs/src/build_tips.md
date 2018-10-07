@@ -55,15 +55,9 @@ The toolchain file sets up several CMake environment variables for better cross-
 set(CMAKE_SYSTEM_NAME Linux)
 
 set(CMAKE_SYSROOT /opt/x86_64-linux-gnu/x86_64-linux-gnu/sys-root/)
-set(CMAKE_INSTALL_PREFIX /)
 
 set(CMAKE_C_COMPILER /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc)
 set(CMAKE_CXX_COMPILER /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-g++)
-
-set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
-set(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
-set(CMAKE_FIND_ROOT_PATH_MODE_PACKAGE ONLY)
 ```
 
 Examples of builds that include CMake parts include:
@@ -122,6 +116,9 @@ patch -l file.ext.orig file.patch -o file.ext
 ```
 
 There are plans to handle file changes in the wizard automatically [(#25)](https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/125).
+
+Note that you can include local files like patches very easily by placing them within
+a `bundled/patches` nested directory, and then providing `"./bundled"` as one of the `sources` for your build.  See, for example, [`OpenBLASBuilder`](https://github.com/JuliaLinearAlgebra/OpenBLASBuilder/blob/5a6eca317de505abc3678e47f08f4355646f511e/build_tarballs.jl#L9).
 
 
 ## Other examples
