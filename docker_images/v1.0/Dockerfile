@@ -8,17 +8,16 @@ RUN cd /usr/local/bin && \
 
 # Set useful envvars
 ENV BINARYBUILDER_USE_SQUASHFS true
-ENV BINARYBUILDER_DOWNLOADS_CACHE /shards
-ENV BINARYBUILDER_CCACHE_PATH /ccache
+ENV BINARYBUILDER_STORAGE_DIR /storage
 ENV BINARYBUILDER_AUTOMATIC_APPLE true
 ENV BINARYBUILDER_USE_CCACHE true
 
 # we'll make this even though the user should mount something in here
-RUN mkdir -p /shards
+RUN mkdir -p /storage
 
 # Install BinaryBuilder (and BinaryProvider, both on `master` versions)
 RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryProvider", rev="master"))'
 RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master"))'
 RUN julia -e 'using Pkg; Pkg.API.precompile();'
 
-# The user should mount something in /ccache and /shards so they persist from run to run
+# The user should mount something in /storage so that it persists from run to run
