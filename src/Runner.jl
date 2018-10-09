@@ -58,8 +58,8 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
     lib_path *= ":/lib64:/lib"
 
     # Then add on our target-specific library directories and our host-target library directories
-    lib_path *= target_lib_dir(host_target)
-    lib_path *= target_lib_dir(target)
+    lib_path *= ":" * target_lib_dir(host_target)
+    lib_path *= ":" * target_lib_dir(target)
 
     # Finally add on our destination location
     lib_path *= ":/workspace/destdir/lib64:/workspace/destdir/lib"
