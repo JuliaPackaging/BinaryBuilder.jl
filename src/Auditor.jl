@@ -147,6 +147,17 @@ function audit(prefix::Prefix; io=stderr,
             end
         end
 
+        # We also cannot allow any symlinks in Windows because it requires
+        # Admin privileges to create them.  Orz
+        symlinks = collect_files(prefix, f -> islink(f))
+        for f in symlinks
+            src_path = realpath(f)
+            if isfile(src_path) || isdir(src_path)
+                rm(f; force=true)
+                cp(src_path, f)
+            end
+        end
+        
         # Even more than yell about it, we're going to automatically move
         # them if there are no `.dll` files outside of `lib`.  This is
         # indicative of a simplistic build system that just don't know any
@@ -161,17 +172,6 @@ function audit(prefix::Prefix; io=stderr,
             mkpath(joinpath(prefix, "bin"))
             for f in lib_dll_files
                 mv(f, joinpath(prefix, "bin", basename(f)))
-            end
-        end
-
-        # We also cannot allow any symlinks in Windows because it requires
-        # Admin privileges to create them.  Orz
-        symlinks = collect_files(prefix, f -> islink(f))
-        for f in symlinks
-            src_path = realpath(f)
-            if isfile(src_path) || isdir(src_path)
-                rm(f; force=true)
-                cp(src_path, f)
             end
         end
     end
