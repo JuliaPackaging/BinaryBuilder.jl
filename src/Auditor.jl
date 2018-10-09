@@ -151,10 +151,13 @@ function audit(prefix::Prefix; io=stderr,
         # Admin privileges to create them.  Orz
         symlinks = collect_files(prefix, f -> islink(f))
         for f in symlinks
-            src_path = realpath(f)
-            if isfile(src_path) || isdir(src_path)
-                rm(f; force=true)
-                cp(src_path, f)
+            try
+                src_path = realpath(f)
+                if isfile(src_path) || isdir(src_path)
+                    rm(f; force=true)
+                    cp(src_path, f)
+                end
+            catch
             end
         end
         
