@@ -191,7 +191,7 @@ function activate_travis_repo(repo_id, travis_token; travis_endpoint=DEFAULT_TRA
     HTTP.post("$(travis_endpoint)repo/$(repo_id)/activate"; headers=headers)
 end
 
-function obtain_token(outs, ins, repo_name, user; github_api=Github.DEFAULT_API)
+function obtain_token(outs, ins, repo_name, user; github_api=GitHub.DEFAULT_API)
     println(outs)
     printstyled(outs, "Creating a github access token.\n", bold=true)
     println(outs, """
