@@ -133,6 +133,11 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         if occursin("-freebsd", target)
             mapping["LDFLAGS"] *= " -L/opt/$(target)/$(target)/lib"
         end
+
+        # OSX must be linked against libc++.
+        if occursin("-apple-", target)
+            mapping["CXX"] *= " -stdlib=libc++"
+        end
         # flang isn't a realistic option yet, so we still use gfortran here
         mapping["FC"] = target_tool_path("gfortran")
         mapping["LD"] = llvm_tool_path("llvm-ld")
