@@ -4,58 +4,58 @@ shard_hash_table = Dict{CompilerShard,String}(
       => "c1af8465a7269439e01ca7f6a94c45232bcf72604f1914fe753bcba327c9921e",
     CompilerShard("Rootfs", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs)
       => "ea97920cb26dedf55dc09195968e4ecfb2b5e5b01126ace761d30ab87b20bdb5",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("aarch64-linux-gnu"))
-      => "d27c64463f5509fd750243280ece2924804fa6eab409f210f8c475c0a0a85cc2",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("aarch64-linux-gnu"))
-      => "58887a6aee0a93fccde563c0361408c15eede19b441b8ab318f39a4570c326ab",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("aarch64-linux-musl"))
-      => "642ee1c6a45bdcae57c0dfae205383204cee1be0a6470a0e3952f1b394188006",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("aarch64-linux-musl"))
-      => "965fbcaab471ef2ff1a3979c07618bed17781e1ea733a0d7d72be2805b4ffbbf",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("arm-linux-gnueabihf"))
-      => "820ae50fef31c947523d18f4092177d14da637e133c1e3206063340b17e2e664",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("arm-linux-gnueabihf"))
-      => "f633d4d2c8be4bed8819ae8ff9e1700549b3c21d38b44f379a933bc66803fc15",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("arm-linux-musleabihf"))
-      => "199d4fefda4a09f655d26e33d2352468231e8b22d196755c15f7220ebddbb6de",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("arm-linux-musleabihf"))
-      => "52dfac5e7b634689f6787ea8f96073c76c2220e04f201aeea1abe2904453f673",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("i686-linux-gnu"))
-      => "0e1da273f4f92330a36d41b25f1bacdd4255daedf988b32ebc255c761aa94c30",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("i686-linux-gnu"))
-      => "940df51200676614c258b8172d533be5352b089452e552c308f769980b11a5a9",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("i686-linux-musl"))
-      => "68bcb8b355360a80d98da53721c6626a0ad7a48c3dff72fcc12908ed74788202",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("i686-linux-musl"))
-      => "b8a9f333cf840f0ca9932edd4ace3688580852db022aa34eddfef29c62133762",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("i686-w64-mingw32"))
-      => "3f04306f3f6db9969ade8304a6f76b0a83975aa146bee4d7b1971abb82c43382",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("i686-w64-mingw32"))
-      => "81dca10ae3371bdb1ce27a19751f571a7ee50156a9d8a63f45ecb45fed67cce2",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("powerpc64le-linux-gnu"))
-      => "69492514a0c7f213a1aa5f9d402d474fceca8556cb5db8bccafb70c25ed2947d",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("powerpc64le-linux-gnu"))
-      => "c9ffc1be06ebdcd6d6da5dbbf9a03e017b1b0d9c76e0dcc428cac05a19053994",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-apple-darwin14"))
-      => "47100e0f8e47ac4220108105e6f0e679a927eab336b63c2506d4b3cd8e3b4f20",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-apple-darwin14"))
-      => "7ddd8d4dce48147854cf63731045727895468c9c831b4b25afc27404fa489ef1",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-linux-gnu"))
-      => "c353e821248eebc8c2010c4614d8ddd9b2242d01246b068460ad06d6ba472c9d",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-linux-gnu"))
-      => "b1b78019a20dd1dc70e2364772b5a47418853ad4175be0ddadba19dd9b32c03e",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-linux-musl"))
-      => "0945a2c4b8cc388ebe5ab6c4f6c78d61daeb38bf132d5f11a84a5183c9560dd0",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-linux-musl"))
-      => "bd595cdd0a8b79fbc85f68d0ce57605a9efa366e0f54fa5d925a2bbb7b03a124",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-unknown-freebsd11.1"))
-      => "a9fb1febe4702814aeba6d7e4b977df0659479d44c7d1c57b1a0b81d14a414dd",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-unknown-freebsd11.1"))
-      => "5618c6d630da88425cc10115552c3368d7b95e5d491d89cd47acc29eaa9f878f",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-w64-mingw32"))
-      => "bbd422ae6a8a9dd985bed728b4c33a7457d9ed1d905039f4df8eee3a2bfbf011",
-    CompilerShard("BaseCompilerShard", v"2018.9.18", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-w64-mingw32"))
-      => "3e3b8bedeb572177eae78839ae81a87d6f5af0b59f08ec2c880384cd6f3cffdd",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("aarch64-linux-gnu"))
+      => "d1601bffa7516484afc214fd5faa5cb5f418299b3736f342c650e16b7623246e",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("aarch64-linux-gnu"))
+      => "a8b0314c7b7a3964e4a1d8dfe56f2b2105c028fa04c919184741a23ad839d6d3",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("aarch64-linux-musl"))
+      => "5c3a15d92b9be8a7bdcdaa8b0b92ccae77baccf814e8e136ac9eee1fa2f1f466",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("aarch64-linux-musl"))
+      => "e091b154d0e3ca68e35a293f3f2f8306f2504b031b40125e487c858307d6b9dc",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("arm-linux-gnueabihf"))
+      => "0d1d6ebb71cff65226aeaebf41950bcf983773b69eb0e4c5e8feca62f06ac302",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("arm-linux-gnueabihf"))
+      => "365c6e958f64919d66adfa1f375ef40061ca9385efdbfff885093375dfd075fb",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("arm-linux-musleabihf"))
+      => "57fb946e08d05be42438eae88b49223d4025dc60b788a9a4741384195d957a53",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("arm-linux-musleabihf"))
+      => "2ee6905dfc5705cd43a843b25878e86b27ea76c0e7b94fde850dc5a6c62b6eed",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("i686-linux-gnu"))
+      => "f08f70a0a2a91f5e5fd2d938348e8141aa8a887e8c662102e2028a376239da8a",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("i686-linux-gnu"))
+      => "11cc3b9782036ffec07ee4b5600df34ad217f35d19f0abe2cddb09b4663d741a",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("i686-linux-musl"))
+      => "d594c943bb0db0a027ac282f33575720b6f0b8ac445f879f5848e348fd9f844b",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("i686-linux-musl"))
+      => "1730644170ecdf3cc31b8d97f659e455d693bf64a1aa0d86bf6dd63a59fd51b3",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("i686-w64-mingw32"))
+      => "79d15406905c11cce9444bd6c73020b7d935bd1ee2605782c9db975535b2eae1",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("i686-w64-mingw32"))
+      => "c9cc4455b0723ebd186c66eb99dc5604672eaf6a460ca2a4b017b021f4e232df",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("powerpc64le-linux-gnu"))
+      => "a0e6ba640b0c56b6a1ac1940dc544e44fc551d5259581966e11854e6d8e025ff",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("powerpc64le-linux-gnu"))
+      => "a91ebc00415614d504c104f1e26863e7b06722e29b7a7511aaf80b024684271a",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-apple-darwin14"))
+      => "e4d33b21ef41819f29b1b2a87bbd345335ea678183f18f5ee2ca38788ef70558",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-apple-darwin14"))
+      => "873f4fea890fcb153c57600204cbf37fc3500895aeec6d9f3dc1f5f1afade7ea",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-linux-gnu"))
+      => "8ee2802b0b45e0d0c05f4bc4c05899888b2e75bd95da14003c9510e90009c37b",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-linux-gnu"))
+      => "a80ff136ed98e63d6d30f5fee34193e62eccf26eda63fc8a695c382bea4d077c",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-linux-musl"))
+      => "15ad7afa128fb7f30ba6ebe3a6367f63becb1c7b5364b02eb4274b3df5ff8f0c",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-linux-musl"))
+      => "e8248c17dd5fed29843beb72b671e7ce3f46523a5c3bb53a8ccf7b677acbeff5",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-unknown-freebsd11.1"))
+      => "c49dfd1cec9fcc656fa7e08285c28b2bd933693ac989419fedd70fa2659ead61",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-unknown-freebsd11.1"))
+      => "66f022e74910f2b26fbf9bb19b6505c540b42e36d9fbb90f49f09dd1c99f58fa",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("x86_64-w64-mingw32"))
+      => "4c103be2961e55c9c75fb23cc67eb7b41e0511ffc19ddd77e23e7998e85ebf11",
+    CompilerShard("BaseCompilerShard", v"2018.10.10", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-w64-mingw32"))
+      => "827b846b34bbf0bb258abce74a646b634c3ec36873048a3c32adfd111c7d80fa",
     CompilerShard("GCC", v"4.8.5", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("aarch64-linux-gnu"))
       => "7dc166b739b9aa587ce2d4cbf7fa020704489942ad4f2526e232ba30a6d3435d",
     CompilerShard("GCC", v"4.8.5", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("aarch64-linux-gnu"))
@@ -212,8 +212,8 @@ shard_hash_table = Dict{CompilerShard,String}(
       => "5e9bc0b0970f3852f33e3360ed658a9b538b5b09e6b87d1f0dd0293402c17761",
     CompilerShard("GCC", v"8.1.0", Linux(:x86_64, libc=:glibc), :squashfs; target=platform_key_abi("x86_64-w64-mingw32"))
       => "b24ba4cb2a3749fe1f3d6503533fe9f504a24baf9f16ba37ecbb1fc7c44f05db",
-    CompilerShard("LLVM", v"6.0.1", Linux(:x86_64, libc=:glibc), :targz)
-      => "92b1bf9f0ca1cf12889c7d75a4bc9e320b3114032ed49dca0c175570009895da",
-    CompilerShard("LLVM", v"6.0.1", Linux(:x86_64, libc=:glibc), :squashfs)
-      => "16a454ab0992f568ea0e271b875a221316576fdafe0441e88ede97a664d11d18",
+    CompilerShard("LLVM", v"6.0.1-0", Linux(:x86_64, libc=:glibc), :targz)
+      => "d53a63d79c29b7a3d0eb3e516e9b8b08cb6d2dfb692a67242323b3737d7e0e9a",
+    CompilerShard("LLVM", v"6.0.1-0", Linux(:x86_64, libc=:glibc), :squashfs)
+      => "80578c2f73b6d3cd4a5138bd732f4b2aff28968e0f2cf1b35e290f2a202de9f8",
 )
