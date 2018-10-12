@@ -80,7 +80,7 @@ function print_travis_file(io::IO, state::WizardState)
     os:
       - linux
     julia:
-      - 0.6
+      - 1.0
     notifications:
       email: false
     git:
@@ -97,8 +97,7 @@ function print_travis_file(io::IO, state::WizardState)
 
     # Before anything else, get the latest versions of things
     before_script:
-      - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryProvider.jl")'
-      - julia -e 'Pkg.clone("https://github.com/JuliaPackaging/BinaryBuilder.jl"); Pkg.build()'
+      - julia -e 'using Pkg; pkg"add BinaryProvider"; pkg"add BinaryBuilder#master"; Pkg.build()'
 
     script:
       - julia build_tarballs.jl
