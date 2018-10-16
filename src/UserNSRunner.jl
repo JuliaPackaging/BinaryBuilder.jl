@@ -25,6 +25,9 @@ function UserNSRunner(workspace_root::String;
                       verbose::Bool = false)
     global use_ccache, use_squashfs, runner_override
 
+	# Check that our kernel is new enough to use this runner
+	kernel_version_check()
+
     # Check to make sure we're not going to try and bindmount within an
     # encrypted directory, as that triggers kernel bugs
     check_encryption(workspace_root; verbose=verbose)
@@ -167,6 +170,70 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
         wait(process)
     else
         run(cmd)
+    end
+end
+
+"""
+    uname()
+
+On Linux systems, return the strings returned by the `uname()` function in libc
+"""
+function uname()
+    # Get libc and handle to uname
+    libcs = filter(x -> occursin("libc.so", x), dllist())
+    if isempty(libcs)
+        error("Could not find libc, unable to call uname()")
+    end
+    libc = dlopen(first(libcs))
+    uname_hdl = dlsym(libc, :uname)
+
+    # The uname struct can have wildly differing layouts; we take advantage
+    # of the fact that it is just a bunch of NULL-terminated strings laid out
+    # one after the other, and that it is (as best as I can tell) at maximum
+    # around 1.5KB long.  We bump up to 2KB to be safe.
+    uname_struct = zeros(UInt8, 2048)
+    ccall(uname_hdl, Cint, (Ptr{UInt8},), uname_struct)
+
+    # Parse out all the strings embedded within this struct
+    strings = String[]
+    idx = 1
+    while idx < length(uname_struct)
+        # Extract string
+        new_string = unsafe_string(pointer(uname_struct, idx))
+        push!(strings, new_string)
+        idx += length(new_string) + 1
+
+        # Skip trailing zeros
+        while uname_struct[idx] == 0 && idx < length(uname_struct)
+            idx += 1
+        end
+    end
+
+    return strings
+end
+
+function kernel_version_check()
+    # If we're not on Linux, just say everything is okay.
+    if !Sys.islinux()
+        return
+    end
+
+    # Otherwise, get the strings, convert to VersionNumber
+    kernel_version = nothing
+    try
+        uname_strings = uname()
+        kernel_version = VersionNumber(uname_strings[3])
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
+        
+        @warn("Unable to check version number; assuming kernel version >= 3.18")
+        return
+    end
+
+    if kernel_version < v"3.18"
+        error("Kernel version too old: detected $(kernel_version), need at least 3.18!")
     end
 end
 
