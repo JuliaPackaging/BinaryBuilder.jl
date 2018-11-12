@@ -350,9 +350,9 @@ mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
-            rootfs_build::VersionNumber=v"2018.09.18",
-            bcs_build::VersionNumber=v"2018.10.10",
-            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"7.1.0", v"8.1.0"],
+            rootfs_build::VersionNumber=v"2018.11.11",
+            bcs_build::VersionNumber=v"2018.11.11",
+            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"6.1.0", v"7.1.0", v"8.1.0"],
             LLVM_build::VersionNumber=v"6.0.1-0",
             archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
         )
@@ -362,7 +362,11 @@ function choose_shards(p::Platform;
         GCC_build = GCC_builds[1]
     else
         # Otherwise, match major versions with a delightfully convoluted line:
-        GCC_build = GCC_builds[Dict(:gcc4 => 1, :gcc7 => 2, :gcc8 => 3)[compiler_abi(p).gcc_version]]
+        GCC_build = GCC_builds[Dict(
+            :gcc4 => 1,
+            :gcc6 => 2,
+            :gcc7 => 3,
+            :gcc8 => 4)[compiler_abi(p).gcc_version]]
     end
 
     host_platform = Linux(:x86_64)
@@ -429,7 +433,7 @@ end
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `gcc_version` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
-supported platforms and expand them to include all possible GCC versions for
+supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
 GCC version (as opposed to `:gcc_any`) only that `Platform` is returned.
 """
