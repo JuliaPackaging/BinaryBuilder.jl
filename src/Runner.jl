@@ -131,6 +131,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         # the location of libgcc_s.  LE SIGH.
         # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
         if occursin("-freebsd", target)
+            mapping["LDFLAGS"] *= " -L/opt/$(target)/$(target)/lib"
             mapping["CXX"] *= " -L/opt/$(target)/$(target)/lib"
             mapping["CC"]  *= " -L/opt/$(target)/$(target)/lib"
         end
