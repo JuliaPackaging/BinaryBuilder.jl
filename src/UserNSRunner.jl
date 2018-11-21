@@ -212,28 +212,54 @@ function uname()
     return strings
 end
 
-function kernel_version_check()
+function kernel_version_check(;verbose::Bool = false)
     # If we're not on Linux, just say everything is okay.
     if !Sys.islinux()
         return
     end
 
-    # Otherwise, get the strings, convert to VersionNumber
-    kernel_version = nothing
-    try
-        uname_strings = uname()
-        kernel_version = VersionNumber(uname_strings[3])
+    uname_strings = try
+        uname()
     catch e
         if isa(e, InterruptException)
             rethrow(e)
         end
-        
+
+        @warn("Unable to run `uname()` to check version number; assuming kernel version >= 3.18")
+        return
+    end
+
+    # Otherwise, get the strings, convert to VersionNumber
+    kernel_version = nothing
+
+    # Some distributions tack extra stuff onto the version number.  We walk backwards
+    # from the end, searching for the longest string that we can extract a VersionNumber
+    # out of.  We choose a minimum length of 5, as all kernel version numbers will be at
+    # least `X.Y.Z`.
+    for end_idx in length(uname_strings[3]):-1:5
+        try
+            kernel_version = VersionNumber(uname_strings[3][1:end_idx])
+            break
+        catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
+        end
+    end
+
+    # If we were unable to parse any part of the version number, then warn and exit.
+    if kernel_version === nothing
         @warn("Unable to check version number; assuming kernel version >= 3.18")
         return
     end
 
+    # Otherwise, we have a kernel version and if it's too old, we should freak out.
     if kernel_version < v"3.18"
         error("Kernel version too old: detected $(kernel_version), need at least 3.18!")
+    end
+
+    if verbose
+        @info("Parsed kernel version \"$(kernel_version)\"")
     end
 end
 
