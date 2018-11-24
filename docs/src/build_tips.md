@@ -94,7 +94,7 @@ Examples of builders that depend on other binaries include:
 
 ## Editing files in the wizard
 
-In the wizard, the `vi` editor is available for editing files. But, it doesn't leave any record in the build script. One generally needs to provide patch files or sue something like `sed`. Here is an approach using `diff` and `patch`:
+In the wizard, the `vi` editor is available for editing files. But, it doesn't leave any record in the build script. One generally needs to provide patch files or use something like `sed`. Here is an approach using `diff` and `patch`:
 
 ```sh
 cp file.ext file.ext.orig
