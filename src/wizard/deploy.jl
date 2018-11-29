@@ -429,7 +429,7 @@ end
 function push_repo(api::GitHub.GitHubWebAPI, lrepo, rrepo, user, token, refspecs)
     # Push the empty commit
     LibGit2.push(lrepo, remoteurl="https://github.com/$(GitHub.name(rrepo)).git",
-        payload=Nullable(LibGit2.UserPasswordCredentials(deepcopy(user),deepcopy(token))),
+        credentials=LibGit2.UserPasswordCredential(deepcopy(user),deepcopy(token)),
         refspecs=refspecs)
 end
 
