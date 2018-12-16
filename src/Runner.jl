@@ -170,6 +170,23 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         end
     end
 
+    if typeof(platform) <: WebAssembly
+        mapping["host_target"] = host_target
+        mapping["PATH"] = "/opt/$(host_target)/lib/emscripten:/opt/$(host_target)/bin:" *
+                          mapping["PATH"]
+        mapping["CC"] = "/opt/$(host_target)/lib/emscripten/emcc"
+        mapping["CXX"] = "/opt/$(host_target)/lib/emscripten/em++"
+        mapping["AR"] = "/opt/$(host_target)/lib/emscripten/emar"
+        mapping["LD"] = "/opt/$(host_target)/lib/emscripten/emcc"
+        mapping["NM"] = "/opt/$(host_target)/bin/llvm-nm"
+        mapping["LDSHARED"] = "/opt/$(host_target)/lib/emscripten/emcc"
+        mapping["RANLIB"] = "/opt/$(host_target)/lib/emscripten/emranlib"
+        mapping["EMSCRIPTEN"] = "/opt/$(host_target)/lib/emscripten"
+        mapping["LLVM_ROOT"] = "/opt/$(host_target)/bin"
+        mapping["BINARYEN_ROOT"] = "/opt/$(host_target)"
+        mapping["BINARYEN"] = "/opt/$(host_target)"
+    end
+
     # There is no broad agreement on what host compilers should be called,
     # so we set all the environment variables that we've seen them called
     # and hope for the best.

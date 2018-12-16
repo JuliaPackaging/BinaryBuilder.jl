@@ -141,7 +141,7 @@ function map_target(cs::CompilerShard)
         return "/"
     elseif lowercase(cs.name) in ("gcc", "basecompilershard")
         return joinpath("/opt", triplet(cs.target), "$(cs.name)-$(cs.version)")
-    elseif lowercase(cs.name) == "llvm"
+    elseif lowercase(cs.name) in ("llvm", "emscripten")
         return joinpath("/opt", triplet(cs.host), "$(cs.name)-$(cs.version)")
     else
         error("Unknown mapping for shard named $(cs.name)")
@@ -388,6 +388,25 @@ function choose_shards(p::Platform;
         push!(shards, CompilerShard("GCC", GCC_build, host_platform, archive_type; target=host_platform))
     end
     return shards
+end
+
+function choose_shards(p::WebAssembly;
+            rootfs_build::VersionNumber=v"2018.11.11",
+            bcs_build::VersionNumber=v"2018.11.11",
+            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"6.1.0", v"7.1.0", v"8.1.0"],
+            emscripten_build::VersionNumber=v"1.38.20",
+            archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
+        )
+
+    host_platform = Linux(:x86_64)
+    GCC_build = GCC_builds[1]
+    shards = [
+        # We always need our Rootfs for Linux(:x86_64)
+        CompilerShard("Rootfs", rootfs_build, host_platform, :squashfs),
+        CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=host_platform),
+        CompilerShard("GCC", GCC_build, host_platform, archive_type; target=host_platform),
+        CompilerShard("Emscripten", emscripten_build, host_platform, archive_type),
+    ]
 end
 
 """
