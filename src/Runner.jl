@@ -1,7 +1,7 @@
 abstract type Runner; end
 
 function target_nbits(target::AbstractString)
-    if startswith(target, "i686-") || startswith(target, "arm-")
+    if startswith(target, "i686-") || startswith(target, "arm-") || startswith(target, "wasm32-")
         return "32"
     else
         return "64"
@@ -172,7 +172,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
 
     if typeof(platform) <: WebAssembly
         mapping["host_target"] = host_target
-        mapping["PATH"] = "/opt/$(host_target)/lib/emscripten:/opt/$(host_target)/bin:" *
+        mapping["PATH"] = "/opt/$(host_target)/lib/emscripten:/opt/$(host_target)/lib/emscripten-fastcomp/bin:" *
                           mapping["PATH"]
         mapping["CC"] = "/opt/$(host_target)/lib/emscripten/emcc"
         mapping["CXX"] = "/opt/$(host_target)/lib/emscripten/em++"
@@ -182,7 +182,8 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         mapping["LDSHARED"] = "/opt/$(host_target)/lib/emscripten/emcc"
         mapping["RANLIB"] = "/opt/$(host_target)/lib/emscripten/emranlib"
         mapping["EMSCRIPTEN"] = "/opt/$(host_target)/lib/emscripten"
-        mapping["LLVM_ROOT"] = "/opt/$(host_target)/bin"
+        mapping["EM_CACHE"] = "/opt/$(host_target)/lib/emscripten-cache"
+        mapping["LLVM_ROOT"] = "/opt/$(host_target)/lib/emscripten-fastcomp/bin"
         mapping["BINARYEN_ROOT"] = "/opt/$(host_target)"
         mapping["BINARYEN"] = "/opt/$(host_target)"
     end
