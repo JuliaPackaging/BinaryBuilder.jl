@@ -139,9 +139,11 @@ analyze the name and platform of this shard and return a path based on that.
 function map_target(cs::CompilerShard)
     if lowercase(cs.name) == "rootfs"
         return "/"
-    elseif lowercase(cs.name) in ("gcc", "basecompilershard")
+    elseif lowercase(cs.name) in ("gcc", "basecompilershard", "emscripten")
         return joinpath("/opt", triplet(cs.target), "$(cs.name)-$(cs.version)")
-    elseif lowercase(cs.name) in ("llvm", "emscripten")
+    # elseif lowercase(cs.name) == "emscripten"
+    #     return joinpath("/opt", triplet(cs.target))
+    elseif lowercase(cs.name) == "llvm"
         return joinpath("/opt", triplet(cs.host), "$(cs.name)-$(cs.version)")
     else
         error("Unknown mapping for shard named $(cs.name)")
@@ -405,7 +407,7 @@ function choose_shards(p::WebAssembly;
         CompilerShard("Rootfs", rootfs_build, host_platform, :squashfs),
         CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=host_platform),
         CompilerShard("GCC", GCC_build, host_platform, archive_type; target=host_platform),
-        CompilerShard("Emscripten", emscripten_build, host_platform, archive_type),
+        CompilerShard("Emscripten", emscripten_build, host_platform, archive_type, target=p),
     ]
 end
 

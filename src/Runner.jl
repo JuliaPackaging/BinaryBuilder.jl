@@ -172,20 +172,20 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
 
     if typeof(platform) <: WebAssembly
         mapping["host_target"] = host_target
-        mapping["PATH"] = "/opt/$(host_target)/lib/emscripten:/opt/$(host_target)/lib/emscripten-fastcomp/bin:" *
+        mapping["PATH"] = "/opt/$(target)/lib/emscripten:/opt/$(target)/lib/emscripten-fastcomp/bin:" *
                           mapping["PATH"]
-        mapping["CC"] = "/opt/$(host_target)/lib/emscripten/emcc"
-        mapping["CXX"] = "/opt/$(host_target)/lib/emscripten/em++"
-        mapping["AR"] = "/opt/$(host_target)/lib/emscripten/emar"
-        mapping["LD"] = "/opt/$(host_target)/lib/emscripten/emcc"
-        mapping["NM"] = "/opt/$(host_target)/bin/llvm-nm"
-        mapping["LDSHARED"] = "/opt/$(host_target)/lib/emscripten/emcc"
-        mapping["RANLIB"] = "/opt/$(host_target)/lib/emscripten/emranlib"
-        mapping["EMSCRIPTEN"] = "/opt/$(host_target)/lib/emscripten"
-        mapping["EM_CACHE"] = "/opt/$(host_target)/lib/emscripten-cache"
-        mapping["LLVM_ROOT"] = "/opt/$(host_target)/lib/emscripten-fastcomp/bin"
-        mapping["BINARYEN_ROOT"] = "/opt/$(host_target)"
-        mapping["BINARYEN"] = "/opt/$(host_target)"
+        mapping["CC"] = "/opt/$(target)/lib/emscripten/emcc"
+        mapping["CXX"] = "/opt/$(target)/lib/emscripten/em++"
+        mapping["AR"] = "/opt/$(target)/lib/emscripten/emar"
+        mapping["LD"] = "/opt/$(target)/lib/emscripten/emcc"
+        mapping["NM"] = "/opt/$(target)/bin/llvm-nm"
+        mapping["LDSHARED"] = "/opt/$(target)/lib/emscripten/emcc"
+        mapping["RANLIB"] = "/opt/$(target)/lib/emscripten/emranlib"
+        mapping["EMSCRIPTEN"] = "/opt/$(target)/lib/emscripten"
+        mapping["EM_CACHE"] = "/opt/$(target)/lib/emscripten-cache"
+        mapping["LLVM_ROOT"] = "/opt/$(target)/lib/emscripten-fastcomp/bin"
+        mapping["BINARYEN_ROOT"] = "/opt/$(target)"
+        mapping["BINARYEN"] = "/opt/$(target)"
     end
 
     # There is no broad agreement on what host compilers should be called,

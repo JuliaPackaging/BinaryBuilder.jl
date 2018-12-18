@@ -268,6 +268,6 @@ shard_hash_table = Dict{CompilerShard,String}(
       => "d53a63d79c29b7a3d0eb3e516e9b8b08cb6d2dfb692a67242323b3737d7e0e9a",
     CompilerShard("LLVM", v"6.0.1-0", Linux(:x86_64, libc=:glibc), :squashfs)
       => "80578c2f73b6d3cd4a5138bd732f4b2aff28968e0f2cf1b35e290f2a202de9f8",
-    CompilerShard("Emscripten", v"1.38.20", Linux(:x86_64, libc=:glibc), :targz)
+    CompilerShard("Emscripten", v"1.38.20", Linux(:x86_64, libc=:glibc), :targz; target=platform_key_abi("wasm32-unknown-emscripten"))
       => "291df10e30123ff28080732e559910230cd4ffa5fe0c855fc35e6a9e6a667811",
 )
