@@ -244,7 +244,7 @@ end
 function macos_sdk_already_installed()
     # We just check to see if there are any BaseCompilerShard downloads for
     # macOS in our downloads directory.  If so, say we have already installed it.
-    files = filter(x -> occursin("BaseCompilerShard", x), readdir(storage_dir("downloads")))
+    files = filter(x -> occursin("BaseCompilerShard", x) || occursin("GCC", x), readdir(storage_dir("downloads")))
     return !isempty(filter(x -> occursin("-darwin", x), files))
 end
 
