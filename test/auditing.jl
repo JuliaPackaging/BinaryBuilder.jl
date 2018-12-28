@@ -78,6 +78,38 @@ end
     end
 end
 
+@testset "Auditor - .dylib identity mismatch" begin
+    begin
+        build_path = tempname()
+        mkpath(build_path)
+        dylib_platform = MacOS()
+        prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], dylib_platform)
+        cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
+            run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
+
+            # First, build libfoo, but with a dumb script that doesn't know to put .dll files in bin
+            dumb_script = """
+            /usr/bin/make clean
+            /usr/bin/make install libdir=\$prefix/lib
+            """
+
+            @test build(ur, "foo", libfoo_products(prefix), libfoo_make_script, dylib_platform, prefix; autofix=false)
+        end
+
+        function get_dylib_id(path)
+            return readmeta(path) do oh
+                return dylib_name(first([lc for lc in MachOLoadCmds(oh) if typeof(lc) <: MachOIdDylibCmd]))
+            end
+        end
+        # Test that libfoo gives an incorrect dylib ID:
+        @test !startswith(get_dylib_id(joinpath(prefix, "lib", "libfoo.dylib")), "@rpath")
+
+        # Test that `audit()` changes the 
+        BinaryBuilder.audit(prefix; platform=dylib_platform, verbose=true, autofix=true)
+        @test startswith(get_dylib_id(joinpath(prefix, "lib", "libfoo.dylib")), "@rpath")
+    end
+end
+
 @testset "Auditor - absolute paths" begin
     prefix = Prefix(tempname())
     try

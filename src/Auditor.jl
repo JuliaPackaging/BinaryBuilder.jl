@@ -249,11 +249,11 @@ function check_dynamic_linkage(oh, prefix, bin_files;
 
         if verbose
             msg = strip("""
-                        Checking $(relpath(path(oh), prefix.path)) with RPath list $(rpaths(rp))
+            Checking $(relpath(path(oh), prefix.path)) with RPath list $(rpaths(rp))
             """)
             info(io, msg)
         end
-
+            
         # Look at every dynamic link, and see if we should do anything about that link...
         libs = find_libraries(oh)
         ignored_libraries = String[]
@@ -324,6 +324,11 @@ function check_dynamic_linkage(oh, prefix, bin_files;
 
         if verbose && !isempty(ignored_libraries)
             info(io, "Ignored system libraries $(join(ignored_libraries, ", "))")
+        end
+        
+        # If there is an identity mismatch (which only happens on macOS) fix it
+        if autofix
+            fix_identity_mismatch(prefix, platform, path(oh), oh; verbose=verbose)
         end
     end
     return all_ok

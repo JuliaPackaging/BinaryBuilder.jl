@@ -9,7 +9,6 @@ CC ?= gcc
 ifeq ($(shell uname),Darwin)
 CFLAGS = -target x86_64-apple-macosx10.7
 CXXFLAGS = -target x86_64-apple-macosx10.7
-INSTALL_NAME ?= -install_name '@rpath/libfoo.$(SHLIB_EXT)'
 SHLIB_EXT ?= dylib
 RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
 else ifneq ($(findstring MSYS,$(shell uname)),)
@@ -33,7 +32,7 @@ install-fooifier: $(bindir) fooifier$(EXE_EXT)
 
 
 libfoo.$(SHLIB_EXT): libfoo.c Makefile
-	$(CC) $(CFLAGS) libfoo.c -g -o $@ $(INSTALL_NAME) $(LDFLAGS) -shared
+	$(CC) $(CFLAGS) libfoo.c -g -o $@ $(LDFLAGS) -shared
 libfoo: libfoo.$(SHLIB_EXT)
 install-libfoo: $(libdir) libfoo.$(SHLIB_EXT)
 	cp libfoo.$(SHLIB_EXT) $(libdir)/

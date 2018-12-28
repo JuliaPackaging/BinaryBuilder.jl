@@ -214,6 +214,37 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
     run(ur, relink_cmd, logpath; verbose=verbose)
 end
 
+# Only macOS needs to fix identity mismatches
+fix_identity_mismatch(prefix, platform, path, oh; kwargs...) = nothing
+function fix_identity_mismatch(prefix::Prefix, platform::Platform, path::AbstractString,
+                               oh::MachOHandle; verbose::Bool = false)
+    id_lc = [lc for lc in MachOLoadCmds(oh) if typeof(lc) <: MachOIdDylibCmd]
+    if isempty(id_lc)
+        return nothing
+    end
+    id_lc = first(id_lc)
+
+    rel_path = relpath(path, prefix.path)
+    old_id = dylib_name(id_lc)
+    new_id = "@rpath/$(basename(old_id))"
+    if old_id == new_id
+        return nothing
+    end
+
+    # Convert identity from 
+
+    if verbose
+        @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
+    end
+    
+    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
+    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+    id_cmd = `$install_name_tool -id $(new_id) $(rel_path)`
+
+    # Create a new linkage that looks like @rpath/$lib on OSX, 
+    logpath = joinpath(logdir(prefix), "fix_identity_mismatch_$(basename(rel_path)).log")
+    run(ur, id_cmd, logpath; verbose=verbose)
+end
 """
     update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                    old_libpath, new_libpath; verbose::Bool = false)
