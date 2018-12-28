@@ -279,7 +279,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                     # First, is this a library that we already know about?
                     known_bins = lowercase.(basename.(bin_files))
                     kidx = findfirst(known_bins .== lowercase(basename(libname)))
-                    if kidx !== nothing && kidx > 0 # The second condition is redundant in julia 0.7
+                    if kidx !== nothing
                         # If it is, point to that file instead!
                         new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
 
