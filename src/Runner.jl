@@ -170,10 +170,12 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         end
     end
 
-    if typeof(platform) <: WebAssembly
+    if platform isa WebAssembly
         mapping["host_target"] = host_target
         mapping["PATH"] = "/opt/$(target)/lib/emscripten:/opt/$(target)/lib/emscripten-fastcomp/bin:" *
-                          mapping["PATH"]
+                          mapping["PATH"] *
+                          ":/opt/$(target)/usr/bin"
+        mapping["LD_LIBRARY_PATH"] = mapping["LD_LIBRARY_PATH"] * ":/opt/$(target)/usr/lib"
         mapping["CC"] = "/opt/$(target)/lib/emscripten/emcc"
         mapping["CXX"] = "/opt/$(target)/lib/emscripten/em++"
         mapping["AR"] = "/opt/$(target)/lib/emscripten/emar"
@@ -182,10 +184,11 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         mapping["LDSHARED"] = "/opt/$(target)/lib/emscripten/emcc"
         mapping["RANLIB"] = "/opt/$(target)/lib/emscripten/emranlib"
         mapping["EMSCRIPTEN"] = "/opt/$(target)/lib/emscripten"
-        mapping["EM_CACHE"] = "/opt/$(target)/lib/emscripten-cache"
         mapping["LLVM_ROOT"] = "/opt/$(target)/lib/emscripten-fastcomp/bin"
         mapping["BINARYEN_ROOT"] = "/opt/$(target)"
         mapping["BINARYEN"] = "/opt/$(target)"
+        # mapping["EM_CACHE"] = "/opt/$(target)/lib/emscripten-cache"
+        mapping["EM_CONFIG"] = "/opt/$(target)/lib/emscripten/.emscripten"
     end
 
     # There is no broad agreement on what host compilers should be called,
