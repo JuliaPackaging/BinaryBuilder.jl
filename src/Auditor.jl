@@ -121,12 +121,15 @@ function audit(prefix::Prefix; io=stderr,
                 return 1
             end
             """
-            p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
-            wait(p)
-            if p.exitcode != 0
+            try
+                p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
+                wait(p)
+                if p.exitcode != 0
+                    throw("Invalid exit code!")
+                end
+            catch
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
-
                 if !silent
                     warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 end
