@@ -6,7 +6,7 @@
 
 * `BINARYBUILDER_USE_SQUASHFS`: when set to `true`, this uses `.squashfs` images instead of tarballs to download cross-compiler shards.  This consumes significantly less space on-disk and boasts a modest reduction in download size as well, but requires `sudo` on the local machine to mount the `.squashfs` images.  This is used by default on Travis, as the disk space requirements are tight.  This is always used on OSX, as the QEMU runner always uses `squashfs` images.
 
-* `BINARYBUILDER_STORAGE_DIE`: When set to a path, storage for things like cross-compiler shards, downloaded source tarballs, the QEMU binaries, the `ccache` cache, etc... will be stored within this location, instead of the default location of `<binarybuilder_root>/deps/`.
+* `BINARYBUILDER_STORAGE_DIR`: When set to a path, storage for things like cross-compiler shards, downloaded source tarballs, the QEMU binaries, the `ccache` cache, etc... will be stored within this location, instead of the default location of `<binarybuilder_root>/deps/`.
 
 * `BINARYBUILDER_RUNNER`: When set to a runner string, alters the execution engine that `BinaryBuilder.jl` will use to wrap the build process in a sandbox.  Valid values are one of `"userns"`, `"privileged"` and `"qemu"`.  If not given, `BinaryBuilder.jl` will do its best to guess.
 

@@ -32,7 +32,7 @@ jobs:
       env:
         - BINARYBUILDER_USER_SQUASHFS=true
         - BINARYBUILDER_PACKAGE_TESTS=true
-    
+
     # Add a job that doesn't use the squashfs but otherwise does normal tests
     # We don't have the disk space available to do a full shard test here.
     - julia: 1.0
@@ -48,6 +48,14 @@ jobs:
     - julia: 1.0
       env:
         - BINARYBUILDER_RUNNER=docker
+
+    - stage: Documentation
+      julia: 1.0
+      os: linux
+      script:
+        - julia --project=docs -e 'using Pkg; Pkg.instantiate()'
+        - julia --project=docs --color=yes docs/make.jl
+      after_success: skip
 
 script:
    - julia --project -e 'using Pkg; Pkg.build("BinaryBuilder")'
@@ -70,6 +78,3 @@ addons:
 after_success:
   # push coverage results to Codecov
   - julia -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(Codecov.process_folder())'
-  # Build docs
-  - julia -e 'using Pkg; Pkg.add("Documenter")'
-  - julia -e 'using Pkg; include(joinpath("docs", "make.jl"))'
