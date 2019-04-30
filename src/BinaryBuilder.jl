@@ -7,8 +7,8 @@ using Reexport
 using ObjectFile
 using GitHub
 import InteractiveUtils
-
 @reexport using BinaryProvider
+using Pkg
 
 include("compat.jl")
 include("Auditor.jl")

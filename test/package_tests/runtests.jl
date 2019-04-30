@@ -36,7 +36,13 @@ function clone_build_test(builder_url, package_url, package_deps)
 
                 # Write out a build.jl file that points to this tarball
                 bin_path = joinpath($(builder_dir), "products")
-                BinaryBuilder.print_buildjl($(builder_dir), name, version, products(Prefix(bin_path)), product_hashes, bin_path)
+                open(joinpath($(builder_dir), "products", "Artifact.toml"), "w") do io
+                    BinaryBuilder.print_artifact_toml(io, name)
+                end
+
+                open(joinpath($(builder_dir), "products", "Versions.toml"), "r+") do io
+                    BinaryBuilder.update_versions_toml(io, name, version, products(Prefix(bin_path)), product_hashes, bin_path)
+                end
 
                 # Return back these three pieces of information
                 return name, version, product_hashes

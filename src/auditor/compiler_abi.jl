@@ -1,4 +1,4 @@
-import BinaryProvider: detect_libgfortran_abi
+import Pkg.BinaryPlatforms: detect_libgfortran_abi
 
 """
     detect_libgfortran_abi(oh::ObjectHandle, platform::Platform)
@@ -15,8 +15,41 @@ function detect_libgfortran_abi(oh::ObjectHandle, platform::Platform)
         return :gcc_any
     end
 
-    # If we find one, pass it off to BinaryProvider.detect_libgfortran_abi()
+    # If we find one, pass it off to Pkg.BinaryPlatforms.detect_libgfortran_abi()
     return detect_libgfortran_abi(first(fortran_libs), platform)
+end
+
+"""
+    detect_libgfortran_abi(oh::ObjectHandle, platform::Platform)
+
+Given an ObjectFile, examine its symbols to discover which (if any) C++11
+std::string ABI it's using.  We do this by scanning the list of exported
+symbols, triggering off of instances of `St7__cxx11` or `_ZNSs` to give
+evidence toward a constraint on `cxx11`, `cxx03` or neither.
+"""
+function detect_cxx_abi(oh::ObjectHandle, platform::Platform)
+    try
+        # First, if this object doesn't link against `libstdc++`, it's a `:cxxany`
+        if !any(occursin("libstdc++", l) for l in ObjectFile.path.(DynamicLinks(oh)))
+            return :cxxany
+        end
+
+        symbol_names = symbol_name.(Symbols(oh))
+        if any(occursin("St7__cxx11", c) for c in symbol_names)
+            return :cxx11
+        end
+        # This finds something that either returns an `std::string` or takes it in as its last argument
+        if any(occursin("Ss", c) for c in symbol_names)
+            return :cxx03
+        end
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
+        warn(io, "$(path(oh)) could not be scanned for cxx11 ABI!")
+        warn(io, e)
+    end
+    return :cxxany
 end
 
 function check_gcc_version(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)

@@ -78,7 +78,7 @@ end
 Strip out the CompilerABI portion of a Platform, making it "ABI agnostic".
 """
 function abi_agnostic(p::P) where {P <: Platform}
-    return P(arch(p), libc(p), call_abi(p))
+    return P(arch(p); libc=libc(p), call_abi=call_abi(p))
 end
 
 """
@@ -413,10 +413,10 @@ function supported_platforms()
         Linux(:powerpc64le),
 
         # musl Linuces
-        Linux(:i686, :musl),
-        Linux(:x86_64, :musl),
-        Linux(:aarch64, :musl),
-        Linux(:armv7l, :musl),
+        Linux(:i686, libc=:musl),
+        Linux(:x86_64, libc=:musl),
+        Linux(:aarch64, libc=:musl),
+        Linux(:armv7l, libc=:musl),
 
         # BSDs
         MacOS(:x86_64),
@@ -429,7 +429,7 @@ function supported_platforms()
 end
 
 function replace_gcc_version(p::Platform, gcc_version::Symbol)
-    new_cabi = CompilerABI(gcc_version, compiler_abi(p).cxx_abi)
+    new_cabi = CompilerABI(gcc_version, cxxstring_abi(p))
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
 

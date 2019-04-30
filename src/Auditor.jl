@@ -4,6 +4,7 @@ include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")
 include("auditor/symlink_translator.jl")
 include("auditor/compiler_abi.jl")
+include("auditor/soname_matching.jl")
 
 # AUDITOR TODO LIST:
 #
@@ -110,16 +111,16 @@ function audit(prefix::Prefix; io=stderr,
             # LLVM in interesting ways on startup, it doesn't kill our main
             # Julia process.
             dlopen_cmd = """
-            using Libdl
-            try
-                dlopen($(repr(f)))
-                return 0
-            catch e
-                if $(repr(verbose))
-                    Base.display_error(e)
+                using Libdl
+                try
+                    dlopen($(repr(f)))
+                    return 0
+                catch e
+                    if $(repr(verbose))
+                        Base.display_error(e)
+                    end
+                    return 1
                 end
-                return 1
-            end
             """
             try
                 p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
@@ -135,6 +136,9 @@ function audit(prefix::Prefix; io=stderr,
                 end
                 all_ok = false
             end
+
+            # Ensure that this library is available at its own SONAME
+            all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
         end
     end
 
