@@ -182,7 +182,7 @@ end
         # Read in `products/build.jl` to get download_info
         m = Module(:__anon__)
         download_info = Core.eval(m, quote
-            using BinaryProvider
+            using BinaryProvider, Pkg
             # Override BinaryProvider functionality so that it doesn't actually install anything
             function install(args...; kwargs...); end
             function write_deps_file(args...; kwargs...); end

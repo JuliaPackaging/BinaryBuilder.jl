@@ -1,4 +1,4 @@
-import Pkg.BinaryPlatforms: detect_libgfortran_abi
+import Pkg: detect_libgfortran_abi
 
 """
     detect_libgfortran_abi(oh::ObjectHandle, platform::Platform)
@@ -12,15 +12,50 @@ function detect_libgfortran_abi(oh::ObjectHandle, platform::Platform)
     libs = basename.(path.(DynamicLinks(oh)))
     fortran_libs = filter(l -> occursin("libgfortran", l), libs)
     if isempty(fortran_libs)
-        return :gcc_any
+        return :libgfortran_any
     end
 
-    # If we find one, pass it off to Pkg.BinaryPlatforms.detect_libgfortran_abi()
+    # If we find one, pass it off to Pkg.detect_libgfortran_abi()
     return detect_libgfortran_abi(first(fortran_libs), platform)
 end
 
+function check_libgfortran_version(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
+    # First, check the GCC version to see if it is a superset of `platform`.  If it's
+    # not, then we have a problem!
+    libgfortran_version = :libgfortran_any
+
+    try
+        libgfortran_version = detect_libgfortran_abi(oh, platform)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
+        warn(io, "$(path(oh)) could not be scanned for libgfortran dependency!")
+        warn(io, e)
+        return true
+    end
+
+    if verbose && libgfortran_version != :libgfortran_any
+        info(io, "$(path(oh)) locks us to $(libgfortran_version)")
+    end
+
+    if compiler_abi(platform).libgfortran_version == :libgfortran_any && libgfortran_version != :libgfortran_any
+        msg = strip(replace("""
+        $(path(oh)) links to libgfortran!  This causes incompatibilities across
+        major versions of GCC.  To remedy this, you must build a tarball for
+        each major version of GCC.  To do this, immediately after your `products`
+        definition in your `build_tarballs.jl` file, add the line:
+        """, '\n' => ' '))
+        msg *= "\n\n    products = expand_libgfortran_versions(products)"
+        warn(io, msg)
+        return false
+    end
+    return true
+end
+
+
 """
-    detect_libgfortran_abi(oh::ObjectHandle, platform::Platform)
+    detect_cxx_abi(oh::ObjectHandle, platform::Platform)
 
 Given an ObjectFile, examine its symbols to discover which (if any) C++11
 std::string ABI it's using.  We do this by scanning the list of exported
@@ -31,7 +66,7 @@ function detect_cxx_abi(oh::ObjectHandle, platform::Platform)
     try
         # First, if this object doesn't link against `libstdc++`, it's a `:cxxany`
         if !any(occursin("libstdc++", l) for l in ObjectFile.path.(DynamicLinks(oh)))
-            return :cxxany
+            return :cxx_any
         end
 
         symbol_names = symbol_name.(Symbols(oh))
@@ -49,37 +84,38 @@ function detect_cxx_abi(oh::ObjectHandle, platform::Platform)
         warn(io, "$(path(oh)) could not be scanned for cxx11 ABI!")
         warn(io, e)
     end
-    return :cxxany
+    return :cxx_any
 end
 
-function check_gcc_version(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
-    # First, check the GCC version to see if it is a superset of `platform`.  If it's
+
+function check_cxx_string_abi(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
+    # First, check the stdlibc++ string ABI to see if it is a superset of `platform`.  If it's
     # not, then we have a problem!
-    gcc_version = :gcc_any
+    cxx_abi = :cxx_any
 
     try
-        gcc_version = detect_libgfortran_abi(oh, platform)
+        cxx_abi = detect_cxx_abi(oh, platform)
     catch e
         if isa(e, InterruptException)
             rethrow(e)
         end
-        warn(io, "$(path(oh)) could not be scanned for libgfortran dependency!")
+        warn(io, "$(path(oh)) could not be scanned for cxx11 string ABI!")
         warn(io, e)
         return true
     end
 
-    if verbose && gcc_version != :gcc_any
-        info(io, "$(path(oh)) locks us to $(gcc_version)")
+    if verbose && cxx_abi != :cxx_any
+        info(io, "$(path(oh)) locks us to $(cxx_abi)")
     end
 
-    if compiler_abi(platform).gcc_version == :gcc_any && gcc_version != :gcc_any
+    if compiler_abi(platform).cxxstring_abi == :cxx_any && cxx_abi != :cxx_any
         msg = strip(replace("""
-        $(path(oh)) links to libgfortran!  This causes incompatibilities across
-        major versions of GCC.  To remedy this, you must build a tarball for
-        each major version of GCC.  To do this, immediately after your `products`
+        $(path(oh)) contains std::string values!  This causes incompatibilities across
+        the GCC 4/5 version boundary.  To remedy this, you must build a tarball for
+        both GCC 4 and GCC 5.  To do this, immediately after your `products`
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
-        msg *= "\n\n    products = expand_gcc_versions(products)"
+        msg *= "\n\n    products = expand_cxx_versions(products)"
         warn(io, msg)
         return false
     end

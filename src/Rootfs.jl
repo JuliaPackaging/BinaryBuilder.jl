@@ -359,11 +359,11 @@ function choose_shards(p::Platform;
         )
 
     # If GCC version is not specificed by `p`, choose earliest possible.
-    if compiler_abi(p).gcc_version == :gcc_any
+    if compiler_abi(p).libgfortran_version == :libgfortran_any
         GCC_build = GCC_builds[1]
     else
         # Otherwise, match major versions with a delightfully convoluted line:
-        GCC_build = first(filter(v -> v.major == parse(Int, string(compiler_abi(p).gcc_version)[end]), GCC_builds))
+        GCC_build = first(filter(v -> v.major == parse(Int, string(compiler_abi(p).libgfortran_version)[end]), GCC_builds))
     end
 
     host_platform = Linux(:x86_64; libc=:musl)
@@ -428,8 +428,13 @@ function supported_platforms()
     ]
 end
 
-function replace_gcc_version(p::Platform, gcc_version::Symbol)
-    new_cabi = CompilerABI(gcc_version, cxxstring_abi(p))
+function replace_libgfortran_version(p::Platform, libgfortran_version::Symbol)
+    new_cabi = CompilerABI(libgfortran_version, cxxstring_abi(p))
+    return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
+end
+
+function replace_cxx_abi(p::Platform, cxx_abi::Symbol)
+    new_cabi = CompilerABI(libgfortran_version(p), cxx_abi)
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
 
@@ -441,11 +446,11 @@ entries with the exception of the `gcc_version` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
 supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
-GCC version (as opposed to `:gcc_any`) only that `Platform` is returned.
+GCC version (as opposed to `:libgfortran_any`) only that `Platform` is returned.
 """
 function expand_gfortran_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
-    if compiler_abi(p).gcc_version != :gcc_any
+    if compiler_abi(p).gcc_version != :libgfortran_any
         return [p]
     end
 
@@ -464,11 +469,11 @@ entries with the exception of the `gcc_version` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
 supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
-GCC version (as opposed to `:gcc_any`) only that `Platform` is returned.
+GCC version (as opposed to `:libgfortran_any`) only that `Platform` is returned.
 """
 function expand_cxx_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
-    if compiler_abi(p).gcc_version != :gcc_any
+    if compiler_abi(p).cxxstring_abi != :cxx_any
         return [p]
     end
 

@@ -40,6 +40,9 @@ function import_docker_image(rootfs::CompilerShard; verbose::Bool = false)
 
     # Otherwise, import it!
     dockerfile_cmds = "ENTRYPOINT [\"/docker_entrypoint.sh\"]"
+    if verbose
+        @info("Importing docker base image from $(download_path(rootfs)) to $(docker_image(rootfs))")
+    end
     run(`docker import $(download_path(rootfs)) -c $(dockerfile_cmds) $(docker_image(rootfs))`)
     return
 end

@@ -73,7 +73,9 @@ function audit(prefix::Prefix; io=stderr,
                     # Check that the ISA isn't too high
                     all_ok &= check_isa(oh, platform, prefix; io=io, verbose=verbose, silent=silent)
                     # Check that the libgfortran ABI matches
-                    all_ok &= check_gcc_version(oh, platform; io=io, verbose=verbose)
+                    all_ok &= check_libgfortran_version(oh, platform; io=io, verbose=verbose)
+                    # Check that the libstdcxx string ABI matches
+                    all_ok &= check_cxx_string_abi(oh, platform; io=io, verbose=verbose)
                     # Check that this binary file's dynamic linkage works properly.  Note to always
                     # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
                     # checks to freak out a little bit.

@@ -257,7 +257,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         script, install_dir = script_for_dep(dep, destdir)
         m = Module(:__anon__)
         Core.eval(m, quote
-            using BinaryProvider
+            using BinaryProvider, Pkg
 
             # Force the script to download for this platform.
             platform_key() = $platform

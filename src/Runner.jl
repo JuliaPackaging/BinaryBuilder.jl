@@ -52,7 +52,7 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
-    if prefix isa Windows
+    if platform isa Windows
         libdir = "$(prefix)/bin"
     else
         libdir = "$(prefix)/lib"
@@ -165,7 +165,21 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
     # On all of our clangy platforms we actually have GCC tools available as well,
     # they're just not used by default.  Override these environment variables in
     # your scripts if you want to use them.
-    if occursin("-apple-", target) || occursin("-freebsd", target)
+    if occursin("-apple-", target)
+        mapping["AR"] = llvm_tool_path("llvm-ar")
+        mapping["AS"] = llvm_tool_path("llvm-as")
+        # Because there's only a single `clang` binary, we store it in `x86_64-linux-gnu`,
+        # but LLVMBuilder puts the `clang` binary into `tools`, not `bin`.
+        mapping["CC"] = tool_path("clang -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
+        mapping["CXX"] = tool_path("clang++ -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
+        # OSX must be linked against libc++.
+        # I think this is unnecessary now because we have the appropriate defaults set
+        # mapping["CXX"] *= " -stdlib=libc++"
+        mapping["FC"] = target_tool_path("gfortran")
+        mapping["LD"] = target_tool_path("ld")
+        mapping["NM"] = llvm_tool_path("llvm-nm")
+        mapping["OBJDUMP"] = llvm_tool_path("llvm-objdump")
+    elseif occursin("-freebsd", target)
         mapping["AR"] = llvm_tool_path("llvm-ar")
         mapping["AS"] = llvm_tool_path("llvm-as")
         # Because there's only a single `clang` binary, we store it in `x86_64-linux-gnu`,
@@ -177,15 +191,8 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         # things like the -gcc-toolchain option, which means that we have to manually add
         # the location of libgcc_s.  LE SIGH.
         # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
-        if occursin("-freebsd", target)
-            mapping["LDFLAGS"] *= " -L/opt/$(target)/$(target)/lib"
-        end
+        mapping["LDFLAGS"] *= " -L/opt/$(target)/$(target)/lib"
 
-        #if occursin("-apple-", target)
-            # OSX must be linked against libc++.
-            # # EDIRT: I think this is unnecessary now because we have the appropriate defaults set
-        #    mapping["CXX"] *= " -stdlib=libc++"
-        #end
         # flang isn't a realistic option yet, so we still use gfortran here
         mapping["FC"] = target_tool_path("gfortran")
         mapping["LD"] = target_tool_path("ld")
@@ -213,9 +220,10 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
 
         # If we're on an old GCC, the -syslibroot that gets passed in isn't
         # calculated correctly, so we have to manually add it in.
-        if compiler_abi(platform).gcc_version in (:gcc4, :gcc_any)
-            mapping["LDFLAGS"] *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
-        end
+        #UGH WE NEED TO KNOW GCC VERSION HERE
+        #if compiler_abi(platform).gcc_version in (:gcc4, :gcc_any)
+        #    mapping["LDFLAGS"] *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
+        #end
     end
 
     # There is no broad agreement on what host compilers should be called,
