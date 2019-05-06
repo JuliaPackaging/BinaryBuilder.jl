@@ -205,7 +205,7 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
         install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        patchelf = "/usr/local/bin/patchelf"
+        patchelf = "/usr/bin/patchelf"
         relink_cmd = `$patchelf --replace-needed $(old_libpath) $(libname) $(rel_path)`
     end
 
@@ -245,6 +245,8 @@ function fix_identity_mismatch(prefix::Prefix, platform::Platform, path::Abstrac
     logpath = joinpath(logdir(prefix), "fix_identity_mismatch_$(basename(rel_path)).log")
     run(ur, id_cmd, logpath; verbose=verbose)
 end
+
+
 """
     update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                    old_libpath, new_libpath; verbose::Bool = false)
@@ -267,7 +269,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
 
     add_rpath = x -> ``
     relink = (x, y) -> ``
-    patchelf = "/usr/local/bin/patchelf"
+    patchelf = "/usr/bin/patchelf"
     install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
     if Sys.isapple(platform)
         add_rpath = rp -> `$install_name_tool -add_rpath @loader_path/$(rp) $(rel_path)`
