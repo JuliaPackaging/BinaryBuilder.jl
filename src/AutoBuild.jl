@@ -45,7 +45,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                             --color=yes option to julia, see examples below.
 
             --debug         This causes a failed build to drop into an
-                            interactive bash shell for debugging purposes.
+                            interactive shell for debugging purposes.
 
             --only-buildjl  This disables building of any tarballs, and merely
                             reconstructs a `build.jl` file from a github
@@ -241,7 +241,7 @@ for a list of platforms.  `src_name` represents the name of the source package
 being built (and will set the name of the built tarballs), `platforms` is a
 list of platforms to build for, `sources` is a list of tuples giving
 `(url, hash)` of all sources to download and unpack before building begins,
-`script` is a string representing a `bash` script to run to build the desired
+`script` is a string representing a shell script to run to build the desired
 products, which are listed as `Product` objects within the vector returned by
 the `products` function. `dependencies` gives a list of dependencies that
 provide `build.jl` files that should be installed before building begins to
@@ -453,7 +453,7 @@ function build(runner::Runner, name::AbstractString,
                platform::Platform, prefix::Prefix;
                verbose::Bool = false, force::Bool = false,
                autofix::Bool = true, ignore_audit_errors::Bool = true,
-               skip_audit::Bool = false,
+               skip_audit::Bool = false, bootstrap::Bool = bootstrap_mode,
                ignore_manifests::Vector = [], debug::Bool = false) where {P <: Product}
     # First, look to see whether our products are satisfied or not
     if isempty(products)
@@ -476,90 +476,41 @@ function build(runner::Runner, name::AbstractString,
             end
         end
 
-        # We setup our bash session to do three things:
-        #   - Save bash history on every command issued (so we have a fake ~/.bash_history)
+        # We setup our shell session to do three things:
+        #   - Save history on every command issued (so we have a fake `~/.bash_history`)
         #   - Save environment on quit (so that we can regenerate all environment variables
         #     when we're debugging, etc...)
         #   - Copy the current srcdir over to disk if something breaks.  This is done so
         #     that if we want to debug a build halfway through, we can get at it.  We normally
         #     build with a tmpfs mounted at `$WORKSPACE/srcdir`.
-        trapped_script = """
-        alias ll='ls -la'
-
-        vecho() {
-            if [[ "$(verbose)" == "true" ]]; then
-                echo "\$@"
-            fi
-        }
-        vecho_red() {
-            (vecho "\$@" >&2)
-        }
-
-        # Save bash history (and optionally echo it out as it happens)
-        save_history() {
-            vecho_red " ---> \$BASH_COMMAND"
-            history -s "\$BASH_COMMAND"
-            history -a
-        }
-
-        # Save our environment into `/meta/.env`, eliminating read-only variables
-        # so that this file can be sourced upon entering a debug shell.
-        save_env() {
-            set +x
-            set > /meta/.env
-            # Ignore read-only variables
-            for l in BASHOPTS BASH_VERSINFO UID EUID PPID SHELLOPTS; do
-                grep -v "^\$l=" /meta/.env > /meta/.env2
-                mv /meta/.env2 /meta/.env
-            done
-            echo "cd \$(pwd)" >> /meta/.env
-        }
-
-        # We do a little sleight-of-hand here; we want to build inside of a tmpfs
-        # because `srcdir` might be mapped in through a networked filesystem, which
-        # totally wrecks our I/O performance.  So what we do instead is bind-mount
-        # `srcdir` to another location so that we can always get at it, copy its
-        # contents to a new tmpfs we mount at the location of `srcdir`, then when
-        # we exit on an error, we copy everything back over again
-        tmpify_srcdir() {
-            vecho "Copying srcdir to tmpfs..."
-            mkdir -p \$WORKSPACE/.true_srcdir
-            mount --bind \$WORKSPACE/srcdir \$WORKSPACE/.true_srcdir
-            mount -t tmpfs tmpfs \$WORKSPACE/srcdir
-            rsync -rlptD \$WORKSPACE/.true_srcdir/ \$WORKSPACE/srcdir
-
-            # We may have changed what pwd() means out from underneath ourselves
-            cd \$(pwd)
-        }
-
-        # Copy our tmpfs version of `srcdir` back onto disk.
-        save_srcdir() {
-            vecho_red "Saving srcdir due to previous error..."
-            rsync -rlptD \$WORKSPACE/srcdir/ \$WORKSPACE/.true_srcdir --delete
-        }
-
-        # If /meta is mounted, then we want to save history and environment
-        if [[ -d /meta ]]; then
-            trap save_history DEBUG
-            trap "save_env" EXIT
-            trap "save_env; save_srcdir" INT TERM ERR
-        fi
-
+        trapper_wrapper = """
         # Stop if we hit any errors.
         set -e
 
-        # Swap out srcdir from underneath our feet
-        tmpify_srcdir
+        # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
+        if [ \$(basename \$0) = "bash" ]; then
+            trap save_history DEBUG
+            trap "save_env" EXIT
+            trap "save_env; save_srcdir" INT TERM ERR
+
+            # Swap out srcdir from underneath our feet if we've got our `ERR`
+            # traps set; if we don't have this, we get very confused.  :P
+            tmpify_srcdir
+        else
+            # If we're running in `sh` or something like that, we need a
+            # slightly slimmer set of traps. :(
+            trap "save_env" EXIT INT TERM
+        fi
 
         $(script)
         """
 
         logpath = joinpath(logdir(prefix), "$(name).log")
-        did_succeed = run(runner, `/bin/bash -c $(trapped_script)`, logpath; verbose=verbose)
+        did_succeed = run(runner, `/bin/bash -l -c $(trapper_wrapper)`, logpath; verbose=verbose)
         if !did_succeed
             if debug
                 @warn("Build failed, launching debug shell")
-                run_interactive(runner, `/bin/bash --init-file /meta/.env`)
+                run_interactive(runner, `/bin/bash -l -i`)
             end
             msg = "Build for $(name) on $(triplet(platform)) did not complete successfully\n"
             error(msg)
@@ -658,6 +609,27 @@ function print_buildjl(build_dir::AbstractString, src_name::AbstractString,
     end
 end
 
+function product_hashes_from_dir(dir_path::AbstractString; verbose::Bool = false)
+    product_hashes = Dict()
+    for filepath in [joinpath(dir_path, f) for f in readdir(dir_path) if endswith(f, ".tar.gz")]
+        # For each asset (tarball), download it
+        # Hash it
+        hash = open(filepath) do file
+            return bytes2hex(sha256(file))
+        end
+
+        # Then fit it into our product_hashes
+        file_triplet = triplet(extract_platform_key(filepath))
+        product_hashes[file_triplet] = (basename(filepath), hash)
+
+        if verbose
+            @info("Calculated $hash for $(basename(filepath))")
+        end
+    end
+
+    return product_hashes
+end
+
 """
 If you have a sharded build on Github, it would be nice if we could get an auto-generated
 `build.jl` just like if we build serially.  This function eases the pain by reconstructing
@@ -693,20 +665,9 @@ function product_hashes_from_github_release(repo_name::AbstractString, tag_name:
             filepath = joinpath(d, asset["name"])
             url = asset["browser_download_url"]
             BinaryProvider.download(url, filepath; verbose=verbose)
-
-            # Hash it
-            hash = open(filepath) do file
-                return bytes2hex(sha256(file))
-            end
-
-            # Then fit it into our product_hashes
-            file_triplet = triplet(extract_platform_key(asset["name"]))
-            product_hashes[file_triplet] = (asset["name"], hash)
-
-            if verbose
-                @info("Calculated $hash for $(asset["name"])")
-            end
         end
+
+        product_hashes = product_hashes_from_dir(d; verbose=verbose)
     end
 
     return product_hashes

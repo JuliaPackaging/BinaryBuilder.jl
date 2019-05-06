@@ -91,7 +91,7 @@ function QemuRunner(workspace_root::String;
     update_qemu(;verbose=verbose)
 
     # Construct environment variables we'll use from here on out
-    envs = merge(platform_envs(platform), extra_env)
+    envs = merge(platform_envs(platform; verbose=verbose), extra_env)
 
     # Resource limits for QEMU.  For some reason, it seems to crash if we use too many CPUs....
     memory_limit = Int64(div(Sys.total_memory()*3, 4*1024^2))

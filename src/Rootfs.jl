@@ -1,4 +1,4 @@
-export supported_platforms, expand_gcc_versions
+export supported_platforms, expand_gcc_versions, expand_gfortran_versions, expand_cxx_versions
 using BinaryProvider: compiler_abi
 
 ## The build environment is broken up into multiple parts:
@@ -139,9 +139,9 @@ analyze the name and platform of this shard and return a path based on that.
 function map_target(cs::CompilerShard)
     if lowercase(cs.name) == "rootfs"
         return "/"
-    elseif lowercase(cs.name) in ("gcc", "basecompilershard")
-        return joinpath("/opt", triplet(cs.target), "$(cs.name)-$(cs.version)")
-    elseif lowercase(cs.name) == "llvm"
+    elseif lowercase(cs.name) in ("gccbootstrap", "platformsupport")
+        return joinpath("/opt", triplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
+    elseif lowercase(cs.name) == "llvmbootstrap"
         return joinpath("/opt", triplet(cs.host), "$(cs.name)-$(cs.version)")
     else
         error("Unknown mapping for shard named $(cs.name)")
@@ -342,7 +342,7 @@ end
 
 
 """
-    choose_shards(p::Platform; rootfs_build, bcs_build, GCC_builds,
+    choose_shards(p::Platform; rootfs_build, ps_build, GCC_builds,
                                LLVM_builds, archive_type)
 
 This method chooses, given a `Platform`, which shards to download, extract and
@@ -350,11 +350,12 @@ mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
-            rootfs_build::VersionNumber=v"2018.11.11",
-            bcs_build::VersionNumber=v"2018.11.11",
-            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"6.1.0", v"7.1.0", v"8.1.0"],
-            LLVM_build::VersionNumber=v"6.0.1-0",
+            rootfs_build::VersionNumber=v"2019.5.3",
+            ps_build::VersionNumber=v"2019.5.2",
+            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
+            LLVM_build::VersionNumber=v"8.0.0",
             archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
+            bootstrap::Bool = bootstrap_mode,
         )
 
     # If GCC version is not specificed by `p`, choose earliest possible.
@@ -362,30 +363,35 @@ function choose_shards(p::Platform;
         GCC_build = GCC_builds[1]
     else
         # Otherwise, match major versions with a delightfully convoluted line:
-        GCC_build = GCC_builds[Dict(
-            :gcc4 => 1,
-            :gcc6 => 2,
-            :gcc7 => 3,
-            :gcc8 => 4)[compiler_abi(p).gcc_version]]
+        GCC_build = first(filter(v -> v.major == parse(Int, string(compiler_abi(p).gcc_version)[end]), GCC_builds))
     end
 
-    host_platform = Linux(:x86_64)
+    host_platform = Linux(:x86_64; libc=:musl)
+
+    # If we're in bootstrap mode, ignore `rootfs_build` and `bcs_build` to instead use the latest
+    # version within our hash table
+    if bootstrap
+        css = keys(shard_hash_table)
+        rootfs_build = maximum([cs.version for cs in css if cs.name == "Rootfs" && cs.archive_type == archive_type])
+    end
+
     shards = [
         # We always need our Rootfs for Linux(:x86_64)
         CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
-        # BCS contains our binutils, libc, etc...
-        CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=p),
-        # GCC gets a particular version that was chosen above
-        CompilerShard("GCC", GCC_build, host_platform, archive_type; target=p),
-        # God bless LLVM; a single binary that targets all platforms!
-        CompilerShard("LLVM", LLVM_build, host_platform, archive_type),
     ]
 
-    # If we're not building for the host platform, then add host shard for things
-    # like HOSTCC, HOSTCXX, etc...
-    if !(typeof(p) <: typeof(host_platform)) || (arch(p) != arch(host_platform) || libc(p) != libc(host_platform))
-        push!(shards, CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=host_platform))
-        push!(shards, CompilerShard("GCC", GCC_build, host_platform, archive_type; target=host_platform))
+    if !bootstrap
+        push!(shards, CompilerShard("PlatformSupport", ps_build, p, archive_type))
+        # GCC gets a particular version that was chosen above
+        push!(shards, CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p))
+        # God bless LLVM; a single binary that targets all platforms!
+        push!(shards, CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type))
+        # If we're not building for the host platform, then add host shard for things
+        # like HOSTCC, HOSTCXX, etc...
+        if !(typeof(p) <: typeof(host_platform)) || (arch(p) != arch(host_platform) || libc(p) != libc(host_platform))
+            push!(shards, CompilerShard("PlatformSupport", ps_build, host_platform, archive_type))
+            push!(shards, CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform))
+        end
     end
     return shards
 end
@@ -428,7 +434,7 @@ function replace_gcc_version(p::Platform, gcc_version::Symbol)
 end
 
 """
-    expand_gcc_versions(p::Platform)
+    expand_gfortran_versions(p::Platform)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `gcc_version` member of the `CompilerABI`
@@ -437,7 +443,7 @@ supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
 GCC version (as opposed to `:gcc_any`) only that `Platform` is returned.
 """
-function expand_gcc_versions(p::Platform)
+function expand_gfortran_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
     if compiler_abi(p).gcc_version != :gcc_any
         return [p]
@@ -447,14 +453,30 @@ function expand_gcc_versions(p::Platform)
     gcc_versions = [:gcc4, :gcc7, :gcc8]
     return replace_gcc_version.(Ref(p), gcc_versions)
 end
+expand_gfortran_versions(ps::Vector{P}) where {P <: Platform} = expand_gfortran_versions.(ps)
+@deprecate expand_gcc_versions expand_gfortran_versions
 
-function expand_gcc_versions(ps::Vector{P}) where {P <: Platform}
-    expanded_ps = Platform[]
-    for p in ps
-        append!(expanded_ps, expand_gcc_versions(p))
+"""
+    expand_cxx_versions(p::Platform)
+
+Given a `Platform`, returns an array of `Platforms` with a spread of identical
+entries with the exception of the `gcc_version` member of the `CompilerABI`
+struct within the `Platform`.  This is used to take, for example, a list of
+supported platforms and expand them to include multiple GCC versions for
+the purposes of ABI matching.  If the given `Platform` already specifies a
+GCC version (as opposed to `:gcc_any`) only that `Platform` is returned.
+"""
+function expand_cxx_versions(p::Platform)
+    # If this platform cannot be expanded, then exit out fast here.
+    if compiler_abi(p).gcc_version != :gcc_any
+        return [p]
     end
-    return expanded_ps
+
+    # Otherwise, generate new versions!
+    gcc_versions = [:gcc4, :gcc5]
+    return replace_gcc_version.(Ref(p), gcc_versions)
 end
+expand_cxx_versions(ps::Vector{P}) where {P <: Platform} = expand_cxx_versions.(ps)
 
 """
     download_all_shards(; verbose::Bool=false)

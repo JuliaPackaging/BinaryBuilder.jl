@@ -204,13 +204,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         joinpath(build_path, nonce),
         cwd = "/workspace/srcdir",
         platform = platform,
-        extra_env = merge(extra_env,
-            Dict(
-                "prefix" => "/workspace/destdir",
-                "WORKSPACE" => "/workspace",
-                "PS1" => "sandbox:\${PWD//\$WORKSPACE/\\\\\$WORKSPACE}\\\$ "
-             )
-        ),
+        extra_env = extra_env,
         verbose = verbose,
         workspaces = [
             metadir => "/meta",

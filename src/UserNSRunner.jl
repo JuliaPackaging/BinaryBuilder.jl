@@ -37,7 +37,7 @@ function UserNSRunner(workspace_root::String;
     prepare_shard.(shards; verbose=verbose)
 	
     # Construct environment variables we'll use from here on out
-    envs = merge(platform_envs(platform), extra_env)
+    envs = merge(platform_envs(platform; verbose=verbose), extra_env)
 
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")
@@ -275,7 +275,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
     return cd(tempdir()) do
         # Construct an extremely simple sandbox command
         sandbox_cmd = `$(sandbox_path(root_shard)) --rootfs $(mount_path(root_shard))`
-        cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
+        cmd = `$(sandbox_cmd) -- /bin/sh -c "echo hello julia"`
 
         if verbose
             @info("Probing for unprivileged container capability...")

@@ -64,7 +64,7 @@ function DockerRunner(workspace_root::String;
     import_docker_image(shards[1]; verbose=verbose)
     
     # Construct environment variables we'll use from here on out
-    envs = merge(platform_envs(platform), extra_env)
+    envs = merge(platform_envs(platform; verbose=verbose), extra_env)
 
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")

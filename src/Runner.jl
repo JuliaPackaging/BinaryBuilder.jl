@@ -28,6 +28,14 @@ function target_dlext(target::AbstractString)
     end
 end
 
+function target_exeext(target::AbstractString)
+    if endswith(target, "-mingw32")
+        return ".exe"
+    else
+        return ""
+    end
+end
+
 """
     platform_envs(platform::Platform)
 
@@ -36,11 +44,64 @@ variables to be set within the build environment to force compiles toward the
 defined target architecture.  Examples of things set are `PATH`, `CC`,
 `RANLIB`, as well as nonstandard things like `target`.
 """
-function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
+function platform_envs(platform::Platform; host_target="x86_64-linux-musl", bootstrap=bootstrap_mode, verbose::Bool = false)
     global use_ccache
 
     # Convert platform to a triplet, but strip out the ABI parts
     target = triplet(abi_agnostic(platform))
+
+    # Prefix, libdir, etc...
+    prefix = "/workspace/destdir"
+    if prefix isa Windows
+        libdir = "$(prefix)/bin"
+    else
+        libdir = "$(prefix)/lib"
+    end
+
+    if Base.have_color
+        PS1 = string(
+            Base.text_colors[:light_blue],
+            "sandbox",
+            Base.text_colors[:normal],
+            ":",
+            Base.text_colors[:yellow],
+            "\${PWD//\$WORKSPACE/\\\\\$\\{WORKSPACE\\}}",
+            Base.text_colors[:normal],
+            " \\\$ ",
+        )
+    else
+        PS1 = "sandbox:\${PWD//\$WORKSPACE/\\\\\$\\{WORKSPACE\\}} \\\$ "
+    end
+
+    # If we're in bootstrap mode, don't do most of this
+    mapping = Dict(
+        # Platform information
+        "target" => target,
+        "nproc" => "$(Sys.CPU_THREADS)",
+        "nbits" => target_nbits(target),
+        "proc_family" => target_proc_family(target),
+        "dlext" => target_dlext(target),
+        "exeext" => target_exeext(target),
+        "PATH" => "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
+        "MACHTYPE" => "x86_64-linux-musl",
+
+        # Set location parameters
+        "WORKSPACE" => "/workspace",
+        "prefix" => prefix,
+        "libdir" => libdir,
+
+        # Fancyness!
+        "PS1" => PS1,
+        "VERBOSE" => "$(verbose)",
+        "V" => "$(verbose)",
+        "HISTFILE"=>"/meta/.bash_history",
+        "TERM" => "screen",
+    )
+
+    # If we're bootstrapping, that's it, quit out.
+    if bootstrap
+        return mapping
+    end
 
     # Helper function to generate paths such as /opt/x86_64-apple-darwin14/bin/llvm-ar
     tool_path(n, t = target) = "/opt/$(t)/bin/$(n)"
@@ -48,8 +109,8 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
     target_tool_path(n, t = target) = tool_path("$(t)-$(n)", t)
     target_lib_dir(t) = "/opt/$(t)/lib64:/opt/$(t)/lib:/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
     host_tool_path(n, t = host_target) = tool_path("$(t)-$(n)", t)
-    llvm_tool_path(n) = "/opt/$(host_target)/tools/$(n)"
-    
+    llvm_tool_path(n) = "/opt/$(host_target)/bin/$(n)"
+
     # Start with the default musl ld path
     lib_path = "/usr/local/lib64:/usr/local/lib:/usr/local/lib:/usr/lib"
 
@@ -62,18 +123,15 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
     lib_path *= ":" * target_lib_dir(target)
 
     # Finally add on our destination location
-    lib_path *= ":/workspace/destdir/lib64:/workspace/destdir/lib"
+    lib_path *= ":$(prefix)/lib64:$(prefix)/lib"
 
-    # Start with the standard PATH:
-    path = "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin"
-
-    # Slip our tools into the front, followed by host tools
-    path = "/opt/$(target)/bin:/opt/$(host_target)/bin:/opt/$(host_target)/tools:" * path
+    # Slip our tools into the front of the standard PATH, followed by host tools
+    path = "/opt/$(target)/bin:/opt/$(host_target)/bin:" * mapping["PATH"]
 
     # Then slip $prefix/bin onto the end, so that dependencies naturally show up
-    path = path * ":/workspace/destdir/bin"
+    path = path * ":$(prefix)/bin"
 
-    mapping = Dict(
+    merge!(mapping, Dict(
         # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
         "PATH" => path,
         "LD_LIBRARY_PATH" => lib_path,
@@ -98,21 +156,10 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         "LLVM_TARGET" => target,
         "LLVM_HOST_TARGET" => host_target,
 
-        # Useful tools for our buildscripts
-        "target" => target,
-        "nproc" => "$(Sys.CPU_THREADS)",
-        "nbits" => target_nbits(target),
-        "proc_family" => target_proc_family(target),
-        "dlext" => target_dlext(target),
-        "TERM" => "screen",
-
         # We should always be looking for packages already in the prefix
-        "PKG_CONFIG_PATH" => "/workspace/destdir/lib/pkgconfig",
-        "PKG_CONFIG_SYSROOT_DIR" => "/workspace/destdir",
-
-        # We like to be able to get at our .bash_history afterwards. :)
-        "HISTFILE"=>"/meta/.bash_history",
-    )
+        "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig",
+        "PKG_CONFIG_SYSROOT_DIR" => prefix,
+    ))
 
     # If we're on MacOS or FreeBSD, we default to LLVM tools instead of GCC.
     # On all of our clangy platforms we actually have GCC tools available as well,
@@ -134,13 +181,14 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
             mapping["LDFLAGS"] *= " -L/opt/$(target)/$(target)/lib"
         end
 
-        # OSX must be linked against libc++.
-        if occursin("-apple-", target)
-            mapping["CXX"] *= " -stdlib=libc++"
-        end
+        #if occursin("-apple-", target)
+            # OSX must be linked against libc++.
+            # # EDIRT: I think this is unnecessary now because we have the appropriate defaults set
+        #    mapping["CXX"] *= " -stdlib=libc++"
+        #end
         # flang isn't a realistic option yet, so we still use gfortran here
         mapping["FC"] = target_tool_path("gfortran")
-        mapping["LD"] = llvm_tool_path("llvm-ld")
+        mapping["LD"] = target_tool_path("ld")
         mapping["NM"] = llvm_tool_path("llvm-nm")
         mapping["OBJDUMP"] = llvm_tool_path("llvm-objdump")
     else
