@@ -77,11 +77,12 @@ function QemuRunner(workspace_root::String;
                     platform::Platform = platform_key_abi(),
                     workspaces::Vector = [],
                     extra_env=Dict{String, String}(),
-                    verbose::Bool = false)
+                    verbose::Bool = false,
+                    kwargs...)
     global use_ccache
 
     # Choose and prepare our shards
-    shards = choose_shards(platform)
+    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,))...)
     prepare_shard.(shards; mount_squashfs = false, verbose=verbose)
 
     # QEMU can use the .squashfs files directly, so we don't use `mount_path()`.

@@ -3,11 +3,9 @@
 
 module BinaryBuilder
 using Libdl, LibGit2, Random, Sockets, Base64
-using Reexport
 using ObjectFile
 using GitHub
 import InteractiveUtils
-@reexport using BinaryProvider
 using Pkg
 
 include("compat.jl")
@@ -55,6 +53,7 @@ use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
 bootstrap_mode = false
+preferred_gcc_build = nothing
 
 function __init__()
     global runner_override, use_squashfs, automatic_apple, allow_ecryptfs

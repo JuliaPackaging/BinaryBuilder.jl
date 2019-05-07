@@ -188,7 +188,8 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
                              Dict{String, String}();
                          verbose::Bool = false,
                          tee_stream::IO = stdout,
-                         downloads_dir = nothing)
+                         downloads_dir = nothing,
+                         kwargs...)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
     mkdir(joinpath(build_path, nonce))
@@ -201,7 +202,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
 
     # Create a runner to work inside this workspace with the nonce built-in
     ur = preferred_runner()(
-        joinpath(build_path, nonce),
+        joinpath(build_path, nonce);
         cwd = "/workspace/srcdir",
         platform = platform,
         extra_env = extra_env,
@@ -209,6 +210,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         workspaces = [
             metadir => "/meta",
         ],
+        extract_kwargs(kwargs, (:preferred_gcc_version,))...,
     )
 
     # For each source path, unpack it

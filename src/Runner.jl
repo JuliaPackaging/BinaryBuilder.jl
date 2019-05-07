@@ -284,14 +284,14 @@ end
 Launch an interactive shell session within the user namespace, with environment
 setup to target the given `platform`.
 """
-function runshell(platform::Platform = platform_key_abi(); verbose::Bool = false)
-    runshell(preferred_runner(), platform; verbose=verbose)
+function runshell(platform::Platform = platform_key_abi(); kwargs...)
+    runshell(preferred_runner(), platform; kwargs...)
 end
 
 function runshell(r::Runner, args...; kwargs...)
     run_interactive(r, `/bin/bash`, args...; kwargs...)
 end
 
-function runshell(::Type{R}, platform::Platform = platform_key_abi(); verbose::Bool = false) where {R <: Runner}
-    return runshell(R(pwd(); cwd="/workspace/", platform=platform, verbose=verbose))
+function runshell(::Type{R}, platform::Platform = platform_key_abi(); kwargs...) where {R <: Runner}
+    return runshell(R(pwd(); cwd="/workspace/", platform=platform, kwargs...))
 end

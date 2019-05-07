@@ -356,38 +356,53 @@ function choose_shards(p::Platform;
             LLVM_build::VersionNumber=v"8.0.0",
             archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
             bootstrap::Bool = bootstrap_mode,
+            # We prefer the oldest GCC version by default
+            preferred_gcc_version::VersionNumber = GCC_builds[1],
         )
 
-    # If GCC version is not specificed by `p`, choose earliest possible.
-    if compiler_abi(p).libgfortran_version == :libgfortran_any
-        GCC_build = GCC_builds[1]
-    else
-        # Otherwise, match major versions with a delightfully convoluted line:
-        GCC_build = first(filter(v -> v.major == parse(Int, string(compiler_abi(p).libgfortran_version)[end]), GCC_builds))
+    # Determine which GCC build we're going to match with this CompilerABI:
+    cabi = compiler_abi(p)
+    filt_gcc_majver(versions...) = filter(v -> v.major in versions, GCC_builds)
+    if cabi.libgfortran_version == :libgfortran3
+        GCC_builds = filt_gcc_majver(4,5,6)
+    elseif cabi.libgfortran_version == :libgfortran4
+        GCC_builds = filt_gcc_majver(7)
+    elseif cabi.libgfortran_version == :libgfortran5
+        GCC_builds = filt_gcc_majver(8)
     end
 
+    if cabi.cxxstring_abi == :cxx03
+        GCC_builds = filt_gcc_majver(4)
+    elseif cabi.cxxstring_abi == :cxx11
+        GCC_builds = filt_gcc_majver(5,6,7,8)
+    end
+
+    if isempty(GCC_builds)
+        error("Impossible CompilerABI constraints $(cabi)!")
+    end
+
+    # Otherwise, choose the version that is closest to our preferred version
+    ver_to_tuple(v) = (Int(v.major), Int(v.minor), Int(v.patch))
+    pgv = ver_to_tuple(preferred_gcc_version)
+    closest_idx = findmin([abs.(pgv .- ver_to_tuple(x)) for x in GCC_builds])[2]
+    GCC_build = GCC_builds[closest_idx]
+
+    # Our host platform is x86_64-linux-musl
     host_platform = Linux(:x86_64; libc=:musl)
 
-    # If we're in bootstrap mode, ignore `rootfs_build` and `bcs_build` to instead use the latest
-    # version within our hash table
     if bootstrap
-        css = keys(shard_hash_table)
-        rootfs_build = maximum([cs.version for cs in css if cs.name == "Rootfs" && cs.archive_type == archive_type])
-    end
-
-    shards = [
-        # We always need our Rootfs for Linux(:x86_64)
-        CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
-    ]
-
-    if !bootstrap
-        push!(shards, CompilerShard("PlatformSupport", ps_build, p, archive_type))
-        # GCC gets a particular version that was chosen above
-        push!(shards, CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p))
-        # God bless LLVM; a single binary that targets all platforms!
-        push!(shards, CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type))
-        # If we're not building for the host platform, then add host shard for things
-        # like HOSTCC, HOSTCXX, etc...
+        # When bootstrapping, we only mount the latest Rootfs
+        rootfs_build = maximum([cs.version for cs in keys(shard_hash_table) if cs.name == "Rootfs" && cs.archive_type == archive_type])
+        return [CompilerShard("Rootfs", rootfs_build, host_platform, archive_type)]
+    else
+        shards = [
+            CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
+            # Shards for the target architecture
+            CompilerShard("PlatformSupport", ps_build, p, archive_type),
+            CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p),
+            CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
+        ]
+        # If we're not building for the host platform, then add host shard for host tools
         if !(typeof(p) <: typeof(host_platform)) || (arch(p) != arch(host_platform) || libc(p) != libc(host_platform))
             push!(shards, CompilerShard("PlatformSupport", ps_build, host_platform, archive_type))
             push!(shards, CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform))
@@ -455,10 +470,12 @@ function expand_gfortran_versions(p::Platform)
     end
 
     # Otherwise, generate new versions!
-    gcc_versions = [:gcc4, :gcc7, :gcc8]
-    return replace_gcc_version.(Ref(p), gcc_versions)
+    libgfortran_versions = [:libgfortran3, :libgfortran4, :libgfortran5]
+    return replace_libgfortran_version.(Ref(p), libgfortran_versions)
 end
-expand_gfortran_versions(ps::Vector{P}) where {P <: Platform} = expand_gfortran_versions.(ps)
+function expand_gfortran_versions(ps::Vector{P}) where {P <: Platform}
+    return collect(Iterators.flatten(expand_gfortran_versions.(ps)))
+end
 @deprecate expand_gcc_versions expand_gfortran_versions
 
 """
@@ -478,10 +495,12 @@ function expand_cxx_versions(p::Platform)
     end
 
     # Otherwise, generate new versions!
-    gcc_versions = [:gcc4, :gcc5]
-    return replace_gcc_version.(Ref(p), gcc_versions)
+    gcc_versions = [:cxx03, :cxx11]
+    return replace_cxx_abi.(Ref(p), gcc_versions)
 end
-expand_cxx_versions(ps::Vector{P}) where {P <: Platform} = expand_cxx_versions.(ps)
+function expand_cxx_versions(ps::Vector{P}) where {P <: Platform}
+    return collect(Iterators.flatten(expand_cxx_versions.(ps)))
+end
 
 """
     download_all_shards(; verbose::Bool=false)

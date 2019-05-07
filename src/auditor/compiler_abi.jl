@@ -46,7 +46,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; io::IO 
         each major version of GCC.  To do this, immediately after your `products`
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
-        msg *= "\n\n    products = expand_libgfortran_versions(products)"
+        msg *= "\n\n    products = expand_gfortran_versions(products)"
         warn(io, msg)
         return false
     end

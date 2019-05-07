@@ -411,6 +411,7 @@ function autobuild(dir::AbstractString,
                 platform;
                 verbose=verbose,
                 downloads_dir=storage_dir("downloads"),
+                extract_kwargs(kwargs, (:preferred_gcc_version,))...,
             )
 
             # Don't keep the downloads directory around
@@ -434,7 +435,8 @@ function autobuild(dir::AbstractString,
                 prefix;
                 verbose=verbose,
                 ignore_manifests=dep_manifests,
-                kwargs...
+                extract_kwargs(kwargs, (:force, :autofix, :ignore_audit_errors,
+                                        :skip_audit, :bootstrap, :debug))...,
             )
 
             # Remove the files of any dependencies
