@@ -91,7 +91,7 @@ function DockerRunner(workspace_root::String;
     docker_cmd = `docker run --rm --privileged `#--cap-add SYS_ADMIN`
 
     if cwd != nothing
-        docker_cmd = `$docker_cmd -w $(abspath(cwd))`
+        docker_cmd = `$docker_cmd -w /$(abspath(cwd))`
     end
 
     # Add in read-only mappings and read-write workspaces
