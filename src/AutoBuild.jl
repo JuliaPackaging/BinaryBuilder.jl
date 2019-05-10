@@ -329,7 +329,7 @@ function autobuild(dir::AbstractString,
                         repo = LibGit2.clone(src_url, src_path; isbare=true)
                     end
                 else
-                    if isfile(src_url)
+                    if BinaryProvider.safe_isfile(src_url)
                         # Immediately abspath() a src_url so we don't lose track of
                         # sources given to us with a relative path
                         src_path = abspath(src_url)
