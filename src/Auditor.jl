@@ -94,7 +94,7 @@ function audit(prefix::Prefix; io=stderr,
     # running native, don't try to load library files from other platforms)
     if Pkg.platforms_match(platform, platform_key_abi())
         # Find all dynamic libraries
-        shlib_files = collect_files(prefix, predicate)
+        shlib_files = filter(f -> valid_dl_path(f, platform), bin_files)
 
         for f in shlib_files
             if verbose
