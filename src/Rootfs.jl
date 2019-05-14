@@ -442,7 +442,7 @@ function supported_platforms()
     ]
 end
 
-function replace_libgfortran_version(p::Platform, libgfortran_version::Symbol)
+function replace_libgfortran_version(p::Platform, libgfortran_version::VersionNumber)
     new_cabi = CompilerABI(compiler_abi(p); libgfortran_version=libgfortran_version)
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
