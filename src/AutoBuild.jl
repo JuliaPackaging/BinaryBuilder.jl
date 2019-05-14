@@ -548,11 +548,6 @@ function autobuild(dir::AbstractString,
                     println(io, "using $(dep)_jll")
                 end
 
-                # Pull out some useful sub-graphs of the total products
-                lib_products = filter(p -> p isa LibraryProduct, products)
-                exe_products = filter(p -> p isa ExecutableProduct, products)
-                file_products = filter(p -> p isa FileProduct, products)
-
                 # The LIBPATH is called different things on different platforms
                 if platform isa Windows
                     LIBPATH_env = "PATH"
@@ -644,7 +639,16 @@ function autobuild(dir::AbstractString,
                 \"\"\"
                 function __init__()
                     global prefix = abspath(joinpath(@__DIR__, ".."))
+
+                    # Initialize PATH and LIBPATH environment variable listings
+                    global PATH_list, LIBPATH_list
                 """)
+                for dep in dependencies
+                    print(io, """
+                        append!(PATH_list, $(dep)_jll.PATH_list)
+                        append!(LIBPATH_list, $(dep)_jll.LIBPATH_list)
+                    """)
+                end
 
                 for p in products
                     vp = variable_name(p)
@@ -660,39 +664,25 @@ function autobuild(dir::AbstractString,
                             # Manually `dlopen()` this right now so that future invocations
                             # of `ccall` with its `SONAME` will find this path immediately.
                             global $(vp)_handle = dlopen($(vp)_path)
+                            push!(LIBPATH_list, dirname($(variable_name(lp))_path))
                         """)
-                    end
-
-                    # Initialize PATH and LIBPATH environment variable listings
-                    println(io, "    global PATH_list, LIBPATH_list")
-                    for dep in dependencies
-                        print(io, """
-                            append!(PATH_list, $(dep)_jll.PATH_list)
-                            append!(LIBPATH_list, $(dep)_jll.LIBPATH_list)
-                        """)
-                    end
-                    for ep in exe_products
+                    elseif p isa ExecutableProduct
                         println(io, "    push!(PATH_list, dirname($(variable_name(ep))_path))")
                     end
-                    for lp in lib_products
-                        println(io, "    push!(LIBPATH_list, dirname($(variable_name(lp))_path))")
-                    end
-                    print(io, """
-                        # Filter out duplicate and empty entries in our PATH and LIBPATH entries
-                        filter!(!isempty, unique!(PATH_list))
-                        filter!(!isempty, unique!(LIBPATH_list))
-                        global PATH = join(PATH_list, $(repr(pathsep)))
-                        global LIBPATH = join(LIBPATH_list, $(repr(pathsep)))
-
-                        # Add each element of LIBPATH to our DL_LOAD_PATH (necessary on platforms
-                        # that don't honor our "already opened" trick)
-                        for lp in LIBPATH
-                            push!(DL_LOAD_PATH, lp)
-                        end
-                    """)
                 end
 
                 print(io, """
+                    # Filter out duplicate and empty entries in our PATH and LIBPATH entries
+                    filter!(!isempty, unique!(PATH_list))
+                    filter!(!isempty, unique!(LIBPATH_list))
+                    global PATH = join(PATH_list, $(repr(pathsep)))
+                    global LIBPATH = join(LIBPATH_list, $(repr(pathsep)))
+
+                    # Add each element of LIBPATH to our DL_LOAD_PATH (necessary on platforms
+                    # that don't honor our "already opened" trick)
+                    for lp in LIBPATH
+                        push!(DL_LOAD_PATH, lp)
+                    end
                 end  # __init__()
                 """)
 
