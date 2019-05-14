@@ -1,4 +1,4 @@
-export supported_platforms, expand_gcc_versions, expand_gfortran_versions, expand_cxx_versions
+export supported_platforms, expand_gcc_versions, expand_gfortran_versions, expand_cxxstring_abis
 
 ## The build environment is broken up into multiple parts:
 #
