@@ -469,7 +469,7 @@ function expand_gfortran_versions(p::Platform)
     end
 
     # Otherwise, generate new versions!
-    libgfortran_versions = [:libgfortran3, :libgfortran4, :libgfortran5]
+    libgfortran_versions = [v"3", v"4", v"5"]
     return replace_libgfortran_version.(Ref(p), libgfortran_versions)
 end
 function expand_gfortran_versions(ps::Vector{P}) where {P <: Platform}
