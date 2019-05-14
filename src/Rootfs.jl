@@ -449,8 +449,8 @@ function replace_libgfortran_version(p::Platform, libgfortran_version::VersionNu
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
 
-function replace_cxx_abi(p::Platform, cxx_abi::Symbol)
-    new_cabi = CompilerABI(libgfortran_version(p), cxx_abi)
+function replace_cxxstring_abi(p::Platform, cxxstring_abi::Symbol)
+    new_cabi = CompilerABI(compiler_abi(p), cxxstring_abi=cxxstring_abi)
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
 
@@ -480,7 +480,7 @@ end
 @deprecate expand_gcc_versions expand_gfortran_versions
 
 """
-    expand_cxx_versions(p::Platform)
+    expand_cxxstring_abis(p::Platform)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `cxxstring_abi` member of the `CompilerABI`
@@ -489,7 +489,7 @@ supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
 GCC version (as opposed to `nothing`) only that `Platform` is returned.
 """
-function expand_cxx_versions(p::Platform)
+function expand_cxxstring_abis(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
     if compiler_abi(p).cxxstring_abi != nothing
         return [p]
@@ -497,10 +497,10 @@ function expand_cxx_versions(p::Platform)
 
     # Otherwise, generate new versions!
     gcc_versions = [:cxx03, :cxx11]
-    return replace_cxx_abi.(Ref(p), gcc_versions)
+    return replace_cxxstring_abi.(Ref(p), gcc_versions)
 end
-function expand_cxx_versions(ps::Vector{P}) where {P <: Platform}
-    return collect(Iterators.flatten(expand_cxx_versions.(ps)))
+function expand_cxxstring_abis(ps::Vector{P}) where {P <: Platform}
+    return collect(Iterators.flatten(expand_cxxstring_abis.(ps)))
 end
 
 """
