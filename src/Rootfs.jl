@@ -362,12 +362,14 @@ function choose_shards(p::Platform;
     # Determine which GCC build we're going to match with this CompilerABI:
     cabi = compiler_abi(p)
     filt_gcc_majver(versions...) = filter(v -> v.major in versions, GCC_builds)
-    if cabi.libgfortran_version.major == 3
-        GCC_builds = filt_gcc_majver(4,5,6)
-    elseif cabi.libgfortran_version.major == 4
-        GCC_builds = filt_gcc_majver(7)
-    elseif cabi.libgfortran_version.major == 5
-        GCC_builds = filt_gcc_majver(8)
+    if cabi.libgfortran_version != nothing
+        if cabi.libgfortran_version.major == 3
+            GCC_builds = filt_gcc_majver(4,5,6)
+        elseif cabi.libgfortran_version.major == 4
+            GCC_builds = filt_gcc_majver(7)
+        elseif cabi.libgfortran_version.major == 5
+            GCC_builds = filt_gcc_majver(8)
+        end
     end
 
     if cabi.cxxstring_abi == :cxx03

@@ -688,8 +688,22 @@ function autobuild(dir::AbstractString,
 
                 # End the module
                 print(io, """
-                end  # module $(src_name)
+                end  # module $(src_name)_jll
                 """)
+            end
+
+            # Add a Project.toml
+            get_uuid(name) = Pkg.Types.uuid5(Pkg.Types.uuid_artifact, "$(name)_jll")
+            project = Dict(
+                "name" => "$(src_name)_jll",
+                "uuid" => get_uuid(src_name),
+                "version" => src_version,
+                "deps" => Dict("$(dep)_jll" => get_uuid(dep) for dep in dependencies),
+            )
+            # Always add Libdl as a dependency
+            project["deps"]["Libdl"] = first([u for (u, n) in Pkg.Types.stdlib() if n == "Libdl"])
+            open(joinpath(prefix, "Project.toml"), "w") do io
+                Pkg.TOML.print(io, project)
             end
 
             # Once we're built up, go ahead and package this prefix out
