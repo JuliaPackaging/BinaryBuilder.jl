@@ -489,7 +489,7 @@ supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
 GCC version (as opposed to `nothing`) only that `Platform` is returned.
 """
-function expand_cxxstring_versions(p::Platform)
+function expand_cxx_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
     if compiler_abi(p).cxxstring_abi != nothing
         return [p]
