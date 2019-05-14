@@ -9,7 +9,8 @@ function get_soname(oh::ELFHandle)
     es = ELFDynEntries(oh)
     soname_idx = findfirst(e -> e.entry.d_tag == ELF.DT_SONAME, es)
     if soname_idx === nothing
-        return nothing
+        # If all else fails, just return the filename.
+        return basename(path(oh))
     end
 
     # Look up the SONAME from the string table
@@ -21,7 +22,8 @@ function get_soname(oh::MachOHandle)
     lcs = MachOLoadCmds(oh)
     id_idx = findfirst(lc -> typeof(lc) <: MachOIdDylibCmd, lcs)
     if id_idx === nothing
-        return nothing
+        # If all else fails, just return the filename.
+        return basename(path(oh))
     end
 
     # Return the Dylib ID
