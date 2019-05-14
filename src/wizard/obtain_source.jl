@@ -141,7 +141,7 @@ function download_source(state::WizardState)
 
         # Save the source hash
         open(source_path) do file
-            source_hash = bytes2hex(BinaryProvider.sha256(file))
+            source_hash = bytes2hex(sha256(file))
         end
     end
 

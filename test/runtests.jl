@@ -1,4 +1,4 @@
-using BinaryProvider, Pkg
+using Pkg
 using BinaryBuilder
 using BinaryBuilder: preferred_runner
 using Random, LibGit2, Libdl, Test, ObjectFile, SHA

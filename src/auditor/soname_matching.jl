@@ -13,7 +13,7 @@ function get_soname(oh::ELFHandle)
     end
 
     # Look up the SONAME from the string table
-    return basename(strtab_lookup(es[soname_idx]))
+    return strtab_lookup(es[soname_idx])
 end
 
 function get_soname(oh::MachOHandle)
@@ -25,7 +25,7 @@ function get_soname(oh::MachOHandle)
     end
 
     # Return the Dylib ID
-    return basename(dylib_name(lcs[id_idx]))
+    return dylib_name(lcs[id_idx])
 end
 
 
@@ -45,7 +45,7 @@ function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
     end
 
     # Absolute path to where the SONAME-named file should be
-    soname_path = joinpath(dirname(path), soname)
+    soname_path = joinpath(dirname(path), basename(soname))
     if !isfile(soname_path)
         if autofix
             if verbose

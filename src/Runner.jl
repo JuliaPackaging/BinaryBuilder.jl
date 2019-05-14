@@ -179,6 +179,13 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         mapping["LD"] = target_tool_path("ld")
         mapping["NM"] = llvm_tool_path("llvm-nm")
         mapping["OBJDUMP"] = llvm_tool_path("llvm-objdump")
+
+        # Set the MacOS deployment target to be conservative
+        mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
+        # Also put this into LDFLAGS because some packages are hard of hearing
+        mapping["LDFLAGS"] *= " -mmacosx-version-min=10.8"
+        # Include -syslibroot because GCC 4 misses it.  :(
+        mapping["LDFLAGS"] *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
     elseif occursin("-freebsd", target)
         mapping["AR"] = llvm_tool_path("llvm-ar")
         mapping["AS"] = llvm_tool_path("llvm-as")
@@ -207,23 +214,6 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         mapping["LD"] = target_tool_path("ld")
         mapping["NM"] = target_tool_path("nm")
         mapping["OBJDUMP"] = target_tool_path("objdump")
-    end
-
-    # On OSX, we need to do a little more work.
-    if typeof(platform) <: MacOS
-        # First, tell CMake what our deployment target is, so that it tries to
-        # set -mmacosx-version-min and such appropriately
-        mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
-
-        # Also put this into LDFLAGS because some packages are hard of hearing
-        mapping["LDFLAGS"] *= " -mmacosx-version-min=10.8"
-
-        # If we're on an old GCC, the -syslibroot that gets passed in isn't
-        # calculated correctly, so we have to manually add it in.
-        #UGH WE NEED TO KNOW GCC VERSION HERE
-        #if compiler_abi(platform).gcc_version in (:gcc4, :gcc_any)
-        #    mapping["LDFLAGS"] *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
-        #end
     end
 
     # There is no broad agreement on what host compilers should be called,

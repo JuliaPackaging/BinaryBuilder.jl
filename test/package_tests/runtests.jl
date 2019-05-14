@@ -1,4 +1,4 @@
-using BinaryProvider, Pkg
+using Pkg
 
 function pull_latest(url, dir)
     # Get the repo that we've already cloned, or clone a new one

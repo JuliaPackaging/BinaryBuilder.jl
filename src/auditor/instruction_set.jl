@@ -1128,7 +1128,11 @@ function instruction_mnemonics(path::AbstractString, platform::Platform)
     output = IOBuffer()
 
     # Run objdump to disassemble the input binary
-    objdump_cmd = "\${target}-objdump -d $(basename(path))"
+    if platform isa MacOS || platform isa FreeBSD
+        objdump_cmd = "llvm-objdump -d $(basename(path))"
+    else
+        objdump_cmd = "\${target}-objdump -d $(basename(path))"
+    end
     run_interactive(ur, `/bin/bash -c "$(objdump_cmd)"`; stdout=output)
     seekstart(output)
 

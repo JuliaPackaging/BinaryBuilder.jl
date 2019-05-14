@@ -27,26 +27,29 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                                  [--debug] [--deploy] [--help]
 
         Options:
-            targets         By default `build_tarballs.jl` will build a tarball
-                            for every target within the `platforms` variable.
-                            To override this, pass in a list of comma-separated
-                            target triplets for each target to be built.  Note
-                            that this can be used to build for platforms that
-                            are not listed in the 'default list' of platforms
-                            in the build_tarballs.jl script.
+            targets             By default `build_tarballs.jl` will build a tarball
+                                for every target within the `platforms` variable.
+                                To override this, pass in a list of comma-separated
+                                target triplets for each target to be built.  Note
+                                that this can be used to build for platforms that
+                                are not listed in the 'default list' of platforms
+                                in the build_tarballs.jl script.
 
-            --verbose       This streams compiler output to stdout during the
-                            build which can be very helpful for finding bugs.
-                            Note that it is colorized if you pass the
-                            --color=yes option to julia, see examples below.
+            --verbose           This streams compiler output to stdout during the
+                                build which can be very helpful for finding bugs.
+                                Note that it is colorized if you pass the
+                                --color=yes option to julia, see examples below.
 
-            --debug         This causes a failed build to drop into an
-                            interactive shell for debugging purposes.
+            --debug             This causes a failed build to drop into an
+                                interactive shell for debugging purposes.
 
-            --deploy        Deploy the built binaries to a github release, deploy
-                            to local registry.
+            --deploy            Deploy the built binaries to a github release,
+                                autodetecting from the current git repository.
 
-            --help          Print out this message.
+            --register=<depot>  Register into the given depot.  If no path is
+                                given, defaults to `~/.julia`.
+
+            --help              Print out this message.
 
         Examples:
             julia --color=yes build_tarballs.jl --verbose
@@ -71,60 +74,91 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # This sets whether we drop into a debug shell on failure or not
     debug = check_flag("--debug")
 
-    # The sets whether we are going to deploy our binaries to GitHub releases and `General`
+    # This sets whether we are going to deploy our binaries to GitHub releases
     deploy = check_flag("--deploy")
+
+    # This sets whether we are going to register, and if so, which 
+    register = false
+    register_path = Pkg.depots1()
+    for f in ARGS
+        if startswith(f, "--register")
+            register = true
+
+            if f != "--register"
+                register_path = split(f, '=')[2]
+            end
+            ARGS = filter!(x -> x != f, ARGS)
+            break
+        end
+    end
 
     # If the user passed in a platform (or a few, comma-separated) on the
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
-        should_override_platforms = true
         platforms = platform_key_abi.(split(ARGS[1], ","))
     end
 
-    # If we're running on CI and this is a tagged release, automatically
-    # determine bin_path by building up a URL
-    @info("Building for $(join(triplet.(platforms), ", "))")
+    # If we asked to deploy, make sure we have all the info before even starting to build
+    if deploy || register
+        # Check to see if this Artifact already exists within the Registry,
+        # choose a version number that is greater than anything else existent.
+        build_version = get_next_artifact_version(src_name, src_version)
 
+        repo = get_repo_name()
+        tag = get_tag_name(src_name, build_version)
+
+        uuid = Pkg.Types.uuid5(Pkg.Types.uuid_artifact, "$(src_name)_jll")
+    end
+
+    if deploy && !haskey(ENV, "GITHUB_TOKEN")
+        error("Must define a GITHUB_TOKEN environment variable to upload with `ghr`!")
+    end
+
+    @info("Building for $(join(triplet.(platforms), ", "))")
     # Build the given platforms using the given sources
     product_hashes = autobuild(pwd(), src_name, src_version, sources, script, platforms,
                          products, dependencies; verbose=verbose, debug=debug, kwargs...)
 
     # Upload binaries to GitHub, using `ghr`
     if deploy
-        repo = get_repo_name()
-        tag = get_tag_name()
+        # Upload the binaries
+        if verbose
+            @info("Deploying binaries to release $(tag) on $(repo) via `ghr`...")
+        end
+        upload_to_github_releases(repo, tag, joinpath(pwd(), "products"); verbose=verbose)
+    end
+
+    if register
+        if verbose
+            @info("Registering new artifact version $(build_version)...")
+        end
 
         # The location the binaries will be available from
         bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
-
-        # Upload the binaries
-        if verbose
-            @info("Deploying binaries to GitHub Releases via `ghr`...")
-        end
-        upload_to_github_releases(repo, tag, joinpath(pwd(), "products"); verbose=verbose)
-
-        # Check to see if this Artifact already exists within the Registry,
-        # choose a version number that is greater than anything else existent.
-        build_version = get_next_artifact_version(src_name, src_version)
-
-        # Register this new artifact version
-        pkg = Pkg.Types.ArtifactSpec(;name=src_name, uuid=uuid, version=build_version)
         
         # For each platform listed in the proudct_hashes, insert it into `versions_dict`
         version_info = Dict("artifacts" => Dict())
         for platform in sort(collect(keys(product_hashes)))
-            fname, hash, products = product_hashes[platform]
+            fname, tarball_hash, git_hash = product_hashes[platform]
             version_info["artifacts"][platform] = Dict(
                 "url" => "$(bin_path)/$(fname)",
-                "hash" => hash,
-                "products" => products,
+                "tarball-hash-sha256" => tarball_hash,
+                "git-tree-sha1" => git_hash,
             )
         end
 
-        if verbose
-            @info("Registering new artifact version $(build_version)...")
-        end
-        Registrator.register(pkg, version_info)
+        project = Pkg.Types.Project(Dict(
+            "name" => "$(src_name)_jll",
+            "uuid" => string(uuid),
+            "version" => string(build_version),
+
+            # No support for deps yet
+            #"deps" => ,
+        ))
+        # Force Registrator to slap stuff into our global registry, for testing
+        reg_uuid = TOML.parsefile(joinpath(Pkg.depots1(), "registries", "General", "Registry.toml"))["uuid"]
+        Registrator.REGISTRIES[Registrator.DEFAULT_REGISTRY] = Pkg.Types.UUID(reg_uuid)
+        Registrator.register(project, version_info; force_reset=false, registries_root=String(register_path), is_artifact=true)
     end
 
     return product_hashes
@@ -195,7 +229,7 @@ function get_repo_name()
     )
 end
 
-function get_tag_name()
+function get_tag_name(src_name, build_version)
     # Helper function to guess tag from current commit taggedness
     function read_git_tag()
         repo = find_parent_git_repo(".")
@@ -215,6 +249,7 @@ function get_tag_name()
         get_ENV("TRAVIS_TAG"),
         get_ENV("CI_COMMIT_TAG"),
         read_git_tag(),
+        "$(src_name)-v$(build_version)",
     )
 end
 
@@ -228,7 +263,7 @@ end
 function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
-            run(`ghr -u $(dirname(repo)) -r $(basename(repo)) $(tag) $(path)`)
+            run(`ghr -replace -u $(dirname(repo)) -r $(basename(repo)) $(tag) $(path)`)
             return
         catch
             if verbose
@@ -292,9 +327,13 @@ function autobuild(dir::AbstractString,
                    sources::Vector,
                    script::AbstractString,
                    platforms::Vector,
-                   products::Function,
+                   products::Vector{<:Product},
                    dependencies::Vector;
-                   verbose::Bool = true,
+                   verbose::Bool = false,
+                   debug::Bool = false,
+                   skip_audit::Bool = false,
+                   ignore_audit_errors::Bool = true,
+                   autofix::Bool = true,
                    kwargs...)
     # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds
     if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
@@ -391,18 +430,16 @@ function autobuild(dir::AbstractString,
         out_path = joinpath(dir, "products")
         try mkpath(out_path) catch; end
 
+        # Convert from tuples to arrays, if need be
+        src_paths, src_hashes = collect.(collect(zip(sources...)))
+
         for platform in platforms
             target = triplet(platform)
 
             # We build in a platform-specific directory
             build_path = joinpath(pwd(), "build", target)
-            try mkpath(build_path) catch; end
+            mkpath(build_path)
 
-            src_paths, src_hashes = collect(zip(sources...))
-
-            # Convert from tuples to arrays, if need be
-            src_paths = collect(src_paths)
-            src_hashes = collect(src_hashes)
             prefix, ur = setup_workspace(
                 build_path,
                 src_paths,
@@ -410,61 +447,257 @@ function autobuild(dir::AbstractString,
                 dependencies,
                 platform;
                 verbose=verbose,
-                downloads_dir=storage_dir("downloads"),
-                extract_kwargs(kwargs, (:preferred_gcc_version,))...,
+                kwargs...,
             )
 
-            # Don't keep the downloads directory around
-            rm(joinpath(prefix, "downloads"); force=true, recursive=true)
+            # We're going to create a project and install all dependent packages within
+            # it, then create symlinks from those installed products to our 
+            dep_paths = String[]
+            if !isempty(dependencies)
+                deps_project = joinpath(build_path, ".project")
+                Pkg.activate(deps_project) do
+                    Pkg.add(dependencies)
 
-            # Collect dependency manifests so that our auditing doesn't touch these files that
-            # were installed by dependencies
-            manifest_dir = joinpath(prefix, "manifests")
-            dep_manifests = if isdir(manifest_dir)
-               [joinpath(prefix, "manifests", f) for f in readdir(manifest_dir)]
-            else
-                String[]
+                    m = Module(:__anon__)
+                    for dep in dependencies
+                        dep = Symbol(dep)
+                        Core.eval(m, :(using $(dep)))
+                        push!(dep_paths, Core.eval(m, :(pathof($(dep)))))
+                    end
+                end
+
+                # Symlink all the deps into the prefix
+                for dep_path in dep_paths
+                    symlink_tree(dep_path, prefix.path)
+                end
             end
 
-            # Run the build, get paths to the concrete products within the Prefix
-            concrete_products = build(ur,
-                src_name,
-                products(prefix),
-                script,
-                platform,
-                prefix;
-                verbose=verbose,
-                ignore_manifests=dep_manifests,
-                extract_kwargs(kwargs, (:force, :autofix, :ignore_audit_errors,
-                                        :skip_audit, :bootstrap, :debug))...,
-            )
+            # Set up some bash traps
+            trapper_wrapper = """
+            # Stop if we hit any errors.
+            set -e
 
-            # Remove the files of any dependencies
-            for dependency in dependencies
-                dep_script = script_for_dep(dependency, prefix.path)[1]
-                m = Module(:__anon__)
-                Core.eval(m, quote
-                    using BinaryProvider, Pkg
-                    # Override BinaryProvider functionality so that it doesn't actually install anything
-                    platform_key() = $platform
-                    platform_key_abi() = $platform
-                    function write_deps_file(args...; kwargs...); end
-                    function install(args...; kwargs...); end
+            # NABIL TODO: Move this into the Rootfs
+            # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
+            if [ \$(basename \$0) = "bash" ]; then
+                trap save_history DEBUG
+                trap "save_env" EXIT
+                trap "save_env; save_srcdir" INT TERM ERR
 
-                    # Include build.jl file to extract download_info
-                    ARGS = [$(prefix.path)]
-                end)
-                include_string(m, dep_script)
-                Core.eval(m, quote
-                    # Grab the information we need in order to extract a manifest, then uninstall it
-                    url, hash = choose_download(download_info, platform_key_abi())
-                    manifest_path = BinaryProvider.manifest_from_url(url; prefix=prefix)
-                    BinaryProvider.uninstall(manifest_path; verbose=$verbose)
-                end)
+                # Swap out srcdir from underneath our feet if we've got our `ERR`
+                # traps set; if we don't have this, we get very confused.  :P
+                tmpify_srcdir
+            else
+                # If we're running in `sh` or something like that, we need a
+                # slightly slimmer set of traps. :(
+                trap "save_env" EXIT INT TERM
+            fi
+
+            $(script)
+            """
+
+            logpath = joinpath(logdir(prefix), "$(src_name).log")
+            did_succeed = run(ur, `/bin/bash -l -c $(trapper_wrapper)`, logpath; verbose=verbose)
+            if !did_succeed
+                if debug
+                    @warn("Build failed, launching debug shell")
+                    run_interactive(ur, `/bin/bash -l -i`)
+                end
+                msg = "Build for $(src_name) on $(triplet(platform)) did not complete successfully\n"
+                error(msg)
+            end
+
+            # Run an audit of the prefix to ensure it is properly relocatable
+            if !skip_audit
+                audit_result = audit(prefix; platform=platform,
+                                        verbose=verbose, autofix=autofix) 
+                if !audit_result && !ignore_audit_errors
+                    msg = replace("""
+                    Audit failed for $(prefix.path).
+                    Address the errors above to ensure relocatability.
+                    To override this check, set `ignore_audit_errors = true`.
+                    """, '\n' => ' ')
+                    error(strip(msg))
+                end
+            end
+
+            # Finally, warn if something isn't satisfied
+            for p in products
+                if !satisfied(p, prefix; verbose=verbose, platform=platform)
+                    @warn("Built $(src_name) but $(variable_name(p)) still unsatisfied!")
+                end
+            end
+
+            # Unsymlink all the deps from the prefix
+            for dep_path in dep_paths
+                unsymlink_tree(dep_path, prefix.path)
+            end
+
+            # Generate wrapper Julia code for the given products
+            code_dir = joinpath(prefix, "src")
+            mkpath(code_dir)
+            open(joinpath(code_dir, "$(src_name)_jll.jl"), "w") do io
+                print(io, """
+                # Autogenerated wrapper script for $(src_name)_jll
+                module $(src_name)_jll
+                using Libdl
+
+                export $(join(variable_name.(products), ", "))
+                """)
+                for dep in dependencies
+                    println(io, "using $(dep)_jll")
+                end
+
+                # Pull out some useful sub-graphs of the total products
+                lib_products = filter(p -> p isa LibraryProduct, products)
+                exe_products = filter(p -> p isa ExecutableProduct, products)
+                file_products = filter(p -> p isa FileProduct, products)
+
+                # The LIBPATH is called different things on different platforms
+                if platform isa Windows
+                    LIBPATH_env = "PATH"
+                    pathsep = ';'
+                elseif platform isa MacOS
+                    LIBPATH_env = "DYLD_FALLBACK_LIBRARY_PATH"
+                    pathsep = ':'
+                else
+                    LIBPATH_env = "LD_LIBRARY_PATH"
+                    pathsep = ':'
+                end
+
+                print(io, """
+                ## Global variables
+                const PATH_list = String[]
+                const LIBPATH_list = String[]
+                PATH = ""
+                LIBPATH = ""
+                LIBPATH_env = $(repr(LIBPATH_env))
+                """)
+
+                # Next, begin placing products
+                function global_declaration(p::LibraryProduct)
+                    # A library product's public interface is a handle
+                    return """
+                    # This will be filled out by __init__()
+                    $(variable_name(p))_handle = C_NULL
+
+                    # This must be `const` so that we can use it with `ccall()`
+                    const $(variable_name(p)) = $(repr(get_soname(locate(p, prefix; platform=platform))))
+                    """
+                end
+
+                function global_declaration(p::ExecutableProduct)
+                    vp = variable_name(p)
+                    # An executable product's public interface is a do-block wrapper function
+                    return """
+                    function $(vp)(f::Function; adjust_PATH::Bool = true, adjust_LIBPATH::Bool = true)
+                        global PATH, LIBPATH
+                        env_mapping = Dict()
+                        if adjust_PATH
+                            if !isempty(get(ENV, "PATH", ""))
+                                env_mapping["PATH"] = string(ENV["PATH"], $(repr(pathsep)), PATH)
+                            else
+                                env_mapping["PATH"] = PATH
+                            end
+                        end
+                        if adjust_LIBPATH
+                            if !isempty(get(ENV, LIBPATH_env, ""))
+                                env_mapping[LIBPATH_env] = string(ENV[LIBPATH_env], $(repr(pathsep)), LIBPATH)
+                            else
+                                env_mapping[LIBPATH_env] = LIBPATH
+                            end
+                        end
+                        withenv(env_mapping) do
+                            f($(vp)_path)
+                        end
+                    end
+                    """
+                end
+
+                function global_declaration(p::FileProduct)
+                    return """
+                    # This will be filled out by __init__()
+                    $(variable_name(p)) = ""
+                    """
+                end
+
+                # Create relative path mappings that are compile-time constant, and mutable
+                # mappings that are initialized by __init__() at load time.
+                for p in products
+                    vp = variable_name(p)
+                    p_relpath = relpath(locate(p, prefix; platform=platform), prefix.path)
+                    print(io, """
+                    # Relative path to `$(vp)`
+                    const $(vp)_relpath = $(repr(p_relpath))
+
+                    # This will be filled out by __init__() for all products
+                    $(vp)_path = ""
+
+                    # $(vp)-specific global declaration
+                    $(global_declaration(p))
+                    """)
+                end
+
+                print(io, """
+                \"\"\"
+                Open all libraries
+                \"\"\"
+                function __init__()
+                    global prefix = abspath(joinpath(@__DIR__, ".."))
+                """)
+
+                for p in products
+                    vp = variable_name(p)
+
+                    # Initialize $(vp)_path
+                    print(io, """
+                        global $(vp)_path = abspath(joinpath(prefix, $(vp)_relpath))
+                    """)
+
+                    # If `p` is a `LibraryProduct`, dlopen() it right now!
+                    if p isa LibraryProduct
+                        print(io, """
+                            # Manually `dlopen()` this right now so that future invocations
+                            # of `ccall` with its `SONAME` will find this path immediately.
+                            global $(vp)_handle = dlopen($(vp)_path)
+                        """)
+                    end
+
+                    # Initialize PATH and LIBPATH environment variable listings
+                    println(io, "    global PATH_list, LIBPATH_list")
+                    for dep in dependencies
+                        print(io, """
+                            append!(PATH_list, $(dep)_jll.PATH_list)
+                            append!(LIBPATH_list, $(dep)_jll.LIBPATH_list)
+                        """)
+                    end
+                    for ep in exe_products
+                        println(io, "    push!(PATH_list, dirname($(variable_name(ep))_path))")
+                    end
+                    for lp in lib_products
+                        println(io, "    push!(LIBPATH_list, dirname($(variable_name(lp))_path))")
+                    end
+                    print(io, """
+                        # Filter out duplicate and empty entries in our PATH and LIBPATH entries
+                        filter!(!isempty, unique!(PATH_list))
+                        filter!(!isempty, unique!(LIBPATH_list))
+                        global PATH = join(PATH_list, $(repr(pathsep)))
+                        global LIBPATH = join(LIBPATH_list, $(repr(pathsep)))
+                    """)
+                end
+
+                print(io, """
+                end  # __init__()
+                """)
+
+                # End the module
+                print(io, """
+                end  # module $(src_name)
+                """)
             end
 
             # Once we're built up, go ahead and package this prefix out
-            tarball_path, tarball_hash = package(
+            tarball_path, tarball_hash, git_hash = package(
                 prefix,
                 joinpath(out_path, src_name),
                 src_version;
@@ -475,7 +708,7 @@ function autobuild(dir::AbstractString,
             product_hashes[target] = (
                 basename(tarball_path),
                 tarball_hash,
-                concrete_products,
+                git_hash,
             )
 
             # Destroy the workspace
@@ -497,235 +730,5 @@ function autobuild(dir::AbstractString,
     end
 
     # Return our product hashes
-    return product_hashes
-end
-
-function build(runner::Runner, name::AbstractString,
-               products::Vector{P}, script::AbstractString,
-               platform::Platform, prefix::Prefix;
-               verbose::Bool = false, force::Bool = false,
-               autofix::Bool = true, ignore_audit_errors::Bool = true,
-               skip_audit::Bool = false, bootstrap::Bool = bootstrap_mode,
-               ignore_manifests::Vector = [], debug::Bool = false) where {P <: Product}
-    # First, look to see whether our products are satisfied or not
-    if isempty(products)
-        # If we've been given no products, always build and always say it's satisfied
-        s = product -> true
-        l = product -> nothing
-        should_build = true
-    else
-        s = p -> satisfied(p; verbose=verbose, platform=platform, isolate=true)
-        l = p -> locate(p; verbose=verbose, platform=platform)
-        should_build = !all(s(p) for p in products)
-    end
-
-    # If it is not satisfied, (or we're forcing the issue) build it
-    if force || should_build
-        # Verbose mode tells us what's going on
-        if verbose
-            if !should_build
-                @info("Force-building $(name) despite its satisfaction")
-            else
-                @info("Building $(name) as it is unsatisfied")
-            end
-        end
-
-        # We setup our shell session to do three things:
-        #   - Save history on every command issued (so we have a fake `~/.bash_history`)
-        #   - Save environment on quit (so that we can regenerate all environment variables
-        #     when we're debugging, etc...)
-        #   - Copy the current srcdir over to disk if something breaks.  This is done so
-        #     that if we want to debug a build halfway through, we can get at it.  We normally
-        #     build with a tmpfs mounted at `$WORKSPACE/srcdir`.
-        trapper_wrapper = """
-        # Stop if we hit any errors.
-        set -e
-
-        # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
-        if [ \$(basename \$0) = "bash" ]; then
-            trap save_history DEBUG
-            trap "save_env" EXIT
-            trap "save_env; save_srcdir" INT TERM ERR
-
-            # Swap out srcdir from underneath our feet if we've got our `ERR`
-            # traps set; if we don't have this, we get very confused.  :P
-            tmpify_srcdir
-        else
-            # If we're running in `sh` or something like that, we need a
-            # slightly slimmer set of traps. :(
-            trap "save_env" EXIT INT TERM
-        fi
-
-        $(script)
-        """
-
-        logpath = joinpath(logdir(prefix), "$(name).log")
-        did_succeed = run(runner, `/bin/bash -l -c $(trapper_wrapper)`, logpath; verbose=verbose)
-        if !did_succeed
-            if debug
-                @warn("Build failed, launching debug shell")
-                run_interactive(runner, `/bin/bash -l -i`)
-            end
-            msg = "Build for $(name) on $(triplet(platform)) did not complete successfully\n"
-            error(msg)
-        end
-
-        # Run an audit of the prefix to ensure it is properly relocatable
-        if !skip_audit
-            audit_result = audit(prefix; platform=platform,
-                                 verbose=verbose, autofix=autofix,
-                                 ignore_manifests=ignore_manifests) 
-            if !audit_result && !ignore_audit_errors
-                msg = replace("""
-                Audit failed for $(prefix.path).
-                Address the errors above to ensure relocatability.
-                To override this check, set `ignore_audit_errors = true`.
-                """, '\n' => ' ')
-                error(strip(msg))
-            end
-        end
-
-        # Finally, check to see if we are now satisfied
-        if !all(s(p) for p in products)
-            if verbose
-                @warn("Built $(name) but still unsatisfied!")
-            end
-        end
-    elseif !should_build && verbose
-        @info("Not building as $(name) is already satisfied")
-    end
-
-    # Return "concretized products", e.g. a mapping of variable name to actual
-    # path.  We ensure these are relative to the prefix path.  We also ensure
-    # that LibraryProducts point to a path that is the same as their SONAME.
-    ppath = abspath(prefix.path)
-    function concretize(p::Product)
-        return relpath(l(p), ppath)
-    end
-    function concretize(p::LibraryProduct)
-        # First locate the library, propagating `nothing` appropriately
-        path = l(p)
-        if path === nothing
-            return nothing
-        end
-
-        # Get the SONAME, if it exists
-        soname = get_soname(path)
-        if soname === nothing
-            return relpath(path, ppath)
-        end
-
-        # If it does, use that file path as the canonical path.
-        return relpath(joinpath(dirname(path), soname), ppath)
-    end
-    
-    return Dict(variable_name(p) => concretize(p) for p in products)
-end
-
-function print_artifact_toml(io::IO, src_name::AbstractString)
-    toml = Dict(
-        # Basic information about this artifact bundle
-        "name" => "$(src_name)_jll",
-        "uuid" => Pkg.Types.uuid5(Pkg.Types.uuid_artifact, "$(src_name)_jll"),
-    )
-
-    # Write the whole thing out to the given io
-    return TOML.print(io, toml)
-end
-
-function update_versions_toml(io::IO, src_name::AbstractString,
-                             src_version::VersionNumber, products::Vector,
-                             product_hashes::Dict, bin_path::AbstractString)
-    # Parse what already exists
-    seekstart(io)
-    toml = TOML.parse(io)
-
-    if !haskey(toml, string(src_version))
-        toml = Dict()
-    end
-    version_info = toml[string(src_version)]
-
-    if !haskey(version_info, "artifacts")
-        version_info["artifacts"] = Dict()
-    end
-    artifact_info = version_info["artifacts"]
-
-    # For each platform listed in the proudct_hashes, insert it into `versions_dict`
-    for platform in sort(collect(keys(product_hashes)))
-        fname, hash, products = product_hashes[platform]
-        artifact_info[platform] = Dict(
-            "url" => "$(bin_path)/$(fname)",
-            "hash" => hash,
-            "products" => products,
-        )
-    end
-
-    # Spit out the new toml file
-    seekstart(io)
-    truncate(io, 0)
-    return TOML.print(io, toml)
-end
-
-function product_hashes_from_dir(dir_path::AbstractString; verbose::Bool = false)
-    product_hashes = Dict()
-    for filepath in [joinpath(dir_path, f) for f in readdir(dir_path) if endswith(f, ".tar.gz")]
-        # For each asset (tarball), download it
-        # Hash it
-        hash = open(filepath) do file
-            return bytes2hex(sha256(file))
-        end
-
-        # Then fit it into our product_hashes
-        file_triplet = triplet(extract_platform_key(filepath))
-        product_hashes[file_triplet] = (basename(filepath), hash)
-
-        if verbose
-            @info("Calculated $hash for $(basename(filepath))")
-        end
-    end
-
-    return product_hashes
-end
-
-"""
-If you have a sharded build on Github, it would be nice if we could get an auto-generated
-`build.jl` just like if we build serially.  This function eases the pain by reconstructing
-it from a releases page.
-"""
-function product_hashes_from_github_release(repo_name::AbstractString, tag_name::AbstractString;
-                                            product_filter::AbstractString = "",
-                                            verbose::Bool = false)
-    # Get list of files within this release
-    release = gh_get_json(DEFAULT_API, "/repos/$(repo_name)/releases/tags/$(tag_name)", auth=github_auth())
-
-    # Try to extract the platform key from each, use that to find all tarballs
-    function can_extract_platform(filename)
-        # Short-circuit build.jl because that's quite often there.  :P
-        if startswith(filename, "build") && endswith(filename, ".jl")
-            return false
-        end
-
-        unknown_platform = typeof(extract_platform_key(filename)) <: UnknownPlatform
-        if unknown_platform && verbose
-            @info("Ignoring file $(filename); can't extract its platform key")
-        end
-        return !unknown_platform
-    end
-    assets = [a for a in release["assets"] if can_extract_platform(a["name"])]
-    assets = [a for a in assets if occursin(product_filter, a["name"])]
-
-    # Download each tarball, hash it, and reconstruct product_hashes.
-    product_hashes = Dict()
-    mktempdir() do d
-        for asset in assets
-            # For each asset (tarball), download it
-            filepath = joinpath(d, asset["name"])
-            url = asset["browser_download_url"]
-            BinaryProvider.download(url, filepath; verbose=verbose)
-        end
-
-        product_hashes = product_hashes_from_dir(d; verbose=verbose)
-    end
-
     return product_hashes
 end

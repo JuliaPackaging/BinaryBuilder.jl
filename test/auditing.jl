@@ -4,7 +4,7 @@
     begin
         build_path = tempname()
         mkpath(build_path)
-        isa_platform = Linux(:x86_64; compiler_abi=CompilerABI(:gcc8, :cxx_any))
+        isa_platform = Linux(:x86_64; compiler_abi=CompilerABI(libgfortran_version=v"8"))
         prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], isa_platform)
 
         main_sse = ExecutableProduct(prefix, "main_sse", :main_sse)
@@ -131,18 +131,18 @@ end
         build_path = tempname()
 
         # These tests assume our gcc version is concrete
-        our_gcc_version = BinaryProvider.compiler_abi(platform_key_abi()).gcc_version
-        @test our_gcc_version != :gcc_any
+        our_libgfortran_version = Pkg.libgfortran_version(Pkg.compiler_abi(platform_key_abi()))
+        @test our_libgfortran_version != nothing
 
         # Get one that isn't us.
-        other_gcc_version = :gcc4
-        if our_gcc_version == other_gcc_version
-            other_gcc_version = :gcc7
+        other_libgfortran_version = v"4"
+        if our_libgfortran_version == other_libgfortran_version
+            other_libgfortran_version = v"5"
         end
 
         our_platform = platform_key_abi()
-        other_platform = BinaryBuilder.replace_gcc_version(our_platform, other_gcc_version)
-        fail_platform = BinaryBuilder.replace_gcc_version(our_platform, :gcc_any)
+        other_platform = BinaryBuilder.replace_libgfortran_version(our_platform, other_libgfortran_version)
+        fail_platform = BinaryBuilder.replace_libgfortran_version(our_platform, nothing)
         
         # Build `hello` for our own platform, ensure it builds and runs:
         mkpath(build_path)
@@ -186,7 +186,7 @@ end
         end
         rm(build_path, recursive = true)
 
-        # Finally, build with `:gcc_any`, which should throw because it needs to be gfortran-specific
+        # Finally, build with no platform set, which should throw because it needs to be gfortran-specific
         mkpath(build_path)
         prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], fail_platform)
         hello = ExecutableProduct(prefix, "hello", :hello)

@@ -9,6 +9,9 @@ import InteractiveUtils
 using Pkg
 
 include("compat.jl")
+include("OutputCollector.jl")
+include("Prefix.jl")
+include("Products.jl")
 include("Auditor.jl")
 include("Runner.jl")
 include("Rootfs.jl")
@@ -58,6 +61,9 @@ preferred_gcc_build = nothing
 function __init__()
     global runner_override, use_squashfs, automatic_apple, allow_ecryptfs
     global use_ccache, storage_cache
+
+    # Pkg does this lazily; do it explicitly here.
+    Pkg.probe_platform_engines!()
 
     # Allow the user to override the default value for `storage_dir`
     storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",

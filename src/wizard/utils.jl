@@ -159,12 +159,41 @@ function script_for_dep(dep, install_dir)
             dep.script
     elseif isa(dep, TarballDependency)
         script = """
+        # TODO NABIL: get rid of this
         prefix = Prefix(ARGS[1])
         install($(repr(dep.url)), $(repr(dep.hash)); prefix=prefix, force=true)
         download_info = Dict(platform_key_abi() => ($(repr(dep.url)), $(repr(dep.hash))))
         """
     end
     return script, install_dir
+end
+
+function symlink_tree(src::AbstractString, dest::AbstractString)
+    for (root, dirs, files) in walkdir(src)
+        # Create all directories
+        for d in dirs
+            mkpath(joinpath(dest, relpath(root, src), d))
+        end
+
+        # Symlink all files
+        for f in files
+            src_file = joinpath(root, f)
+            dest_file = joinpath(dest, relpath(root, src), f)
+            symlink(relpath(dest_file, src_file), dest_file)
+        end
+    end
+end
+
+function unsymlink_tree(src::AbstractString, dest::AbstractString)
+    for (root, dirs, files) in walkdir(src)
+        # Unsymlink all files, directories will be culled in audit
+        for f in files
+            dest_file = joinpath(dest, relpath(root, src), f)
+            if islink(dest_file)
+                rm(dest_file)
+            end
+        end
+    end
 end
 
 """
@@ -183,12 +212,11 @@ that can be used to launch commands within this workspace.
 """
 function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          src_hashes::Vector, dependencies::Vector,
-                         platform::Platform,
+                         platform::Platform;
                          extra_env::Dict{String, String} =
-                             Dict{String, String}();
+                             Dict{String, String}(),
                          verbose::Bool = false,
                          tee_stream::IO = stdout,
-                         downloads_dir = nothing,
                          kwargs...)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
@@ -249,46 +277,41 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         end
     end
 
-    # If we haven't been given a downloads_dir, just dump it all into `srcdir`:
-    if downloads_dir == nothing
-        downloads_dir = srcdir
-    end
+    # # For each dependency, install it into the prefix
+    # for dep in dependencies
+    #     script, install_dir = script_for_dep(dep, destdir)
+    #     m = Module(:__anon__)
+    #     Core.eval(m, quote
+    #         using Pkg
 
-    # For each dependency, install it into the prefix
-    for dep in dependencies
-        script, install_dir = script_for_dep(dep, destdir)
-        m = Module(:__anon__)
-        Core.eval(m, quote
-            using BinaryProvider, Pkg
+    #         # Force the script to download for this platform.
+    #         platform_key() = $platform
+    #         platform_key_abi() = $platform
 
-            # Force the script to download for this platform.
-            platform_key() = $platform
-            platform_key_abi() = $platform
+    #         # We don't want any deps files being written out
+    #         function write_deps_file(args...; kwargs...) end
 
-            # We don't want any deps files being written out
-            function write_deps_file(args...; kwargs...) end
+    #         # Override @__DIR__ to return the destination directory,
+    #         # so that things get installed into there.  This is a protection
+    #         # against older scripts that ignore `ARGS[1]`, which is set below.
+    #         # Eventually we should be able to forgo this skullduggery.
+    #         macro __DIR__(args...); return $destdir; end
 
-            # Override @__DIR__ to return the destination directory,
-            # so that things get installed into there.  This is a protection
-            # against older scripts that ignore `ARGS[1]`, which is set below.
-            # Eventually we should be able to forgo this skullduggery.
-            macro __DIR__(args...); return $destdir; end
+    #         # Override install() to cache in our downloads directory, to
+    #         # ignore platforms, and to be verbose if we want it to be.
+    #         function install(url, hash; kwargs...)
+    #             BinaryProvider.install(url, hash;
+    #                 tarball_path=joinpath($downloads_dir, string(hash, "-", basename(url))),
+    #                 ignore_platform=true,
+    #                 verbose=$verbose,
+    #                 kwargs...,
+    #             )
+    #         end
 
-            # Override install() to cache in our downloads directory, to
-            # ignore platforms, and to be verbose if we want it to be.
-            function install(url, hash; kwargs...)
-                BinaryProvider.install(url, hash;
-                    tarball_path=joinpath($downloads_dir, string(hash, "-", basename(url))),
-                    ignore_platform=true,
-                    verbose=$verbose,
-                    kwargs...,
-                )
-            end
-
-            ARGS = [$install_dir]
-        end)
-        include_string(m, script)
-    end
+    #         ARGS = [$install_dir]
+    #     end)
+    #     include_string(m, script)
+    # end
 
     # Return the prefix and the runner
     return Prefix(destdir), ur

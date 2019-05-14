@@ -31,8 +31,7 @@ function audit(prefix::Prefix; io=stderr,
                                platform::Platform = platform_key_abi(),
                                verbose::Bool = false,
                                silent::Bool = false,
-                               autofix::Bool = false,
-                               ignore_manifests::Vector = [])
+                               autofix::Bool = false)
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
         verbose = false
@@ -48,17 +47,12 @@ function audit(prefix::Prefix; io=stderr,
     # Translate absolute symlinks to relative symlinks, if possible
     translate_symlinks(prefix.path; verbose=verbose)
 
-    # If a file exists within ignore_manifests, then we won't inspect it
-    # as it belongs to some dependent package.
-    ignore_files = vcat((readlines(f) for f in ignore_manifests)...)
-    ignore_files = [abspath(joinpath(prefix, f)) for f in ignore_files]
-
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
     bin_files = collect_files(prefix, predicate)
     for f in collapse_symlinks(bin_files)
-        # If this file is contained within the `ignore_manifests`, skip it
-        if f in ignore_files
+        # If `f` is outside of our prefix, ignore it.  This happens with files from our dependencies
+        if !startswith(f, prefix.path)
             continue
         end
 
@@ -72,10 +66,10 @@ function audit(prefix::Prefix; io=stderr,
                 else
                     # Check that the ISA isn't too high
                     all_ok &= check_isa(oh, platform, prefix; io=io, verbose=verbose, silent=silent)
-                    # Check that the libgfortran ABI matches
+                    # Check that the libgfortran version matches
                     all_ok &= check_libgfortran_version(oh, platform; io=io, verbose=verbose)
                     # Check that the libstdcxx string ABI matches
-                    all_ok &= check_cxx_string_abi(oh, platform; io=io, verbose=verbose)
+                    all_ok &= check_cxxstring_abi(oh, platform; io=io, verbose=verbose)
                     # Check that this binary file's dynamic linkage works properly.  Note to always
                     # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
                     # checks to freak out a little bit.
@@ -98,9 +92,8 @@ function audit(prefix::Prefix; io=stderr,
 
     # Inspect all shared library files for our platform (but only if we're
     # running native, don't try to load library files from other platforms)
-    if BinaryProvider.platforms_match(platform, platform_key_abi())
+    if Pkg.platforms_match(platform, platform_key_abi())
         # Find all dynamic libraries
-        predicate = f -> valid_dl_path(f, platform) && !(f in ignore_files)
         shlib_files = collect_files(prefix, predicate)
 
         for f in shlib_files
@@ -148,7 +141,6 @@ function audit(prefix::Prefix; io=stderr,
         # If we're targeting a windows platform, check to make sure no .dll
         # files are sitting in `$prefix/lib`, as that's a no-no.  This is
         # not a fatal offense, but we'll yell about it.
-        predicate = f -> f[end-3:end] == ".dll" && !(f in ignore_files)
         lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
         for f in lib_dll_files
             if !silent
@@ -158,7 +150,7 @@ function audit(prefix::Prefix; io=stderr,
 
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
-        symlinks = collect_files(prefix, f -> islink(f))
+        symlinks = collect_files(prefix, islink)
         for f in symlinks
             try
                 src_path = realpath(f)
@@ -189,9 +181,7 @@ function audit(prefix::Prefix; io=stderr,
     end
 
     # Search _every_ file in the prefix path to find hardcoded paths
-    predicate = f -> !startswith(f, joinpath(prefix, "logs")) &&
-                     !startswith(f, joinpath(prefix, "manifests")) &&
-                     !(f in ignore_files)
+    predicate = f -> !startswith(f, joinpath(prefix, "logs"))
     all_files = collect_files(prefix, predicate)
 
     # Finally, check for absolute paths in any files.  This is not a "fatal"
@@ -350,16 +340,23 @@ end
 Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
 """
-function collect_files(path::AbstractString, predicate::Function = f -> true; exculuded_files=Set{String}())
+function collect_files(path::AbstractString, predicate::Function = f -> true;
+                       exclude_externalities::Bool = true)
     if !isdir(path)
         return String[]
+    end
+    # If we are set to exclude externalities, then filter out symlinks that point
+    # outside of our given `path`.
+    if exclude_externalities
+        old_predicate = predicate
+        predicate = f -> old_predicate(f) && !(islink(f) && !startswith(readlink(f), path))
     end
     collected = String[]
     for (root, dirs, files) in walkdir(path)
         for f in files
             f_path = joinpath(root, f)
 
-            if predicate(f_path) && !(f_path in exculuded_files)
+            if predicate(f_path)
                 push!(collected, f_path)
             end
         end

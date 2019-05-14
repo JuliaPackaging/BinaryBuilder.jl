@@ -33,7 +33,7 @@ function import_docker_image(rootfs::CompilerShard; verbose::Bool = false)
     # Does this image already exist?  If so, we're done!
     if success(`docker inspect --type=image $(docker_image(rootfs))`)
         if verbose
-            @info("Docker base image already exists, skipping import...")
+            Pkg.info_onchange("Docker base image already exists, skipping import...", "dockerbaseimage", @__LINE__)
         end
         return
     end

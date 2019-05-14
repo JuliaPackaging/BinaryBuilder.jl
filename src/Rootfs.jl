@@ -1,5 +1,4 @@
 export supported_platforms, expand_gcc_versions, expand_gfortran_versions, expand_cxx_versions
-using BinaryProvider: compiler_abi
 
 ## The build environment is broken up into multiple parts:
 #
@@ -444,7 +443,7 @@ function supported_platforms()
 end
 
 function replace_libgfortran_version(p::Platform, libgfortran_version::Symbol)
-    new_cabi = CompilerABI(libgfortran_version, cxxstring_abi(p))
+    new_cabi = CompilerABI(compiler_abi(p); libgfortran_version=libgfortran_version)
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
 
@@ -461,11 +460,11 @@ entries with the exception of the `gcc_version` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
 supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
-GCC version (as opposed to `:libgfortran_any`) only that `Platform` is returned.
+GCC version (as opposed to `nothing`) only that `Platform` is returned.
 """
 function expand_gfortran_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
-    if compiler_abi(p).gcc_version != :libgfortran_any
+    if compiler_abi(p).libgfortran_version != nothing
         return [p]
     end
 
@@ -482,15 +481,15 @@ end
     expand_cxx_versions(p::Platform)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
-entries with the exception of the `gcc_version` member of the `CompilerABI`
+entries with the exception of the `cxxstring_abi` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
 supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
-GCC version (as opposed to `:libgfortran_any`) only that `Platform` is returned.
+GCC version (as opposed to `nothing`) only that `Platform` is returned.
 """
-function expand_cxx_versions(p::Platform)
+function expand_cxxstring_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
-    if compiler_abi(p).cxxstring_abi != :cxx_any
+    if compiler_abi(p).cxxstring_abi != nothing
         return [p]
     end
 
