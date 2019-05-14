@@ -664,10 +664,10 @@ function autobuild(dir::AbstractString,
                             # Manually `dlopen()` this right now so that future invocations
                             # of `ccall` with its `SONAME` will find this path immediately.
                             global $(vp)_handle = dlopen($(vp)_path)
-                            push!(LIBPATH_list, dirname($(variable_name(lp))_path))
+                            push!(LIBPATH_list, dirname($(vp)_path))
                         """)
                     elseif p isa ExecutableProduct
-                        println(io, "    push!(PATH_list, dirname($(variable_name(ep))_path))")
+                        println(io, "    push!(PATH_list, dirname($(vp)_path))")
                     end
                 end
 
@@ -680,7 +680,7 @@ function autobuild(dir::AbstractString,
 
                     # Add each element of LIBPATH to our DL_LOAD_PATH (necessary on platforms
                     # that don't honor our "already opened" trick)
-                    for lp in LIBPATH
+                    for lp in LIBPATH_list
                         push!(DL_LOAD_PATH, lp)
                     end
                 end  # __init__()
