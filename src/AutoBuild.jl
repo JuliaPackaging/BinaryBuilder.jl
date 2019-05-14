@@ -683,6 +683,12 @@ function autobuild(dir::AbstractString,
                         filter!(!isempty, unique!(LIBPATH_list))
                         global PATH = join(PATH_list, $(repr(pathsep)))
                         global LIBPATH = join(LIBPATH_list, $(repr(pathsep)))
+
+                        # Add each element of LIBPATH to our DL_LOAD_PATH (necessary on platforms
+                        # that don't honor our "already opened" trick)
+                        for lp in LIBPATH
+                            push!(DL_LOAD_PATH, lp)
+                        end
                     """)
                 end
 
