@@ -444,7 +444,7 @@ function expand_gcc_versions(p::Platform)
     end
 
     # Otherwise, generate new versions!
-    gcc_versions = [:gcc4, :gcc7, :gcc8]
+    gcc_versions = [:gcc4, :gcc7, :gcc8, :gcc9]
     return replace_gcc_version.(Ref(p), gcc_versions)
 end
 
