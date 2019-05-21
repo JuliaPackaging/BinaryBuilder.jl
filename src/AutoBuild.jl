@@ -462,7 +462,7 @@ function autobuild(dir::AbstractString,
                     for dep in dependencies
                         dep = Symbol(dep)
                         Core.eval(m, :(using $(dep)))
-                        push!(dep_paths, Core.eval(m, :(pathof($(dep)))))
+                        push!(dep_paths, Core.eval(m, :(dirname(dirname(pathof($(dep)))))))
                     end
                 end
 
