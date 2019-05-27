@@ -28,6 +28,10 @@ At the time of writing, we support Linux (x86_64, i686, armv7l, aarch64, ppc64le
 
 Some linux distributions have a bug in their `overlayfs` implementation that prevents us from mounting overlay filesystems within user namespaces.  See [this Ubuntu kernel bug report](https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1531747) for a description of the situation and how Ubuntu has patched it in their kernels.  To work around this, you can launch `BinaryBuilder.jl` in "privileged container" mode.  BinaryBuilder should auto-detect this situation, however if the autodetection is not working or you want to silence the warning, you can set the `BINARYBUILDER_RUNNER` environment variable to `privileged`.  Unfortunately, this involves running `sudo` every time you launch into a BinaryBuilder session, but on the other hand, this successfully works around the issue on distributions such as Arch linux.
 
+### I have a very small project without a Makefile to build, what I have to do?
+
+What BinaryBuilder needs is to find the relevant file (shared libraries, or executables, etc...) organised under the `$prefix` directory: libraries should go to `$prefix/lib`, executables to `$prefix/bin`.  You may need to create those directory.  You are free to choose whether to create a simple Makefile to build the project or to do everything within the `build_tarballs.jl` script.
+
 ### Can I run the build script only for one or a few targets?
 
 Yes.  The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script with
