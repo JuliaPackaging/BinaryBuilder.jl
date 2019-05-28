@@ -406,13 +406,8 @@ supported_platforms(exclude=islin)
 ```
 """
 function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
-    exclude_platforms!(exclude::Function, platforms) = filter(!exclude, platforms)
-    function exclude_platforms!(exclude::Vector{<:Platform}, platforms)
-    	for e in exclude
-    		filter!(x -> x != e, platforms)
-    	end
-    	return platforms
-    end
+    exclude_platforms!(platforms, exclude::Function) = filter(!exclude, platforms)
+    exclude_platforms!(platforms, exclude::Vector{<:Platform}) = filter!(!in(exclude), platforms)
     standard_platforms = [
         # glibc Linuces
         Linux(:i686),
@@ -435,7 +430,7 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Windows(:i686),
         Windows(:x86_64),
     ]
-    return exclude_platforms!(exclude,standard_platforms)
+    return exclude_platforms!(standard_platforms,exclude)
 end
 
 function replace_gcc_version(p::Platform, gcc_version::Symbol)
