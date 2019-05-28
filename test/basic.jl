@@ -19,6 +19,17 @@
     end
 end
 
+@testset "Supported Platforms" begin
+    all = supported_platforms()
+    opt_out_specific = supported_platforms(exclude=[Linux(:x86_64, libc=:glibc)])
+    # islin(x) = typeof(x) == Linux
+    # opt_out_fx = supported_platforms(exclude=BinaryBuilder.islin)
+
+    @test length(all) == length(opt_out_specific)+1
+    @test !any(opt_out_specific .== [Linux(:x86_64, libc=:glibc)])
+    # @test !any(opt_out_fx .== [Linux(:x86_64, libc=:glibc)])
+end
+
 @testset "Target properties" begin
     for t in ["i686-linux-gnu", "i686-w64-mingw32", "arm-linux-gnueabihf"]
         @test BinaryBuilder.target_nbits(t) == "32"
