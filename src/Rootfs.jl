@@ -400,10 +400,15 @@ represented here, it's probably because that platform is still considered "in be
 Platforms can be excluded from the list by specifying an array of platforms to `exclude`.
 i.e. `supported_platforms(exclude=[Windows(:i686),Windows(:x86_64)])`
 """
-function supported_platforms(;exclude::Vector=[])
-    platforms = [
-        #Standard Platforms
-
+function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=[])
+    exclude_platforms!(exclude::Function, platforms) = filter(!exclude, platforms)
+    function exclude_platforms!(exclude::Vector{<:Platform}, platforms)
+    	for e in exclude
+    		filter!(x -> x != e, platforms)
+    	end
+    	return platforms
+    end
+    standard_platforms = [
         # glibc Linuces
         Linux(:i686),
         Linux(:x86_64),
@@ -425,10 +430,7 @@ function supported_platforms(;exclude::Vector=[])
         Windows(:i686),
         Windows(:x86_64),
     ]
-    for e in exclude
-        filter!(x->x !== e, platforms)
-    end
-    return platforms
+    return exclude_platforms!(exclude,standard_platforms)
 end
 
 function replace_gcc_version(p::Platform, gcc_version::Symbol)
