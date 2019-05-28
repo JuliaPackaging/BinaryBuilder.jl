@@ -400,7 +400,7 @@ represented here, it's probably because that platform is still considered "in be
 Platforms can be excluded from the list by specifying an array of platforms to `exclude`.
 i.e. `supported_platforms(exclude=[Windows(:i686),Windows(:x86_64)])`
 """
-function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=[])
+function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
     exclude_platforms!(exclude::Function, platforms) = filter(!exclude, platforms)
     function exclude_platforms!(exclude::Vector{<:Platform}, platforms)
     	for e in exclude
