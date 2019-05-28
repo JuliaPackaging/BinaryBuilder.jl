@@ -391,14 +391,19 @@ function choose_shards(p::Platform;
 end
 
 """
-    supported_platforms(;exclude::Vector=[])
+    supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
 
 Return the list of supported platforms as an array of `Platform`s.  These are the platforms we
 officially support building for, if you see a mapping in `get_shard_hash()` that isn't
 represented here, it's probably because that platform is still considered "in beta".
 
-Platforms can be excluded from the list by specifying an array of platforms to `exclude`.
-i.e. `supported_platforms(exclude=[Windows(:i686),Windows(:x86_64)])`
+Platforms can be excluded from the list by specifying an array of platforms to `exclude` i.e.
+`supported_platforms(exclude=[Windows(:i686),Windows(:x86_64)])`
+or a function that returns true for exclusions i.e.
+```
+islin(x) = typeof(x) == Linux
+supported_platforms(exclude=islin)
+```
 """
 function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
     exclude_platforms!(exclude::Function, platforms) = filter(!exclude, platforms)
