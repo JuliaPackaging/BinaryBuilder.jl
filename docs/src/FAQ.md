@@ -32,6 +32,8 @@ Some linux distributions have a bug in their `overlayfs` implementation that pre
 
 What BinaryBuilder needs is to find the relevant file (shared libraries, or executables, etc...) organised under the `$prefix` directory: libraries should go to `$prefix/lib`, executables to `$prefix/bin`.  You may need to create those directory.  You are free to choose whether to create a simple Makefile to build the project or to do everything within the `build_tarballs.jl` script.
 
+Remember also that you should use the standard environment variables like `CC`, `CXX`, `CFLAGS`, `LDFLAGS` as appropriate in order to cross compile.  See [the list of variables](environment_variables.md).
+
 ### Can I run the build script only for one or a few targets?
 
 Yes.  The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script with
@@ -43,7 +45,6 @@ For example, with
 julia --compile=min --color=yes build_tarballs.jl --debug --verbose aarch64-linux-musl,arm-linux-musleabihf
 ```
 you can run the build script only for `aarch64-linux-musl` and `arm-linux-musleabihf` targets.  The `--debug` option causes a failed build to drop into an interactive bash shell for debugging purposes.
-
 
 ### Can I open a shell in a particular build environment for doing some quick tests?
 

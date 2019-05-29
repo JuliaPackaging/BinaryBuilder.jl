@@ -12,6 +12,20 @@
 
 * `BINARYBUILDER_USE_CCACHE`: When set to `true`, this causes a `/root/.ccache` volume to be mounted within the build environment, and for the `CC`, `CXX` and `FC` environment variables to have `ccache` prepended to them.  This can significantly accelerate rebuilds of the same package on the same host.  Note that `ccache` will, by default, store 5G of cached data.
 
+These environment variables should be used to build the project:
+
+* `CC`: the C cross compiler
+* `CXX`: the C++ cross compiler
+* `FC`: the Fortran cross compiler
+* `AR`: the archiver
+* `AS`: the assembler
+* `LD`: the linker
+* `NM`: the utility to list symbols from object files
+* `OBJDUMP`: the utility to display information from object files
+* `CFLAGS`: options for the C compiler
+* `CXXFLAGS`: options for the C++ compiler
+* `LDFLAGS`: options for the linker.
+
 The following variables are useful to control the build script over different target systems, but are not intended to be modified by the users:
 
 * `target`: the target platform
