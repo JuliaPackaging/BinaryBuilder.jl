@@ -80,3 +80,14 @@ Examples of builders that depend on other binaries include:
 In the wizard, the `vim` editor is available for editing files. But, it doesn't leave any record in the build script. One generally needs to provide patch files or use something like `sed`. If a file needs patching, we suggest using `git` to add the entire worktree to a new repo, make the changes you need, then use `git diff -p` to output a patch that can be included alongside your build recipe.
 
 You can include local files like patches very easily by placing them within a `bundled/patches` nested directory, and then providing `"./bundled"` as one of the `sources` for your build.  See, for example, [`OpenBLAS`](https://github.com/JuliaPackaging/Yggdrasil/tree/029e588412f232f215e5e6a7564693d3dbf8e922/O/OpenBLAS).
+
+## Using GCC on macOS and FreeBSD
+
+For these target systems Clang is the default compiler, however some programs may not be compatible with Clang.  There isn't an automatic switch to use GCC, but if you need to use this compiler you only need to set the appropriate variables.  For example, this setting should be sufficient to build most C/C++ programs with GCC for macOS:
+```sh
+if [[ "${target}" == *-apple-* ]]; then
+    CC=/opt/${target}/bin/${target}-gcc
+    CXX=/opt/${target}/bin/${target}-g++
+    LD=/opt/${target}/bin/${target}-ld
+fi
+```
