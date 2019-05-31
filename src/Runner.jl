@@ -107,7 +107,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         "TERM" => "screen",
 
         # We should always be looking for packages already in the prefix
-        "PKG_CONFIG_PATH" => "/workspace/destdir/lib/pkgconfig",
+        "PKG_CONFIG_PATH" => "/workspace/destdir/lib/pkgconfig:/workspace/destdir/share/pkgconfig",
         "PKG_CONFIG_SYSROOT_DIR" => "/workspace/destdir",
 
         # We like to be able to get at our .bash_history afterwards. :)
