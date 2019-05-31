@@ -28,7 +28,7 @@ At the time of writing, we support Linux (x86_64, i686, armv7l, aarch64, ppc64le
 
 Some linux distributions have a bug in their `overlayfs` implementation that prevents us from mounting overlay filesystems within user namespaces.  See [this Ubuntu kernel bug report](https://bugs.launchpad.net/ubuntu/+source/linux/+bug/1531747) for a description of the situation and how Ubuntu has patched it in their kernels.  To work around this, you can launch `BinaryBuilder.jl` in "privileged container" mode.  BinaryBuilder should auto-detect this situation, however if the autodetection is not working or you want to silence the warning, you can set the `BINARYBUILDER_RUNNER` environment variable to `privileged`.  Unfortunately, this involves running `sudo` every time you launch into a BinaryBuilder session, but on the other hand, this successfully works around the issue on distributions such as Arch linux.
 
-### I have a very small project without a Makefile to build, what I have to do?
+### I have to build a very small project without a Makefile, what do I have to do?
 
 What BinaryBuilder needs is to find the relevant file (shared libraries, or executables, etc...) organised under the `$prefix` directory: libraries should go to `$prefix/lib`, executables to `$prefix/bin`.  You may need to create those directory.  You are free to choose whether to create a simple Makefile to build the project or to do everything within the `build_tarballs.jl` script.
 
@@ -38,11 +38,11 @@ Remember also that you should use the standard environment variables like `CC`, 
 
 Yes.  The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script with
 ```
-julia --compile=min build_tarballs.jl --help
+julia build_tarballs.jl --help
 ```
 For example, with
 ```
-julia --compile=min --color=yes build_tarballs.jl --debug --verbose aarch64-linux-musl,arm-linux-musleabihf
+julia --color=yes build_tarballs.jl --debug --verbose aarch64-linux-musl,arm-linux-musleabihf
 ```
 you can run the build script only for `aarch64-linux-musl` and `arm-linux-musleabihf` targets.  The `--debug` option causes a failed build to drop into an interactive bash shell for debugging purposes.
 
@@ -56,4 +56,4 @@ will open a shell in a Windows 32-bit buid environment.
 
 ### Can I install packages in the build environment?
 
-Yes, but it's unlikely that you'll need to.  The build environment is based on Alpine Linux (triplet: `x86_64-linux-musl`) so you can use [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management) to install packages in it.  However, if you need libraries or programs for the target system these packages won't help you.  The package manager may be useful to install very specific tools, like compilers or assemblers that need to run on the build system.
+Yes, but it's unlikely that you'll need to.  The build environment is based on Alpine Linux (triplet: `x86_64-linux-musl`) so you can use [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management) to install packages in it.  However, if you need runtime libraries or programs for the target system these packages won't help you.  The package manager is useful only to install utilities, tools or libraries that are needed exclusively at compile time on the build system.

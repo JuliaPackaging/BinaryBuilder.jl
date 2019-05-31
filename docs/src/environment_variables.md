@@ -12,7 +12,7 @@
 
 * `BINARYBUILDER_USE_CCACHE`: When set to `true`, this causes a `/root/.ccache` volume to be mounted within the build environment, and for the `CC`, `CXX` and `FC` environment variables to have `ccache` prepended to them.  This can significantly accelerate rebuilds of the same package on the same host.  Note that `ccache` will, by default, store 5G of cached data.
 
-These environment variables should be used to build the project:
+The next environment variables are automatically set in the build environment and should be used to build the project.  Occasionally, you may need to tweak them (e.g., if you need to use GCC on macOS or FreeBSD, see the [build tips](build_tips.md))
 
 * `CC`: the C cross compiler
 * `CXX`: the C++ cross compiler
@@ -24,12 +24,14 @@ These environment variables should be used to build the project:
 * `OBJDUMP`: the utility to display information from object files
 * `CFLAGS`: options for the C compiler
 * `CXXFLAGS`: options for the C++ compiler
-* `LDFLAGS`: options for the linker.
+* `LDFLAGS`: options for the linker
+* `PKG_CONFIG_PATH`: a colon-separated list of directories to search for `.pc` files
+* `PKG_CONFIG_SYSROOT_DIR`: modifies `-I` and `-L` to use the directories located in target sysroot
 
 The following variables are useful to control the build script over different target systems, but are not intended to be modified by the users:
 
 * `target`: the target platform
 * `nproc`: the number of processors of the host machine, useful for parallel building (e.g., `make -j${nproc}`)
 * `nbits`: number of bits of the target architecture (usually it is either 32 or 64)
-* `proc_family`: target processor family (e.g., "intel", "power", "arm")
+* `proc_family`: target processor family (e.g., "intel", "power", or "arm")
 * `dlext`: extension of the shared library on the target system.  It is "dll" for Windows, "dylib" for macOS, and "so" for the other Unix systems.
