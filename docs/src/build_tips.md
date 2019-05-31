@@ -83,11 +83,16 @@ You can include local files like patches very easily by placing them within a `b
 
 ## Using GCC on macOS and FreeBSD
 
-For these target systems Clang is the default compiler, however some programs may not be compatible with Clang.  There isn't an automatic switch to use GCC, but if you need to use this compiler you only need to set the appropriate variables.  For example, this setting should be sufficient to build most C/C++ programs with GCC for macOS:
+For these target systems Clang is the default compiler, however some programs may not be compatible with Clang.  There isn't an automatic switch to use GCC, but if you need to use this compiler you only need to set the appropriate variables.  For example, this setting can be used to build most C/C++/Fortran programs with GCC for FreeBSD and macOS:
 ```sh
-if [[ "${target}" == *-apple-* ]]; then
+if [[ "${target}" == *-freebsd* ]] || [[ "${target}" == *-apple-* ]]; then
     CC=/opt/${target}/bin/${target}-gcc
     CXX=/opt/${target}/bin/${target}-g++
+    FC=/opt/${target}/bin/${target}-gfortran
     LD=/opt/${target}/bin/${target}-ld
+    AR=/opt/${target}/bin/${target}-ar
+    AS=/opt/${target}/bin/${target}-as
+    NM=/opt/${target}/bin/${target}-nm
+    OBJDUMP=/opt/${target}/bin/${target}-objdump
 fi
 ```
