@@ -61,22 +61,29 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # If we should use ccache, prepend this to every compiler invocation
     ccache = use_ccache ? "ccache" : ""
 
-    function wrapper(io::IO, prog::String, insert_ccache::Bool = use_ccache)
+    function wrapper(io::IO, prog::String; allow_ccache::Bool = true)
         write(io, """
         #!/bin/sh
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
-
-        if [ \${USE_CCACHE} == "true" ]; then
-            ccache $(prog) "\$@"
-        else
-            $(prog) "\$@"
-        fi
         """)
+        if allow_ccache
+            write(io, """
+            if [ \${USE_CCACHE} == "true" ]; then
+                ccache $(prog) "\$@"
+            else
+                $(prog) "\$@"
+            fi
+            """)
+        else
+            write(io, """
+            $(prog) "\$@"
+            """)
+        end
     end
     
     # Helper invocations
-    target_tool(io::IO, tool::String) = wrapper(io, "/opt/$(target)/bin/$(target)-$(tool)")
-    llvm_tool(io::IO, tool::String) = wrapper(io, "/opt/$(host_target)/bin/llvm-$(tool)")
+    target_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(target)/bin/$(target)-$(tool)", args...; kwargs...)
+    llvm_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(host_target)/bin/llvm-$(tool)", args...; kwargs...)
 
 
     ## Set up flag mappings
@@ -124,7 +131,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     
     # Default binutils to the "target tool" versions, will override later
     for tool in (:ar, :as, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip)
-        @eval $(tool)(io::IO, p::Platform) = $target_tool(io, string($tool))
+        @eval $(tool)(io::IO, p::Platform) = $target_tool(io, $(string(tool)); allow_ccache=false)
     end
 
     function write_wrapper(wrappergen, p, fname)
@@ -134,35 +141,37 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     ## Generate compiler wrappers for both our target and our host
     for p in unique(abi_agnostic.((platform, host_platform)))
-        target = triplet(p)
+        t = triplet(p)
 
         # Generate `cc` and `c++`
-        write_wrapper(cc, p, "$(target)-cc")
-        write_wrapper(cpp, p, "$(target)-c++")
+        write_wrapper(cc, p, "$(t)-cc")
+        write_wrapper(cpp, p, "$(t)-c++")
+        write_wrapper(gfortran, p, "$(t)-f77")
 
         # Generate `gcc`, `g++`, `clang` and `clang++`
-        write_wrapper(gcc, p, "$(target)-gcc")
-        write_wrapper(gpp, p, "$(target)-g++")
-        write_wrapper(clang, p, "$(target)-clang")
-        write_wrapper(clangpp, p,"$(target)-clang++")
+        write_wrapper(gcc, p, "$(t)-gcc")
+        write_wrapper(gpp, p, "$(t)-g++")
+        write_wrapper(gfortran, p, "$(t)-gfortran")
+        write_wrapper(clang, p, "$(t)-clang")
+        write_wrapper(clangpp, p,"$(t)-clang++")
 
         # Binutils
-        write_wrapper(ar, p, "$(target)-ar")
-        write_wrapper(as, p, "$(target)-as")
-        write_wrapper(ld, p, "$(target)-ld")
-        write_wrapper(nm, p, "$(target)-nm")
-        write_wrapper(libtool, p, "$(target)-libtool")
-        write_wrapper(objcopy, p, "$(target)-objcopy")
-        write_wrapper(objdump, p, "$(target)-objdump")
-        write_wrapper(ranlib, p, "$(target)-ranlib")
-        write_wrapper(readelf, p, "$(target)-readelf")
-        write_wrapper(strip, p, "$(target)-strip")
+        write_wrapper(ar, p, "$(t)-ar")
+        write_wrapper(as, p, "$(t)-as")
+        write_wrapper(ld, p, "$(t)-ld")
+        write_wrapper(nm, p, "$(t)-nm")
+        write_wrapper(libtool, p, "$(t)-libtool")
+        write_wrapper(objcopy, p, "$(t)-objcopy")
+        write_wrapper(objdump, p, "$(t)-objdump")
+        write_wrapper(ranlib, p, "$(t)-ranlib")
+        write_wrapper(readelf, p, "$(t)-readelf")
+        write_wrapper(strip, p, "$(t)-strip")
     end
    
 
     default_tools = (
         # Compilers
-        "cc", "c++", "gcc", "clang", "g++", "clang++",
+        "cc", "c++", "f77", "gfortran", "gcc", "clang", "g++", "clang++",
 
         # Binutils
         "ar", "as", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
@@ -275,6 +284,11 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
             # Finally, dependencies
             "$(prefix)/lib64:$(prefix)/lib",
         ), ":"),
+
+        # Default mappings for some tools
+        "CC" => "cc",
+        "CXX" => "c++",
+        "FC" => "gfortran",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",

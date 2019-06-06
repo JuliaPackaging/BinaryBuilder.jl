@@ -131,16 +131,16 @@ function audit(prefix::Prefix; io=stderr,
                 end
                 all_ok = false
             end
-        end
 
-        # Ensure that all libraries have at least some kind of SONAME, if we're
-        # on that kind of platform
-        if !(platform isa Windows)
-            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
-        end
+            # Ensure that all libraries have at least some kind of SONAME, if we're
+            # on that kind of platform
+            if !(platform isa Windows)
+                all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
+            end
 
-        # Ensure that this library is available at its own SONAME
-        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
+            # Ensure that this library is available at its own SONAME
+            all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
+        end
     end
 
     if platform isa Windows
