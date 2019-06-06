@@ -169,18 +169,18 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
    
 
-    default_tools = (
+    default_tools = [
         # Compilers
         "cc", "c++", "f77", "gfortran", "gcc", "clang", "g++", "clang++",
 
         # Binutils
         "ar", "as", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
-    )
+    ]
 
     if platform isa MacOS
-        push!(default_tools, ("dsymutil", "lipo", "otool", "install_name_tool"))
+        append!(default_tools, ("dsymutil", "lipo", "otool", "install_name_tool"))
     elseif platform isa Windows
-        push!(default_tools, ("windres", "winmc"))
+        append!(default_tools, ("windres", "winmc"))
     end
  
     # Create symlinks for default compiler invocations, invoke target toolchain

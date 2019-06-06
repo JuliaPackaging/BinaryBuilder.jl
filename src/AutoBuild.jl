@@ -414,7 +414,7 @@ function autobuild(dir::AbstractString,
                         verify(src_path, src_hash; verbose=verbose)
                     else
                         # Otherwise, download and verify
-                        src_path = storage_dir("downloads", basename(src_url))
+                        src_path = storage_dir("downloads", string(src_hash, "-", basename(src_url)))
                         download_verify(src_url, src_hash, src_path; verbose=verbose)
                     end
                 end

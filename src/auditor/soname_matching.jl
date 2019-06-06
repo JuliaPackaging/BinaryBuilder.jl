@@ -10,7 +10,7 @@ function get_soname(oh::ELFHandle)
     soname_idx = findfirst(e -> e.entry.d_tag == ELF.DT_SONAME, es)
     if soname_idx === nothing
         # If all else fails, just return the filename.
-        return basename(path(oh))
+        return nothing
     end
 
     # Look up the SONAME from the string table
@@ -23,7 +23,7 @@ function get_soname(oh::MachOHandle)
     id_idx = findfirst(lc -> typeof(lc) <: MachOIdDylibCmd, lcs)
     if id_idx === nothing
         # If all else fails, just return the filename.
-        return basename(path(oh))
+        return nothing
     end
 
     # Return the Dylib ID
@@ -39,9 +39,15 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     end
 
     # Skip if this file already contains an SONAME
+    rel_path = relpath(path, prefix.path)
     soname = get_soname(path)
     if soname != nothing
+        if verbose
+            @info("$(rel_path) already has SONAME \"$(soname)\"")
+        end
         return true
+    else
+        soname = basename(path)
     end
 
     # If we're not allowed to fix it, fail out
@@ -51,13 +57,8 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
 
     # Otherwise, set the SONAME
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
-    rel_path = relpath(path, prefix.path)
     set_soname_cmd = ``
     
-    if verbose
-        @info("$(rel_path) has no SONAME, setting to $(soname)")
-    end
-
     if Sys.isapple(platform)
         install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
         set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
@@ -71,15 +72,19 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     retval = run(ur, set_soname_cmd, logpath; verbose=verbose)
 
     if !retval
-        @warn("Unable to set SONAME on $(relpath)")
+        @warn("Unable to set SONAME on $(rel_path)")
         return false
     end
 
     # Read the SONAME back in and ensure it's set properly
     new_soname = get_soname(path)
     if new_soname != soname
-        @warn("Set SONAME on $(relpath) to $(soname), but read back $(string(new_soname))!")
+        @warn("Set SONAME on $(rel_path) to $(soname), but read back $(string(new_soname))!")
         return false
+    end
+
+    if verbose
+        @info("Set SOANME of $(rel_path) to \"$(soname)\"")
     end
 
     return true

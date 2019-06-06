@@ -1133,7 +1133,7 @@ function instruction_mnemonics(path::AbstractString, platform::Platform)
     else
         objdump_cmd = "\${target}-objdump -d $(basename(path))"
     end
-    run_interactive(ur, `/bin/bash -c "$(objdump_cmd)"`; stdout=output)
+    run_interactive(ur, `/bin/bash -c "$(objdump_cmd)"`; stdout=output, stderr=devnull)
     seekstart(output)
 
     for line in eachline(output)

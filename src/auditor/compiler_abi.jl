@@ -121,7 +121,7 @@ std::string ABI it's using.  We do this by scanning the list of exported
 symbols, triggering off of instances of `St7__cxx11` or `_ZNSs` to give
 evidence toward a constraint on `cxx11`, `cxx03` or neither.
 """
-function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
+function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdout)
     try
         # First, if this object doesn't link against `libstdc++`, it's a `:cxxany`
         if !any(occursin("libstdc++", l) for l in ObjectFile.path.(DynamicLinks(oh)))
@@ -153,7 +153,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
     cxx_abi = nothing
 
     try
-        cxx_abi = detect_cxxstring_abi(oh, platform)
+        cxx_abi = detect_cxxstring_abi(oh, platform; io=io)
     catch e
         if isa(e, InterruptException)
             rethrow(e)

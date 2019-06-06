@@ -90,13 +90,13 @@ function audit(prefix::Prefix; io=stderr,
         end
     end
 
-    # Inspect all shared library files for our platform (but only if we're
-    # running native, don't try to load library files from other platforms)
-    if Pkg.platforms_match(platform, platform_key_abi())
-        # Find all dynamic libraries
-        shlib_files = filter(f -> valid_dl_path(f, platform), bin_files)
+    # Find all dynamic libraries
+    shlib_files = filter(f -> valid_dl_path(f, platform), bin_files)
 
-        for f in shlib_files
+    for f in shlib_files
+        # Inspect all shared library files for our platform (but only if we're
+        # running native, don't try to load library files from other platforms)
+        if Pkg.platforms_match(platform, platform_key_abi())
             if verbose
                 info(io, "Checking shared library $(relpath(f, prefix.path))")
             end
@@ -131,16 +131,16 @@ function audit(prefix::Prefix; io=stderr,
                 end
                 all_ok = false
             end
-
-            # Ensure that all libraries have at least some kind of SONAME, if we're
-            # on that kind of platform
-            if !(platform isa Windows)
-                all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
-            end
-
-            # Ensure that this library is available at its own SONAME
-            all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
         end
+
+        # Ensure that all libraries have at least some kind of SONAME, if we're
+        # on that kind of platform
+        if !(platform isa Windows)
+            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
+        end
+
+        # Ensure that this library is available at its own SONAME
+        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
     end
 
     if platform isa Windows
