@@ -46,7 +46,6 @@ function storage_dir(args::AbstractString...)
 end
 ccache_dir() = storage_dir("ccache")
 
-
 # These globals store important information such as where we're downloading
 # the rootfs to, and where we're unpacking it.  These constants are initialized
 # by `__init__()` to allow for environment variable overrides from the user.

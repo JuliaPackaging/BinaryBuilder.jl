@@ -339,6 +339,24 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
     end
 end
 
+function select_gcc_version(p::Platform,
+             GCC_builds::Vector{VersionNumber} = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
+             preferred_gcc_version::VersionNumber = GCC_builds[1],
+         )
+    # Determine which GCC build we're going to match with this CompilerABI:
+    GCC_builds = Pkg.gcc_version(compiler_abi(p), GCC_builds)
+
+    if isempty(GCC_builds)
+        error("Impossible CompilerABI constraints $(cabi)!")
+    end
+
+    # Otherwise, choose the version that is closest to our preferred version
+    ver_to_tuple(v) = (Int(v.major), Int(v.minor), Int(v.patch))
+    pgv = ver_to_tuple(preferred_gcc_version)
+    closest_idx = findmin([abs.(pgv .- ver_to_tuple(x)) for x in GCC_builds])[2]
+    return GCC_builds[closest_idx]
+end
+
 
 """
     choose_shards(p::Platform; rootfs_build, ps_build, GCC_builds,
@@ -359,35 +377,7 @@ function choose_shards(p::Platform;
             preferred_gcc_version::VersionNumber = GCC_builds[1],
         )
 
-    # Determine which GCC build we're going to match with this CompilerABI:
-    cabi = compiler_abi(p)
-    filt_gcc_majver(versions...) = filter(v -> v.major in versions, GCC_builds)
-    if cabi.libgfortran_version != nothing
-        if cabi.libgfortran_version.major == 3
-            GCC_builds = filt_gcc_majver(4,5,6)
-        elseif cabi.libgfortran_version.major == 4
-            GCC_builds = filt_gcc_majver(7)
-        elseif cabi.libgfortran_version.major == 5
-            GCC_builds = filt_gcc_majver(8)
-        end
-    end
-
-    if cabi.cxxstring_abi == :cxx03
-        GCC_builds = filt_gcc_majver(4)
-    elseif cabi.cxxstring_abi == :cxx11
-        GCC_builds = filt_gcc_majver(5,6,7,8)
-    end
-
-    if isempty(GCC_builds)
-        error("Impossible CompilerABI constraints $(cabi)!")
-    end
-
-    # Otherwise, choose the version that is closest to our preferred version
-    ver_to_tuple(v) = (Int(v.major), Int(v.minor), Int(v.patch))
-    pgv = ver_to_tuple(preferred_gcc_version)
-    closest_idx = findmin([abs.(pgv .- ver_to_tuple(x)) for x in GCC_builds])[2]
-    GCC_build = GCC_builds[closest_idx]
-
+    GCC_build = select_gcc_version(p, GCC_builds, preferred_gcc_version)
     # Our host platform is x86_64-linux-musl
     host_platform = Linux(:x86_64; libc=:musl)
 

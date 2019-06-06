@@ -148,8 +148,8 @@ version = "1.1.0"
 deps = ["Dates", "LibGit2", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 [[Pkg]]
-deps = ["Dates", "LibGit2", "Libdl", "Markdown", "Printf", "REPL", "Random", "SHA", "UUIDs"]
-path = "/Users/sabae/src/Pkg.jl"
+deps = ["Dates", "LibGit2", "Libdl", "Markdown", "Printf", "REPL", "Random", "SHA", "Test", "UUIDs"]
+path = "/home/sabae/src/Jotunheimr/Pkg.jl"
 uuid = "44cfe95a-1eb2-52ea-b672-e2afdf69b78e"
 version = "1.1.0"
 
@@ -186,7 +186,9 @@ version = "0.2.0"
     Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
 
 [[Registrator]]
-path = "/Users/sabae/.julia/dev/Registrator"
+git-tree-sha1 = "3f8824ea4416774e5e86b027441e69083c8dc75a"
+repo-rev = "sf/pkg_bp_merge"
+repo-url = "https://github.com/JuliaComputing/Registrator.jl.git"
 uuid = "4418983a-e44d-11e8-3aec-9789530b3b3e"
 version = "0.1.0"
 
@@ -199,8 +201,9 @@ version = "0.1.0"
     HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
     JSON = "682c06a0-de6a-54ab-a142-c8b1cf79cde6"
     LibGit2 = "76f85450-5226-5b5a-8eaa-529ad045b433"
+    Logging = "56ddb016-857b-54e1-b83d-db4d58db5568"
     MbedTLS = "739be429-bea8-5141-9913-cc70e7f3736d"
-    Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+    Pkg = "44cfe95a-1eb2-52ea-b672-e2afdf69b78e"
     Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
     UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 

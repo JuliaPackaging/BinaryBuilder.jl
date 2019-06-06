@@ -510,7 +510,7 @@ function autobuild(dir::AbstractString,
             # Run an audit of the prefix to ensure it is properly relocatable
             if !skip_audit
                 audit_result = audit(prefix; platform=platform,
-                                        verbose=verbose, autofix=autofix) 
+                                             verbose=verbose, autofix=autofix) 
                 if !audit_result && !ignore_audit_errors
                     msg = replace("""
                     Audit failed for $(prefix.path).

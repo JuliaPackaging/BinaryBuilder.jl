@@ -1,3 +1,4 @@
+import Base: strip
 abstract type Runner; end
 
 function target_nbits(target::AbstractString)
@@ -35,6 +36,150 @@ function target_exeext(target::AbstractString)
         return ""
     end
 end
+
+"""
+    generate_compiler_wrappers(p::Platform, bin_path::AbstractString)
+
+We generate a set of compiler wrapper scripts within our build environment to force all
+build systems to honor the necessary sets of compiler flags to build for our systems.
+Note that while `platform_envs()` sets many environment variables, those values are
+intended to be optional/overridable.  These values, while still overridable by directly
+invoking a compiler binary directly (e.g. /opt/{target}/bin/{target}-gcc), are much more
+difficult to override, as the flags embedded in these wrappers are absolutely necessary,
+and even simple programs will not compile without them.
+"""
+function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString = tempname(), host_platform::Platform = Linux(:x86_64; libc=:musl))
+    global use_ccache
+
+    # We're going to write it all out to this directory
+    mkpath(bin_path)
+
+    # Convert platform to a triplet, but strip out the ABI parts
+    target = triplet(abi_agnostic(platform))
+    host_target = triplet(abi_agnostic(host_platform))
+
+    # If we should use ccache, prepend this to every compiler invocation
+    ccache = use_ccache ? "ccache" : ""
+
+    function wrapper(io::IO, prog::String, insert_ccache::Bool = use_ccache)
+        write(io, """
+        #!/bin/sh
+        # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
+
+        if [ \${USE_CCACHE} == "true" ]; then
+            ccache $(prog) "\$@"
+        else
+            $(prog) "\$@"
+        fi
+        """)
+    end
+    
+    # Helper invocations
+    target_tool(io::IO, tool::String) = wrapper(io, "/opt/$(target)/bin/$(target)-$(tool)")
+    llvm_tool(io::IO, tool::String) = wrapper(io, "/opt/$(host_target)/bin/llvm-$(tool)")
+
+
+    ## Set up flag mappings
+    gcc_flags(p::Platform) = ""
+    clang_flags(p::Platform) = ""
+    fortran_flags(p::Platform) = ""
+    flags(p::Platform) = ""
+
+    # On macOS, we always sneak min version declaration in
+    flags(p::MacOS) = "-mmacosx-version-min=10.8"
+
+    function gcc_flags(p::MacOS)
+        FLAGS = ""
+
+        # On macOS, if we're on an old GCC, the default -syslibroot that gets
+        # passed to the linker isn't calculated correctly, so we have to manually set it.
+        if select_gcc_version(p).major == 4
+            FLAGS *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
+        end
+        return FLAGS
+    end
+        
+    # FreeBSD is special-cased within the LLVM source tree to not allow for
+    # things like the -gcc-toolchain option, which means that we have to manually add
+    # the location of libgcc_s.  LE SIGH.
+    # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
+    clang_flags(p::FreeBSD) = "-L/opt/$(target)/$(target)/lib"
+   
+
+
+    # Default mappings
+    gcc(io::IO, p::Platform) = wrapper(io,     "/opt/$(target)/bin/$(target)-gcc $(flags(p)) $(gcc_flags(p))")
+    gpp(io::IO, p::Platform) = wrapper(io,     "/opt/$(target)/bin/$(target)-g++ $(flags(p)) $(gcc_flags(p))")
+    gfortran(io::IO, p::Platform) = wrapper(io,"/opt/$(target)/bin/$(target)-gfortran $(flags(p)) $(fortran_flags(p))")
+    clang(io::IO, p::Platform) = wrapper(io,   "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))")
+    clangpp(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
+
+
+    # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
+    cc(io::IO, p::Platform) = gcc(io, p)
+    cpp(io::IO, p::Platform) = gpp(io, p)
+    fc(io::IO, p::Platform) = gfortran(io, p)
+    cc(io::IO, p::Union{MacOS,FreeBSD}) = clang(io, p)
+    cpp(io::IO, p::Union{MacOS,FreeBSD}) = clangpp(io, p)
+    
+    # Default binutils to the "target tool" versions, will override later
+    for tool in (:ar, :as, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip)
+        @eval $(tool)(io::IO, p::Platform) = $target_tool(io, string($tool))
+    end
+
+    function write_wrapper(wrappergen, p, fname)
+        open(io -> Base.invokelatest(wrappergen, io, p), joinpath(bin_path, fname), "w")
+        chmod(joinpath(bin_path, fname), 0o775)
+    end
+
+    ## Generate compiler wrappers for both our target and our host
+    for p in unique(abi_agnostic.((platform, host_platform)))
+        target = triplet(p)
+
+        # Generate `cc` and `c++`
+        write_wrapper(cc, p, "$(target)-cc")
+        write_wrapper(cpp, p, "$(target)-c++")
+
+        # Generate `gcc`, `g++`, `clang` and `clang++`
+        write_wrapper(gcc, p, "$(target)-gcc")
+        write_wrapper(gpp, p, "$(target)-g++")
+        write_wrapper(clang, p, "$(target)-clang")
+        write_wrapper(clangpp, p,"$(target)-clang++")
+
+        # Binutils
+        write_wrapper(ar, p, "$(target)-ar")
+        write_wrapper(as, p, "$(target)-as")
+        write_wrapper(ld, p, "$(target)-ld")
+        write_wrapper(nm, p, "$(target)-nm")
+        write_wrapper(libtool, p, "$(target)-libtool")
+        write_wrapper(objcopy, p, "$(target)-objcopy")
+        write_wrapper(objdump, p, "$(target)-objdump")
+        write_wrapper(ranlib, p, "$(target)-ranlib")
+        write_wrapper(readelf, p, "$(target)-readelf")
+        write_wrapper(strip, p, "$(target)-strip")
+    end
+   
+
+    default_tools = (
+        # Compilers
+        "cc", "c++", "gcc", "clang", "g++", "clang++",
+
+        # Binutils
+        "ar", "as", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
+    )
+
+    if platform isa MacOS
+        push!(default_tools, ("dsymutil", "lipo", "otool", "install_name_tool"))
+    elseif platform isa Windows
+        push!(default_tools, ("windres", "winmc"))
+    end
+ 
+    # Create symlinks for default compiler invocations, invoke target toolchain
+    for tool in default_tools
+        symlink("$(target)-$(tool)", joinpath(bin_path, tool))
+    end
+end
+
 
 """
     platform_envs(platform::Platform)
@@ -103,56 +248,36 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         return mapping
     end
 
-    # Helper function to generate paths such as /opt/x86_64-apple-darwin14/bin/llvm-ar
-    tool_path(n, t = target) = "/opt/$(t)/bin/$(n)"
-    # Helper functions to generate paths such as /opt/x86_64-linux-gnu/bin/x86_64-linux-gnu-gcc
-    target_tool_path(n, t = target) = tool_path("$(t)-$(n)", t)
+    # Helper for generating the library include path for a target
     target_lib_dir(t) = "/opt/$(t)/lib64:/opt/$(t)/lib:/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
-    host_tool_path(n, t = host_target) = tool_path("$(t)-$(n)", t)
-    llvm_tool_path(n) = "/opt/$(host_target)/bin/$(n)"
-
-    # Start with the default musl ld path
-    lib_path = "/usr/local/lib64:/usr/local/lib:/usr/local/lib:/usr/lib"
-
-    # Add our glibc directory (this coupled with our Glibc patches to reject musl
-    # binaries gives us a dual-libc environment)
-    lib_path *= ":/lib64:/lib"
-
-    # Then add on our target-specific library directories and our host-target library directories
-    lib_path *= ":" * target_lib_dir(host_target)
-    lib_path *= ":" * target_lib_dir(target)
-
-    # Finally add on our destination location
-    lib_path *= ":$(prefix)/lib64:$(prefix)/lib"
-
-    # Slip our tools into the front of the standard PATH, followed by host tools
-    path = "/opt/$(target)/bin:/opt/$(host_target)/bin:" * mapping["PATH"]
-
-    # Then slip $prefix/bin onto the end, so that dependencies naturally show up
-    path = path * ":$(prefix)/bin"
 
     merge!(mapping, Dict(
-        # Activate the given target via `PATH` and `LD_LIBRARY_PATH`
-        "PATH" => path,
-        "LD_LIBRARY_PATH" => lib_path,
+        "PATH" => join((
+            # First things first, our compiler wrappers trump all
+            "/opt/bin",
+            # Allow users to use things like x86_64-linux-gnu here
+            "/opt/$(target)/bin",
+            "/opt/$(host_target)/bin",
+            # Default alpine PATH
+            mapping["PATH"],
+            # Finally, dependency tools
+            "$(prefix)/bin",
+        ), ":"),
+
+        "LD_LIBRARY_PATH" => join((
+           # Start with the default musl ld path
+           "/usr/local/lib64:/usr/local/lib:/usr/local/lib:/usr/lib",
+            # Add our glibc directory
+            "/lib64:/lib",
+            # Add our target/host-specific library directories for compiler support libraries
+            target_lib_dir(host_target),
+            target_lib_dir(target),
+            # Finally, dependencies
+            "$(prefix)/lib64:$(prefix)/lib",
+        ), ":"),
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
-        "CFLAGS" => "",
-        "CPPFLAGS" => "",
-        "LDFLAGS" => "",
-
-        # binutils/toolchain envvars
-        "DSYMUTIL" => llvm_tool_path("llvm-dsymutil"),
-        "LIBTOOL" => target_tool_path("libtool"),
-        "LIPO" => target_tool_path("lipo"),
-        "OTOOL" => target_tool_path("otool"),
-        "INSTALL_NAME_TOOL" => target_tool_path("install_name_tool"),
-        "OBJCOPY" => target_tool_path("objcopy"),
-        "READELF" => target_tool_path("readelf"),
-        "RANLIB" => target_tool_path("ranlib"),
-        "STRIP" => target_tool_path("strip"),
-        "WINDRES" => target_tool_path("windres"),
-        "WINMC" => target_tool_path("winmc"),
+        "USE_CCACHE" => "$(use_ccache)",
         "LLVM_TARGET" => target,
         "LLVM_HOST_TARGET" => host_target,
 
@@ -161,90 +286,27 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         "PKG_CONFIG_SYSROOT_DIR" => prefix,
     ))
 
-    # If we're on MacOS or FreeBSD, we default to LLVM tools instead of GCC.
-    # On all of our clangy platforms we actually have GCC tools available as well,
-    # they're just not used by default.  Override these environment variables in
-    # your scripts if you want to use them.
-    if occursin("-apple-", target)
-        mapping["AR"] = llvm_tool_path("llvm-ar")
-        mapping["AS"] = llvm_tool_path("llvm-as")
-        # Because there's only a single `clang` binary, we store it in `x86_64-linux-gnu`,
-        # but LLVMBuilder puts the `clang` binary into `tools`, not `bin`.
-        mapping["CC"] = tool_path("clang -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
-        mapping["CXX"] = tool_path("clang++ -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
-        # OSX must be linked against libc++.
-        # I think this is unnecessary now because we have the appropriate defaults set
-        # mapping["CXX"] *= " -stdlib=libc++"
-        mapping["FC"] = target_tool_path("gfortran")
-        mapping["LD"] = target_tool_path("ld")
-        mapping["NM"] = llvm_tool_path("llvm-nm")
-        mapping["OBJDUMP"] = llvm_tool_path("llvm-objdump")
-
-        # Set the MacOS deployment target to be conservative
-        mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
-        # Also put this into LDFLAGS because some packages are hard of hearing
-        mapping["LDFLAGS"] *= " -mmacosx-version-min=10.8"
-        # Include -syslibroot because GCC 4 misses it.  :(
-        mapping["LDFLAGS"] *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
-    elseif occursin("-freebsd", target)
-        mapping["AR"] = llvm_tool_path("llvm-ar")
-        mapping["AS"] = llvm_tool_path("llvm-as")
-        # Because there's only a single `clang` binary, we store it in `x86_64-linux-gnu`,
-        # but LLVMBuilder puts the `clang` binary into `tools`, not `bin`.
-        mapping["CC"] = llvm_tool_path("clang -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
-        mapping["CXX"] = llvm_tool_path("clang++ -target $(target) --sysroot /opt/$(target)/$(target)/sys-root")
-
-        # FreeBSD is special-cased within the LLVM source tree to not allow for
-        # things like the -gcc-toolchain option, which means that we have to manually add
-        # the location of libgcc_s.  LE SIGH.
-        # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
-        mapping["LDFLAGS"] *= " -L/opt/$(target)/$(target)/lib"
-
-        # flang isn't a realistic option yet, so we still use gfortran here
-        mapping["FC"] = target_tool_path("gfortran")
-        mapping["LD"] = target_tool_path("ld")
-        mapping["NM"] = llvm_tool_path("llvm-nm")
-        mapping["OBJDUMP"] = llvm_tool_path("llvm-objdump")
-    else
-        mapping["AR"] = target_tool_path("ar")
-        mapping["AS"] = target_tool_path("as")
-        mapping["CC"] = target_tool_path("gcc")
-        mapping["CXX"] = target_tool_path("g++")
-        mapping["FC"] = target_tool_path("gfortran")
-        mapping["LD"] = target_tool_path("ld")
-        mapping["NM"] = target_tool_path("nm")
-        mapping["OBJDUMP"] = target_tool_path("objdump")
-    end
 
     # There is no broad agreement on what host compilers should be called,
     # so we set all the environment variables that we've seen them called
     # and hope for the best.
     for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)")
-        mapping[host_map("AR")] = host_tool_path("ar")
-        mapping[host_map("AS")] = host_tool_path("as")
-        mapping[host_map("CC")] = host_tool_path("gcc")
-        mapping[host_map("CXX")] = host_tool_path("g++")
-        mapping[host_map("DSYMUTIL")] = llvm_tool_path("llvm-dsymutil")
-        mapping[host_map("FC")] = host_tool_path("gfortran")
-        mapping[host_map("LIPO")] = host_tool_path("lipo")
-        mapping[host_map("LD")] = host_tool_path("ld")
-        mapping[host_map("NM")] = host_tool_path("nm")
-        mapping[host_map("RANLIB")] = host_tool_path("ranlib")
-        mapping[host_map("READELF")] = host_tool_path("readelf")
-        mapping[host_map("OBJCOPY")] = host_tool_path("objcopy")
-        mapping[host_map("OBJDUMP")] = host_tool_path("objdump")
-        mapping[host_map("STRIP")] = host_tool_path("strip")
-    end
-    
-    # If we're using `ccache`, prepend it to `CC`, `CXX`, `FC`, `HOSTCC`, etc....
-    if use_ccache
-        for tool in ("CC", "CXX", "FC")
-            for m in (tool, "BUILD_$(tool)", "HOST$(tool)", "$(tool)_FOR_BUILD")
-                mapping[m] = string("ccache ", mapping[m])
-            end
+        # First, do the simple tools where it's just X => $(host_target)-x:
+        for tool in ("AR", "AS", "LD", "LIPO", "NM", "RANLIB", "READELF", "OBJCOPY", "OBJDUMP", "STRIP")
+            mapping[host_map(tool)] = "$(host_target)-$(lowercase(tool))"
+        end
+
+        # Next, the more custom tool mappings
+        for (env_name, tool) in (
+            "CC" => "$(host_target)-gcc",
+            "CXX" => "$(host_target)-g++",
+            "DSYMUTIL" => "llvm-dsymutil",
+            "FC" => "$(host_target)-gfortran"
+           )
+            mapping[host_map(env_name)] = tool
         end
     end
-
+    
     return mapping
 end
 

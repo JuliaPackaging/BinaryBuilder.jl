@@ -31,6 +31,60 @@ function get_soname(oh::MachOHandle)
 end
 
 
+function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
+                       verbose::Bool = false, autofix::Bool = false)
+    # Skip any kind of Windows platforms
+    if platform isa Windows
+        return true
+    end
+
+    # Skip if this file already contains an SONAME
+    soname = get_soname(path)
+    if soname != nothing
+        return true
+    end
+
+    # If we're not allowed to fix it, fail out
+    if !autofix
+        return false
+    end
+
+    # Otherwise, set the SONAME
+    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
+    rel_path = relpath(path, prefix.path)
+    set_soname_cmd = ``
+    
+    if verbose
+        @info("$(rel_path) has no SONAME, setting to $(soname)")
+    end
+
+    if Sys.isapple(platform)
+        install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+        set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
+    elseif Sys.islinux(platform) || Sys.isbsd(platform)
+        patchelf = "/usr/bin/patchelf"
+        set_soname_cmd = `$patchelf --set-soname $(soname) $(rel_path)`
+    end
+
+    # Create a new linkage that looks like @rpath/$lib on OSX, 
+    logpath = joinpath(logdir(prefix), "set_soname_$(basename(rel_path))_$(soname).log")
+    retval = run(ur, set_soname_cmd, logpath; verbose=verbose)
+
+    if !retval
+        @warn("Unable to set SONAME on $(relpath)")
+        return false
+    end
+
+    # Read the SONAME back in and ensure it's set properly
+    new_soname = get_soname(path)
+    if new_soname != soname
+        @warn("Set SONAME on $(relpath) to $(soname), but read back $(string(new_soname))!")
+        return false
+    end
+
+    return true
+end
+
 """
     symlink_soname_lib(path::AbstractString)
 

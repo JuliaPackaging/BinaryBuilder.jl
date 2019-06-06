@@ -226,6 +226,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     srcdir = joinpath(build_path, nonce, "srcdir")
     destdir = joinpath(build_path, nonce, "destdir")
     metadir = joinpath(build_path, nonce, "metadir")
+    wrapperdir = joinpath(build_path, nonce, "compiler_wrappers")
     mkdir(srcdir); mkdir(destdir); mkdir(metadir)
 
     # Create a runner to work inside this workspace with the nonce built-in
@@ -238,6 +239,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
         workspaces = [
             metadir => "/meta",
         ],
+        compiler_wrapper_dir = wrapperdir,
         extract_kwargs(kwargs, (:preferred_gcc_version,))...,
     )
 
