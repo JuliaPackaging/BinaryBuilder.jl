@@ -11,9 +11,21 @@ function normalize_name(file::AbstractString)
         file = file[1:prevind(file, idx)]
     end
     # Strip -123, which is a common thing for libraries on windows
-    idx = findlast(isequal('-'), file)
-    if idx !== nothing && all(isnumeric, file[nextind(file, idx):end])
-        file = file[1:prevind(file, idx)]
+    # Strip -1_2_3, as well
+    # Strip arch strings like i386, i686, x86, x86_64, x64, x86, w32, w64, win32, win64, amd64,
+    arch_ver = r"((i[3-6]?|x)86(_64)?)|((x|ia|win|amd)?(32|64))|(\d+(_\d*)*)"
+    parts = split(file, '-')
+    j = length(parts)
+    for i=j:-1:1
+        m = match(arch_ver, parts[i])
+        if m === nothing
+            j = i
+            break
+        end
+    end
+    file = parts[1]
+    for i=2:j
+       file *= "-"*parts[i]
     end
     return file
 end
