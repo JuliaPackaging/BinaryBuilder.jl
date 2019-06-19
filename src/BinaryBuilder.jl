@@ -76,6 +76,9 @@ function __init__()
 
     # If the user has overridden our runner selection algorithms, honor that
     runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
+    if runner_override == "unprivileged"
+        runner_override = "userns"
+    end
     if !(runner_override in ["", "userns", "qemu", "privileged", "docker"])
         @warn("Invalid runner value $runner_override, ignoring...")
         runner_override = ""
