@@ -17,7 +17,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:powerpc64le, libc=:glibc))
       => "5b92270e97f968b82006f91df53946a34af4eaf404935d50e53293852508f642",
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs; target=MacOS(:x86_64))
-      => "c233263f82b1117b9efa3a5a343fec6bb4d0ffdd12cdcfad5e2f919e1fea0483",
+      => "f4dacec96aee50094825041ae3bf0a9d5244f933fe7ad77f1fa2b3566b748f94",
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:glibc))
       => "0c10be70fcfb03d1489955ad8bd74c2736832ab8de05ec96c89e45eb0e3e24a2",
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:musl))
@@ -43,7 +43,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :targz; target=Linux(:powerpc64le, libc=:glibc))
       => "59a27ef21491438afd94fe49fa87b6d7ed3810ba8f682db50792da5b0e413737",
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :targz; target=MacOS(:x86_64))
-      => "c7819a086e8d76c78adc5d845cc692ae11c4a1b8be8a11071642e63611fe34e0",
+      => "6b3a6ffe36ed8cc02eb7683eb0f102468153ab87cf80a8ef13b8799aae663b3e",
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:glibc))
       => "e318908c6eca2f17c84fe999fadaede9bd975a84f341b281c4cee64183ea883a",
     CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:musl))
@@ -69,7 +69,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:powerpc64le, libc=:glibc))
       => "b498bffcb61dda71ff7e3350555eb87b332c01787d443c14648ffcfbcbe636c7",
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs; target=MacOS(:x86_64))
-      => "945ae699dd78067decd73b393c061ee88e83d9c6ee418bb29bc1047af5ab5cb6",
+      => "b25af409bb54cb94972121461d32eadcaac3c7d7bc46a998e2a2d3f6b63e9477",
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:glibc))
       => "397d6cea6f036a84e4a00f5e3a717732e4b768f677096489f7e14abe59f9aba3",
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:musl))
@@ -95,7 +95,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:powerpc64le, libc=:glibc))
       => "915b5c92a4f875619f283548ea49c5c092b92cb08d0ab77a762754645c25963a",
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :targz; target=MacOS(:x86_64))
-      => "8e8294471e8c6f2e791b73fbbffb03b103d705b1111e1ea8aeb7de5cf4e9307b",
+      => "3593b15651fa0ae635872e824c854eca41bca6455ab338820407ead5571399ae",
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:glibc))
       => "b61d40c3b8aa9638743763fd1b7992bce2aeb246b449fc1d9c66e4394bcf8817",
     CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:musl))
@@ -121,7 +121,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:powerpc64le, libc=:glibc))
       => "026d58b9b219c7287c40d606f56bb71b4f6995a67d0dcd7c02ad54312f560b56",
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=MacOS(:x86_64))
-      => "0390051f7caaff19af23365077cd14ee33e1771b66a5cc8f5d82074239616bf0",
+      => "e2a97e49508f5e3fc2466c988516e63c438c1aade0823ec30e41f00acd07c2e3",
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:glibc))
       => "20d54f691f5244c8da46f043ae3317cb414d30211127ed69adeb7f2e2427e0bf",
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:musl))
@@ -147,7 +147,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:powerpc64le, libc=:glibc))
       => "c324688358ba2c5488d33e2001b72f5c2d03c31d9aafae63d8fb824bbf86e24c",
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :targz; target=MacOS(:x86_64))
-      => "8707de05ec6bd72417b9f068eb91e8882dc226ce15a0b06d8b890a0ed4e7d266",
+      => "8b00054a7e44fe38fcfcc34692fc0770c2b057e36266a70e72143d30418a7db6",
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:glibc))
       => "8aea24325ecf8be38f8d1a1af2be7c6793f5ae0ee997e13aecbf01c30e1ca30a",
     CompilerShard("GCCBootstrap", v"6.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:musl))
@@ -173,7 +173,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:powerpc64le, libc=:glibc))
       => "1af95677ef32817b293471bce0cde5e85a248e9ba0383d79cae9e3789ee5ec6d",
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=MacOS(:x86_64))
-      => "ec10772d600d70a66ec65b2366a5d4afb27728cfaf44ddd8411709968f46ab11",
+      => "727bb08d78adf5e59b60514a3dbde59370d67982eedf1a657d736cb607cf6330",
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:glibc))
       => "48ca3d48b2c9ae59580200a76f03c0ca71026d2834689585caebbe29390ba182",
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:musl))
@@ -199,7 +199,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:powerpc64le, libc=:glibc))
       => "958501dae3b7ea8417f7ee57f0643576e952b4174053718623db1ea37091b888",
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :targz; target=MacOS(:x86_64))
-      => "3171b1fd8280066caa7aaa12b9c949c4a520b4d4d0f4f09e3fb1fd807fd35786",
+      => "2404d01d63a9d3a3fa67d34c66aeb4aa115a591eddca446668e257ae7295178e",
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:glibc))
       => "24d908a30811d10373d98d8ffb33b139cd544a1ffecd2659165adc35303d5e62",
     CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:musl))
@@ -225,7 +225,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:powerpc64le, libc=:glibc))
       => "5799aec1e10112847117c130b5e74707c7613259291af8f9b32c14a1f01a8224",
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=MacOS(:x86_64))
-      => "298e043c3a0dddf1f174d6aee7211503183cf656513fb410137919f12a9d9ef6",
+      => "3a91991dcef9e2bf134a9ea9b482c7ffa10c85a2d56ebeebc5c1ce0985b10958",
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:glibc))
       => "f12219fffdf925c2d6dd1d121aa4074a51a3e4f5ee3f4d775e51a4d1e67db2e0",
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :squashfs; target=Linux(:x86_64, libc=:musl))
@@ -251,7 +251,7 @@ shard_hash_table = Dict{CompilerShard,String}(
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:powerpc64le, libc=:glibc))
       => "22dcf76e8fdbd02bda8226018d3b3a76a8d2903ecf0d0ee180aafcb5251a7c10",
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :targz; target=MacOS(:x86_64))
-      => "7d106a2f216b5d4ca2e5a520877ac9b34d958ec8f548e5d5ee6d779357224302",
+      => "a8e22dbc4d25a4f12ee9ad42e3a9a48b4fe4fd4f5ebf648db4001801997e6c0e",
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:glibc))
       => "711920bdf3776e7b51b6fcc3efcdd6be379c77591d5b875f224e1d64b8cc310b",
     CompilerShard("GCCBootstrap", v"8.1.0", Linux(:x86_64, libc=:musl), :targz; target=Linux(:x86_64, libc=:musl))

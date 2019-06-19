@@ -110,8 +110,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # things like the -gcc-toolchain option, which means that we have to manually add
     # the location of libgcc_s.  LE SIGH.
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
-    clang_flags(p::FreeBSD) = "-L/opt/$(target)/$(target)/lib"
-   
+    clang_flags(p::FreeBSD) = "$(clang_targeting_laser(p)) -L/opt/$(target)/$(target)/lib"
+    clang_flags(p::MacOS) = "$(clang_targeting_laser(p)) -fuse-ld=macos"
 
 
     # Default mappings
@@ -132,6 +132,11 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # Default binutils to the "target tool" versions, will override later
     for tool in (:ar, :as, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip)
         @eval $(tool)(io::IO, p::Platform) = $target_tool(io, $(string(tool)); allow_ccache=false)
+    end
+
+    # Overrides for macOS binutils because Apple is always so "special"
+    for tool in (:ar, :ranlib)
+        @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, $("/opt/$(target)/bin/llvm-$(tool)"))
     end
 
     function write_wrapper(wrappergen, p, fname)
