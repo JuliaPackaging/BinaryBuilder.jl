@@ -154,6 +154,8 @@ function should_ignore_lib(lib, ::ELFHandle)
         "ld-linux-x86-64.so.2",
         "ld-linux.so.2",
         "ld-musl-x86_64.so.1",
+        "ld-linux-armhf.so.3",
+        "ld64.so.2",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
@@ -176,6 +178,8 @@ function should_ignore_lib(lib, ::COFFHandle)
         "libgfortran-4.dll",
         "libgfortran-5.dll",
         "libstdc++-6.dll",
+        "libwinpthread-1.dll",
+        "libgomp-1.dll",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
