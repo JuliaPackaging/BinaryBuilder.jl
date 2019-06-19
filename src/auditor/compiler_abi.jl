@@ -112,6 +112,20 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; io::IO = 
     return true
 end
 
+function cppfilt(symbol_names::Vector, platform::Platform)
+    input = IOBuffer()
+    for name in symbol_names
+        println(input, name)
+    end
+
+    output = IOBuffer()
+    mktemp() do t, io
+        ur = preferred_runner()(dirname(t); cwd="/workspace/", platform=platform)
+        run_interactive(ur, `/opt/$(triplet(abi_agnostic(platform)))/bin/c++filt`; stdin=input, stdout=output)
+    end
+
+    return split(String(take!(output)), "\n")
+end
 
 """
     detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
@@ -128,12 +142,16 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = std
             return nothing
         end
 
-        symbol_names = symbol_name.(Symbols(oh))
-        if any(occursin("St7__cxx11", c) for c in symbol_names)
+        symbol_names = cppfilt(symbol_name.(Symbols(oh)), platform)
+        # Shove the symbol names through c++filt (since we don't want to have to
+        # reimplement the parsing logic in Julia).  If anything has `cxx11` tags,
+        # then mark it as such.
+        if any(occursin("[abi:cxx11]", c) for c in symbol_names)
             return :cxx11
         end
-        # This finds something that either returns an `std::string` or takes it in as its last argument
-        if any(occursin("Ss", c) for c in symbol_names)
+        # Otherwise, if we still have `std::string`'s in there, it's implicitly a
+        # `cxx03` binary.  Mark it as such.
+        if any(occursin("std::string", c) for c in symbol_names)
             return :cxx03
         end
     catch e
@@ -150,16 +168,10 @@ end
 function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
     # First, check the stdlibc++ string ABI to see if it is a superset of `platform`.  If it's
     # not, then we have a problem!
-    cxx_abi = nothing
+    cxx_abi = detect_cxxstring_abi(oh, platform; io=io)
 
-    try
-        cxx_abi = detect_cxxstring_abi(oh, platform; io=io)
-    catch e
-        if isa(e, InterruptException)
-            rethrow(e)
-        end
-        warn(io, "$(path(oh)) could not be scanned for cxx11 string ABI!")
-        warn(io, e)
+    # If no std::string symbols found, just exit out immediately
+    if cxx_abi == nothing
         return true
     end
 
@@ -175,6 +187,17 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    products = expand_cxx_versions(products)"
+        warn(io, msg)
+        return false
+    end
+
+    if compiler_abi(platform).cxxstring_abi != cxx_abi
+        msg = strip(replace("""
+        $(path(oh)) contains $(cxx_abi) ABI std::string values within its public interface,
+        but we are supposedly building for $(compiler_abi(platform).cxxstring_abi) ABI. This usually
+        indicates that the build system is somehow ignoring our choice of compiler, as we manually
+        insert the correct compiler flags for this ABI choice!
+        """, '\n' => ' '))
         warn(io, msg)
         return false
     end

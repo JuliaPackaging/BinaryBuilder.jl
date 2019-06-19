@@ -65,18 +65,24 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write(io, """
         #!/bin/sh
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
+
+        if [ -z \${SUPER_VERBOSE+x} ]; then
+            vrun() { \$@; }
+        else
+            vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; \$@; }
+        fi
         """)
         if allow_ccache
             write(io, """
             if [ \${USE_CCACHE} == "true" ]; then
-                ccache $(prog) "\$@"
+                vrun ccache $(prog) "\$@"
             else
-                $(prog) "\$@"
+                vrun $(prog) "\$@"
             fi
             """)
         else
             write(io, """
-            $(prog) "\$@"
+            vrun $(prog) "\$@"
             """)
         end
     end
@@ -87,8 +93,17 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
 
     ## Set up flag mappings
-    gcc_flags(p::Platform) = ""
-    clang_flags(p::Platform) = ""
+    function gcc_flags(p::Platform)
+        FLAGS = ""
+        if compiler_abi(p).cxxstring_abi == :cxx11
+            FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=1"
+        elseif compiler_abi(p).cxxstring_abi == :cxx03
+            FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=0"
+        end
+        return FLAGS
+    end
+    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
+    clang_flags(p::Platform) = clang_targeting_laser(p)
     fortran_flags(p::Platform) = ""
     flags(p::Platform) = ""
 
@@ -102,6 +117,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if select_gcc_version(p).major == 4
             FLAGS *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
+        end
+
+        if compiler_abi(p).cxxstring_abi == :cxx11
+            FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=1"
+        elseif compiler_abi(p).cxxstring_abi == :cxx03
+            FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=0"
         end
         return FLAGS
     end
