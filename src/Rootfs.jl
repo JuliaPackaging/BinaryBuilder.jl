@@ -179,7 +179,7 @@ function mount(cs::CompilerShard; verbose::Bool = false)
         return
     end
 
-    # Signal to the user what's going on, since this probably requires sudo.
+    # Signal to the user what's going on, since this might require sudo.
     if verbose
         @info("Mounting $(download_path(cs)) to $(mount_path(cs))")
     end
@@ -233,7 +233,7 @@ function unmount(cs::CompilerShard; verbose::Bool = false, fail_on_error::Bool =
             rm(mount_path(cs); force=true, recursive=false)
         catch e
             # By default we don't error out if this unmounting fails
-            if fail_on_error
+            if e isa InterruptException || fail_on_error
                 rethrow(e)
             end
         end
@@ -302,7 +302,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
 
     # Unmount previously mounted `.squashfs` version of this file if it existed.
     # If we're switching to a `.tar.gz` this is desirable because we want to
-    # unpack into that direcftory.  If we're updating a `.squashfs` file, this
+    # unpack into that directory.  If we're updating a `.squashfs` file, this
     # is also desirable as we're about to 
     unmount(cs; verbose=verbose)
 

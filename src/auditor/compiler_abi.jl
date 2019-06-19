@@ -141,7 +141,7 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = std
             rethrow(e)
         end
         warn(io, "$(path(oh)) could not be scanned for cxx11 ABI!")
-        warn(io, e)
+        Base.display_error(io, e, [])
     end
     return nothing
 end
