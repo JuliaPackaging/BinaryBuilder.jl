@@ -2,13 +2,12 @@
 #  on disk.  Things like the name of where downloads are stored, and what
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show, withenv
-import Pkg: package
 using SHA
 
 export Prefix, bindir, libdir, includedir, logdir, activate, deactivate,
        extract_name_version_platform_key, extract_platform_key, isinstalled,
-       install, uninstall, list_tarball_files, verify, temp_prefix, package
-
+       install, uninstall, list_tarball_files, verify, temp_prefix
+import Pkg.PlatformEngines: package
 
 # Temporary hack around https://github.com/JuliaLang/julia/issues/26685
 function safe_isfile(path)
@@ -228,7 +227,7 @@ function package(prefix::Prefix,
     end
 
     # Package `prefix.path` into the tarball contained at `out_path`
-    package(prefix.path, out_path; verbose=verbose)
+    package(prefix.path, out_path)
 
     # Also spit out the hash of the archive file
     tarball_hash = open(out_path, "r") do f

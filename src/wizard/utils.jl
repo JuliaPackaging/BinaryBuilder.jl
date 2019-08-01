@@ -179,7 +179,7 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
         for f in files
             src_file = joinpath(root, f)
             dest_file = joinpath(dest, relpath(root, src), f)
-            symlink(relpath(dest_file, src_file), dest_file)
+            symlink(relpath(src_file, dirname(dest_file)), dest_file)
         end
     end
 end

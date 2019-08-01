@@ -309,7 +309,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
     # For .tar.gz shards, we unpack as well
     if cs.archive_type == :targz
         # verify/redownload/reunpack the tarball, if necessary
-        download_verify_unpack(
+        Pkg.PlatformEngines.download_verify_unpack(
             url(cs),
             hash(cs),
             mount_path(cs);
@@ -321,7 +321,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
         # Finally, mount this shard (if we need to)
         mount(cs; verbose=verbose)
     elseif cs.archive_type == :squashfs
-        download_verify(
+        Pkg.PlatformEngines.download_verify(
             url(cs),
             hash(cs),
             download_path(cs);
@@ -344,7 +344,7 @@ function select_gcc_version(p::Platform,
              preferred_gcc_version::VersionNumber = GCC_builds[1],
          )
     # Determine which GCC build we're going to match with this CompilerABI:
-    GCC_builds = Pkg.gcc_version(compiler_abi(p), GCC_builds)
+    GCC_builds = Pkg.BinaryPlatforms.gcc_version(compiler_abi(p), GCC_builds)
 
     if isempty(GCC_builds)
         error("Impossible CompilerABI constraints $(cabi)!")

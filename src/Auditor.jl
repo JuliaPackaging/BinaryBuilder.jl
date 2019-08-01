@@ -49,7 +49,7 @@ function audit(prefix::Prefix; io=stderr,
 
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
-    bin_files = collect_files(prefix, predicate)
+    bin_files = collect_files(prefix, predicate; exclude_externalities=false)
     for f in collapse_symlinks(bin_files)
         # If `f` is outside of our prefix, ignore it.  This happens with files from our dependencies
         if !startswith(f, prefix.path)
@@ -96,7 +96,7 @@ function audit(prefix::Prefix; io=stderr,
     for f in shlib_files
         # Inspect all shared library files for our platform (but only if we're
         # running native, don't try to load library files from other platforms)
-        if Pkg.platforms_match(platform, platform_key_abi())
+        if Pkg.BinaryPlatforms.platforms_match(platform, platform_key_abi())
             if verbose
                 info(io, "Checking shared library $(relpath(f, prefix.path))")
             end

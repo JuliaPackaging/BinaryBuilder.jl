@@ -120,10 +120,12 @@ function show(io::IO, x::UserNSRunner)
           "UserNSRunner")
 end
 
+prompted_userns_run_privileged = false
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
-    if runner_override == "privileged"
-        msg = "Running privileged container via `sudo`, may ask for your password:"
-        Pkg.info_onchange(msg, "privileged", "userns_run_privileged")
+    global prompted_userns_run_privileged
+    if runner_override == "privileged" && !prompted_userns_run_privileged
+        @info("Running privileged container via `sudo`, may ask for your password:")
+        prompted_userns_run_privileged = true
     end
 
     did_succeed = true
@@ -147,9 +149,10 @@ end
 
 const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
 function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
-    if runner_override == "privileged"
-        msg = "Running privileged container via `sudo`, may ask for your password:"
-        Pkg.info_onchange(msg, "privileged", "userns_run_privileged")
+    global prompted_userns_run_privileged
+    if runner_override == "privileged" && !prompted_userns_run_privileged
+        @info("Running privileged container via `sudo`, may ask for your password:")
+        prompted_userns_run_privileged = true
     end
 
     cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)

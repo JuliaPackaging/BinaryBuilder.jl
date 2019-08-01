@@ -1,4 +1,4 @@
-import Pkg: detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi
+import Pkg.BinaryPlatforms: detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi
 using ObjectFile
 
 """

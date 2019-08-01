@@ -6,7 +6,7 @@ using Libdl, LibGit2, Random, Sockets, Base64
 using ObjectFile
 using GitHub
 import InteractiveUtils
-using Pkg
+using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts
 
 include("compat.jl")
 include("OutputCollector.jl")
@@ -62,7 +62,7 @@ function __init__()
     global use_ccache, storage_cache
 
     # Pkg does this lazily; do it explicitly here.
-    Pkg.probe_platform_engines!()
+    Pkg.PlatformEngines.probe_platform_engines!()
 
     # Allow the user to override the default value for `storage_dir`
     storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",

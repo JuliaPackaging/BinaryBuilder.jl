@@ -126,6 +126,17 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
         return FLAGS
     end
+
+    function fortran_flags(p::MacOS)
+        FLAGS = ""
+        
+        # On macOS, if we're on an old GCC, the default -syslibroot that gets
+        # passed to the linker isn't calculated correctly, so we have to manually set it.
+        if select_gcc_version(p).major == 4
+            FLAGS *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
+        end
+        return FLAGS
+    end
         
     # FreeBSD is special-cased within the LLVM source tree to not allow for
     # things like the -gcc-toolchain option, which means that we have to manually add
