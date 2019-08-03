@@ -83,7 +83,11 @@ You can include local files like patches very easily by placing them within a `b
 
 ## Using GCC on macOS and FreeBSD
 
-For these target systems Clang is the default compiler, however some programs may not be compatible with Clang.  There isn't an automatic switch to use GCC, but if you need to use this compiler you only need to set the appropriate variables.  For example, this setting can be used to build most C/C++/Fortran programs with GCC for FreeBSD and macOS:
+For these target systems Clang is the default compiler, however some programs may not be compatible with Clang.
+
+For programs built with CMake (see the [CMake build](#CMake-builds-1) section) you can use the GCC toolchain file that is in `/opt/${target}/${target}_gcc.toolchain`.
+
+If the project that you want to build uses the GNU Build System (also knows as the Autotools), there isn't an automatic switch to use GCC, but if have to set the appropriate variables.  For example, this setting can be used to build most C/C++/Fortran programs with GCC for FreeBSD and macOS:
 ```sh
 if [[ "${target}" == *-freebsd* ]] || [[ "${target}" == *-apple-* ]]; then
     CC=/opt/${target}/bin/${target}-gcc
