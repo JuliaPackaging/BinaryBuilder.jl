@@ -22,6 +22,18 @@ functionality:
 """
 abstract type Product end
 
+# We offer some simple platform-based templating
+function template(x::String, p::Platform)
+    for (var, val) in [
+            ("target", triplet(p)),
+            ("nbits", wordsize(p)),
+        ]
+        x = replace(x, "\$$(var)" => val)
+        x = replace(x, "\${$(var)}" => val)
+    end
+    return x
+end
+
 """
     satisfied(p::Product;
               platform::Platform = platform_key_abi(),
@@ -116,6 +128,8 @@ function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
     dir_path = lp.dir_path
     if dir_path === nothing
         dir_path = libdir(prefix, platform)
+    else
+        dir_path = template(dir_path, platform)
     end
 
     if !isdir(dir_path)
@@ -139,6 +153,8 @@ function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
         # If we found something that is a dynamic library, let's check to see
         # if it matches our libname:
         for libname in lp.libnames
+            libname = template(libname, platform)
+
             if startswith(basename(f), libname)
                 dl_path = abspath(joinpath(dir_path), f)
                 if verbose
@@ -192,7 +208,7 @@ struct ExecutableProduct <: Product
     dir_path::Union{String, Nothing}
 
     """
-        ExecutableProduct(prefix::Prefix, binname::AbstractString, varname::Symbol)
+        ExecutableProduct(binname::AbstractString, varname::Symbol)
 
     Declares an `ExecutableProduct` that points to an executable located within
     the `bindir` of the given `Prefix`, named `binname`.
@@ -243,13 +259,14 @@ function locate(ep::ExecutableProduct, prefix::Prefix;
 
     # Join into the `dir_path` given by the executable product
     if ep.dir_path != nothing
-        path = joinpath(prefix, ep.dir_path, binname)
+        path = joinpath(prefix.path, template(joinpath(ep.dir_path, binname), platform))
     else
-        path = joinpath(bindir(prefix), binname)
+        path = joinpath(bindir(prefix), template(binname, platform))
     end
+
     if !isfile(path)
         if verbose
-            @info("$(ep.path) does not exist, reporting unsatisfied")
+            @info("$(path) does not exist, reporting unsatisfied")
         end
         return nothing
     end
@@ -297,20 +314,10 @@ function locate(fp::FileProduct, prefix::Prefix;
                  platform::Platform = platform_key_abi(),
                  verbose::Bool = false,
                  isolate::Bool = false)
-    # Limited variable expansion capabilities
-    mappings = Dict()
+    # Limited templated
+    expanded = joinpath(prefix, template(fp.path, platform))
 
-    for (var, val) in [("target", triplet(platform)), ("nbits", wordsize(platform))]
-        mappings["\$$(var)"] = string(val)
-        mappings["\${$(var)}"] = string(val)
-    end
-    
-    expanded = joinpath(prefix, fp.path)
-    for (old, new) in mappings
-        expanded = replace(expanded, old => new)
-    end
-
-    if isfile(expanded)
+    if ispath(expanded)
         if verbose
             @info("FileProduct $(fp.path) found at $(realpath(expanded))")
         end

@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, print_artifact_toml, product_hashes_from_github_release, build
+export build_tarballs, autobuild, print_artifacts_toml, product_hashes_from_github_release, build
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256
 using Pkg.TOML
@@ -115,8 +115,14 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         platforms = platform_key_abi.(split(ARGS[1], ","))
     end
 
-    if deploy && !haskey(ENV, "GITHUB_TOKEN")
-        error("Must define a GITHUB_TOKEN environment variable to upload with `ghr`!")
+    # Check to make sure we have the necessary environment stuff
+    if deploy
+        if !haskey(ENV, "GITHUB_TOKEN")
+            error("Must define a GITHUB_TOKEN environment variable to upload with `ghr`!")
+        end
+        if !haskey(ENV, "GITHUB_USER")
+            error("Must define a GITHUB_USER environment variable to push jll packages!")
+        end
     end
 
     @info("Building for $(join(triplet.(platforms), ", "))")
@@ -127,7 +133,6 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         build_version = get_next_wrapper_version(src_name, src_version)
 
         repo_name = "JuliaBinaryWrappers/$(src_name)_jll.jl"
-        uuid = Pkg.Types.uuid5(Pkg.Types.uuid_package, "$(src_name)_jll")
 
         # First, ensure the GH repo exists
         try
@@ -167,25 +172,33 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         build_jll_package(src_name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose)
 
+        # We're going to be pushing stuff to GitHub, and we're going to do it with tokens
+        gh_auth = "$(ENV["GITHUB_USER"]):$(ENV["GITHUB_TOKEN"])@github.com"
+
         # Next, push up the wrapper code repository
         wrapper_repo = LibGit2.GitRepo(code_dir)
         LibGit2.add!(wrapper_repo, ".")
         LibGit2.commit(wrapper_repo, "$(src_name)_jll build $(build_version)")
-        LibGit2.push(wrapper_repo; refspecs=["refs/heads/master"], remoteurl="git@github.com:$(repo_name).git")
+        LibGit2.push(wrapper_repo; refspecs=["refs/heads/master"], remoteurl="https://$(gh_auth)/$(repo_name).git")
         wrapper_tree_hash = bytes2hex(Pkg.GitTools.tree_hash(code_dir))
 
         if verbose
             @info("Registering new wrapper code version $(build_version)...")
         end
 
+        # Register into our `General` fork
         cache = Registrator.RegEdit.RegistryCache(joinpath(Pkg.depots1(), "registries"))
-        cache.registries["https://github.com/JuliaRegistries/General"] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
+        registry_url = "https://$(gh_auth)/staticfloat/General"
+        cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
         Registrator.RegEdit.register(
             "https://github.com/$(repo_name)",
             Pkg.Types.Project(build_project_dict(src_name, build_version, dependencies)),
             wrapper_tree_hash;
+            registry=registry_url,
             force_reset=false,
             cache=cache,
+            push=true,
+            branch="master",
         )
     end
 
@@ -286,7 +299,7 @@ function get_tag_name(src_name, build_version)
         get_ENV("TRAVIS_TAG"),
         get_ENV("CI_COMMIT_TAG"),
         read_git_tag(),
-        "$(src_name)+v$(build_version)",
+        "$(src_name)-v$(build_version)",
     )
 end
 
@@ -313,14 +326,13 @@ end
 
 function get_next_wrapper_version(src_name, src_version)
     ctx = Pkg.Types.Context()
-    uuid = Pkg.Types.uuid5(Pkg.Types.uuid_package, "$(src_name)_jll")
 
     # If it does, we need to bump the build number up to the next value
     build_number = 0
-    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx.env, uuid))
+    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx.env, jll_uuid(src_name)))
         # Find largest version number that matches ours in the registered paths
         versions = VersionNumber[]
-        for path in Pkg.Operations.registered_paths(ctx.env, uuid)
+        for path in Pkg.Operations.registered_paths(ctx.env, jll_uuid(src_name))
             append!(versions, Pkg.Compress.load_versions(joinpath(path, "Versions.toml")))
         end
         versions = filter(v -> (v.major == src_version.major) &&
@@ -495,13 +507,14 @@ function autobuild(dir::AbstractString,
                     Pkg.activate(deps_project) do
                         # Find UUIDs for all dependencies
                         ctx = Pkg.Types.Context()
+                        pkg_deps = deepcopy([d for d in dependencies if !isa(d, TarballDependency)])
                         dep_specs = Pkg.Types.registry_resolve!(ctx.env, Pkg.Types.PackageSpec.(deepcopy(dependencies)))
                         Pkg.Operations.resolve_versions!(ctx, dep_specs)
 
                         # Add all dependencies
                         Pkg.add(dep_specs; platform=platform)
 
-                        # Load their Artifact.toml files
+                        # Load their Artifacts.toml files
                         dep_source_paths = Pkg.Operations.source_path.(dep_specs)
                         for (name, dep_path) in zip(dependencies, dep_source_paths)
                             # Skip dependencies that didn't get installed?
@@ -510,15 +523,15 @@ function autobuild(dir::AbstractString,
                                 continue
                             end
 
-                            # Load the Artifact.toml file
-                            artifact_toml = joinpath(dep_path, "Artifact.toml")
-                            if !isfile(artifact_toml)
-                                @warn("Dependency $(name) does not have an Artifact.toml!")
+                            # Load the Artifacts.toml file
+                            artifacts_toml = joinpath(dep_path, "Artifacts.toml")
+                            if !isfile(artifacts_toml)
+                                @warn("Dependency $(name) does not have an Artifacts.toml!")
                                 continue
                             end
 
                             # Get the path to the main artifact
-                            artifact_hash = Pkg.Artifacts.artifact_hash(name[1:end-4], artifact_toml; platform=platform)
+                            artifact_hash = Pkg.Artifacts.artifact_hash(name[1:end-4], artifacts_toml; platform=platform)
                             if artifact_hash === nothing
                                 @warn("Dependency $(name) does not have a mapping for $(name[1:end-4])!")
                                 continue
@@ -585,11 +598,20 @@ function autobuild(dir::AbstractString,
                 end
             end
 
-            # Finally, warn if something isn't satisfied
+            # Finally, error out if something isn't satisfied
+            unsatisfied_so_die = false
             for p in products
                 if !satisfied(p, prefix; verbose=verbose, platform=platform)
-                    @warn("Built $(src_name) but $(variable_name(p)) still unsatisfied!")
+                    if !verbose
+                        # If we never got a chance to see the verbose output, give it here:
+                        locate(p, prefix; verbose=true, platform=platform)
+                    end
+                    @error("Built $(src_name) but $(variable_name(p)) still unsatisfied:")
+                    unsatisfied_so_die = true
                 end
+            end
+            if unsatisfied_so_die
+                error("Cannot continue with unsatisfied build products!")
             end
             
             # We also need to capture some info about each product
@@ -655,20 +677,20 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
 
     platforms = keys(build_output_meta)
     for platform in platforms
-    if verbose
-        @info("Generating jll package for $(triplet(platform)) in $(code_dir)")
-    end
+        if verbose
+            @info("Generating jll package for $(triplet(platform)) in $(code_dir)")
+        end
     
         # Extract this platform's information.  Each of these things can be platform-specific
         # (including the set of products!) so be general here.
         tarball_name, tarball_hash, git_hash, products_info = build_output_meta[platform]
 
-        # Add an Artifact.toml
-        artifact_toml_path = joinpath(code_dir, "Artifact.toml")
+        # Add an Artifacts.toml
+        artifacts_toml = joinpath(code_dir, "Artifacts.toml")
         download_info = Tuple[
             (joinpath(bin_path, tarball_name), tarball_hash),
         ]
-        bind_artifact(src_name, Base.SHA1(hex2bytes(git_hash)), artifact_toml_path; platform=platform, download_info=download_info, force=true)
+        bind_artifact!(artifacts_toml, src_name, git_hash; platform=platform, download_info=download_info, force=true)
     
         # Generate the platform-specific wrapper code
         open(joinpath(code_dir, "src", "wrappers", "$(triplet(platform)).jl"), "w") do io
@@ -821,30 +843,26 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         end
     end
 
-    # Generate target-demuxing main source file.  To do so, we must determine the
-    # total list of available platforms, and use `select_platform`.
-    #available_platforms = [p for p in readdir(joinpath(code_dir, "src", "wrappers"))]
-    #available_platforms = [platform_key_abi(p[1:end-3]) for p in available_platforms]
-
+    # Generate target-demuxing main source file.
     open(joinpath(code_dir, "src", "$(src_name)_jll.jl"), "w") do io
         print(io, """
         module $(src_name)_jll
-        using Pkg.BinaryPlatforms, Pkg.Artifacts, Libdl
+        using Pkg, Pkg.BinaryPlatforms, Pkg.Artifacts, Libdl
 
-        platforms = Platform[
-        """)
+        # Load Artifacts.toml file
+        artifacts_toml = joinpath(@__DIR__, "Artifacts.toml")
 
-        for p in platforms
-            println(io, "    $(repr(p)),")
-        end
-
-        print(io, """
-        ]
+        # Extract all platforms
+        artifacts = Pkg.Artifacts.load_artifacts_toml(artifacts_toml, $(repr(jll_uuid(src_name))))
+        platforms = [Pkg.Artifacts.unpack_platform(e, $(repr(src_name)), artifacts_toml) for e in artifacts[$(repr(src_name))]]
+        
+        # Filter platforms based on what wrappers we've generated on-disk
+        platforms = filter(p -> isfile(joinpath(@__DIR__, "wrappers", triplet(p))), platforms)
 
         # From the available options, choose the best platform
         best_platform = select_platform(Dict(p => triplet(p) for p in platforms))
         
-        # Load the appropriate wrappers
+        # Load the appropriate wrapper
         include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
 
         end  # module $(src_name)_jll
@@ -898,13 +916,13 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
     end
 end
 
+jll_uuid(name) = Pkg.Types.uuid5(Pkg.Types.uuid_package, "$(name)_jll")
 function build_project_dict(name, version, dependencies)
-    get_uuid(name) = Pkg.Types.uuid5(Pkg.Types.uuid_package, "$(name)_jll")
     project = Dict(
         "name" => "$(name)_jll",
-        "uuid" => string(get_uuid("$(name)_jll")),
+        "uuid" => string(jll_uuid("$(name)_jll")),
         "version" => string(version),
-        "deps" => Dict{String,Any}(dep => string(get_uuid(dep)) for dep in dependencies),
+        "deps" => Dict{String,Any}(dep => string(jll_uuid(dep)) for dep in dependencies),
     )
     # Always add Libdl and Pkg as dependencies
     project["deps"]["Libdl"] = first([string(u) for (u, n) in Pkg.Types.stdlib() if n == "Libdl"])

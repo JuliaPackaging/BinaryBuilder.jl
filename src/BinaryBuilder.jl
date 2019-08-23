@@ -15,7 +15,8 @@ include("Products.jl")
 include("Auditor.jl")
 include("Runner.jl")
 include("Rootfs.jl")
-include("RootfsHashTable.jl")
+include("squashfs_utils.jl")
+#include("RootfsHashTable.jl")
 include("UserNSRunner.jl")
 include("QemuRunner.jl")
 include("DockerRunner.jl")
@@ -54,7 +55,7 @@ automatic_apple = false
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
-bootstrap_mode = false
+bootstrap_list = Symbol[]
 preferred_gcc_build = nothing
 
 function __init__()

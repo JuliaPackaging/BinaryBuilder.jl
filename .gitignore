@@ -4,3 +4,6 @@
 global_prefix
 .vscode/
 deps/build.log
+
+# Our code modifies this (pending resolution of https://github.com/JuliaLang/Pkg.jl/issues/796)
+MutableArtifacts.toml

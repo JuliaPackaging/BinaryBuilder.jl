@@ -235,7 +235,7 @@ variables to be set within the build environment to force compiles toward the
 defined target architecture.  Examples of things set are `PATH`, `CC`,
 `RANLIB`, as well as nonstandard things like `target`.
 """
-function platform_envs(platform::Platform; host_target="x86_64-linux-musl", bootstrap=bootstrap_mode, verbose::Bool = false)
+function platform_envs(platform::Platform; host_target="x86_64-linux-musl", bootstrap::Bool=!isempty(bootstrap_list), verbose::Bool = false)
     global use_ccache
 
     # Convert platform to a triplet, but strip out the ABI parts

@@ -226,21 +226,21 @@ function package(prefix::Prefix,
         end
     end
 
-    # Package `prefix.path` into the tarball contained at `out_path`
-    package(prefix.path, out_path)
-
-    # Also spit out the hash of the archive file
-    tarball_hash = open(out_path, "r") do f
-        return bytes2hex(sha256(f))
-    end
-    if verbose
-        @info("SHA256 of $(basename(out_path)): $(tarball_hash)")
+    # Copy our build prefix into an Artifact
+    tree_hash = create_artifact() do art_path
+        for f in readdir(prefix.path)
+            cp(joinpath(prefix.path, f), joinpath(art_path, f))
+        end
     end
 
     # Calculate git tree hash
-    tree_hash = git_tree_sha1(prefix)
     if verbose
         @info("Tree hash of contents of $(basename(out_path)): $(tree_hash)")
+    end
+
+    tarball_hash = archive_artifact(tree_hash, out_path; honor_overrides=false)
+    if verbose
+        @info("SHA256 of $(basename(out_path)): $(tarball_hash)")
     end
 
     return out_path, tarball_hash, tree_hash
