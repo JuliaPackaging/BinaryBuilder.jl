@@ -153,6 +153,7 @@ function platform_envs(platform::Platform, host_target="x86_64-linux-gnu")
         mapping["NM"] = target_tool_path("nm")
         mapping["OBJDUMP"] = target_tool_path("objdump")
     end
+    mapping["OBJC"] = mapping["CC"] * " -x objective-c"
 
     # On OSX, we need to do a little more work.
     if typeof(platform) <: MacOS
