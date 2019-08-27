@@ -240,10 +240,13 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # Easy out if we're not Linux with a UserNSRunner trying to use a .squashfs
     if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
                           preferred_runner() != DockerRunner) ||
-                         cs.archive_type != :squashfs ||
-                         is_mounted(cs, build_prefix)
+                         cs.archive_type != :squashfs
         # We'll just give back the artifact path in this case
         return @artifact_str(artifact_name(cs))
+    end
+
+    if is_mounted(cs, build_prefix)
+        return mount_path(cs, build_prefix)
     end
 
     # Ensure that we've got a UID-appropriate .squashfs
@@ -252,7 +255,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # Signal to the user what's going on, since this might require sudo.
     mpath = mount_path(cs, build_prefix)
     if verbose
-        @info("Mounting $(squashfs_path) to $(mpath)")
+        @debug("Mounting $(squashfs_path) to $(mpath)")
     end
 
     # If the destination directory does not already exist, create it
@@ -288,7 +291,7 @@ function unmount(cs::CompilerShard, build_prefix::String; verbose::Bool = false,
     if is_mounted(cs, build_prefix)
         mpath = mount_path(cs, build_prefix)
         if verbose
-            @info("Unmounting $(mpath)`")
+            @debug("Unmounting $(mpath)`")
         end
         try
             cmd = `$(sudo_cmd()) umount $(mpath)`
@@ -341,8 +344,8 @@ mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
-            rootfs_build::VersionNumber=v"2019.8.21",
-            ps_build::VersionNumber=v"2019.8.21",
+            rootfs_build::VersionNumber=v"2019.8.27",
+            ps_build::VersionNumber=v"2019.8.24",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
             LLVM_build::VersionNumber=v"8.0.0",
             archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
@@ -368,7 +371,7 @@ function choose_shards(p::Platform;
         # If we're not building for the host platform, then add host shard for host tools
         if !(typeof(p) <: typeof(host_platform)) || (arch(p) != arch(host_platform) || libc(p) != libc(host_platform))
             append!(shards, [
-                CompilerShard("PlatformSupport", ps_build, host_platform, archive_type),
+                CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
                 CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform),
             ])
         end

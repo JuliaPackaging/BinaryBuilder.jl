@@ -121,7 +121,7 @@ function cppfilt(symbol_names::Vector, platform::Platform)
     output = IOBuffer()
     mktemp() do t, io
         ur = preferred_runner()(dirname(t); cwd="/workspace/", platform=platform)
-        run_interactive(ur, `/opt/$(triplet(abi_agnostic(platform)))/bin/c++filt`; stdin=input, stdout=output)
+        run_interactive(ur, `/opt/bin/c++filt`; stdin=input, stdout=output)
     end
 
     return split(String(take!(output)), "\n")

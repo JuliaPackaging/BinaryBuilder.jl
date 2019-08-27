@@ -206,7 +206,7 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
     relink_cmd = ``
 
     if Sys.isapple(platform)
-        install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+        install_name_tool = "/opt/bin/install_name_tool"
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
         patchelf = "/usr/bin/patchelf"
@@ -220,7 +220,7 @@ end
 
 # Only macOS needs to fix identity mismatches
 fix_identity_mismatch(prefix, platform, path, oh; kwargs...) = nothing
-function fix_identity_mismatch(prefix::Prefix, platform::Platform, path::AbstractString,
+function fix_identity_mismatch(prefix::Prefix, platform::MacOS, path::AbstractString,
                                oh::MachOHandle; verbose::Bool = false)
     id_lc = [lc for lc in MachOLoadCmds(oh) if typeof(lc) <: MachOIdDylibCmd]
     if isempty(id_lc)
@@ -235,14 +235,12 @@ function fix_identity_mismatch(prefix::Prefix, platform::Platform, path::Abstrac
         return nothing
     end
 
-    # Convert identity from 
-
     if verbose
         @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
     end
     
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
-    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+    install_name_tool = "/opt/bin/install_name_tool"
     id_cmd = `$install_name_tool -id $(new_id) $(rel_path)`
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
@@ -274,7 +272,7 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     add_rpath = x -> ``
     relink = (x, y) -> ``
     patchelf = "/usr/bin/patchelf"
-    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+    install_name_tool = "/opt/bin/install_name_tool"
     if Sys.isapple(platform)
         add_rpath = rp -> `$install_name_tool -add_rpath @loader_path/$(rp) $(rel_path)`
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
@@ -311,11 +309,11 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
 
     # If the relative directory doesn't already exist within the RPATH of this
     # binary, then add it in.
-    new_libdir = abspath(dirname(new_libpath) * "/")
+    new_libdir = relpath(abspath(dirname(new_libpath) * "/"), dirname(path))
     if !(new_libdir in canonical_rpaths(path))
         libname = basename(old_libpath)
-        logpath = joinpath(logdir(prefix), "update_rpath_$(libname).log")
-        cmd = add_rpath(relpath(new_libdir, dirname(path)))
+        logpath = joinpath(logdir(prefix), "update_rpath_$(basename(path))_$(libname).log")
+        cmd = add_rpath(new_libdir)
         run(ur, cmd, logpath; verbose=verbose)
     end
 

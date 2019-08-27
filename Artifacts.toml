@@ -1,299 +1,1099 @@
-[["PlatformSupport-aarch64-linux-gnu.v2019.8.22.aarch64-linux-gnu.squashfs"]]
-arch = "aarch64"
-git-tree-sha1 = "3ab30879f8dbdb3912d6f9d895e3c27d7db7afc7"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-aarch64-linux-gnu.v2019.8.22.aarch64-linux-gnu.squashfs".download]]
-    sha256 = "bffca134997fbb6368a79f8b4bc8717250e6b4e6a3bae862d023c047e0e4f96b"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.aarch64-linux-gnu.squashfs"
-
-[["PlatformSupport-aarch64-linux-gnu.v2019.8.22.aarch64-linux-gnu.unpacked"]]
-arch = "aarch64"
-git-tree-sha1 = "937d04a7ff0791afaae74fdc1ba2cde8d2736640"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-aarch64-linux-gnu.v2019.8.22.aarch64-linux-gnu.unpacked".download]]
-    sha256 = "ad4fb163667fc72d5a08f64ed12dc4324fb4f4c4caea9141646bce7221b913d5"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.aarch64-linux-gnu.unpacked"
-
-[["PlatformSupport-aarch64-linux-musl.v2019.8.22.aarch64-linux-musl.squashfs"]]
-arch = "aarch64"
-git-tree-sha1 = "f845173b9ea69e2b8a56034b752bdccf5e845738"
+[["GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "1e71b012526f102802b05e6417460e719b9c17f7"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-aarch64-linux-musl.v2019.8.22.aarch64-linux-musl.squashfs".download]]
-    sha256 = "3aa4cb6d051346f2de469a118a05f3c58f3fc759d1c73586bef7f33e0fd68de9"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.aarch64-linux-musl.squashfs"
+    [["GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "4da6bec071aaeaa188253b429b5ed335b84966b78c66798314c7b8cbed250fe2"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"
 
-[["PlatformSupport-aarch64-linux-musl.v2019.8.22.aarch64-linux-musl.unpacked"]]
-arch = "aarch64"
-git-tree-sha1 = "fbbd717aea39095f62fa37cd21cd7fe03d46860a"
+[["GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "a3e8e164265bd71c53cc5c63ff6a1fcee0cf0275"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-aarch64-linux-musl.v2019.8.22.aarch64-linux-musl.unpacked".download]]
-    sha256 = "3b5485b959176a7137519cafc55bcc4a7fb14c57d72ad998cd2d378e30d416fa"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.aarch64-linux-musl.unpacked"
+    [["GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "fdbcb25ffd5b96e179872dcac1a939490f64e8581f9cd879702b4b91424a9c01"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-aarch64-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"
 
-[["PlatformSupport-arm-linux-gnueabihf.v2019.8.22.arm-linux-gnueabihf.squashfs"]]
-arch = "armv7l"
-git-tree-sha1 = "4f250ce3a4946e07286c33652a0c75d5d76e3404"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-arm-linux-gnueabihf.v2019.8.22.arm-linux-gnueabihf.squashfs".download]]
-    sha256 = "f635359d2807a749044194e9e9ba2c7102e863077aa441897c92d4b0f9e219e2"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.arm-linux-gnueabihf.squashfs"
-
-[["PlatformSupport-arm-linux-gnueabihf.v2019.8.22.arm-linux-gnueabihf.unpacked"]]
-arch = "armv7l"
-git-tree-sha1 = "2941c582dacfc4bb9ab3cc2b47126cad48003fbd"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-arm-linux-gnueabihf.v2019.8.22.arm-linux-gnueabihf.unpacked".download]]
-    sha256 = "355cb8fe48d187a16582db277a40214a6a5c0d3b7d06978891a8548319c9c9ed"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.arm-linux-gnueabihf.unpacked"
-
-[["PlatformSupport-arm-linux-musleabihf.v2019.8.22.arm-linux-musleabihf.squashfs"]]
-arch = "armv7l"
-git-tree-sha1 = "fef50a5f9837390c859af6e1ad0976f6d194ff45"
+[["GCCBootstrap-aarch64-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "c3fc5f068285aa5e92bdc3d041d397db0c1431a1"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-arm-linux-musleabihf.v2019.8.22.arm-linux-musleabihf.squashfs".download]]
-    sha256 = "2b4289db05bebdcdcdee855bfcc8a65e2119017942636840ef3618722491ac53"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.arm-linux-musleabihf.squashfs"
+    [["GCCBootstrap-aarch64-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "63a574cf66bc0a896e469aeb3794f8ced8dd175fb69fd865a7744b661d146208"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-aarch64-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"
 
-[["PlatformSupport-arm-linux-musleabihf.v2019.8.22.arm-linux-musleabihf.unpacked"]]
-arch = "armv7l"
-git-tree-sha1 = "e71eba63fac4e2186caa7e10a6e3b55368e1679e"
+[["GCCBootstrap-aarch64-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "31e17eac165127abc540bd72e7c9a9597b095ad8"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-arm-linux-musleabihf.v2019.8.22.arm-linux-musleabihf.unpacked".download]]
-    sha256 = "56da2396502a0545767de6b975faf1a16ffe20a014e3c088a075195e60d0902f"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.arm-linux-musleabihf.unpacked"
+    [["GCCBootstrap-aarch64-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "0f38a8607e3dd2d4e7b05791831cf7fd062e7e8930b2f40f271b7ae4b3ca0000"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-aarch64-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"
 
-[["PlatformSupport-i686-linux-gnu.v2019.8.22.i686-linux-gnu.squashfs"]]
-arch = "i686"
-git-tree-sha1 = "329b13634d8e4e78ccd3b9f15822a4f935a55252"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-i686-linux-gnu.v2019.8.22.i686-linux-gnu.squashfs".download]]
-    sha256 = "94c455950641683434faf6e2056c46d1e01aab62f89f8b1b8ea501197173a19b"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.i686-linux-gnu.squashfs"
-
-[["PlatformSupport-i686-linux-gnu.v2019.8.22.i686-linux-gnu.unpacked"]]
-arch = "i686"
-git-tree-sha1 = "42644dc37c4e3228d826fc42a6673a725d1dd867"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-i686-linux-gnu.v2019.8.22.i686-linux-gnu.unpacked".download]]
-    sha256 = "f9593dba86a0ae4f3105fec444de110c062e7b46d492de02abb7a46369380403"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.i686-linux-gnu.unpacked"
-
-[["PlatformSupport-i686-linux-musl.v2019.8.22.i686-linux-musl.squashfs"]]
-arch = "i686"
-git-tree-sha1 = "9c77e6308ccb6f7b5589d4243c77e60ed549a872"
+[["GCCBootstrap-aarch64-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "b1297768e7cbc0d827f56d788305108c91053d7b"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-linux-musl.v2019.8.22.i686-linux-musl.squashfs".download]]
-    sha256 = "85aa591d71042fba9825f83bd7f1f049433c79495a499df184a39ce3b867ac5f"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.i686-linux-musl.squashfs"
+    [["GCCBootstrap-aarch64-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "7bb823917ba551aef5bbc1598304fe58439a80def3a6f2f9f6a8ad68bf8c351f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-aarch64-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"
 
-[["PlatformSupport-i686-linux-musl.v2019.8.22.i686-linux-musl.unpacked"]]
-arch = "i686"
-git-tree-sha1 = "c78a74a11e1dd0393830f58a37ed0be024effcd1"
+[["GCCBootstrap-aarch64-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "2515a1e33afafc6dce97f4a291bdbd43d75445ba"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-linux-musl.v2019.8.22.i686-linux-musl.unpacked".download]]
-    sha256 = "e2153fc3e4223442b0e5bfc0c312f434e3ad34130093ad1be6f55ec0046f0f55"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.i686-linux-musl.unpacked"
+    [["GCCBootstrap-aarch64-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "21eb3fd85f490935b049cbc3da7884dfccabbb9a7a73bbffdc267134f7f973ab"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-aarch64-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"
 
-[["PlatformSupport-i686-w64-mingw32.v2019.8.22.i686-w64-mingw32.squashfs"]]
-arch = "i686"
-git-tree-sha1 = "9d246cc674cb57aaa55a60b8cdc8557e44e6eb05"
-lazy = true
-os = "windows"
-
-    [["PlatformSupport-i686-w64-mingw32.v2019.8.22.i686-w64-mingw32.squashfs".download]]
-    sha256 = "4051fcd8dd4361c95185db260b282de1eb8d9fef4115a1654282eb60ac1a0979"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.i686-w64-mingw32.squashfs"
-
-[["PlatformSupport-i686-w64-mingw32.v2019.8.22.i686-w64-mingw32.unpacked"]]
-arch = "i686"
-git-tree-sha1 = "309d8ffaff5ab617135309467c79a721803b06d2"
-lazy = true
-os = "windows"
-
-    [["PlatformSupport-i686-w64-mingw32.v2019.8.22.i686-w64-mingw32.unpacked".download]]
-    sha256 = "508643f13e2b2de52c5b263fc0715eb70b7679234af63a1bd3a5455024a0da86"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.i686-w64-mingw32.unpacked"
-
-[["PlatformSupport-powerpc64le-linux-gnu.v2019.8.22.powerpc64le-linux-gnu.squashfs"]]
-arch = "powerpc64le"
-git-tree-sha1 = "e192d3c00e862f5344e43e0eb30990a117976d7d"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-powerpc64le-linux-gnu.v2019.8.22.powerpc64le-linux-gnu.squashfs".download]]
-    sha256 = "8f9b2398b26edd085a0900d799322a1623bc7d946b35fc25241153bce5d68d12"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.powerpc64le-linux-gnu.squashfs"
-
-[["PlatformSupport-powerpc64le-linux-gnu.v2019.8.22.powerpc64le-linux-gnu.unpacked"]]
-arch = "powerpc64le"
-git-tree-sha1 = "d575241e73fccd5d38b0a541b8943f836f77613d"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-powerpc64le-linux-gnu.v2019.8.22.powerpc64le-linux-gnu.unpacked".download]]
-    sha256 = "00a8331fc676d242e329fa1bfddf743579c1e71e24acd1ab362868a5d04a2432"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.powerpc64le-linux-gnu.unpacked"
-
-[["PlatformSupport-x86_64-apple-darwin14.v2019.8.22.x86_64-apple-darwin14.squashfs"]]
+[["GCCBootstrap-aarch64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "64f101fa115ae8a75a7eea55ae3f5bb872101c1e"
-lazy = true
-os = "macos"
-
-    [["PlatformSupport-x86_64-apple-darwin14.v2019.8.22.x86_64-apple-darwin14.squashfs".download]]
-    sha256 = "a90166699930a7b26ba7dc6339872329de1021c24a6237dba070594f4d28d19b"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-apple-darwin14.squashfs"
-
-[["PlatformSupport-x86_64-apple-darwin14.v2019.8.22.x86_64-apple-darwin14.unpacked"]]
-arch = "x86_64"
-git-tree-sha1 = "89d0bbca19c1cf36fa691a4dd728737d66c6d1fe"
-lazy = true
-os = "macos"
-
-    [["PlatformSupport-x86_64-apple-darwin14.v2019.8.22.x86_64-apple-darwin14.unpacked".download]]
-    sha256 = "d9fb1c7df9834067b798f9d911c647d49c61f16f0e8fb9c999f1dfd95caba310"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-apple-darwin14.unpacked"
-
-[["PlatformSupport-x86_64-linux-gnu.v2019.8.22.x86_64-linux-gnu.squashfs"]]
-arch = "x86_64"
-git-tree-sha1 = "47aaa5c44508dc2a930d22e23ec3fd29c748fb78"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-x86_64-linux-gnu.v2019.8.22.x86_64-linux-gnu.squashfs".download]]
-    sha256 = "9a4c3deaeea22c090afbaeaf804923cd724059bae766027d1338dababce9e9c3"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-linux-gnu.squashfs"
-
-[["PlatformSupport-x86_64-linux-gnu.v2019.8.22.x86_64-linux-gnu.unpacked"]]
-arch = "x86_64"
-git-tree-sha1 = "c561938e0db2aff863d03899922eb7f84ffb467d"
-lazy = true
-libc = "glibc"
-os = "linux"
-
-    [["PlatformSupport-x86_64-linux-gnu.v2019.8.22.x86_64-linux-gnu.unpacked".download]]
-    sha256 = "f574f0f4568e429881852c3c93090b859ace8e07ed81d0e00b7673437a6ff902"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-linux-gnu.unpacked"
-
-[["PlatformSupport-x86_64-linux-musl.v2019.8.22.x86_64-linux-musl.squashfs"]]
-arch = "x86_64"
-git-tree-sha1 = "bd38178783c64b734b330ce5d01f08ea9a978160"
+git-tree-sha1 = "87462c53a7ad40e591647327fa797abe16c96391"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-linux-musl.v2019.8.22.x86_64-linux-musl.squashfs".download]]
-    sha256 = "f2b8fbfab1e5b845facaa01e342b04a3c37412713df309e850b081b5d619da77"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-linux-musl.squashfs"
+    [["GCCBootstrap-aarch64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "45f3a510495dcf00088a8a84af6c4a81ea58f38e03999ceaa61bf7eea4063fc2"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-aarch64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"
 
-[["PlatformSupport-x86_64-linux-musl.v2019.8.22.x86_64-linux-musl.unpacked"]]
+[["GCCBootstrap-aarch64-linux-musl.v4.8.5.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "3370b33958cdfcdd62e5b943133da59bfa215165"
+git-tree-sha1 = "a52fda2bba0627781d193b4d632b9b788434987b"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-linux-musl.v2019.8.22.x86_64-linux-musl.unpacked".download]]
-    sha256 = "86032e197f71799b18ced2fd78e10aca802b5dd1cf30031c12630d3642c8252a"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-linux-musl.unpacked"
+    [["GCCBootstrap-aarch64-linux-musl.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "aea4bcb14b36f7b192aabf8c6c83221d29bec37c35822dcf401aa0775f0edf50"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-aarch64-linux-musl.v4.8.5.x86_64-linux-musl.unpacked"
 
-[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.22.x86_64-unknown-freebsd11.1.squashfs"]]
+[["GCCBootstrap-aarch64-linux-musl.v5.2.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "625bfca69c5b4a175b85792f2654f97b5b5fc36c"
-lazy = true
-os = "freebsd"
-
-    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.22.x86_64-unknown-freebsd11.1.squashfs".download]]
-    sha256 = "5a7726368d781b49dc95f95c15a83c4f395e4265049c9153902e5038bf0b2d47"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-unknown-freebsd11.1.squashfs"
-
-[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.22.x86_64-unknown-freebsd11.1.unpacked"]]
-arch = "x86_64"
-git-tree-sha1 = "2bf57520f28cb9d9c5bebdb06c8145035bfb56bd"
-lazy = true
-os = "freebsd"
-
-    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.22.x86_64-unknown-freebsd11.1.unpacked".download]]
-    sha256 = "1f43de59de37180b44a8d5f2e0464b041e2a8a7494452c14452bf0a835f6c530"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-unknown-freebsd11.1.unpacked"
-
-[["PlatformSupport-x86_64-w64-mingw32.v2019.8.22.x86_64-w64-mingw32.squashfs"]]
-arch = "x86_64"
-git-tree-sha1 = "cc651c95a97ca851852d0484c63409e8232f7a74"
-lazy = true
-os = "windows"
-
-    [["PlatformSupport-x86_64-w64-mingw32.v2019.8.22.x86_64-w64-mingw32.squashfs".download]]
-    sha256 = "87826827c21ea13d0a73c1d3749dbc73c2efc3d664413d6ed1b2f6fa8102efba"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-w64-mingw32.squashfs"
-
-[["PlatformSupport-x86_64-w64-mingw32.v2019.8.22.x86_64-w64-mingw32.unpacked"]]
-arch = "x86_64"
-git-tree-sha1 = "c3629d28a2f5a4a51ffaa720e8067c660348c3eb"
-lazy = true
-os = "windows"
-
-    [["PlatformSupport-x86_64-w64-mingw32.v2019.8.22.x86_64-w64-mingw32.unpacked".download]]
-    sha256 = "d81544e20900fc339a439584c89133a5842f6e5ef9dd56b53f868904bf519bf5"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.22+0/PlatformSupport.v2019.8.22.x86_64-w64-mingw32.unpacked"
-
-[["Rootfs.v2019.8.22.x86_64-linux-musl.squashfs"]]
-arch = "x86_64"
-git-tree-sha1 = "623bc2f403fae7a1558fc5b4ba668987ae736ed8"
+git-tree-sha1 = "4757232c9b4741e21ef496f835b3898cd1aab4b2"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.8.22.x86_64-linux-musl.squashfs".download]]
-    sha256 = "bac14f56b7cb1d3ec9ff2a2407868cda706938a56defc6614d1861b23952ba14"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.8.22+0/Rootfs.v2019.8.22.x86_64-linux-musl.squashfs"
+    [["GCCBootstrap-aarch64-linux-musl.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "de01c8ebaba1e6b1bd06d8e1e24cb7230b4e621de88859670c71ea28441958ba"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-aarch64-linux-musl.v5.2.0.x86_64-linux-musl.squashfs"
 
-[["Rootfs.v2019.8.22.x86_64-linux-musl.unpacked"]]
+[["GCCBootstrap-aarch64-linux-musl.v5.2.0.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "9b4dbc488aa26a96dce997e55003f50f9705e6fa"
+git-tree-sha1 = "59363a055866ea1214a1f1e418e82a9804adedba"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.8.22.x86_64-linux-musl.unpacked".download]]
-    sha256 = "1179639c2ec5c57ab906fbd390a4a89b52dedffec411a7beb3fad7e1dacb7488"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.8.22+0/Rootfs.v2019.8.22.x86_64-linux-musl.unpacked"
+    [["GCCBootstrap-aarch64-linux-musl.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "4f4e5c57f621601de6df87170b8ab5229220d351aa546278a6536e03d46782ac"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-aarch64-linux-musl.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-aarch64-linux-musl.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "04765cb55dec60e7d6cd58d4f2291a3a3eff8fa7"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-aarch64-linux-musl.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "26f106b8fae9729023fa06487e73d1d090c0bf0f0455b7fbb26fa4d17ad6b44a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-aarch64-linux-musl.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-aarch64-linux-musl.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "e30e239ab41184343d4577151a6aa5e4cfaf0286"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-aarch64-linux-musl.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "f2d94812dd193524fed109cd8f6001f5e3a0b9196df0d20b338d69a0e5139522"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-aarch64-linux-musl.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-arm-linux-gnueabihf.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "b5859cd203a386f82bc1d10bf8cc1f7b9302d88f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-gnueabihf.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "42537284438bb39d2f0dee5edbd30ab949fc041f96737ef29ada41b5b01dbe99"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-arm-linux-gnueabihf.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-arm-linux-gnueabihf.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "07474847e470a9ab26514e5f15eb48bae6ec7434"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-gnueabihf.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "0052003854b607852f591cf1b877e0ac6acdacc4c7cc5ea703637f09c716e744"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-arm-linux-gnueabihf.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-arm-linux-gnueabihf.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "66a21773774c48a379e1ec142c9f3b6808ce45f4"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-gnueabihf.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "341174526b543d8a407bd730dc15accdffda4499fc46365cee9dc21991abe622"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-arm-linux-gnueabihf.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-arm-linux-gnueabihf.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "be5dee67d983f75190fdab22e5a1cdaf2e300ba0"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-gnueabihf.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "ed67186904a76069c6f23463d87b0c674a90f980350a45953053a02703294023"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-arm-linux-gnueabihf.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-arm-linux-gnueabihf.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "7daca50ab8fea86e66ad5777a04e67743ffa7897"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-gnueabihf.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "346e8cca4f5da0df91ba7e69d9f2ce5d09b384c217ddbcbae9278ad521c878a4"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-arm-linux-gnueabihf.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-arm-linux-gnueabihf.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "a8d02c4ea78567ce7a53435079bf9217f5a0c22e"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-gnueabihf.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "19830c4c7c4944ef3bfe7af4cd270d950ceb1860a728ce5607268af2bb008516"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-arm-linux-gnueabihf.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-arm-linux-musleabihf.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "dff3a540ea9b0bff1ae31af519a31c074b9c0225"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-musleabihf.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "ae91b142c5ea054fd729aa11127ffc320b83f7ec547ebc53004a4e67dcefb325"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-arm-linux-musleabihf.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-arm-linux-musleabihf.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "7a6271530ddb5e25840155faad95aa0aa2c7c98e"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-musleabihf.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "d15b89c882fd0a6f86a05198d1a4750e79fcb31bf6be5df1a67e0492a47e32b1"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-arm-linux-musleabihf.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-arm-linux-musleabihf.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "7edcbab56dd748cc724469f420e5fa871b6c5181"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-musleabihf.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "c6bc2a51b7fb44e95a688a0f5cb070650d5b549a3afda630c850deac0f61a5ea"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-arm-linux-musleabihf.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-arm-linux-musleabihf.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "70a01ea854f6102e60d09f3f4a4a264657a9c4cb"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-musleabihf.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "efe93720a0a272c6dcc2f7c7384faf158d822bf88c1ce8d5e897bc428f2f852f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-arm-linux-musleabihf.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-arm-linux-musleabihf.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "75715f4a23a3ab05b8f2681a348318e434c4e30d"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-musleabihf.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "0c598ba8a6f9e19f820c6e4bbea371503e10789c8cbc939e618ed8d115b80cb6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-arm-linux-musleabihf.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-arm-linux-musleabihf.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "bcac5e22a4c74c17247ff11d0f16ed22921abf05"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-arm-linux-musleabihf.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "bbe2a31e13a96762d4d4b69c6a45b6e24dbed0b5d6b1ff346cee55e7a14153e2"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-arm-linux-musleabihf.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "384999e4c1e95d5e481f002ffee91546ef20914b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "8ca4b3d121ae1a8c3853c65cdd22067f8a3182f772964a8ef32c7589f1f976c3"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-i686-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "ca8ce256d8405d6e24131889f2c85f9822c4b3dd"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c194e6cca765de557b53b230dfb1c6174982ca093150e63e5d6afc4901af5ede"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-i686-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "f396fa2b6f0bd90bbde271c70e0d991d7a746377"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "ccd6ff8135b28f809517138ea0e7269b38d49dfd6f8c210f76a9233ec6ea37d3"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-i686-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "663536f07bfe46ec3b7d142832fbf753662681c8"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "f0ad29294007e3e4ec410fde8d36cdcdb3758868e475218ff60f685383080e3b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-i686-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "ec9cb530cd93491fb04a76e1c85c0a94517298a8"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "706d4014a944f01d1925a3afb74800d5837620387ccb465084c5c77020e9b40b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-i686-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "d819801a7b91628c1235b8292d63254a77fac67d"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "b5077f4bad5812aec9e52a8473d753f1eefeb9c99d276880b298355b349b3e10"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-i686-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "327c170be9e3aec607bc2693993ae3e771ca615e"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-musl.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "ceb990b96989ccb01c1b1b446979139ac231cf3c09cb566fa350f2d36215dfe0"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-i686-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-linux-musl.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "df905982a162cd3ccca1ef2721c6a6325023ced7"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-musl.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "6c8de56cf612224fe850ad940383e3141772e22c8b611cbaf97cca225192d18b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-i686-linux-musl.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-linux-musl.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "672da02d02c522a9da59d4dd17290faadb2a3233"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-musl.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "28befeae8cb4d7c942061ac7269138124d3b85d796060069239d0b457bf38174"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-i686-linux-musl.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-linux-musl.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "ee05d5305b26bc3470d9b559eb1ee0956b448192"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-musl.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "12d65651c9306eae4d380a492ebbb1c0af4d22ef60024dbaf259e07bda4035ce"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-i686-linux-musl.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-linux-musl.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "52c35d34d38867a80e97fd9c16ba9b5953af3149"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-musl.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "f8c203365d4e39b4d90c330554bd90433bb2c05fdbf7fd39e43d7f1ccd003e27"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-i686-linux-musl.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-linux-musl.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "df287039810a9d696f90f44b0306621d5186a00c"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-linux-musl.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "6ccc1541f669253e938af279cef4a0ea7b21b92d20e34d2756e806cc766d47d9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-i686-linux-musl.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-w64-mingw32.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "f10b772fa489863308c4d2a69fe1d5aed65839cd"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-w64-mingw32.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "e068ad47c9d8a294731f7001e819ade44b7d61d722309f1d6a927f2e2ed5fdf3"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-i686-w64-mingw32.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-w64-mingw32.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "f75b61323f23ea0fed59ea52998ee145764036d8"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-w64-mingw32.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "7ff42f24ec626e260453c0438e46ad426c24edafccbd102bfc7b449e2b6317d6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-i686-w64-mingw32.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-i686-w64-mingw32.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "074016d249463059fc8e30f81a62796046f162b0"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-w64-mingw32.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "fc78dd479ecf27e2fce0879181f99ccff004d40f225590e9770559a4f9d3bf6d"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-i686-w64-mingw32.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-i686-w64-mingw32.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "f9abdca1177c8e9609b07465eb026a09fd6217ab"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-i686-w64-mingw32.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "19ea01be69ca7248b67fe02b96ef3e06fe6ee63e204f76ff6de208fbfd21e79c"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-i686-w64-mingw32.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-powerpc64le-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "09aa4c52777cd562a2b75d7ca8b74af9747cda67"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-powerpc64le-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "21b2fa5f9141d89e8e8add40d0ec94f5e977b2b9dea8c57d506d091c5e21b6ac"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-powerpc64le-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-powerpc64le-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "55616a7fe2c41eab98ed239d562c8c07ed545243"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-powerpc64le-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c665cc3abe97f7e9436142e95f19ff45faa9d0c4812c0e4246ba2a8e58378e79"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-powerpc64le-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-powerpc64le-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "ef8d4ad3d17cfc7258345e324ccad5c3b3b34c55"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-powerpc64le-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "439ebbbc530be3b779c29607f79a9900b36f573e2283a7ab2142b3c33cbae1c2"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-powerpc64le-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-powerpc64le-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "4bf7816910fac1e09feb525a9cfbe88138296739"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-powerpc64le-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "763f1e387d878fce87605e6937d1f3d515bb443ee4d55a394f89aba986ef075e"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-powerpc64le-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-powerpc64le-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "41c566e6c7509b8b9079e4aaad2ce34035d87cdb"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-powerpc64le-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "0b6041373a684e007c89b7810064f585c649d7b83835fac874ec63065f56e27d"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-powerpc64le-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-powerpc64le-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "e6ae1c8e1fe1650edca7be61399b2241db7127eb"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-powerpc64le-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "1c384c757463784d6a000819cd59609da77d68787b86d58f54a9af9a91dafb0a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-powerpc64le-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-apple-darwin14.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "0e2c997c564b5e3b3bc44558e404985cedec44a2"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-apple-darwin14.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "5ed5e8b4d3b6ef2a2f85de966412f1aa05fd2e0b385ad66f6500974c126cc3c9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-apple-darwin14.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-apple-darwin14.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "d540bbc215af7ad3c4d8275da5656da804bbc885"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-apple-darwin14.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "ac54b00a21f944ef945b81ae72bb2d1b2f0b910075f48476a583828f9aae5c2b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-apple-darwin14.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-apple-darwin14.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "e341366f0552dc9f5e0548d27e0c3a4d5cdffbed"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-apple-darwin14.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "4f546636caa932374b9d94d8bd1ca05103cc22c3ee99e5aa367e2891b40d7ab2"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-apple-darwin14.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-apple-darwin14.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "3cfac7872d7d7c73900b8c3847fd0301f128ac24"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-apple-darwin14.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "2a0de668f2634a5003d5b6d5a6e23d889034d9c25f7e849aff31c4eb02fdbf56"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-apple-darwin14.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "1d48714f43f6a6af94cc4745a46deef9d892ccff"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "1a928d4744449f5779d43e1da3b2644398a8cd1e55b9585e0ddb1f7703798caa"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-linux-gnu.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "60d7f83a2090e518f9059512fcf790ea1d17af92"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "694c04f8521a9f780646a79efafb730d46bb0b5dfcdba42411040bc075efd5a4"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-linux-gnu.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "66ba6476e0c5aed1e3dbf98c483089bef26a854f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "431922c78ff92cac4a20655ea9ea5e3fb52a4a1ad8c712a00428db997e6fa702"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-linux-gnu.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "8fbef9c0cbdb1d7604b81a825908619d9fde6b4d"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "26400df52beee4e62a84b49cdf5357fd8ebf9cb34764708a754dcf7e803849ad"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-linux-gnu.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "7a7110c391651320d4041915113c9f4e537a227f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "d1d03cfc02711af262bb27578eda0326f7932fa041fd90d61fe4f219c5cb6ffd"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-x86_64-linux-gnu.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "89c33cda05a45243152a2af87b8a98ab398f3c30"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c984cd8ca64e49729dfdf705b4ad65114ce91a4b2c9337343f2f2473e4f38c64"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-x86_64-linux-gnu.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "55054cb9b0c3b44a3e69ceed07df45710517992f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "314294c0226061fee65dbc823a687769b7eac002310f0ed5ccc84e76746df56b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "35225ad781d4f89aac77cefb98084a1d359aea89"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "4552edde30e564525865d9f25d3a0e337febc578533284b2a46affa5b16a8bc8"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-linux-musl.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-linux-musl.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "3f55fcd4fad2a0590d8c2c3378d4cfd050992f1d"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "74867e73fde471e55391caa3aa76ddf6aa35399b508858a7ca0a4ac18c0c8f14"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-linux-musl.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-linux-musl.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "658ae26775b0995a53673352ecfec735a6422d25"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "57779de25dd40dac8130d0a859640d3c6f92b03346a032e3afd2334d5c0ef63b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-linux-musl.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-linux-musl.v6.1.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "4c7fbedae76912ad2fb6917f000538e3e7b8a351"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v6.1.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "8d61cfb35fcdf09582df9262872721cb34f170d88fa0b1c358df1b980d9eea6c"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-x86_64-linux-musl.v6.1.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-linux-musl.v6.1.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "bd0bf8b16bba3a4bda08e397a04c1657ac119a42"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-linux-musl.v6.1.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "a6120b948e0d58b38c3f41cc127a3243b716c8a4f3deb16084390908827742ef"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v6.1.0+0/GCCBootstrap-x86_64-linux-musl.v6.1.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-unknown-freebsd11.1.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "0909f71fd5423f5d59893c1fcbc073e6ee122c52"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-unknown-freebsd11.1.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "043cf2028d10b5767283521a48a1c66cbfc8dc75850a26ba175460da82e65b00"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-unknown-freebsd11.1.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-unknown-freebsd11.1.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "e9a5fc426eecb84402167b76ffe57d80e97f7533"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-unknown-freebsd11.1.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "d59a3369e7cbbf909e3ed6d925254429b28320c555c48e22facb4839bfcdeab4"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-unknown-freebsd11.1.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-unknown-freebsd11.1.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "886b59825df0ea386bb7510aef486081962bbec4"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-unknown-freebsd11.1.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "5dad952ad74d3ce3513de5cdfd70bb6ddfd1e470ed4931e0ca2ba32e52e18485"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-unknown-freebsd11.1.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-unknown-freebsd11.1.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "28724c28a638d5d07c7724dd903db0d16bf5eb51"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-unknown-freebsd11.1.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "7b539ef88ba1225ebed95f37837a7ca7315c38f5cbb8096f6f324ced5708315d"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-unknown-freebsd11.1.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-w64-mingw32.v4.8.5.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "c7ae82936674b4a4fab4523f4b5df45cb58dac02"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-w64-mingw32.v4.8.5.x86_64-linux-musl.squashfs".download]]
+    sha256 = "ae1ed1cfe124d8033cb0ade354d16b5f198d871e4df0482fbdf87fe7447d5acd"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-w64-mingw32.v4.8.5.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-w64-mingw32.v4.8.5.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "334645aeb0d7e28b4ece9b27cc9c98125a3f951d"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-w64-mingw32.v4.8.5.x86_64-linux-musl.unpacked".download]]
+    sha256 = "4433e699bce05313b5b882d58cd95cd5a55f7ebf767f10691aeb51bc720f7b05"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v4.8.5+0/GCCBootstrap-x86_64-w64-mingw32.v4.8.5.x86_64-linux-musl.unpacked"
+
+[["GCCBootstrap-x86_64-w64-mingw32.v5.2.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "804d3a0dd421f5a639678db63548c1e49f082873"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-w64-mingw32.v5.2.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "26eabcd28740de87f87417b820100b4bf5e509a841bd0dc9d85976ed15a7ee33"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-w64-mingw32.v5.2.0.x86_64-linux-musl.squashfs"
+
+[["GCCBootstrap-x86_64-w64-mingw32.v5.2.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "e6afcf53de9fb4f084afc549de1d2494afffdd61"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["GCCBootstrap-x86_64-w64-mingw32.v5.2.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "8e5667cde1f0448abb68cb23778df4023f3ae6f4435c143237f0a2ea7507220f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/GCCBootstrap-v5.2.0+0/GCCBootstrap-x86_64-w64-mingw32.v5.2.0.x86_64-linux-musl.unpacked"
+
+[["LLVMBootstrap.v8.0.0.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "dec02519ed87c1e59f8f93539be11f8e45208c2a"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["LLVMBootstrap.v8.0.0.x86_64-linux-musl.squashfs".download]]
+    sha256 = "a10b98d3d1a16c2b4fadcf67970690421221a56c3c1ab6123277afe72277b277"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v8.0.0+0/LLVMBootstrap.v8.0.0.x86_64-linux-musl.squashfs"
+
+[["LLVMBootstrap.v8.0.0.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "8d8abc56d97da7f0d60fccccc4e7036593e4c62e"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["LLVMBootstrap.v8.0.0.x86_64-linux-musl.unpacked".download]]
+    sha256 = "60846dfcd1ae40f7d3a35d6a1ab1721dede4a88397662de6a1f26e6313aceb2a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v8.0.0+0/LLVMBootstrap.v8.0.0.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-aarch64-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "cb806a12410ef30d5f46c70396de7499df1d37ee"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-aarch64-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "accd8d2afa2cd3e2e69ca4f7bd3a593fb985fe4ce8b82177247d4d40c8313820"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-aarch64-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-aarch64-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "072cbcd3224b206d82fbe6b533dfaabf21036795"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-aarch64-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "6b2b6d539b0c7d2c29e216c18ea1c12219c4662f7eb83aa4fe5fbc73a16e6644"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-aarch64-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-aarch64-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "19fab63e276d1feb420bf813fda85a553a9bfb34"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-aarch64-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "e7d25bd4bec744953a915f7eeabe5cea5bfe2fbf87677e6595982f764e1d389b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-aarch64-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-aarch64-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "d5ce6fcf59b9d0746eda9e24800e06e0353346ea"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-aarch64-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "a2cba8d90c2be87d156d8c82c169b7f0562f931c5a0d0b9ff1b63c51747864cd"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-aarch64-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-arm-linux-gnueabihf.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "e0f4bac44f6056d99beb0eafef1f646c13e6a0ac"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-arm-linux-gnueabihf.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "33aaef3997a3e89006417539bbedc7017863250b9a214dd5e676d3336e03800f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-arm-linux-gnueabihf.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-arm-linux-gnueabihf.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "b9c45b0cd0f7cd5a51e6e50db24119e2048292b5"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-arm-linux-gnueabihf.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "0e1366680a5138d0a0c91594085537bcbe4c10d9b5324913704b7307d40f024a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-arm-linux-gnueabihf.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-arm-linux-musleabihf.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "c28483e64eb1d364a788b460ddcc69d14fa0c814"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-arm-linux-musleabihf.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "e46b05140e6948df6564146596be714a241621adca215dd2fb46a2e6d131811f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-arm-linux-musleabihf.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-arm-linux-musleabihf.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "91e1b8de45089600965604dc2d3f5aa020190483"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-arm-linux-musleabihf.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "63784146bcb449b40bff60a361a99ecc88cf6674bc89689e5562c8c648842336"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-arm-linux-musleabihf.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-i686-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "01afd95b0f4b45e14d331f2d593d71fd43a60cb7"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "f2c1577ea186ae8216cfcd1479e5b717811e2d75587eb78ef389dd547786e03a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-i686-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-i686-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "bd810a504aa5f19f29acaa7223609f269152cd21"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "990b0d403ab3db256e75fd0d44f31e075d61d2d7280f4d8d8a7e1b1fb0b6c51b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-i686-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-i686-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "06a4333076cd87251906bf2c8cf880d0fbc7d072"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "a2a65c651a87a4b705ca5f6f21a0ea1c183f6bb99d70f5aead0f5dfedfbb23d5"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-i686-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-i686-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "4bcf81649b5b6a65b0ca78ce685b9d50f5df8517"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "493c7a55725ef3c651036cb9b6c675fe521f33880e4a8a6b8e3ca539167fa0f9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-i686-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-i686-w64-mingw32.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "62c4d28b8be770b288c9f62fb65984345ed25133"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-w64-mingw32.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "3a1ea8d6bc629bd62b29dd82ed1f820ae7ea40bbe13e01ed18c75683597bc841"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-i686-w64-mingw32.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-i686-w64-mingw32.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "89b2cea2d35d127235319affbdc6b20527dcb53c"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-i686-w64-mingw32.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "ca3069e3d9876931b5f4d6f912ecd45292ce98ccc8854b46d8a0633d8157634a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-i686-w64-mingw32.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-powerpc64le-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "d7bddc49fc91f7be798a95dbd4465646cdee1c89"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-powerpc64le-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "581f84ca1c016be6c676240f60d97097971219267a6de880d32c138dba699299"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-powerpc64le-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-powerpc64le-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "e9767797b831dc291726cdd0d51c289bd419e899"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-powerpc64le-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "7923f3b8abd248337cf6677687c15463f7ab89123be3dca1860140154ff1f841"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-powerpc64le-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-x86_64-apple-darwin14.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "e50933e0dd8c1406b4dcaa941ab18850eccad02b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-apple-darwin14.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "6063b6c81ad9a0b96465b7936f276b0d24999e40f082fd58eb5f5e54abc43947"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-apple-darwin14.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-x86_64-apple-darwin14.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "a0b851a4a39d6e341c6d529e9494541312c1e449"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-apple-darwin14.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "e1adb24c71bd5f67fa87f046b8f06124d80f43f03aae3298a296cff447ce5283"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-apple-darwin14.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-x86_64-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "987cd34adbebdbc416a83c8e7e85801552e3c668"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "b69f99e690d582cd7b602e2a85e35dab9edf2d32bf64bbd0cc0202a59c7ec325"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-linux-gnu.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-x86_64-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "d93c945dcc51b9266c45d0f77e827397704c49c7"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "734f114a89a270343053edbcf7f9a6ea0d16ef99f68128542c9f543171f77cb6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-linux-gnu.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-x86_64-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "78feb6154f2298d0d09c72b8227f1115acf3451f"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "24cc6302b0064174860f5e37f21ed9cd3dc1434c2f0a4bafca67cfe2e6262df6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-linux-musl.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-x86_64-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "546505c815e00b3a7d7720f132de8fb54be9740b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "1623a8c392e9a42a88aadc8ae022912dfb9bfa045402c0b1d824318ec0f53806"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-linux-musl.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "94c8d43f7b3beb311cf0147287eccc40583a19a4"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "f99de0b5fb273255e0d5bbcb0429d761e74dd3799560ebf6e8fd2cb95a9d5360"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "9e8993d30cd7b7a31f58e4232632fa4f64243f60"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "9d40904b757fb3a86d578263402eb48e564ba9e981868260be53995346932b6b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-unknown-freebsd11.1.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["PlatformSupport-x86_64-w64-mingw32.v2019.8.24.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "217adcdb2af03c1653ed4620657bfe44f7848989"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-w64-mingw32.v2019.8.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "ffb8cb6e09549b086634a241710e69fb0b4747985d23a68b3191b5e5a6638706"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-w64-mingw32.v2019.8.24.x86_64-linux-musl.squashfs"
+
+[["PlatformSupport-x86_64-w64-mingw32.v2019.8.24.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "a7fa08f70ad8ce584d784fc25e50df340cf7ed0c"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["PlatformSupport-x86_64-w64-mingw32.v2019.8.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "ca3b289ca9d1b5e9b657ca3d3322c609505039847aacd3a461efcdbcfac305d9"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.24+0/PlatformSupport-x86_64-w64-mingw32.v2019.8.24.x86_64-linux-musl.unpacked"
+
+[["Rootfs.v2019.8.27.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "228488d94e73c858ed2308e4d0ddd5a835e5272c"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["Rootfs.v2019.8.27.x86_64-linux-musl.squashfs".download]]
+    sha256 = "c39e40913e302da6ca9cebca1adae6703d7de800c231ebc0c88da4088213698c"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.8.27+0/Rootfs.v2019.8.27.x86_64-linux-musl.squashfs"
+
+[["Rootfs.v2019.8.27.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "04323d6b67c741f1f4fdfd661dab9b988e45b73b"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["Rootfs.v2019.8.27.x86_64-linux-musl.unpacked".download]]
+    sha256 = "769e04bbd93fcf5d914aa16d52a356de919d6ba4fd7ffbb37bfa2a8970dc9773"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.8.27+0/Rootfs.v2019.8.27.x86_64-linux-musl.unpacked"

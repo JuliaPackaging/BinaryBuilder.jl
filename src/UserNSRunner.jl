@@ -24,7 +24,7 @@ function UserNSRunner(workspace_root::String;
                       platform::Platform = platform_key_abi(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
-                      compiler_wrapper_path::String = tempname(),
+                      compiler_wrapper_path::String = mktempdir(),
                       kwargs...)
     global use_ccache, use_squashfs, runner_override
 
@@ -54,7 +54,7 @@ function UserNSRunner(workspace_root::String;
     end
 
     # Choose the shards we're going to mount
-    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,))...)
+    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:bootstrap_list))...)
 	
     # Construct sandbox command to look at the location it'll be mounted under
     mpath = mount_path(shards[1], workspace_root)

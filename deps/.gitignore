@@ -1,12 +1,9 @@
 # Ignore rootfs artifacts
-root/
 downloads/
-qemu/
 ccache/
-mounts/
-
-# Ignore sandbox executable
-sandbox
 
 # Ignore state cache
 wizard.state
+
+# Ignore build.log (lel)
+build.log
