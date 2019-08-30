@@ -287,6 +287,7 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         # Set location parameters
         "WORKSPACE" => "/workspace",
         "prefix" => prefix,
+        "bindir" => "$(prefix)/bin",
         "libdir" => libdir,
 
         # Fancyness!
