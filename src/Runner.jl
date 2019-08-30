@@ -148,25 +148,25 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # Default mappings
     gcc(io::IO, p::Platform) = wrapper(io,     "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))")
-    gpp(io::IO, p::Platform) = wrapper(io,     "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))")
+    gxx(io::IO, p::Platform) = wrapper(io,     "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))")
     gfortran(io::IO, p::Platform) = wrapper(io,"/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(flags(p)) $(fortran_flags(p))")
     clang(io::IO, p::Platform) = wrapper(io,   "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))")
-    clangpp(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
+    clangxx(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
     cc(io::IO, p::Platform) = gcc(io, p)
-    cpp(io::IO, p::Platform) = gpp(io, p)
+    cxx(io::IO, p::Platform) = gxx(io, p)
     fc(io::IO, p::Platform) = gfortran(io, p)
     cc(io::IO, p::Union{MacOS,FreeBSD}) = clang(io, p)
-    cpp(io::IO, p::Union{MacOS,FreeBSD}) = clangpp(io, p)
+    cxx(io::IO, p::Union{MacOS,FreeBSD}) = clangxx(io, p)
     
     # Default binutils to the "target tool" versions, will override later
-    for tool in (:ar, :as, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip, :install_name_tool)
+    for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip, :install_name_tool)
         @eval $(tool)(io::IO, p::Platform) = $target_tool(io, $(string(tool)); allow_ccache=false)
     end
  
     # c++filt is hard to write in symbols
-    cppfilt(io::IO, p::Platform) = target_tool(io, "c++filt"; allow_ccache=false)
+    cxxfilt(io::IO, p::Platform) = target_tool(io, "c++filt"; allow_ccache=false)
 
     # Overrides for macOS binutils because Apple is always so "special"
     for tool in (:ar, :ranlib)
@@ -184,20 +184,21 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         # Generate `cc` and `c++`
         write_wrapper(cc, p, "$(t)-cc")
-        write_wrapper(cpp, p, "$(t)-c++")
+        write_wrapper(cxx, p, "$(t)-c++")
         write_wrapper(gfortran, p, "$(t)-f77")
 
         # Generate `gcc`, `g++`, `clang` and `clang++`
         write_wrapper(gcc, p, "$(t)-gcc")
-        write_wrapper(gpp, p, "$(t)-g++")
+        write_wrapper(gxx, p, "$(t)-g++")
         write_wrapper(gfortran, p, "$(t)-gfortran")
         write_wrapper(clang, p, "$(t)-clang")
-        write_wrapper(clangpp, p,"$(t)-clang++")
+        write_wrapper(clangxx, p,"$(t)-clang++")
 
         # Binutils
         write_wrapper(ar, p, "$(t)-ar")
         write_wrapper(as, p, "$(t)-as")
-        write_wrapper(cppfilt, p, "$(t)-c++filt")
+        write_wrapper(cpp, p, "$(t)-cpp")
+        write_wrapper(cxxfilt, p, "$(t)-c++filt")
         write_wrapper(ld, p, "$(t)-ld")
         write_wrapper(nm, p, "$(t)-nm")
         write_wrapper(libtool, p, "$(t)-libtool")
@@ -214,7 +215,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     default_tools = [
         # Compilers
-        "cc", "c++", "f77", "gfortran", "gcc", "clang", "g++", "clang++",
+        "cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++",
 
         # Binutils
         "ar", "as", "c++filt", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
@@ -342,7 +343,7 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         "LLVM_HOST_TARGET" => host_target,
 
         # We should always be looking for packages already in the prefix
-        "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig",
+        "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig:$(prefix)/share/pkgconfig",
         "PKG_CONFIG_SYSROOT_DIR" => prefix,
     ))
 
