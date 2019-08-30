@@ -342,10 +342,10 @@ function get_next_wrapper_version(src_name, src_version)
 
     # If it does, we need to bump the build number up to the next value
     build_number = 0
-    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx.env, jll_uuid(src_name)))
+    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx.env, jll_uuid("$(src_name)_jll")))
         # Find largest version number that matches ours in the registered paths
         versions = VersionNumber[]
-        for path in Pkg.Operations.registered_paths(ctx.env, jll_uuid(src_name))
+        for path in Pkg.Operations.registered_paths(ctx.env, jll_uuid("$(src_name)_jll"))
             append!(versions, Pkg.Compress.load_versions(joinpath(path, "Versions.toml")))
         end
         versions = filter(v -> (v.major == src_version.major) &&
@@ -523,7 +523,6 @@ function autobuild(dir::AbstractString,
                     Pkg.activate(deps_project) do
                         # Find UUIDs for all dependencies
                         ctx = Pkg.Types.Context()
-                        pkg_deps = deepcopy([d for d in dependencies if !isa(d, TarballDependency)])
                         dep_specs = Pkg.Types.registry_resolve!(ctx.env, Pkg.Types.PackageSpec.(deepcopy(dependencies)))
                         Pkg.Operations.resolve_versions!(ctx, dep_specs)
 
@@ -869,7 +868,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         artifacts_toml = joinpath(@__DIR__, "Artifacts.toml")
 
         # Extract all platforms
-        artifacts = Pkg.Artifacts.load_artifacts_toml(artifacts_toml, $(repr(jll_uuid(src_name))))
+        artifacts = Pkg.Artifacts.load_artifacts_toml(artifacts_toml, $(repr(jll_uuid("$(src_name)_jll"))))
         platforms = [Pkg.Artifacts.unpack_platform(e, $(repr(src_name)), artifacts_toml) for e in artifacts[$(repr(src_name))]]
         
         # Filter platforms based on what wrappers we've generated on-disk
