@@ -5,8 +5,8 @@ os:
   # We don't have docker on OSX on travis at the moment... :(
   #- osx
 julia:
-  - 1.0
- #- nightly
+  - 1.3
+  - nightly
 notifications:
   email: false
 git:
@@ -28,24 +28,24 @@ cache:
 jobs:
   include:
     # Add a job that uses squashfs and also runs the package tests
-    - julia: 1.0
+    - julia: 1.3
       env:
         - BINARYBUILDER_USER_SQUASHFS=true
         - BINARYBUILDER_PACKAGE_TESTS=true
     
     # Add a job that doesn't use the squashfs but otherwise does normal tests
     # We don't have the disk space available to do a full shard test here.
-    - julia: 1.0
+    - julia: 1.3
       env:
         - BINARYBUILDER_USE_SQUASHFS=false
 
     # Add a job that uses the privileged builder
-    - julia: 1.0
+    - julia: 1.3
       env:
         - BINARYBUILDER_RUNNER=privileged
 
     # Add a job that uses the docker builder (disabled for now, because it's not working on Travis)
-    - julia: 1.0
+    - julia: 1.3
       env:
         - BINARYBUILDER_RUNNER=docker
 
