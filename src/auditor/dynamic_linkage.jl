@@ -308,7 +308,8 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     end
 
     # If the relative directory doesn't already exist within the RPATH of this
-    # binary, then add it in.
+    # binary, then add it in.  TODO: we need to incorporate things like `@loader_path`
+    # and `$ORIGIN` in here os that we don't try to duplicate it!
     new_libdir = relpath(abspath(dirname(new_libpath) * "/"), dirname(path))
     if !(new_libdir in canonical_rpaths(path))
         libname = basename(old_libpath)

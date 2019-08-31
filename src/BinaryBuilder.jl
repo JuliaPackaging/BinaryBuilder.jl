@@ -56,7 +56,6 @@ use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
 bootstrap_list = Symbol[]
-preferred_gcc_build = nothing
 
 function __init__()
     global runner_override, use_squashfs, automatic_apple, allow_ecryptfs
