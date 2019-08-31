@@ -147,11 +147,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
 
     # Default mappings
-    gcc(io::IO, p::Platform) = wrapper(io,     "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))")
-    gxx(io::IO, p::Platform) = wrapper(io,     "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))")
-    gfortran(io::IO, p::Platform) = wrapper(io,"/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(flags(p)) $(fortran_flags(p))")
-    clang(io::IO, p::Platform) = wrapper(io,   "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))")
-    clangxx(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
+    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))")
+    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))")
+    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(flags(p)) $(fortran_flags(p))")
+    clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))")
+    clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
+    objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(flags(p)) $(clang_flags(p))")
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
     cc(io::IO, p::Platform) = gcc(io, p)
@@ -161,7 +162,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     cxx(io::IO, p::Union{MacOS,FreeBSD}) = clangxx(io, p)
     
     # Default binutils to the "target tool" versions, will override later
-    for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip, :install_name_tool)
+    for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc)
         @eval $(tool)(io::IO, p::Platform) = $target_tool(io, $(string(tool)); allow_ccache=false)
     end
  
@@ -193,6 +194,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(gfortran, p, "$(t)-gfortran")
         write_wrapper(clang, p, "$(t)-clang")
         write_wrapper(clangxx, p,"$(t)-clang++")
+        write_wrapper(objc, p,"$(t)-objc")
 
         # Binutils
         write_wrapper(ar, p, "$(t)-ar")
@@ -207,6 +209,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(ranlib, p, "$(t)-ranlib")
         write_wrapper(readelf, p, "$(t)-readelf")
         write_wrapper(strip, p, "$(t)-strip")
+        write_wrapper(windres, p, "$(t)-windres")
+        write_wrapper(winmc, p, "$(t)-winmc")
 
         # Special mac stuff
         write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
@@ -215,7 +219,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     default_tools = [
         # Compilers
-        "cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++",
+        "cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc",
 
         # Binutils
         "ar", "as", "c++filt", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
@@ -335,6 +339,7 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         # Default mappings for some tools
         "CC" => "cc",
         "CXX" => "c++",
+        "OBJC" => "objc",
         "FC" => "gfortran",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
