@@ -345,7 +345,7 @@ consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
             rootfs_build::VersionNumber=v"2019.8.27",
-            ps_build::VersionNumber=v"2019.8.24",
+            ps_build::VersionNumber=v"2019.8.30",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
             LLVM_build::VersionNumber=v"8.0.0",
             archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
