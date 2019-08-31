@@ -22,3 +22,6 @@ Random = "9a3f8284-a2c9-5f02-9a11-845980a1fd5c"
 Registrator = "4418983a-e44d-11e8-3aec-9789530b3b3e"
 SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
+
+[compat]
+julia = "1.3"
