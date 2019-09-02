@@ -372,7 +372,7 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
     # There is no broad agreement on what host compilers should be called,
     # so we set all the environment variables that we've seen them called
     # and hope for the best.
-    for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)")
+    for host_map in (tool -> "HOST$(tool)", tool -> "$(tool)_FOR_BUILD", tool -> "BUILD_$(tool)", tool -> "$(tool)_BUILD")
         # First, do the simple tools where it's just X => $(host_target)-x:
         for tool in ("AR", "AS", "LD", "LIPO", "NM", "RANLIB", "READELF", "OBJCOPY", "OBJDUMP", "STRIP")
             mapping[host_map(tool)] = "$(host_target)-$(lowercase(tool))"
