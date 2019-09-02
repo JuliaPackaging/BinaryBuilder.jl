@@ -199,6 +199,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             cache=cache,
             push=true,
         )
+        if haskey(reg_branch.metadata, "error")
+            @error(reg_branch.metadata["error"])
+        end
 
         # Open pull request against General
         params = Dict(
