@@ -123,7 +123,15 @@ function show(io::IO, x::UserNSRunner)
 end
 
 mount_shards(ur::UserNSRunner; verbose::Bool = false) = mount.(ur.shards, ur.workspace_root; verbose=verbose)
-unmount_shards(ur::UserNSRunner; verbose::Bool = false) = unmount.(ur.shards, ur.workspace_root; verbose=verbose)
+function unmount_shards(ur::UserNSRunner; verbose::Bool = false)
+    unmount.(ur.shards, ur.workspace_root; verbose=verbose)
+
+    # Remove `mounts` if it's empty
+    try
+        rm(joinpath(ur.workspace_root, "mounts"))
+    catch
+    end
+end
 
 prompted_userns_run_privileged = false
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
