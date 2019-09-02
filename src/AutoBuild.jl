@@ -192,7 +192,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
         project = Pkg.Types.Project(build_project_dict(src_name, build_version, dependencies))
         reg_branch = Registrator.RegEdit.register(
-            "https://github.com/$(repo_name)",
+            "https://github.com/$(repo_name).git",
             project,
             wrapper_tree_hash;
             registry=registry_url,
