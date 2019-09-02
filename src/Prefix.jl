@@ -97,16 +97,20 @@ function bindir(prefix::Prefix)
 end
 
 """
-    libdir(prefix::Prefix, platform = platform_key_abi())
+    libdirs(prefix::Prefix, platform = platform_key_abi())
 
-Returns the library directory for the given `prefix` (note that this differs
-between unix systems and windows systems).
+Returns the library directories for the given `prefix` (note that this differs
+between unix systems and windows systems, and between 32- and 64-bit systems).
 """
-function libdir(prefix::Prefix, platform = platform_key_abi())
+function libdirs(prefix::Prefix, platform = platform_key_abi())
     if Sys.iswindows(platform)
-        return joinpath(prefix, "bin")
+        return [joinpath(prefix, "bin")]
     else
-        return joinpath(prefix, "lib")
+        if wordsize(platform) == 64
+            return [joinpath(prefix, "lib64"), joinpath(prefix, "lib")]
+        else
+            return [joinpath(prefix, "lib")]
+        end
     end
 end
 

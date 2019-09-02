@@ -73,7 +73,7 @@ build configuration.
 struct LibraryProduct <: Product
     libnames::Vector{String}
     variable_name::Symbol
-    dir_path::Union{String, Nothing}
+    dir_paths::Vector{String}
 
     """
         LibraryProduct(libnames, varname::Symbol)
@@ -93,22 +93,19 @@ struct LibraryProduct <: Product
     """
     LibraryProduct(libname::AbstractString, varname, args...) = LibraryProduct([libname], varname, args...)
     function LibraryProduct(libnames::Vector{<:AbstractString}, varname::Symbol,
-                            dir_path::Union{AbstractString, Nothing}=nothing)
+                            dir_paths::Vector{<:AbstractString}=String[])
         # If some other kind of AbstractString is passed in, convert it
-        if dir_path != nothing
-            dir_path = string(dir_path)
-        end
-        return new([string(l) for l in libnames], varname, dir_path)
+        return new([string(l) for l in libnames], varname, string.(dir_paths))
     end
 end
 
 function repr(p::LibraryProduct)
     libnames = repr(p.libnames)
     varname = repr(p.variable_name)
-    if p.dir_path === nothing
+    if isempty(p.dir_paths)
         return "LibraryProduct($(libnames), $(varname))"
     else
-        return "LibraryProduct($(libnames), $(varname), $(repr(p.dir_path)))"
+        return "LibraryProduct($(libnames), $(varname), $(repr(p.dir_paths)))"
     end
 end
 
@@ -125,71 +122,67 @@ on foreign platforms.
 """
 function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
                 platform::Platform = platform_key_abi(), isolate::Bool = false)
-    dir_path = lp.dir_path
-    if dir_path === nothing
-        dir_path = libdir(prefix, platform)
-    else
-        dir_path = template(dir_path, platform)
-    end
+    dir_paths = template.(lp.dir_paths, Ref(platform))
+    append!(dir_paths, libdirs(prefix, platform))
 
-    if !isdir(dir_path)
-        if verbose
-            @info("Directory $(dir_path) does not exist!")
-        end
-        return nothing
-    end
-    for f in readdir(dir_path)
-        # Skip any names that aren't a valid dynamic library for the given
-        # platform (note this will cause problems if something compiles a `.so`
-        # on OSX, for instance)
-        if !valid_dl_path(f, platform)
+    for dir_path in dir_paths
+        if !isdir(dir_path)
             continue
         end
 
-        if verbose
-            @info("Found a valid dl path $(f) while looking for $(join(lp.libnames, ", "))")
-        end
+        for f in readdir(dir_path)
+            # Skip any names that aren't a valid dynamic library for the given
+            # platform (note this will cause problems if something compiles a `.so`
+            # on OSX, for instance)
+            if !valid_dl_path(f, platform)
+                continue
+            end
 
-        # If we found something that is a dynamic library, let's check to see
-        # if it matches our libname:
-        for libname in lp.libnames
-            libname = template(libname, platform)
+            if verbose
+                @info("Found a valid dl path $(f) while looking for $(join(lp.libnames, ", "))")
+            end
 
-            if startswith(basename(f), libname)
-                dl_path = abspath(joinpath(dir_path), f)
-                if verbose
-                    @info("$(dl_path) matches our search criteria of $(libname)")
-                end
+            # If we found something that is a dynamic library, let's check to see
+            # if it matches our libname:
+            for libname in lp.libnames
+                libname = template(libname, platform)
 
-                # If it does, try to `dlopen()` it if the current platform is good
-                if platforms_match(platform, platform_key_abi())
-                    if isolate
-                        # Isolated dlopen is a lot slower, but safer
-                        if success(`$(Base.julia_cmd()) -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)
-                            return dl_path
+                if startswith(basename(f), libname)
+                    dl_path = abspath(joinpath(dir_path), f)
+                    if verbose
+                        @info("$(dl_path) matches our search criteria of $(libname)")
+                    end
+
+                    # If it does, try to `dlopen()` it if the current platform is good
+                    if platforms_match(platform, platform_key_abi())
+                        if isolate
+                            # Isolated dlopen is a lot slower, but safer
+                            if success(`$(Base.julia_cmd()) -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)
+                                return dl_path
+                            end
+                        else
+                            hdl = Libdl.dlopen_e(dl_path)
+                            if !(hdl in (C_NULL, nothing))
+                                Libdl.dlclose(hdl)
+                                return dl_path
+                            end
+                        end
+
+                        if verbose
+                            @info("$(dl_path) cannot be dlopen'ed")
                         end
                     else
-                        hdl = Libdl.dlopen_e(dl_path)
-                        if !(hdl in (C_NULL, nothing))
-                            Libdl.dlclose(hdl)
-                            return dl_path
-                        end
+                        # If the current platform doesn't match, then just trust in our
+                        # cross-compilers and go with the flow
+                        return dl_path
                     end
-
-                    if verbose
-                        @info("$(dl_path) cannot be dlopen'ed")
-                    end
-                else
-                    # If the current platform doesn't match, then just trust in our
-                    # cross-compilers and go with the flow
-                    return dl_path
                 end
             end
         end
     end
 
     if verbose
-        @info("Could not locate $(join(lp.libnames, ", ")) inside $(dir_path)")
+        @info("Could not locate $(join(lp.libnames, ", ")) inside $(dir_paths)")
     end
     return nothing
 end
