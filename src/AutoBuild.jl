@@ -187,7 +187,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         end
 
         # Register into our `General` fork
-        cache = Registrator.RegEdit.RegistryCache(joinpath(Pkg.depots1(), "registries"))
+        cache = Registrator.RegEdit.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
         registry_url = "https://$(gh_auth)/JuliaRegistries/General"
         cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
         project = Pkg.Types.Project(build_project_dict(src_name, build_version, dependencies))
