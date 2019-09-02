@@ -62,7 +62,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # If we should use ccache, prepend this to every compiler invocation
     ccache = use_ccache ? "ccache" : ""
 
-    function wrapper(io::IO, prog::String; allow_ccache::Bool = true)
+    function wrapper(io::IO, prog::String; allow_ccache::Bool = true, hash_args::Bool = false)
         write(io, """
         #!/bin/sh
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
@@ -73,6 +73,14 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; \$@; }
         fi
         """)
+
+        # Sometimes we need to look at the hash of our arguments
+        if hash_args
+            write(io, """
+            ARGS_HASH="\$(echo -n "\$*" | sha1sum | cut -c1-8)"
+            """)
+        end
+
         if allow_ccache
             write(io, """
             if [ \${USE_CCACHE} == "true" ]; then
@@ -93,15 +101,20 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     llvm_tool(io::IO, tool::String, args...; kwargs...) = wrapper(io, "/opt/$(host_target)/bin/llvm-$(tool)", args...; kwargs...)
 
     ## Set up flag mappings
-    function gcc_flags(p::Platform)
-        FLAGS = ""
+    function base_gcc_flags(p::Platform, FLAGS::String = "")
+        # Force propler cxx11 string ABI usage w00t w00t
         if compiler_abi(p).cxxstring_abi == :cxx11
             FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=1"
         elseif compiler_abi(p).cxxstring_abi == :cxx03
             FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=0"
         end
+
+        # Use hash of arguments to provide consistent, unique random seed
+        FLAGS *= " -frandom-seed=0x\${ARG_HASH}"
         return FLAGS
     end
+
+    gcc_flags(p::Platform) = base_gcc_flags(p)
     clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
     clang_flags(p::Platform) = clang_targeting_laser(p)
     fortran_flags(p::Platform) = ""
@@ -111,18 +124,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     flags(p::MacOS) = "-mmacosx-version-min=10.8"
 
     function gcc_flags(p::MacOS)
-        FLAGS = ""
+        FLAGS = base_gcc_flags(p)
 
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if select_gcc_version(p).major == 4
             FLAGS *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
-        end
-
-        if compiler_abi(p).cxxstring_abi == :cxx11
-            FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=1"
-        elseif compiler_abi(p).cxxstring_abi == :cxx03
-            FLAGS *= " -D_GLIBCXX_USE_CXX11_ABI=0"
         end
         return FLAGS
     end
@@ -147,8 +154,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
 
     # Default mappings
-    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))")
-    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))")
+    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))"; hash_args=true)
+    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))"; hash_args=true)
     gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(flags(p)) $(fortran_flags(p))")
     clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))")
     clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
@@ -350,6 +357,11 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         # We should always be looking for packages already in the prefix
         "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig:$(prefix)/share/pkgconfig",
         "PKG_CONFIG_SYSROOT_DIR" => prefix,
+
+        # Things to help us step closer to reproducible builds; eliminate timestamp
+        # variability within our binaries.
+        "SOURCE_DATE_EPOCH" => "0",
+        "ZERO_AR_DATE" => "1",
     ))
 
     # If we're on macOS, we give a hint to things like `configure` that they should use this as the linker
