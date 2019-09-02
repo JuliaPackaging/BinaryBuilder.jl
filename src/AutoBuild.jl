@@ -522,15 +522,34 @@ function autobuild(dir::AbstractString,
                     Pkg.activate(deps_project) do
                         # Find UUIDs for all dependencies
                         ctx = Pkg.Types.Context()
-                        dep_specs = Pkg.Types.registry_resolve!(ctx.env, Pkg.Types.PackageSpec.(deepcopy(dependencies)))
+                        dep_specs = Pkg.Types.PackageSpec[]
+                        for spec in dependencies
+                            if !isa(spec, Pkg.Types.PackageSpec)
+                                spec = Pkg.Types.PackageSpec(spec)
+                            end
+                            specs = Pkg.Types.registry_resolve!(ctx.env, spec)
+
+                            # If we have not been able to determine a UUID for this package, error out
+                            for s in specs
+                                if s.uuid === nothing
+                                    error("Unknown dependency $(repr(s))")
+                                end
+                            end
+                            append!(dep_specs, specs)
+                        end
                         Pkg.Operations.resolve_versions!(ctx, dep_specs)
 
                         # Add all dependencies
                         Pkg.add(dep_specs; platform=platform)
 
+                        # Filter out everything that doesn't end in `_jll`
+                        dep_specs = [s for s in dep_specs if endswith(s.name, "_jll")]
+
                         # Load their Artifacts.toml files
-                        dep_source_paths = Pkg.Operations.source_path.(dep_specs)
-                        for (name, dep_path) in zip(dependencies, dep_source_paths)
+                        for spec in dep_specs
+                            dep_path = Pkg.Operations.source_path(spec)
+                            name = spec.name
+
                             # Skip dependencies that didn't get installed?
                             if dep_path === nothing
                                 @warn("Dependency $(name) not installed, depsite our best efforts!")
@@ -877,13 +896,14 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         # From the available options, choose the best platform
         best_platform = select_platform(Dict(p => triplet(p) for p in platforms))
 
+        # Silently fail if there's no binaries for this platform
         if best_platform === nothing
-            error("Unable to load $(src_name); unsupported platform \$(triplet(platform_key_abi()))")
+            @debug("Unable to load $(src_name); unsupported platform \$(triplet(platform_key_abi()))")
+        else
+            # Load the appropriate wrapper
+            include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
         end
         
-        # Load the appropriate wrapper
-        include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
-
         end  # module $(src_name)_jll
         """)
     end
