@@ -112,7 +112,7 @@ function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
             if verbose
                 @info("Library $(soname) does not exist, creating...")
             end
-            symlink(soname_path, path)
+            symlink(path, soname_path)
         else
             if verbose
                 @info("Library $(soname) does not exist, failing out...")
