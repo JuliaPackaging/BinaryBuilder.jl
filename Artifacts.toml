@@ -1736,24 +1736,24 @@ os = "linux"
     sha256 = "ecba333a609fffe0a7f18f85ae06f7eb79d1049be49f3336aac48eddc875a544"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.8.30+0/PlatformSupport-x86_64-w64-mingw32.v2019.8.30.x86_64-linux-musl.unpacked"
 
-[["Rootfs.v2019.8.31.x86_64-linux-musl.squashfs"]]
+[["Rootfs.v2019.9.2.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "613a133e07f1bcd532978a6ca8622f01e80aa5eb"
+git-tree-sha1 = "71c4265e1270e229006cc0c3a4893888f877e441"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.8.31.x86_64-linux-musl.squashfs".download]]
-    sha256 = "72629f3329cf6821b374bed789f22d2fd8269c636ad3694d4de05663ba37241c"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.8.31+0/Rootfs.v2019.8.31.x86_64-linux-musl.squashfs"
+    [["Rootfs.v2019.9.2.x86_64-linux-musl.squashfs".download]]
+    sha256 = "1e9454f1b4335aa2c106a669fca1979969bbb0aac1946dd009879acf87f6089b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.9.2+0/Rootfs.v2019.9.2.x86_64-linux-musl.squashfs"
 
-[["Rootfs.v2019.8.31.x86_64-linux-musl.unpacked"]]
+[["Rootfs.v2019.9.2.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "39104345c8c90494114c9e1a23baafd423757b75"
+git-tree-sha1 = "69c2476a1d292c1dc2c5d9680be199f14869081d"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.8.31.x86_64-linux-musl.unpacked".download]]
-    sha256 = "00e4ac837b206cd1420e8f52e615258bd80c847ec4c05075df941557785530d6"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.8.31+0/Rootfs.v2019.8.31.x86_64-linux-musl.unpacked"
+    [["Rootfs.v2019.9.2.x86_64-linux-musl.unpacked".download]]
+    sha256 = "10c2b6a0262f55f23b378e7bd3e9db8d4a424cb69084c096547ce8d6da313cf7"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.9.2+0/Rootfs.v2019.9.2.x86_64-linux-musl.unpacked"
