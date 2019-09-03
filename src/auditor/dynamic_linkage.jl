@@ -269,28 +269,32 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
 
+    normalize_rpath = rp -> rp
     add_rpath = x -> ``
     relink = (x, y) -> ``
     patchelf = "/usr/bin/patchelf"
     install_name_tool = "/opt/bin/install_name_tool"
     if Sys.isapple(platform)
-        add_rpath = rp -> `$install_name_tool -add_rpath @loader_path/$(rp) $(rel_path)`
+        normalize_rpath = rp -> begin
+            if !startswith(rp, "@loader_path")
+                return "@loader_path/$(rp)"
+            end
+            return rp
+        end
+        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
+        normalize_rpath = rp -> begin
+            if rp == "."
+                return "\$ORIGIN"
+            end
+            return rp
+        end
         current_rpaths = [r for r in rpaths(path) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
             rpaths = unique(vcat(current_rpaths, rp))
 
-            # If any rpaths are `.`, map that to `$ORIGIN`
-            remap_to_origin = path -> begin
-                if path == "."
-                    return "\$ORIGIN"
-                end
-                return path
-            end
-            rpaths = remap_to_origin.(rpaths)
-            
             # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
             # it semantically makes a difference, but why not be correct AND beautiful?
             chomp_slashdot = path -> begin
@@ -308,13 +312,12 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     end
 
     # If the relative directory doesn't already exist within the RPATH of this
-    # binary, then add it in.  TODO: we need to incorporate things like `@loader_path`
-    # and `$ORIGIN` in here os that we don't try to duplicate it!
-    new_libdir = relpath(abspath(dirname(new_libpath) * "/"), dirname(path))
+    # binary, then add it in.
+    new_libdir = abspath(dirname(new_libpath) * "/")
     if !(new_libdir in canonical_rpaths(path))
         libname = basename(old_libpath)
         logpath = joinpath(logdir(prefix), "update_rpath_$(basename(path))_$(libname).log")
-        cmd = add_rpath(new_libdir)
+        cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
         run(ur, cmd, logpath; verbose=verbose)
     end
 
