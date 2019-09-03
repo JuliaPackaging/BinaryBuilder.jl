@@ -667,6 +667,14 @@ function autobuild(dir::AbstractString,
             for dep_path in artifact_paths
                 unsymlink_tree(dep_path, prefix.path)
             end
+
+            # Cull empty directories, for neatness' sake
+            for (root, dirs, files) = walkdir(prefix.path; topdown=false)
+                # We do readdir() here because `walkdir()` does not do a true in-order traversal
+                if isempty(readdir(root))
+                    rm(root)
+                end
+            end
             
             # Once we're built up, go ahead and package this prefix out
             tarball_path, tarball_hash, git_hash = package(
