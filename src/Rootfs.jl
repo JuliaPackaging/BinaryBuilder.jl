@@ -186,7 +186,13 @@ function map_target(cs::CompilerShard)
 end
 
 function mount_path(cs::CompilerShard, build_prefix::AbstractString)
-    mount_path = joinpath(build_prefix, "mounts", artifact_name(cs))
+    if cs.archive_type == :squashfs
+        return joinpath(build_prefix, "mounts", artifact_name(cs))
+    else
+        name = artifact_name(cs)
+        artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
+        return artifact_path(artifact_hash(name, artifacts_toml; platform=cs.host))
+    end
 end
 
 """
@@ -242,9 +248,10 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
                           preferred_runner() != DockerRunner) ||
                          cs.archive_type != :squashfs
         # We'll just give back the artifact path in this case
-        return @artifact_str(artifact_name(cs))
+        return mount_path(cs, build_prefix)
     end
 
+    # If it's already mounted, also just return the mount path
     if is_mounted(cs, build_prefix)
         return mount_path(cs, build_prefix)
     end
@@ -348,7 +355,7 @@ function choose_shards(p::Platform;
             ps_build::VersionNumber=v"2019.8.30",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
             LLVM_build::VersionNumber=v"8.0.0",
-            archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
+            archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # We prefer the oldest GCC version by default
             preferred_gcc_version::VersionNumber = GCC_builds[1],
