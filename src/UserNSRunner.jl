@@ -21,6 +21,7 @@ end
 function UserNSRunner(workspace_root::String;
                       cwd = nothing,
                       workspaces::Vector = Pair[],
+                      mappings::Vector = Pair[],
                       platform::Platform = platform_key_abi(),
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
@@ -54,7 +55,7 @@ function UserNSRunner(workspace_root::String;
     end
 
     # Choose the shards we're going to mount
-    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:bootstrap_list))...)
+    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:bootstrap_list,:compilers))...)
 	
     # Construct sandbox command to look at the location it'll be mounted under
     mpath = mount_path(shards[1], workspace_root)
@@ -76,6 +77,11 @@ function UserNSRunner(workspace_root::String;
     for shard in shards[2:end]
         mpath = mount_path(shard, workspace_root)
         sandbox_cmd = `$sandbox_cmd --map $(mpath):$(map_target(shard))`
+    end
+
+    # Mount in externally-defined read-only mappings
+    for (outside, inside) in mappings
+        sandbox_cmd = `$sandbox_cmd --map $(outside):$(inside)`
     end
 
 	# If runner_override is not yet set, let's probe to see if we can use
