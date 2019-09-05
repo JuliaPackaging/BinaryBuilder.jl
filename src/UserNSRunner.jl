@@ -84,24 +84,24 @@ function UserNSRunner(workspace_root::String;
         sandbox_cmd = `$sandbox_cmd --map $(outside):$(inside)`
     end
 
-	# If runner_override is not yet set, let's probe to see if we can use
-	# unprivileged containers, and if we can't, switch over to privileged.
-	if runner_override == ""
-		if !probe_unprivileged_containers()
-			msg = strip("""
-			Unable to run unprivileged containers on this system!
-			This may be because your kernel does not support mounting overlay
-			filesystems within user namespaces. To work around this, we will
-			switch to using privileged containers. This requires the use of
-			sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
-			environment variable to "privileged" before starting Julia.
-			""")
-			@warn(replace(msg, "\n" => " "))
-			runner_override = "privileged"
-		else
-			runner_override = "userns"
-		end
-	end
+    # If runner_override is not yet set, let's probe to see if we can use
+    # unprivileged containers, and if we can't, switch over to privileged.
+    if runner_override == ""
+        if !probe_unprivileged_containers()
+            msg = strip("""
+            Unable to run unprivileged containers on this system!
+            This may be because your kernel does not support mounting overlay
+            filesystems within user namespaces. To work around this, we will
+            switch to using privileged containers. This requires the use of
+            sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
+            environment variable to "privileged" before starting Julia.
+            """)
+            @warn(replace(msg, "\n" => " "))
+            runner_override = "privileged"
+        else
+            runner_override = "userns"
+        end
+    end
 
     # Check to see if we need to run privileged containers.
     if runner_override == "privileged"
