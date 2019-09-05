@@ -760,8 +760,6 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
 
             println(io, """
             ## Global variables
-            const PATH_list = String[]
-            const LIBPATH_list = String[]
             PATH = ""
             LIBPATH = ""
             LIBPATH_env = $(repr(LIBPATH_env))
@@ -830,7 +828,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 """)
             end
 
-            println(io, """
+            print(io, """
             \"\"\"
             Open all libraries
             \"\"\"
@@ -840,10 +838,11 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
             """)
-            for dep in dependencies
-                print(io, """
-                    append!(PATH_list, $(dep).PATH_list)
-                    append!(LIBPATH_list, $(dep).LIBPATH_list)
+
+            if !isempty(dependencies)
+                println(io, """
+                    append!.(Ref(PATH_list), ($(join(["$(dep).PATH_list" for dep in dependencies], ", ")),))
+                    append!.(Ref(LIBPATH_list), ($(join(["$(dep).LIBPATH_list" for dep in dependencies], ", ")),))
                 """)
             end
 
@@ -894,6 +893,11 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         using Pkg, Pkg.BinaryPlatforms, Pkg.Artifacts, Libdl
         import Base: UUID
 
+        # We put these inter-JLL-package API values here so that they are always defined, even if there
+        # is no underlying wrapper held within this JLL package.
+        const PATH_list = String[]
+        const LIBPATH_list = String[]
+
         # Load Artifacts.toml file
         artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
 
@@ -914,7 +918,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
             # Load the appropriate wrapper
             include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
         end
-        
+
         end  # module $(src_name)_jll
         """)
     end

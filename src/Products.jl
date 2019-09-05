@@ -147,7 +147,8 @@ function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
             for libname in lp.libnames
                 libname = template(libname, platform)
 
-                if startswith(basename(f), libname)
+                parsed_libname, parsed_version = parse_dl_name_version(basename(f), platform)
+                if parsed_libname == libname
                     dl_path = abspath(joinpath(dir_path), f)
                     if verbose
                         @info("$(dl_path) matches our search criteria of $(libname)")
