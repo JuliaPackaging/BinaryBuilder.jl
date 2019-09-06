@@ -668,11 +668,13 @@ function autobuild(dir::AbstractString,
                 unsymlink_tree(dep_path, prefix.path)
             end
 
-            # Cull empty directories, for neatness' sake
-            for (root, dirs, files) = walkdir(prefix.path; topdown=false)
-                # We do readdir() here because `walkdir()` does not do a true in-order traversal
-                if isempty(readdir(root))
-                    rm(root)
+            # Cull empty directories, for neatness' sake, unless auditing is disabled
+            if !skip_audit
+                for (root, dirs, files) = walkdir(prefix.path; topdown=false)
+                    # We do readdir() here because `walkdir()` does not do a true in-order traversal
+                    if isempty(readdir(root))
+                        rm(root)
+                    end
                 end
             end
             
