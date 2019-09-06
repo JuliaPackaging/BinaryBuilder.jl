@@ -61,12 +61,16 @@ function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false
     # If this name isn't bound to anything, then create it by remapping the UIDs
     if cache_hash === nothing
         # Grab the progenitor path, downloading it if necessary
-        progenitor_path = artifact_path(progenitor_hash)
+        progenitor_path = joinpath(artifact_path(progenitor_hash), name)
+
+        if !isfile(progenitor_path)
+            error("Compiler shard $(name) missing from disk at $(progenitor_path)")
+        end
 
         # Create a new artifact that has the modified `.squashfs` file within it
         cache_hash = create_artifact() do dir
             # Copy .squashfs file over to our local directory, make it writable
-            cp(joinpath(progenitor_path, name), joinpath(dir, name))
+            cp(progenitor_path, joinpath(dir, name))
             chmod(joinpath(dir, name), 0o644)
 
             squash_path = joinpath(dir, name)
