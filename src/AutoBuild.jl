@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, print_artifacts_toml, product_hashes_from_github_release, build
+export build_tarballs, autobuild, print_artifacts_toml, build
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256
 using Pkg.TOML
