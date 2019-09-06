@@ -62,7 +62,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # If we should use ccache, prepend this to every compiler invocation
     ccache = use_ccache ? "ccache" : ""
 
-    function wrapper(io::IO, prog::String; allow_ccache::Bool = true, hash_args::Bool = false)
+    function wrapper(io::IO, prog::String;
+                     allow_ccache::Bool = true,
+                     hash_args::Bool = false,
+                     env::Dict{String,String} = Dict{String,String}())
         write(io, """
         #!/bin/sh
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
@@ -79,6 +82,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             write(io, """
             ARGS_HASH="\$(echo -n "\$*" | sha1sum | cut -c1-8)"
             """)
+        end
+
+        for (name, val) in env
+            write(io, "export $(name)=\"$(val)\"\n")
         end
 
         if allow_ccache
@@ -153,7 +160,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     clang_flags(p::MacOS) = "$(clang_targeting_laser(p)) -fuse-ld=macos"
 
 
-    # Default mappings
+    # C/C++/Fortran
     gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))"; hash_args=true)
     gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))"; hash_args=true)
     gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(flags(p)) $(fortran_flags(p))")
@@ -168,6 +175,35 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     cc(io::IO, p::Union{MacOS,FreeBSD}) = clang(io, p)
     cxx(io::IO, p::Union{MacOS,FreeBSD}) = clangxx(io, p)
     
+    # Go stuff where we build an environment mapping each time we invoke `go-${target}`
+    GOOS(p::Linux) = "linux"
+    GOOS(p::MacOS) = "darwin"
+    GOOS(p::Windows) = "windows"
+    GOOS(p::FreeBSD) = "freebsd"
+    function GOARCH(p::Platform)
+        arch_mapping = Dict(
+            :armv7l => "arm",
+            :aarch64 => "arm64",
+            :x86_64 => "amd64",
+            :i686 => "386",
+            :powerpc64le => "ppc64le",
+        )
+        return arch_mapping[arch(p)]
+    end
+    function go(io::IO, p::Platform)
+        env = Dict(
+            "GOOS" => GOOS(p),
+            "GOARCH" => GOARCH(p),
+        )
+        return wrapper(io, "/opt/$(host_target)/go/bin/go"; env=env, allow_ccache=false)
+    end
+
+    # Rust stuff
+    rust_env(p::Platform) = Dict("CARGO_HOME" => "/opt/$(triplet(p))", "RUSTUP_HOME" => "/opt/$(triplet(p))")
+    rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/rustc"; allow_ccache=false, env=rust_env(p))
+    rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false, env=rust_env(p))
+    cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false, env=rust_env(p))
+
     # Default binutils to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc)
         @eval $(tool)(io::IO, p::Platform) = $target_tool(io, $(string(tool)); allow_ccache=false)
@@ -221,12 +257,26 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         # Special mac stuff
         write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
+
+        # Generate rust stuff
+        write_wrapper(rustc, p, "$(t)-rustc")
+        write_wrapper(rustup, p, "$(t)-rustup")
+        write_wrapper(cargo, p, "$(t)-cargo")
+
+        # Generate go stuff
+        write_wrapper(go, p, "$(t)-go")
     end
    
 
     default_tools = [
-        # Compilers
+        # C/C++/Fortran
         "cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc",
+
+        # Rust
+        "rustc", "rustup", "cargo",
+
+        # Go
+        "go",
 
         # Binutils
         "ar", "as", "c++filt", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
@@ -253,11 +303,12 @@ variables to be set within the build environment to force compiles toward the
 defined target architecture.  Examples of things set are `PATH`, `CC`,
 `RANLIB`, as well as nonstandard things like `target`.
 """
-function platform_envs(platform::Platform; host_target="x86_64-linux-musl", bootstrap::Bool=!isempty(bootstrap_list), verbose::Bool = false)
+function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:musl), bootstrap::Bool=!isempty(bootstrap_list), verbose::Bool = false)
     global use_ccache
 
     # Convert platform to a triplet, but strip out the ABI parts
     target = triplet(abi_agnostic(platform))
+    host_target = triplet(abi_agnostic(platform))
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
@@ -282,12 +333,21 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         PS1 = "sandbox:\${PWD//\$WORKSPACE/\\\\\$\\{WORKSPACE\\}} \\\$ "
     end
 
-    # If we're in bootstrap mode, don't do most of this
+    # Map our target names to cargo-compatible ones
+    rust_arch(p::Platform) = arch(p) == :armv7l ? :armv7 : arch(p)
+    rust_target(p::MacOS) = "x86_64-apple-darwin"
+    rust_target(p::FreeBSD) = "x86_64-unknown-freebsd"
+    rust_target(p::Windows) = "$(rust_arch(p))-pc-windows-gnu"
+    rust_target(p::Platform) = "$(rust_arch(p))-unknown-linux-$(libc(p) == :glibc ? "gnu" : libc(p))$(something(call_abi(p), ""))"
+
+    # Base mappings
     mapping = Dict(
         # Platform information (we save a `bb_target` because sometimes `target` gets
         # overwritten in `./configure`, and we want tools like `uname` to still see it)
         "bb_target" => target,
         "target" => target,
+        "rust_target" => rust_target(platform),
+        "rust_host" => rust_target(host_platform),
         "nproc" => "$(Sys.CPU_THREADS)",
         "nbits" => target_nbits(target),
         "proc_family" => target_proc_family(target),
@@ -348,6 +408,12 @@ function platform_envs(platform::Platform; host_target="x86_64-linux-musl", boot
         "CXX" => "c++",
         "OBJC" => "objc",
         "FC" => "gfortran",
+        "GO" => "go",
+
+        # Go stuff
+        "GOROOT" => prefix,
+        "GOPATH" => "/workspace/.gopath",
+        "GOARM" => "7", # default to armv7
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",

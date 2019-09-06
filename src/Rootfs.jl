@@ -176,12 +176,8 @@ analyze the name and platform of this shard and return a path based on that.
 function map_target(cs::CompilerShard)
     if lowercase(cs.name) == "rootfs"
         return "/"
-    elseif lowercase(cs.name) in ("gccbootstrap", "platformsupport")
-        return joinpath("/opt", triplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
-    elseif lowercase(cs.name) == "llvmbootstrap"
-        return joinpath("/opt", triplet(cs.host), "$(cs.name)-$(cs.version)")
     else
-        error("Unknown mapping for shard named $(cs.name)")
+        return joinpath("/opt", triplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
     end
 end
 
@@ -351,10 +347,13 @@ mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
-            rootfs_build::VersionNumber=v"2019.9.2",
+            compilers::Vector{Symbol} = [:c],
+            rootfs_build::VersionNumber=v"2019.9.5",
             ps_build::VersionNumber=v"2019.8.30",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
             LLVM_build::VersionNumber=v"8.0.0",
+            Rust_build::VersionNumber=v"1.18.3",
+            Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # We prefer the oldest GCC version by default
@@ -371,16 +370,37 @@ function choose_shards(p::Platform;
             CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
             # Shards for the target architecture
             CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=p),
-            CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p),
-            CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
         ])
 
-        # If we're not building for the host platform, then add host shard for host tools
-        if !(typeof(p) <: typeof(host_platform)) || (arch(p) != arch(host_platform) || libc(p) != libc(host_platform))
+        target_is_host = (typeof(p) <: typeof(host_platform)) && (arch(p) == arch(host_platform) && libc(p) == libc(host_platform))
+
+        if :c in compilers
             append!(shards, [
-                CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
-                CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform),
+                CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p),
+                CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
             ])
+            # If we're not building for the host platform, then add host shard for host tools
+            if !target_is_host
+                append!(shards, [
+                    CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
+                    CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform),
+                ])
+            end
+        end
+
+        if :rust in compilers
+            append!(shards, [
+                CompilerShard("RustBase", Rust_build, host_platform, archive_type),
+                CompilerShard("RustToolchain", Rust_build, p, archive_type),
+            ])
+
+            if !target_is_host
+                push!(shards, CompilerShard("RustToolchain", Rust_build, host_platform, archive_type))
+            end
+        end
+
+        if :go in compilers
+            push!(shards, CompilerShard("Go", Go_build, host_platform, archive_type))
         end
     else
         function find_latest_version(name)
