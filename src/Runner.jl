@@ -308,7 +308,7 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
 
     # Convert platform to a triplet, but strip out the ABI parts
     target = triplet(abi_agnostic(platform))
-    host_target = triplet(abi_agnostic(platform))
+    host_target = triplet(abi_agnostic(host_platform))
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
