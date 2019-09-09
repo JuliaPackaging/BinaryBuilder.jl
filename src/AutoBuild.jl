@@ -530,7 +530,7 @@ function autobuild(dir::AbstractString,
                             if !isa(spec, Pkg.Types.PackageSpec)
                                 spec = Pkg.Types.PackageSpec(spec)
                             end
-                            specs = Pkg.Types.registry_resolve!(ctx.env, spec)
+                            specs = Pkg.Types.registry_resolve!(ctx, spec)
 
                             # If we have not been able to determine a UUID for this package, error out
                             for s in specs
