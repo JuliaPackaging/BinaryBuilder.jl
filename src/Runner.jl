@@ -70,10 +70,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         #!/bin/sh
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
 
-        if [ -z \${SUPER_VERBOSE+x} ]; then
-            vrun() { \$@; }
+        if [ "x\${SUPER_VERBOSE}" = "x" ]; then
+            vrun() { "\$@"; }
         else
-            vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; \$@; }
+            vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; "\$@"; }
         fi
         """)
 
