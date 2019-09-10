@@ -428,6 +428,12 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "LLVM_TARGET" => target,
         "LLVM_HOST_TARGET" => host_target,
 
+        # Let the user parameterize their scripts for toolchain locations
+        "CMAKE_HOST_TOOLCHAIN" => "/opt/$(host_target)/$(host_target).cmake",
+        "CMAKE_TARGET_TOOLCHAIN" => "/opt/$(target)/$(target).cmake",
+        "MESON_HOST_TOOLCHAIN" => "/opt/$(host_target)/$(host_target).meson",
+        "MESON_TARGET_TOOLCHAIN" => "/opt/$(target)/$(target).meson",
+
         # We should always be looking for packages already in the prefix
         "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig:$(prefix)/share/pkgconfig",
         "PKG_CONFIG_SYSROOT_DIR" => prefix,
