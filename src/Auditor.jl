@@ -144,16 +144,6 @@ function audit(prefix::Prefix; io=stderr,
     end
 
     if platform isa Windows
-        # If we're targeting a windows platform, check to make sure no .dll
-        # files are sitting in `$prefix/lib`, as that's a no-no.  This is
-        # not a fatal offense, but we'll yell about it.
-        lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
-        for f in lib_dll_files
-            if !silent
-                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
-            end
-        end
-
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
         symlinks = collect_files(prefix, islink)
@@ -168,6 +158,17 @@ function audit(prefix::Prefix; io=stderr,
             end
         end
         
+        # If we're targeting a windows platform, check to make sure no .dll
+        # files are sitting in `$prefix/lib`, as that's a no-no.  This is
+        # not a fatal offense, but we'll yell about it.
+
+        lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
+        for f in lib_dll_files
+            if !silent
+                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
+            end
+        end
+
         # Even more than yell about it, we're going to automatically move
         # them if there are no `.dll` files outside of `lib`.  This is
         # indicative of a simplistic build system that just don't know any
@@ -355,7 +356,7 @@ function collect_files(path::AbstractString, predicate::Function = f -> true;
     # outside of our given `path`.
     if exclude_externalities
         old_predicate = predicate
-        predicate = f -> old_predicate(f) && !(islink(f) && !startswith(readlink(f), path))
+        predicate = f -> old_predicate(f) && !(islink(f) && !startswith(abspath(f), path))
     end
     collected = String[]
     for (root, dirs, files) in walkdir(path)
