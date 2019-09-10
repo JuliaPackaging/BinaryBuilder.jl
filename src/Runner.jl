@@ -320,13 +320,21 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
 
     if Base.have_color
         PS1 = string(
+            "\\[",
             Base.text_colors[:light_blue],
+            "\\]",
             "sandbox",
+            "\\[",
             Base.text_colors[:normal],
+            "\\]",
             ":",
+            "\\[",
             Base.text_colors[:yellow],
+            "\\]",
             "\${PWD//\$WORKSPACE/\\\\\$\\{WORKSPACE\\}}",
+            "\\[",
             Base.text_colors[:normal],
+            "\\]",
             " \\\$ ",
         )
     else
