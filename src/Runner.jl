@@ -204,8 +204,24 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false, env=rust_env(p))
     cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false, env=rust_env(p))
 
-    # Default binutils to the "target tool" versions, will override later
-    for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc)
+    # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
+    function meson(io::IO, p::Platform)
+        meson_env = Dict(
+            "AR"     => "$(host_target)-ar",
+            "CC"     => "$(host_target)-cc",
+            "CXX"    => "$(host_target)-c++",
+            "FC"     => "$(host_target)-f77",
+            "LD"     => "$(host_target)-ld",
+            "NM"     => "$(host_target)-nm",
+            "RANLIB" => "$(host_target)-ranlib",
+        )
+        wrapper(io, "/usr/bin/meson"; allow_ccache=false, env=meson_env)
+    end
+
+
+    # Default these tools to the "target tool" versions, will override later
+    for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
+                 :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc)
         @eval $(tool)(io::IO, p::Platform) = $target_tool(io, $(string(tool)); allow_ccache=false)
     end
  
@@ -257,6 +273,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         # Special mac stuff
         write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
+        write_wrapper(otool, p, "$(t)-otool")
 
         # Generate rust stuff
         write_wrapper(rustc, p, "$(t)-rustc")
@@ -266,6 +283,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # Generate go stuff
         write_wrapper(go, p, "$(t)-go")
     end
+
+    # Write a single wrapper for `meson`
+    write_wrapper(meson, host_platform, "meson")
    
 
     default_tools = [
