@@ -113,11 +113,6 @@ function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false
 
         # Then, bind the encoded name to this hash within the MutableArtifacts.toml mapping
         bind_artifact!(mutable_artifacts_toml, cache_name, cache_hash; force=true)
-
-        # As a space optimization, remove the progenitor artifact.  We make the bet that it's
-        # better to remove it and redownload if a different user on this machine needs it than
-        # it is to keep it around as an almost-duplicate for forever.
-        remove_artifact(progenitor_hash)
     end
 
     # Finally, get the path to that cached artifact
