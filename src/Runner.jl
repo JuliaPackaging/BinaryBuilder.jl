@@ -65,9 +65,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     function wrapper(io::IO, prog::String;
                      allow_ccache::Bool = true,
                      hash_args::Bool = false,
+                     extra_cmds::String = "",
                      env::Dict{String,String} = Dict{String,String}())
         write(io, """
-        #!/bin/sh
+        #!/bin/bash
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
 
         if [ "x\${SUPER_VERBOSE}" = "x" ]; then
@@ -75,6 +76,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         else
             vrun() { echo -e "\\e[96m\$@\\e[0m" >&2; "\$@"; }
         fi
+
+        PRE_FLAGS=()
+        POST_FLAGS=()
         """)
 
         # Sometimes we need to look at the hash of our arguments
@@ -84,6 +88,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             """)
         end
 
+        # Insert extra commands from the user (usually some kind of conditional setting
+        # of PRE_FLAGS and POST_FLAGS)
+        println(io)
+        write(io, extra_cmds)
+        println(io)
+
         for (name, val) in env
             write(io, "export $(name)=\"$(val)\"\n")
         end
@@ -91,9 +101,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         if allow_ccache
             write(io, """
             if [ \${USE_CCACHE} == "true" ]; then
-                vrun ccache $(prog) "\$@"
+                vrun ccache $(prog) "\${PRE_FLAGS[@]}" "\$@" "\${POST_FLAGS[@]}"
             else
-                vrun $(prog) "\$@"
+                vrun $(prog) \${PRE_FLAGS[@]} "\$@" "\${POST_FLAGS[@]}"
             fi
             """)
         else
@@ -122,7 +132,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     gcc_flags(p::Platform) = base_gcc_flags(p)
-    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
+    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --gcc-toolchain=/opt/$(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
     clang_flags(p::Platform) = clang_targeting_laser(p)
     fortran_flags(p::Platform) = ""
     flags(p::Platform) = ""
@@ -157,8 +167,6 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # the location of libgcc_s.  LE SIGH.
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
     clang_flags(p::FreeBSD) = "$(clang_targeting_laser(p)) -L/opt/$(target)/$(target)/lib"
-    clang_flags(p::MacOS) = "$(clang_targeting_laser(p)) -fuse-ld=macos"
-
 
     # C/C++/Fortran
     gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))"; hash_args=true)
@@ -167,6 +175,19 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))")
     clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
     objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(flags(p)) $(clang_flags(p))")
+
+    # On macos, we want to use a particular linker with clang.  But we want to avoid warnings about unused
+    # flags when just compiling, so we actually check the input arguments for `-c`.
+    clang_fuse_ld = """
+        # If we're not just compiling (e.g. we're going to invoke the linker) add this in:
+        if [[ "\$@" != *' -c '* ]]; then
+            POST_FLAGS+=( -fuse-ld=macos )
+        fi
+    """
+    clang(io::IO, p::MacOS)   = wrapper(io, "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
+    clangxx(io::IO, p::MacOS) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
+    objc(io::IO, p::MacOS)    = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(flags(p)) $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
+
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
     cc(io::IO, p::Platform) = gcc(io, p)
@@ -213,6 +234,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             "FC"     => "$(host_target)-f77",
             "LD"     => "$(host_target)-ld",
             "NM"     => "$(host_target)-nm",
+            "OBJC"   => "$(host_target)-objc",
             "RANLIB" => "$(host_target)-ranlib",
         )
         wrapper(io, "/usr/bin/meson"; allow_ccache=false, env=meson_env)
