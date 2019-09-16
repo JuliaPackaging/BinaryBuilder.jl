@@ -132,7 +132,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     gcc_flags(p::Platform) = base_gcc_flags(p)
-    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --gcc-toolchain=/opt/$(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
+    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) -rtlib=libgcc --gcc-toolchain=/opt/$(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
     clang_flags(p::Platform) = clang_targeting_laser(p)
     fortran_flags(p::Platform) = ""
     flags(p::Platform) = ""
