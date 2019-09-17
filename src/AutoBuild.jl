@@ -344,10 +344,10 @@ function get_next_wrapper_version(src_name, src_version)
 
     # If it does, we need to bump the build number up to the next value
     build_number = 0
-    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll")))
+    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx.env, jll_uuid("$(src_name)_jll")))
         # Find largest version number that matches ours in the registered paths
         versions = VersionNumber[]
-        for path in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll"))
+        for path in Pkg.Operations.registered_paths(ctx.env, jll_uuid("$(src_name)_jll"))
             append!(versions, Pkg.Compress.load_versions(joinpath(path, "Versions.toml")))
         end
         versions = filter(v -> (v.major == src_version.major) &&
@@ -530,7 +530,7 @@ function autobuild(dir::AbstractString,
                             if !isa(spec, Pkg.Types.PackageSpec)
                                 spec = Pkg.Types.PackageSpec(spec)
                             end
-                            specs = Pkg.Types.registry_resolve!(ctx, spec)
+                            specs = Pkg.Types.registry_resolve!(ctx.env, spec)
 
                             # If we have not been able to determine a UUID for this package, error out
                             for s in specs
