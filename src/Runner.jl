@@ -132,8 +132,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     gcc_flags(p::Platform) = base_gcc_flags(p)
-    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) -rtlib=libgcc --gcc-toolchain=/opt/$(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
-    clang_flags(p::Platform) = clang_targeting_laser(p)
+    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --gcc-toolchain=/opt/$(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
     fortran_flags(p::Platform) = ""
     flags(p::Platform) = ""
 
@@ -167,6 +166,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # the location of libgcc_s.  LE SIGH.
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
     clang_flags(p::FreeBSD) = "$(clang_targeting_laser(p)) -L/opt/$(target)/$(target)/lib"
+    clang_flags(p::MacOS)   = clang_targeting_laser(p)
+
+    # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken)
+    clang_flags(p::Platform) = "$(clang_targeting_laser(p)) -rtlib=libgcc"
 
     # C/C++/Fortran
     gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))"; hash_args=true)
