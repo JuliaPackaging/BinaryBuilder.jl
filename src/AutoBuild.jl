@@ -893,7 +893,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         print(io, """
         module $(src_name)_jll
         using Pkg, Pkg.BinaryPlatforms, Pkg.Artifacts, Libdl
-        import Base: UUID
+        import UUID
 
         # We put these inter-JLL-package API values here so that they are always defined, even if there
         # is no underlying wrapper held within this JLL package.
@@ -982,9 +982,10 @@ function build_project_dict(name, version, dependencies)
         # We require at least Julia 1.3+, for Pkg.Artifacts support
         "compat" => Dict{String,Any}("julia" => "1.3"),
     )
-    # Always add Libdl and Pkg as dependencies
+    # Always add Libdl, Pkg and UUID as dependencies
     project["deps"]["Libdl"] = first([string(u) for (u, n) in Pkg.Types.stdlib() if n == "Libdl"])
     project["deps"]["Pkg"] = first([string(u) for (u, n) in Pkg.Types.stdlib() if n == "Pkg"])
+    project["deps"]["UUID"] = first([string(u) for (u, n) in Pkg.Types.stdlib() if n == "UUID"])
 
     return project
 end
