@@ -48,7 +48,7 @@ invoking a compiler binary directly (e.g. /opt/{target}/bin/{target}-gcc), are m
 difficult to override, as the flags embedded in these wrappers are absolutely necessary,
 and even simple programs will not compile without them.
 """
-function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString, host_platform::Platform = Linux(:x86_64; libc=:musl))
+function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString, host_platform::Platform = Linux(:x86_64; libc=:musl), compilers::Vector{Symbol} = [:c])
     global use_ccache
 
     # Wipe that directory out, in case it already had compiler wrappers
@@ -267,20 +267,25 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     for p in unique(abi_agnostic.((platform, host_platform)))
         t = triplet(p)
 
-        # Generate `cc` and `c++`
-        write_wrapper(cc, p, "$(t)-cc")
-        write_wrapper(cxx, p, "$(t)-c++")
-        write_wrapper(gfortran, p, "$(t)-f77")
+        # Generate `:c` compilers
+        if :c in compilers
+            write_wrapper(cc, p, "$(t)-cc")
+            write_wrapper(cxx, p, "$(t)-c++")
 
-        # Generate `gcc`, `g++`, `clang` and `clang++`
-        write_wrapper(gcc, p, "$(t)-gcc")
-        write_wrapper(gxx, p, "$(t)-g++")
-        write_wrapper(gfortran, p, "$(t)-gfortran")
-        write_wrapper(clang, p, "$(t)-clang")
-        write_wrapper(clangxx, p,"$(t)-clang++")
-        write_wrapper(objc, p,"$(t)-objc")
+            # Generate `gcc`, `g++`, `clang` and `clang++`
+            write_wrapper(gcc, p, "$(t)-gcc")
+            write_wrapper(gxx, p, "$(t)-g++")
+            write_wrapper(clang, p, "$(t)-clang")
+            write_wrapper(clangxx, p,"$(t)-clang++")
+            write_wrapper(objc, p,"$(t)-objc")
 
-        # Binutils
+            # Someday, you will be split out
+            write_wrapper(gfortran, p, "$(t)-f77")
+            write_wrapper(gfortran, p, "$(t)-gfortran")
+        end
+
+
+        # Binutils (we always do these)
         write_wrapper(ar, p, "$(t)-ar")
         write_wrapper(as, p, "$(t)-as")
         write_wrapper(cpp, p, "$(t)-cpp")
@@ -301,28 +306,22 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(otool, p, "$(t)-otool")
 
         # Generate rust stuff
-        write_wrapper(rustc, p, "$(t)-rustc")
-        write_wrapper(rustup, p, "$(t)-rustup")
-        write_wrapper(cargo, p, "$(t)-cargo")
+        if :rust in compilers
+            write_wrapper(rustc, p, "$(t)-rustc")
+            write_wrapper(rustup, p, "$(t)-rustup")
+            write_wrapper(cargo, p, "$(t)-cargo")
+        end
 
         # Generate go stuff
-        write_wrapper(go, p, "$(t)-go")
+        if :go in compilers
+            write_wrapper(go, p, "$(t)-go")
+        end
     end
 
     # Write a single wrapper for `meson`
     write_wrapper(meson, host_platform, "meson")
-   
 
     default_tools = [
-        # C/C++/Fortran
-        "cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc",
-
-        # Rust
-        "rustc", "rustup", "cargo",
-
-        # Go
-        "go",
-
         # Binutils
         "ar", "as", "c++filt", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
     ]
@@ -332,7 +331,17 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     elseif platform isa Windows
         append!(default_tools, ("windres", "winmc"))
     end
- 
+
+    if :c in compilers
+        append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc"))
+    end
+    if :rust in compilers
+        append!(default_tools, ("rustc", "rustup", "cargo"))
+    end
+    if :go in compilers
+        append!(default_tools, ("go",))
+    end
+
     # Create symlinks for default compiler invocations, invoke target toolchain
     for tool in default_tools
         symlink("$(target)-$(tool)", joinpath(bin_path, tool))
