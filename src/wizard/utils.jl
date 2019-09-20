@@ -240,7 +240,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             metadir => "/meta",
         ],
         compiler_wrapper_dir = wrapperdir,
-        extract_kwargs(kwargs, (:preferred_gcc_version,))...,
+        extract_kwargs(kwargs, (:preferred_gcc_version,:compilers))...,
     )
 
     # For each source path, unpack it
