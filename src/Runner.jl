@@ -409,7 +409,7 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "bb_target" => target,
         "target" => target,
         "rust_target" => rust_target(platform),
-        "rust_host" => rust_target(host_platform),
+        "rust_host" => rust_target(Linux(:x86_64; libc=:glibc)), # use glibc since musl is broken. :( https://github.com/rust-lang/rust/issues/59302
         "nproc" => "$(Sys.CPU_THREADS)",
         "nbits" => target_nbits(target),
         "proc_family" => target_proc_family(target),
@@ -557,7 +557,7 @@ function runshell(platform::Platform = platform_key_abi(); kwargs...)
 end
 
 function runshell(r::Runner, args...; kwargs...)
-    run_interactive(r, `/bin/bash`, args...; kwargs...)
+    run_interactive(r, `/bin/bash -l`, args...; kwargs...)
 end
 
 function runshell(::Type{R}, platform::Platform = platform_key_abi(); kwargs...) where {R <: Runner}
