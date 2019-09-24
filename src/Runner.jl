@@ -435,6 +435,7 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "libdir" => libdir,
 
         # Fancyness!
+        "USER" => get(ENV, "USER", "julia"),
         "PS1" => PS1,
         "VERBOSE" => "$(verbose)",
         "V" => "$(verbose)",
