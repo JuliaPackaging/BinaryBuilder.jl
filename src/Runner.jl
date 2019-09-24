@@ -436,7 +436,8 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
 
         # Fancyness!
         "USER" => get(ENV, "USER", "julia"),
-        "PS1" => PS1,
+        # Docker filters out `PS1` so we route around it
+        "HIDDEN_PS1" => PS1,
         "VERBOSE" => "$(verbose)",
         "V" => "$(verbose)",
         "HISTFILE"=>"/meta/.bash_history",
@@ -576,6 +577,6 @@ function runshell(r::Runner, args...; kwargs...)
     run_interactive(r, `/bin/bash -l`, args...; kwargs...)
 end
 
-function runshell(::Type{R}, platform::Platform = platform_key_abi(); kwargs...) where {R <: Runner}
-    return runshell(R(pwd(); cwd="/workspace/", platform=platform, kwargs...))
+function runshell(::Type{R}, platform::Platform = platform_key_abi(); verbose::Bool=false,kwargs...) where {R <: Runner}
+    return runshell(R(pwd(); cwd="/workspace/", platform=platform, verbose=verbose, kwargs...); verbose=verbose)
 end
