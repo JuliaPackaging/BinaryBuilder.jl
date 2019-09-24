@@ -176,6 +176,9 @@ analyze the name and platform of this shard and return a path based on that.
 function map_target(cs::CompilerShard)
     if lowercase(cs.name) == "rootfs"
         return "/"
+    elseif lowercase(cs.name) == "rusttoolchain"
+        # We override RustToolchain because they all have to sit in the same location
+        return "/opt/$(triplet(cs.host))/$(cs.name)-$(cs.version)-$(triplet(cs.target)))"
     else
         return joinpath("/opt", triplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
     end
@@ -380,15 +383,14 @@ function choose_shards(p::Platform;
             CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=p),
         ])
 
-        target_is_host = (typeof(p) <: typeof(host_platform)) && (arch(p) == arch(host_platform) && libc(p) == libc(host_platform))
-
+        platform_match(a, b) = ((typeof(a) <: typeof(b)) && (arch(a) == arch(b)) && (libc(a) == libc(b)))
         if :c in compilers
             append!(shards, [
                 CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p),
                 CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
             ])
             # If we're not building for the host platform, then add host shard for host tools
-            if !target_is_host
+            if !platform_match(p, host_platform)
                 append!(shards, [
                     CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
                     CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform),
@@ -397,13 +399,22 @@ function choose_shards(p::Platform;
         end
 
         if :rust in compilers
+            # Our rust base shard is technically x86_64-linux-gnu, not x86_64-linux-musl, since rust is broken  when hosted on `musl`:
+            Rust_host = Linux(:x86_64; libc=:glibc)
             append!(shards, [
-                CompilerShard("RustBase", Rust_build, host_platform, archive_type),
-                CompilerShard("RustToolchain", Rust_build, p, archive_type),
+                CompilerShard("RustBase", Rust_build, Rust_host, archive_type),
+                CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=p),
             ])
 
-            if !target_is_host
-                push!(shards, CompilerShard("RustToolchain", Rust_build, host_platform, archive_type))
+            if !platform_match(p, Rust_host)
+                push!(shards, CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=Rust_host))
+
+                # We have to add these as well for access to linkers and whatnot for Rust.  Sigh.
+                push!(shards, CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=Rust_host))
+                push!(shards, CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=Rust_host))
+            end
+            if !platform_match(p, host_platform)
+                push!(shards, CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=host_platform))
             end
         end
 

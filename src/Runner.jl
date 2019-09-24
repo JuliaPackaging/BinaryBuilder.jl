@@ -48,7 +48,10 @@ invoking a compiler binary directly (e.g. /opt/{target}/bin/{target}-gcc), are m
 difficult to override, as the flags embedded in these wrappers are absolutely necessary,
 and even simple programs will not compile without them.
 """
-function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString, host_platform::Platform = Linux(:x86_64; libc=:musl), compilers::Vector{Symbol} = [:c])
+function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
+                                     host_platform::Platform = Linux(:x86_64; libc=:musl),
+                                     rust_platform::Platform = Linux(:x86_64; libc=:glibc),
+                                     compilers::Vector{Symbol} = [:c])
     global use_ccache
 
     # Wipe that directory out, in case it already had compiler wrappers
@@ -58,6 +61,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # Convert platform to a triplet, but strip out the ABI parts
     target = triplet(abi_agnostic(platform))
     host_target = triplet(abi_agnostic(host_platform))
+    rust_target = triplet(abi_agnostic(rust_platform))
 
     # If we should use ccache, prepend this to every compiler invocation
     ccache = use_ccache ? "ccache" : ""
@@ -223,10 +227,11 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # Rust stuff
-    rust_env(p::Platform) = Dict("CARGO_HOME" => "/opt/$(triplet(p))", "RUSTUP_HOME" => "/opt/$(triplet(p))")
-    rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/rustc"; allow_ccache=false, env=rust_env(p))
-    rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/rustup"; allow_ccache=false, env=rust_env(p))
-    cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(host_target)/bin/cargo"; allow_ccache=false, env=rust_env(p))
+    rust_env(p::Platform) = Dict("CARGO_HOME" => "/opt/$(rust_target)", "RUSTUP_HOME" => "/opt/$(rust_target)")
+    rust_flags(p::Platform) = "--target=$(map_rust_target(p)) -C linker=$(triplet(p))-gcc"
+    rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustc $(rust_flags(p))"; allow_ccache=false, env=rust_env(p))
+    rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false, env=rust_env(p))
+    cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false, env=rust_env(p))
 
     # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
     function meson(io::IO, p::Platform)
@@ -305,16 +310,22 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
         write_wrapper(otool, p, "$(t)-otool")
 
-        # Generate rust stuff
-        if :rust in compilers
-            write_wrapper(rustc, p, "$(t)-rustc")
-            write_wrapper(rustup, p, "$(t)-rustup")
-            write_wrapper(cargo, p, "$(t)-cargo")
-        end
-
         # Generate go stuff
         if :go in compilers
             write_wrapper(go, p, "$(t)-go")
+        end
+    end
+
+    # Rust stuff doesn't use the normal "host" platform, it uses x86_64-linux-gnu, so we always have THREE around,
+    # because clever build systems like `meson` ask Rust what its native system is, and it truthfully answers
+    # `x86_64-linux-gnu`, while other build systems might say `x86_64-linux-musl` with no less accuracy.  So for
+    # safety, we just ship all three all the time.
+    if :rust in compilers
+        for p in unique(abi_agnostic.((platform, host_platform, rust_platform)))
+            t = triplet(p)
+            write_wrapper(rustc, p, "$(t)-rustc")
+            write_wrapper(rustup, p, "$(t)-rustup")
+            write_wrapper(cargo, p, "$(t)-cargo")
         end
     end
 
@@ -336,18 +347,23 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc"))
     end
     if :rust in compilers
-        append!(default_tools, ("rustc", "rustup", "cargo"))
+        append!(default_tools, ("rustc","rustup","cargo"))
     end
     if :go in compilers
         append!(default_tools, ("go",))
     end
-
     # Create symlinks for default compiler invocations, invoke target toolchain
     for tool in default_tools
         symlink("$(target)-$(tool)", joinpath(bin_path, tool))
     end
 end
 
+# Translation mappers for our target names to cargo-compatible ones
+map_rust_arch(p::Platform) = arch(p) == :armv7l ? :armv7 : arch(p)
+map_rust_target(p::MacOS) = "x86_64-apple-darwin"
+map_rust_target(p::FreeBSD) = "x86_64-unknown-freebsd"
+map_rust_target(p::Windows) = "$(map_rust_arch(p))-pc-windows-gnu"
+map_rust_target(p::Platform) = "$(map_rust_arch(p))-unknown-linux-$(libc(p) == :glibc ? "gnu" : libc(p))$(something(call_abi(p), ""))"
 
 """
     platform_envs(platform::Platform)
@@ -363,6 +379,7 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
     # Convert platform to a triplet, but strip out the ABI parts
     target = triplet(abi_agnostic(platform))
     host_target = triplet(abi_agnostic(host_platform))
+    rust_host = Linux(:x86_64; libc=:glibc)
 
     # Prefix, libdir, etc...
     prefix = "/workspace/destdir"
@@ -395,21 +412,14 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         PS1 = "sandbox:\${PWD//\$WORKSPACE/\\\\\$\\{WORKSPACE\\}} \\\$ "
     end
 
-    # Map our target names to cargo-compatible ones
-    rust_arch(p::Platform) = arch(p) == :armv7l ? :armv7 : arch(p)
-    rust_target(p::MacOS) = "x86_64-apple-darwin"
-    rust_target(p::FreeBSD) = "x86_64-unknown-freebsd"
-    rust_target(p::Windows) = "$(rust_arch(p))-pc-windows-gnu"
-    rust_target(p::Platform) = "$(rust_arch(p))-unknown-linux-$(libc(p) == :glibc ? "gnu" : libc(p))$(something(call_abi(p), ""))"
-
     # Base mappings
     mapping = Dict(
         # Platform information (we save a `bb_target` because sometimes `target` gets
         # overwritten in `./configure`, and we want tools like `uname` to still see it)
         "bb_target" => target,
         "target" => target,
-        "rust_target" => rust_target(platform),
-        "rust_host" => rust_target(Linux(:x86_64; libc=:glibc)), # use glibc since musl is broken. :( https://github.com/rust-lang/rust/issues/59302
+        "rust_target" => map_rust_target(platform),
+        "rust_host" => map_rust_target(rust_host), # use glibc since musl is broken. :( https://github.com/rust-lang/rust/issues/59302
         "nproc" => "$(Sys.CPU_THREADS)",
         "nbits" => target_nbits(target),
         "proc_family" => target_proc_family(target),
@@ -476,6 +486,11 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "GOROOT" => prefix,
         "GOPATH" => "/workspace/.gopath",
         "GOARM" => "7", # default to armv7
+
+        # Rust stuff
+        "CARGO_HOME" => "/opt/$(triplet(rust_host))",
+        "RUSTUP_HOME" => "/opt/$(triplet(rust_host))",
+        "RUSTUP_TOOLCHAIN" => "stable-$(map_rust_target(rust_host))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
         "USE_CCACHE" => "$(use_ccache)",
