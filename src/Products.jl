@@ -74,6 +74,7 @@ struct LibraryProduct <: Product
     libnames::Vector{String}
     variable_name::Symbol
     dir_paths::Vector{String}
+    dont_dlopen::Bool
 
     """
         LibraryProduct(libnames, varname::Symbol)
@@ -91,11 +92,12 @@ struct LibraryProduct <: Product
     Libraries matching the search pattern are rejected if they are not
     `dlopen()`'able.
     """
-    LibraryProduct(libname::AbstractString, varname, args...) = LibraryProduct([libname], varname, args...)
+    LibraryProduct(libname::AbstractString, varname, args...; kwargs...) = LibraryProduct([libname], varname, args...; kwargs...)
     function LibraryProduct(libnames::Vector{<:AbstractString}, varname::Symbol,
-                            dir_paths::Vector{<:AbstractString}=String[])
+                            dir_paths::Vector{<:AbstractString}=String[];
+                            dont_dlopen::Bool=false)
         # If some other kind of AbstractString is passed in, convert it
-        return new([string(l) for l in libnames], varname, string.(dir_paths))
+        return new([string(l) for l in libnames], varname, string.(dir_paths), dont_dlopen)
     end
 end
 
@@ -121,7 +123,7 @@ that the `dlopen()` test is only run if the current platform matches the given
 on foreign platforms.
 """
 function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
-                platform::Platform = platform_key_abi(), isolate::Bool = false)
+                platform::Platform = platform_key_abi(), isolate::Bool = true)
     dir_paths = template.(lp.dir_paths, Ref(platform))
     append!(dir_paths, libdirs(prefix, platform))
 
@@ -155,7 +157,7 @@ function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
                     end
 
                     # If it does, try to `dlopen()` it if the current platform is good
-                    if platforms_match(platform, platform_key_abi())
+                    if platforms_match(platform, platform_key_abi()) && !lp.dont_dlopen
                         if isolate
                             # Isolated dlopen is a lot slower, but safer
                             if success(`$(Base.julia_cmd()) -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)
