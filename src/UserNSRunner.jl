@@ -172,7 +172,7 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
 end
 
 const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
-function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
+function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
     global prompted_userns_run_privileged
     if runner_override == "privileged" && !prompted_userns_run_privileged
         @info("Running privileged container via `sudo`, may ask for your password:")
@@ -188,6 +188,10 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
     end
     if stderr isa AnyRedirectable
         cmd = pipeline(cmd, stderr=stderr)
+    end
+
+    if verbose
+        @info("About to run: $(cmd)")
     end
 
     try
