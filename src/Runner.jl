@@ -490,6 +490,7 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "GOARM" => "7", # default to armv7
 
         # Rust stuff
+        "CARGO_BUILD_TARGET" => map_rust_target(platform),
         "CARGO_HOME" => "/opt/$(triplet(rust_host))",
         "RUSTUP_HOME" => "/opt/$(triplet(rust_host))",
         "RUSTUP_TOOLCHAIN" => "stable-$(map_rust_target(rust_host))",
