@@ -359,7 +359,7 @@ consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
             compilers::Vector{Symbol} = [:c],
-            rootfs_build::VersionNumber=v"2019.9.25",
+            rootfs_build::VersionNumber=v"2019.9.27",
             ps_build::VersionNumber=v"2019.9.26",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
             LLVM_build::VersionNumber=v"8.0.0",
