@@ -257,6 +257,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
  
     # c++filt is hard to write in symbols
     cxxfilt(io::IO, p::Platform) = target_tool(io, "c++filt"; allow_ccache=false)
+    cxxfilt(io::IO, p::MacOS) = wrapper(io, string("/opt/", triplet(p), "/bin/llvm-cxxfilt"); allow_ccache=false)
 
     # Overrides for macOS binutils because Apple is always so "special"
     for tool in (:ar, :ranlib)
