@@ -124,7 +124,7 @@ on foreign platforms.
 """
 function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
                 platform::Platform = platform_key_abi(), isolate::Bool = true)
-    dir_paths = template.(lp.dir_paths, Ref(platform))
+    dir_paths = joinpath.(prefix.path, template.(lp.dir_paths, Ref(platform)))
     append!(dir_paths, libdirs(prefix, platform))
 
     for dir_path in dir_paths

@@ -288,6 +288,9 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
             if rp == "."
                 return "\$ORIGIN"
             end
+            if startswith(rp, ".")
+                return "\$ORIGIN/$(rp)"
+            end
             return rp
         end
         current_rpaths = [r for r in rpaths(path) if !isempty(r)]
