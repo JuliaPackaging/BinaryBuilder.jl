@@ -556,7 +556,7 @@ function autobuild(dir::AbstractString,
                             # Load the Artifacts.toml file
                             artifacts_toml = joinpath(dep_path, "Artifacts.toml")
                             if !isfile(artifacts_toml)
-                                @warn("Dependency $(name) does not have an Artifacts.toml!")
+                                @warn("Dependency $(name) does not have an Artifacts.toml at $(artifacts_toml)!")
                                 continue
                             end
 
