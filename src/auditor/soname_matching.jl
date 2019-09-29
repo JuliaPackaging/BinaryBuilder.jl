@@ -2,7 +2,15 @@
 get_soname(oh::ObjectHandle) = nothing
 
 # Auto-open a path into an ObjectHandle
-get_soname(path::AbstractString) = readmeta(get_soname, path)
+function get_soname(path::AbstractString)
+    try
+        readmeta(get_soname, path)
+    catch e
+        @warn("Could not probe $(path) for an SONAME!")
+        @warn(e)
+        return nothing
+    end
+end
 
 function get_soname(oh::ELFHandle)
     # Get the dynamic entries, see if it contains a DT_SONAME
