@@ -143,7 +143,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
 
         # Use hash of arguments to provide consistent, unique random seed
-        FLAGS *= " -frandom-seed=0x\${ARG_HASH}"
+        FLAGS *= " -frandom-seed=0x\${ARGS_HASH}"
         return FLAGS
     end
 
