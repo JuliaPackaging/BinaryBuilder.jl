@@ -172,7 +172,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # the location of libgcc_s.  LE SIGH.
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
     clang_flags(p::FreeBSD) = "$(clang_targeting_laser(p)) -L/opt/$(target)/$(target)/lib"
-    clang_flags(p::MacOS)   = clang_targeting_laser(p)
+    # Oh, we need to do it for macOS as well, so that `clang -lgfortran` works.
+    clang_flags(p::MacOS)   = "$(clang_targeting_laser(p)) -L/opt/$(target)/$(target)/lib"
 
     # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken)
     clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc"
@@ -451,8 +452,16 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         return mapping
     end
 
-    # Helper for generating the library include path for a target
-    target_lib_dir(t) = "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
+    # Helper for generating the library include path for a target.  MacOS, as usual,
+    # puts things in slightly different place.
+    function target_lib_dir(p::Platform)
+        t = triplet(abi_agnostic(p))
+        return "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
+    end
+    function target_lib_dir(p::MacOS)
+        t = triplet(abi_agnostic(p))
+        return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
+    end
 
     merge!(mapping, Dict(
         "PATH" => join((
@@ -473,9 +482,9 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
             # Add our loader directories
             "/lib64:/lib",
             # Add our target/host-specific library directories for compiler support libraries
-            target_lib_dir(host_target),
-            target_lib_dir(target),
-            target_lib_dir(triplet(rust_host)),
+            target_lib_dir(host_platform),
+            target_lib_dir(platform),
+            target_lib_dir(rust_host),
             # Finally, dependencies
             "$(prefix)/lib64:$(prefix)/lib",
         ), ":"),
