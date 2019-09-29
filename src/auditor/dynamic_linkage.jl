@@ -129,13 +129,29 @@ end
 # These are libraries we should straight-up ignore, like libsystem on OSX
 function should_ignore_lib(lib, ::ELFHandle)
     ignore_libs = [
-        # Basic runtimes for both Linux and FreeBSD
+        # dynamic loaders
+        "ld-linux-x86-64.so.2",
+        "ld-linux.so.2",
+        "ld-linux-armhf.so.3",
+        "ld-linux-aarch64.so.1",
+        "ld-musl-x86_64.so.1",
+        "ld-musl-i386.so.1",
+        "ld-musl-aarch64.so.1",
+        "ld-musl-armhf.so.1",
+        "ld64.so.2",
+        # C runtime
         "libc.so",
         "libc.so.6",
         "libc.so.7",
+        "libc.musl-x86_64.so.1",
+        "libc.musl-i386.so.1",
+        "libc.musl-aarch64.so.1",
+        "libc.musl-armhf.so.1",
+        # C++ runtime
         "libstdc++.so.6",
         "libc++.so.1",
         "libcxxrt.so.1",
+        # GCC libraries
         "libdl.so.2",
         "librt.so.1",
         "libgcc_s.1.so",
@@ -147,15 +163,8 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libgfortran.so.5",
         "libquadmath.so.0",
         "libthr.so.3",
-        # libpthread and libgomp are pretty safe bets
         "libpthread.so.0",
         "libgomp.so.1",
-        # dynamic loaders
-        "ld-linux-x86-64.so.2",
-        "ld-linux.so.2",
-        "ld-musl-x86_64.so.1",
-        "ld-linux-armhf.so.3",
-        "ld64.so.2",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
