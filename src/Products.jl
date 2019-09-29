@@ -27,6 +27,7 @@ function template(x::String, p::Platform)
     for (var, val) in [
             ("target", triplet(p)),
             ("nbits", wordsize(p)),
+            ("arch", arch(p)),
         ]
         x = replace(x, "\$$(var)" => val)
         x = replace(x, "\${$(var)}" => val)
