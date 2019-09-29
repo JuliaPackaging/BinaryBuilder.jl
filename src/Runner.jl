@@ -70,6 +70,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                      allow_ccache::Bool = true,
                      hash_args::Bool = false,
                      extra_cmds::String = "",
+                     link_only_flags::Vector = String[],
                      env::Dict{String,String} = Dict{String,String}())
         write(io, """
         #!/bin/bash
@@ -90,6 +91,17 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             write(io, """
             ARGS_HASH="\$(echo -n "\$*" | sha1sum | cut -c1-8)"
             """)
+        end
+
+        # If we're given link-only flags, include them only if `-c` is not provided.
+        if !isempty(link_only_flags)
+            println(io)
+            println(io, "if [[ \"\$@\" != *' -c '* ]]; then")
+            for lf in link_only_flags
+                println(io, "    POST_FLAGS+=( '$lf' )")
+            end
+            println(io, "fi")
+            println(io)
         end
 
         # Insert extra commands from the user (usually some kind of conditional setting
@@ -167,37 +179,29 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return FLAGS
     end
         
-    # FreeBSD is special-cased within the LLVM source tree to not allow for
-    # things like the -gcc-toolchain option, which means that we have to manually add
-    # the location of libgcc_s.  LE SIGH.
+    # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
+    # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
+    # We do that within `clang_linker_flags()`, so that we don't get "unused argument" warnings all over the place.
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
-    clang_flags(p::FreeBSD) = "$(clang_targeting_laser(p)) -L/opt/$(target)/$(target)/lib"
-    # Oh, we need to do it for macOS as well, so that `clang -lgfortran` works.
-    clang_flags(p::MacOS)   = "$(clang_targeting_laser(p)) -L/opt/$(target)/$(target)/lib"
-
+    clang_flags(p::MacOS) = clang_targeting_laser(p) #"$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p))"
+    clang_flags(p::FreeBSD) = clang_targeting_laser(p)
     # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken)
     clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc"
+
+
+    # On macos, we want to use a particular linker with clang.  But we want to avoid warnings about unused
+    # flags when just compiling, so we put it into "linker-only flags".
+    clang_link_flags(p::Platform) = String[]
+    clang_link_flags(p::FreeBSD) = ["-L/opt/$(target)/$(target)/lib"]
+    clang_link_flags(p::MacOS) = ["-L/opt/$(target)/$(target)/lib", "-fuse-ld=macos"]
 
     # C/C++/Fortran
     gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(gcc_flags(p))"; hash_args=true)
     gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(gcc_flags(p))"; hash_args=true)
     gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(fortran_flags(p))")
-    clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))")
-    clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))")
-    objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))")
-
-    # On macos, we want to use a particular linker with clang.  But we want to avoid warnings about unused
-    # flags when just compiling, so we actually check the input arguments for `-c`.
-    clang_fuse_ld = """
-        # If we're not just compiling (e.g. we're going to invoke the linker) add this in:
-        if [[ "\$@" != *' -c '* ]]; then
-            POST_FLAGS+=( -fuse-ld=macos )
-        fi
-    """
-    clang(io::IO, p::MacOS)   = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
-    clangxx(io::IO, p::MacOS) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
-    objc(io::IO, p::MacOS)    = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
-
+    clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
+    clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
+    objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
     cc(io::IO, p::Platform) = gcc(io, p)
@@ -483,8 +487,8 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
             "/lib64:/lib",
             # Add our target/host-specific library directories for compiler support libraries
             target_lib_dir(host_platform),
-            target_lib_dir(platform),
             target_lib_dir(rust_host),
+            target_lib_dir(platform),
             # Finally, dependencies
             "$(prefix)/lib64:$(prefix)/lib",
         ), ":"),
