@@ -138,13 +138,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     gcc_flags(p::Platform) = base_gcc_flags(p)
     clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
     fortran_flags(p::Platform) = ""
-    flags(p::Platform) = ""
-
-    # On macOS, we always sneak min version declaration in
-    flags(p::MacOS) = "-mmacosx-version-min=10.8"
 
     function gcc_flags(p::MacOS)
         FLAGS = base_gcc_flags(p)
+
+        # Always ask for a minimum macOS version of 10.8, as is default for the whole Julia world
+        FLAGS *= " -mmacosx-version-min=10.8"
 
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
@@ -156,7 +155,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     function fortran_flags(p::MacOS)
         FLAGS = ""
-        
+
+        # Always ask for a minimum macOS version of 10.8, as is default for the whole Julia world
+        FLAGS *= " -mmacosx-version-min=10.8"
+
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if select_gcc_version(p).major == 4
@@ -173,15 +175,15 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     clang_flags(p::MacOS)   = clang_targeting_laser(p)
 
     # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken)
-    clang_flags(p::Platform) = "$(clang_targeting_laser(p))  --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc"
+    clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc"
 
     # C/C++/Fortran
-    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(flags(p)) $(gcc_flags(p))"; hash_args=true)
-    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(flags(p)) $(gcc_flags(p))"; hash_args=true)
-    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(flags(p)) $(fortran_flags(p))")
-    clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))")
-    clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))")
-    objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(flags(p)) $(clang_flags(p))")
+    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(gcc_flags(p))"; hash_args=true)
+    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(gcc_flags(p))"; hash_args=true)
+    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(fortran_flags(p))")
+    clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))")
+    clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))")
+    objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))")
 
     # On macos, we want to use a particular linker with clang.  But we want to avoid warnings about unused
     # flags when just compiling, so we actually check the input arguments for `-c`.
@@ -191,9 +193,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             POST_FLAGS+=( -fuse-ld=macos )
         fi
     """
-    clang(io::IO, p::MacOS)   = wrapper(io, "/opt/$(host_target)/bin/clang $(flags(p)) $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
-    clangxx(io::IO, p::MacOS) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(flags(p)) $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
-    objc(io::IO, p::MacOS)    = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(flags(p)) $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
+    clang(io::IO, p::MacOS)   = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
+    clangxx(io::IO, p::MacOS) = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
+    objc(io::IO, p::MacOS)    = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; extra_cmds=clang_fuse_ld)
 
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
@@ -227,11 +229,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # Rust stuff
-    rust_env(p::Platform) = Dict("CARGO_HOME" => "/opt/$(rust_target)", "RUSTUP_HOME" => "/opt/$(rust_target)")
     rust_flags(p::Platform) = "--target=$(map_rust_target(p)) -C linker=$(triplet(p))-gcc"
-    rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustc $(rust_flags(p))"; allow_ccache=false, env=rust_env(p))
-    rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false, env=rust_env(p))
-    cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false, env=rust_env(p))
+    rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustc $(rust_flags(p))"; allow_ccache=false)
+    rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false)
+    cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false)
 
     # Meson REQUIRES that `CC`, `CXX`, etc.. are set to the host utils.  womp womp.
     function meson(io::IO, p::Platform)
@@ -451,7 +452,7 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
     end
 
     # Helper for generating the library include path for a target
-    target_lib_dir(t) = "/opt/$(t)/lib64:/opt/$(t)/lib:/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
+    target_lib_dir(t) = "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
 
     merge!(mapping, Dict(
         "PATH" => join((
@@ -469,11 +470,12 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "LD_LIBRARY_PATH" => join((
            # Start with the default musl ld path
            "/usr/local/lib64:/usr/local/lib:/usr/local/lib:/usr/lib",
-            # Add our glibc directory
+            # Add our loader directories
             "/lib64:/lib",
             # Add our target/host-specific library directories for compiler support libraries
             target_lib_dir(host_target),
             target_lib_dir(target),
+            target_lib_dir(triplet(rust_host)),
             # Finally, dependencies
             "$(prefix)/lib64:$(prefix)/lib",
         ), ":"),
@@ -484,9 +486,11 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "OBJC" => "objc",
         "FC" => "gfortran",
         "GO" => "go",
+        "RUSTC" => "rustc",
+        "CARGO" => "cargo",
 
         # Go stuff
-        "GOROOT" => prefix,
+        "GOCACHE" => "/workspace/.gocache",
         "GOPATH" => "/workspace/.gopath",
         "GOARM" => "7", # default to armv7
 
