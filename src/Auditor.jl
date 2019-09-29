@@ -354,7 +354,7 @@ function collect_files(path::AbstractString, predicate::Function = f -> true;
     # outside of our given `path`.
     if exclude_externalities
         old_predicate = predicate
-        predicate = f -> old_predicate(f) && !(islink(f) && !startswith(abspath(f), path))
+        predicate = f -> old_predicate(f) && !(islink(f) && !startswith(Pkg.Types.safe_realpath(f), path))
     end
     collected = String[]
     for (root, dirs, files) in walkdir(path)
