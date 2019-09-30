@@ -536,6 +536,9 @@ function platform_envs(platform::Platform; host_platform = Linux(:x86_64; libc=:
         "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig:$(prefix)/share/pkgconfig",
         "PKG_CONFIG_SYSROOT_DIR" => prefix,
 
+        # ccache options
+        "CCACHE_COMPILERCHECK" => "content",
+
         # Things to help us step closer to reproducible builds; eliminate timestamp
         # variability within our binaries.
         "SOURCE_DATE_EPOCH" => "0",
