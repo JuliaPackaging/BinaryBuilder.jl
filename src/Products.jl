@@ -292,11 +292,13 @@ Declares a `FileProduct` that points to a file located relative to the root of
 a `Prefix`, must simply exist to be satisfied.
 """
 struct FileProduct <: Product
-    path::AbstractString
+    paths::Vector{String}
     variable_name::Symbol
 end
 
-repr(p::FileProduct) = "FileProduct($(repr(p.path)), $(repr(p.variable_name)))"
+FileProduct(path::AbstractString, variable_name::Symbol) = FileProduct([path], variable_name)
+
+repr(p::FileProduct) = "FileProduct($(repr(p.paths)), $(repr(p.variable_name)))"
 
 """
     locate(fp::FileProduct, prefix::Prefix;
@@ -314,17 +316,18 @@ function locate(fp::FileProduct, prefix::Prefix;
                  platform::Platform = platform_key_abi(),
                  verbose::Bool = false,
                  isolate::Bool = false)
-    # Limited templated
-    expanded = joinpath(prefix, template(fp.path, platform))
+    for path in fp.paths
+        expanded = joinpath(prefix, template(path, platform))
 
-    if ispath(expanded)
-        if verbose
-            @info("FileProduct $(fp.path) found at $(realpath(expanded))")
+        if ispath(expanded)
+            if verbose
+                @info("FileProduct $(path) found at $(realpath(expanded))")
+            end
+            return expanded
         end
-        return expanded
     end
     if verbose
-        @info("FileProduct $(fp.path) not found")
+        @info("FileProduct $(fp.paths) not found")
     end
     return nothing
 end
