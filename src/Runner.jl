@@ -198,7 +198,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     gcc_link_flags(p::Platform) = String[]
     function gcc_link_flags(p::Linux)
         if arch(p) == :powerpc64le && select_gcc_version(p).major == 4
-            return ["-L/opt/$(target)/$(target)/sys-root/lib64", "-Wl,-rpath,/opt/$(target)/$(target)/sys-root/lib64"]
+            return ["-L/opt/$(target)/$(target)/sys-root/lib64", "-Wl,-rpath-link,/opt/$(target)/$(target)/sys-root/lib64"]
         end
         return String[]
     end
