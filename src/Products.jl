@@ -203,7 +203,7 @@ Windows platforms, it will check that the file ends with ".exe", (adding it on
 automatically, if it is not already present).
 """
 struct ExecutableProduct <: Product
-    binname::String
+    binnames::Vector{String}
     variable_name::Symbol
     dir_path::Union{String, Nothing}
 
@@ -213,22 +213,23 @@ struct ExecutableProduct <: Product
     Declares an `ExecutableProduct` that points to an executable located within
     the `bindir` of the given `Prefix`, named `binname`.
     """
-    function ExecutableProduct(binname::AbstractString, varname::Symbol, dir_path::Union{AbstractString, Nothing}=nothing)
+    function ExecutableProduct(binnames::Vector{String}, varname::Symbol, dir_path::Union{AbstractString, Nothing}=nothing)
         # If some other kind of AbstractString is passed in, convert it
         if dir_path != nothing
             dir_path = string(dir_path)
         end
         return new(string(binname), varname, dir_path)
     end
+    ExecutableProduct(binname::AbstractString, varname::Symbol, args...) = ExecutableProduct([string(binname)], varname, args...)
 end
 
 function repr(p::ExecutableProduct)
     varname = repr(p.variable_name)
-    binname = repr(p.binname)
+    binnames = repr(p.binnames)
     if p.dir_path != nothing
-        return "ExecutableProduct($(binname), $(varname), $(repr(p.dir_path))"
+        return "ExecutableProduct($(binnames), $(varname), $(repr(p.dir_path))"
     else
-        return "ExecutableProduct($(binname), $(varname))"
+        return "ExecutableProduct($(binnames), $(varname))"
     end
 end
 
@@ -249,40 +250,44 @@ function locate(ep::ExecutableProduct, prefix::Prefix;
                 platform::Platform = platform_key_abi(),
                 verbose::Bool = false,
                 isolate::Bool = false)
-    # On windows, we always slap an .exe onto the end if it doesn't already
-    # exist, as Windows won't execute files that don't have a .exe at the end.
-    binname = if platform isa Windows && !endswith(ep.binname, ".exe")
-        "$(ep.binname).exe"
-    else
-        ep.binname
-    end
-
-    # Join into the `dir_path` given by the executable product
-    if ep.dir_path != nothing
-        path = joinpath(prefix.path, template(joinpath(ep.dir_path, binname), platform))
-    else
-        path = joinpath(bindir(prefix), template(binname, platform))
-    end
-
-    if !isfile(path)
-        if verbose
-            @info("$(path) does not exist, reporting unsatisfied")
+    for binname in ep.binnames
+        # On windows, we always slap an .exe onto the end if it doesn't already
+        # exist, as Windows won't execute files that don't have a .exe at the end.
+        binname = if platform isa Windows && !endswith(binname, ".exe")
+            "$(binname).exe"
+        else
+            ep.binname
         end
-        return nothing
-    end
 
-    # If the file is not executable, fail out (unless we're on windows since
-    # windows doesn't honor these permissions on its filesystems)
-    @static if !Sys.iswindows()
-        if uperm(path) & 0x1 == 0
-            if verbose
-                @info("$(path) is not executable, reporting unsatisfied")
+        # Join into the `dir_path` given by the executable product
+        if ep.dir_path != nothing
+            path = joinpath(prefix.path, template(joinpath(ep.dir_path, binname), platform))
+        else
+            path = joinpath(bindir(prefix), template(binname, platform))
+        end
+
+        if isfile(path)
+            # If the file is not executable, fail out (unless we're on windows since
+            # windows doesn't honor these permissions on its filesystems)
+            @static if !Sys.iswindows()
+                if uperm(path) & 0x1 == 0
+                    if verbose
+                        @info("$(path) is not executable")
+                    end
+                    continue
+                end
             end
-            return nothing
+            if verbose
+                @info("$(path) matches our search criteria of $(ep.binnames)")
+            end
+            return path
         end
     end
 
-    return path
+    if verbose
+        @info("$(ep.binnames) does not exist, reporting unsatisfied")
+    end
+    return nothing
 end
 
 """
