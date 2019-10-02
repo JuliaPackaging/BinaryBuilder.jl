@@ -24,7 +24,10 @@ abstract type Product end
 
 # We offer some simple platform-based templating
 function template(x::String, p::Platform)
+    libdir(p::Platform) = "lib"
+    libdir(p::Windows) = "bin"
     for (var, val) in [
+            ("libdir", libdir(p)),
             ("target", triplet(p)),
             ("nbits", wordsize(p)),
             ("arch", arch(p)),
