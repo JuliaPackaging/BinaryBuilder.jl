@@ -208,10 +208,10 @@ struct ExecutableProduct <: Product
     dir_path::Union{String, Nothing}
 
     """
-        ExecutableProduct(binname::AbstractString, varname::Symbol)
+        ExecutableProduct(binnames::Vector{String}, varname::Symbol)
 
     Declares an `ExecutableProduct` that points to an executable located within
-    the `bindir` of the given `Prefix`, named `binname`.
+    the `bindir` of the given `Prefix`, named one of the given `binname`s.
     """
     function ExecutableProduct(binnames::Vector{String}, varname::Symbol, dir_path::Union{AbstractString, Nothing}=nothing)
         # If some other kind of AbstractString is passed in, convert it
@@ -256,7 +256,7 @@ function locate(ep::ExecutableProduct, prefix::Prefix;
         binname = if platform isa Windows && !endswith(binname, ".exe")
             "$(binname).exe"
         else
-            ep.binname
+            binname
         end
 
         # Join into the `dir_path` given by the executable product
