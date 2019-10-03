@@ -127,6 +127,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Check to see if we've already got a wrapper package within the Registry,
         # choose a version number that is greater than anything else existent.
         build_version = get_next_wrapper_version(src_name, src_version)
+        if verbose
+            @info("Building and deploying version $(build_version)")
+        end
         repo_name = "JuliaBinaryWrappers/$(src_name)_jll.jl"
         tag = get_tag_name(src_name, build_version)
 

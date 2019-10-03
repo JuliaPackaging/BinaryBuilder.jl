@@ -218,7 +218,7 @@ struct ExecutableProduct <: Product
         if dir_path != nothing
             dir_path = string(dir_path)
         end
-        return new(string(binname), varname, dir_path)
+        return new(binnames, varname, dir_path)
     end
     ExecutableProduct(binname::AbstractString, varname::Symbol, args...) = ExecutableProduct([string(binname)], varname, args...)
 end
