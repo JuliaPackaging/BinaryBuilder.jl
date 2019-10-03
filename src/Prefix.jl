@@ -235,6 +235,15 @@ function package(prefix::Prefix,
         for f in readdir(prefix.path)
             cp(joinpath(prefix.path, f), joinpath(art_path, f))
         end
+
+        # Attempt to maintain permissions of original owning dir
+        try
+            chmod(art_path, stat(prefix.path).mode)
+        catch e
+            if verbose
+                @warn("Could not chmod $(art_path):", e)
+            end
+        end
     end
 
     # Calculate git tree hash
