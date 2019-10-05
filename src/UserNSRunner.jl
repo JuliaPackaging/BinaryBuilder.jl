@@ -26,18 +26,19 @@ function UserNSRunner(workspace_root::String;
                       extra_env=Dict{String, String}(),
                       verbose::Bool = false,
                       compiler_wrapper_path::String = mktempdir(),
+                      src_name::AbstractString = "",
                       kwargs...)
     global use_ccache, use_squashfs, runner_override
 
-	# Check that our kernel is new enough to use this runner
-	kernel_version_check()
+    # Check that our kernel is new enough to use this runner
+    kernel_version_check()
 
     # Check to make sure we're not going to try and bindmount within an
     # encrypted directory, as that triggers kernel bugs
     check_encryption(workspace_root; verbose=verbose)
 
     # Construct environment variables we'll use from here on out
-    envs = merge(platform_envs(platform; verbose=verbose), extra_env)
+    envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
     generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,))...)

@@ -505,7 +505,8 @@ function autobuild(dir::AbstractString,
                 src_paths,
                 src_hashes,
                 dependencies,
-                platform;
+                platform,
+                src_name;
                 verbose=verbose,
                 kwargs...,
             )

@@ -78,6 +78,7 @@ function QemuRunner(workspace_root::String;
                     workspaces::Vector = [],
                     extra_env=Dict{String, String}(),
                     verbose::Bool = false,
+                    src_name::AbstractString = "",
                     kwargs...)
     global use_ccache
 
@@ -92,7 +93,7 @@ function QemuRunner(workspace_root::String;
     update_qemu(;verbose=verbose)
 
     # Construct environment variables we'll use from here on out
-    envs = merge(platform_envs(platform; verbose=verbose), extra_env)
+    envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
 
     # Resource limits for QEMU.  For some reason, it seems to crash if we use too many CPUs....
     memory_limit = Int64(div(Sys.total_memory()*3, 4*1024^2))
