@@ -212,7 +212,8 @@ that can be used to launch commands within this workspace.
 """
 function setup_workspace(build_path::AbstractString, src_paths::Vector,
                          src_hashes::Vector, dependencies::Vector,
-                         platform::Platform;
+                         platform::Platform,
+                         src_name::AbstractString;
                          extra_env::Dict{String, String} =
                              Dict{String, String}(),
                          verbose::Bool = false,
@@ -240,6 +241,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             metadir => "/meta",
         ],
         compiler_wrapper_dir = wrapperdir,
+        src_name = src_name,
         extract_kwargs(kwargs, (:preferred_gcc_version,:compilers))...,
     )
 
