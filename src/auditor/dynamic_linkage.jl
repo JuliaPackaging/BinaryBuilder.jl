@@ -178,9 +178,16 @@ function should_ignore_lib(lib, ::MachOHandle)
 end
 function should_ignore_lib(lib, ::COFFHandle)
     ignore_libs = [
+        # Core runtime libs
         "msvcrt.dll",
         "kernel32.dll",
         "user32.dll",
+        "shell32.dll",
+        "shlwapi.dll"
+        "advapi32.dll",
+        "crypt32.dll",
+
+        # Compiler support libraries
         "libgcc_s_seh-1.dll",
         "libgcc_s_sjlj-1.dll",
         "libgfortran-3.dll",
@@ -188,6 +195,8 @@ function should_ignore_lib(lib, ::COFFHandle)
         "libgfortran-5.dll",
         "libstdc++-6.dll",
         "libwinpthread-1.dll",
+
+        # This one needs some special attention, eventually
         "libgomp-1.dll",
     ]
     return lowercase(basename(lib)) in ignore_libs
