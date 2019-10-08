@@ -186,6 +186,12 @@ function should_ignore_lib(lib, ::COFFHandle)
         "shlwapi.dll"
         "advapi32.dll",
         "crypt32.dll",
+        "ws2_32.dll",
+        "rpcrt4.dll"
+        "usp10.dll",
+        "dwrite.dll",
+        "gdi32.dll",
+        "comdlg32.dll",
 
         # Compiler support libraries
         "libgcc_s_seh-1.dll",
