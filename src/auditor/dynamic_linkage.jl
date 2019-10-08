@@ -179,19 +179,28 @@ end
 function should_ignore_lib(lib, ::COFFHandle)
     ignore_libs = [
         # Core runtime libs
+        "ntdll.dll",
         "msvcrt.dll",
         "kernel32.dll",
         "user32.dll",
         "shell32.dll",
-        "shlwapi.dll"
+        "shlwapi.dll",
         "advapi32.dll",
         "crypt32.dll",
         "ws2_32.dll",
-        "rpcrt4.dll"
+        "rpcrt4.dll",
         "usp10.dll",
         "dwrite.dll",
         "gdi32.dll",
+        "gdiplus.dll",
         "comdlg32.dll",
+        "secur32.dll",
+        "ole32.dll",
+        "dbeng.dll",
+        "wldap32.dll",
+        "opengl32.dll",
+        "winmm.dll",
+        "iphlpapi.dll",
 
         # Compiler support libraries
         "libgcc_s_seh-1.dll",
