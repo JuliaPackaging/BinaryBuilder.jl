@@ -157,6 +157,11 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
         if !isempty(logpath)
             # Write out the logfile, regardless of whether it was successful
             mkpath(dirname(logpath))
+
+            # Sometimes it already exists, if so just wipe it out.
+            if isfile(logpath)
+                rm(logpath; force=true)
+            end
             open(logpath, "w") do f
                 # First write out the actual command, then the command output
                 println(f, cmd)
