@@ -201,6 +201,14 @@ function should_ignore_lib(lib, ::COFFHandle)
         "opengl32.dll",
         "winmm.dll",
         "iphlpapi.dll",
+        "imm32.dll",
+        "comctl32.dll",
+        "oleaut32.dll",
+        "userenv.dll",
+        "netapi32.dll",
+        "winhttp.dll",
+        "msimg32.dll",
+        "dnsapi.dll",
 
         # Compiler support libraries
         "libgcc_s_seh-1.dll",
