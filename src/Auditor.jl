@@ -185,28 +185,14 @@ function audit(prefix::Prefix; io=stderr,
         end
     end
 
+    # Perform filesystem-related audit passes such as searching for hardcoded paths, finding
+    # case-insensitive filename conflicts, etc...
     # Search _every_ file in the prefix path to find hardcoded paths
     predicate = f -> !startswith(f, joinpath(prefix, "logs"))
     all_files = collect_files(prefix, predicate)
 
-    # Finally, check for absolute paths in any files.  This is not a "fatal"
-    # offense, as many files have absolute paths.  We want to know about it
-    # though, so we'll still warn the user.
-    for f in all_files
-        try
-            file_contents = String(read(f))
-            if occursin(prefix.path, file_contents)
-                if !silent
-                    warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
-                end
-            end
-        catch
-            if !silent
-                warn(io, "Skipping abspath scanning of $(f), as we can't open it")
-            end
-        end
-    end
-
+    check_absolute_paths(prefix, all_files; io=io)
+    check_case_sensitivity(prefix, all_files; io=io)
     return all_ok
 end
 
