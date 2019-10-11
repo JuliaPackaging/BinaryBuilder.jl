@@ -266,11 +266,11 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # Default these tools to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc)
-        @eval $(tool)(io::IO, p::Platform) = $target_tool(io, $(string(tool)); allow_ccache=false)
+        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(p), "/bin/", triplet(p), "-", $(string(tool))); allow_ccache=false)
     end
  
     # c++filt is hard to write in symbols
-    cxxfilt(io::IO, p::Platform) = target_tool(io, "c++filt"; allow_ccache=false)
+    cxxfilt(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-c++filt"; allow_ccache=false)
     cxxfilt(io::IO, p::MacOS) = wrapper(io, string("/opt/", triplet(p), "/bin/llvm-cxxfilt"); allow_ccache=false)
 
     # Overrides for macOS binutils because Apple is always so "special"
@@ -296,8 +296,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             write_wrapper(gcc, p, "$(t)-gcc")
             write_wrapper(gxx, p, "$(t)-g++")
             write_wrapper(clang, p, "$(t)-clang")
-            write_wrapper(clangxx, p,"$(t)-clang++")
-            write_wrapper(objc, p,"$(t)-objc")
+            write_wrapper(clangxx, p, "$(t)-clang++")
+            write_wrapper(objc, p, "$(t)-objc")
 
             # Someday, you will be split out
             write_wrapper(gfortran, p, "$(t)-f77")
