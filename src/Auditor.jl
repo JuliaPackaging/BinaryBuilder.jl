@@ -5,6 +5,7 @@ include("auditor/dynamic_linkage.jl")
 include("auditor/symlink_translator.jl")
 include("auditor/compiler_abi.jl")
 include("auditor/soname_matching.jl")
+include("auditor/filesystems.jl")
 
 # AUDITOR TODO LIST:
 #
@@ -185,14 +186,14 @@ function audit(prefix::Prefix; io=stderr,
         end
     end
 
-    # Perform filesystem-related audit passes such as searching for hardcoded paths, finding
-    # case-insensitive filename conflicts, etc...
-    # Search _every_ file in the prefix path to find hardcoded paths
-    predicate = f -> !startswith(f, joinpath(prefix, "logs"))
+    # Perform filesystem-related audit passes    predicate = f -> !startswith(f, joinpath(prefix, "logs"))
     all_files = collect_files(prefix, predicate)
 
-    check_absolute_paths(prefix, all_files; io=io)
-    check_case_sensitivity(prefix, all_files; io=io)
+    # Search for absolute paths in this prefix
+    all_ok &= check_absolute_paths(prefix, all_files; io=io, silent=silent)
+
+    # Search for case-sensitive ambiguities
+    all_ok &= check_case_sensitivity(prefix; io=io)
     return all_ok
 end
 
