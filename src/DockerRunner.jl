@@ -38,7 +38,7 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
 
     # Otherwise, import it!
     dockerfile_cmds = "ENTRYPOINT [\"/docker_entrypoint.sh\"]"
-    rootfs_path = mount_path(rootfs, workspace_root)
+    rootfs_path = mount(rootfs, workspace_root)
     if verbose
         @info("Importing docker base image from $(rootfs_path) to $(docker_image(rootfs))")
     end
@@ -97,7 +97,7 @@ function DockerRunner(workspace_root::String;
 
     # Add in read-only mappings and read-write workspaces
     for shard in shards[2:end]
-        outside = realpath(mount_path(shard, workspace_root))
+        outside = realpath(mount(shard, workspace_root))
         inside = map_target(shard)
         docker_cmd = `$docker_cmd -v $(outside):$(inside):ro`
     end
