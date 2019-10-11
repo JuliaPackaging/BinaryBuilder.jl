@@ -112,7 +112,7 @@ function step3_audit(state::WizardState, platform::Platform, prefix::Prefix)
     printstyled(state.outs, "\n\t\t\tAnalyzing...\n\n", bold=true)
 
     audit(prefix; io=state.outs,
-        platform=platform, verbose=true, autofix=true)
+        platform=platform, verbose=true, autofix=true, require_license=false)
 
     println(state.outs)
 end
@@ -340,7 +340,7 @@ function step5_internal(state::WizardState, platform::Platform, message)
                 msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
                 printstyled(state.outs, msg, bold=true)
 
-                audit(prefix; io=state.outs,
+                audit(prefix; io=state.outs, require_license=false,
                     platform=platform, verbose=true, autofix=true)
 
                 ok = isempty(match_files(state, prefix, platform, state.files))
@@ -527,7 +527,8 @@ function step5c(state::WizardState)
                 platform=platform,
                 verbose=false,
                 silent=true,
-                autofix=true
+                autofix=true,
+                require_license=false,
             )
 
             ok = isempty(match_files(

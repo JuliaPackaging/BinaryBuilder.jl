@@ -16,7 +16,8 @@ include("auditor/filesystems.jl")
     audit(prefix::Prefix; platform::Platform = platform_key_abi();
                           verbose::Bool = false,
                           silent::Bool = false,
-                          autofix::Bool = false)
+                          autofix::Bool = false,
+                          require_license::Bool = true)
 
 Audits a prefix to attempt to find deployability issues with the binary objects
 that have been installed within.  This auditing will check for relocatability
@@ -28,11 +29,13 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(prefix::Prefix; io=stderr,
+function audit(prefix::Prefix, src_name::AbstractString = "";
+                               io=stderr,
                                platform::Platform = platform_key_abi(),
                                verbose::Bool = false,
                                silent::Bool = false,
-                               autofix::Bool = false)
+                               autofix::Bool = false,
+                               require_license::Bool = true)
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
         verbose = false
@@ -184,6 +187,11 @@ function audit(prefix::Prefix; io=stderr,
                 mv(f, joinpath(prefix, "bin", basename(f)))
             end
         end
+    end
+
+    # Check that we're providing a license file
+    if require_license
+        all_ok &= check_license(prefix, src_name; verbose=verbose, io=io, silent=silent)
     end
 
     # Perform filesystem-related audit passes    predicate = f -> !startswith(f, joinpath(prefix, "logs"))
@@ -385,3 +393,28 @@ function collapse_symlinks(files::Vector{String})
     return filter(predicate, files)
 end
 
+"""
+    check_license(prefix, src_name; io::IO = stderr,
+                  verbose::Bool = false,, silent::Bool = false)
+
+Check that there are license files for the project called `src_name` in the `prefix`.
+"""
+function check_license(prefix::Prefix, src_name::AbstractString = "";
+                       io::IO = stderr, verbose::Bool = false, silent::Bool = false)
+    if verbose
+        info(io, "Checking license file")
+    end
+    license_dir = joinpath(prefix.path, "share", "licenses", src_name)
+    if isdir(license_dir) && length(readdir(license_dir)) >= 1
+        if verbose
+            @info "Found license file(s): " * join(readdir(license_dir), ", ")
+        end
+        return true
+    else
+        if !silent
+            warn(io, "Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
+        end
+        # This is pretty serious; don't let us get through without a license
+        return false
+    end
+end
