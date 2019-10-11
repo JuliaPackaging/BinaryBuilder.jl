@@ -207,7 +207,8 @@ end
 """
     setup_workspace(build_path::String, src_paths::Vector,
                     src_hashes::Vector, platform::Platform,
-                    extra_env::Dict{String, String};
+                    src_name::AbstractString;
+                    extra_env::Dict{String, String} = Dict{String, String}(),
                     verbose::Bool = false, tee_stream::IO = stdout,
                     downloads_dir = nothing)
 

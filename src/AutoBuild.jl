@@ -396,6 +396,7 @@ function autobuild(dir::AbstractString,
                    ignore_audit_errors::Bool = true,
                    autofix::Bool = true,
                    code_dir::Union{String,Nothing} = nothing,
+                   require_license::Bool = true,
                    kwargs...)
     # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds
     if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
@@ -621,8 +622,9 @@ function autobuild(dir::AbstractString,
 
             # Run an audit of the prefix to ensure it is properly relocatable
             if !skip_audit
-                audit_result = audit(prefix; platform=platform,
-                                             verbose=verbose, autofix=autofix) 
+                audit_result = audit(prefix, src_name;
+                                     platform=platform, verbose=verbose,
+                                     autofix=autofix, require_license=require_license)
                 if !audit_result && !ignore_audit_errors
                     msg = replace("""
                     Audit failed for $(prefix.path).
