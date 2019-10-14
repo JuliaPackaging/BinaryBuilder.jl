@@ -79,7 +79,8 @@ struct LibraryProduct <: Product
     libnames::Vector{String}
     variable_name::Symbol
     dir_paths::Vector{String}
-    dont_dlopen::Bool
+    try_dlopen::Bool
+    dlopen_flags::Vector{Symbol}
 
     """
         LibraryProduct(libnames, varname::Symbol)
@@ -100,9 +101,22 @@ struct LibraryProduct <: Product
     LibraryProduct(libname::AbstractString, varname, args...; kwargs...) = LibraryProduct([libname], varname, args...; kwargs...)
     function LibraryProduct(libnames::Vector{<:AbstractString}, varname::Symbol,
                             dir_paths::Vector{<:AbstractString}=String[];
-                            dont_dlopen::Bool=false)
+                            try_dlopen::Bool=true,
+                            dlopen_flags::Vector{Symbol}=Symbol[])
+        # catch invalid flags as early as possible
+        for flag in dlopen_flags
+            isdefined(Libdl, flag) || error("Libdl.$flag is not a valid flag")
+        end
         # If some other kind of AbstractString is passed in, convert it
-        return new([string(l) for l in libnames], varname, string.(dir_paths), dont_dlopen)
+        return new([string(l) for l in libnames], varname, string.(dir_paths), try_dlopen, dlopen_flags)
+    end
+end
+
+function dlopen_str(dl_path::String, dlopen_flags::Vector{Symbol}=Symbol[])
+    if length(dlopen_flags) > 0
+        return "Libdl.dlopen(\"$dl_path\", $(join(dlopen_flags, " | ")))"
+    else
+        return "Libdl.dlopen(\"$dl_path\")"
     end
 
     LibraryProduct(meta_obj::Dict) = new(
