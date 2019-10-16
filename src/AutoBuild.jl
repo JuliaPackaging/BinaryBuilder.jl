@@ -788,14 +788,14 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                     env_mapping = Dict{String,String}()
                     if adjust_PATH
                         if !isempty(get(ENV, "PATH", ""))
-                            env_mapping["PATH"] = string(ENV["PATH"], $(repr(pathsep)), PATH)
+                            env_mapping["PATH"] = string(PATH, $(repr(pathsep)), ENV["PATH"])
                         else
                             env_mapping["PATH"] = PATH
                         end
                     end
                     if adjust_LIBPATH
                         if !isempty(get(ENV, LIBPATH_env, ""))
-                            env_mapping[LIBPATH_env] = string(ENV[LIBPATH_env], $(repr(pathsep)), LIBPATH)
+                            env_mapping[LIBPATH_env] = string(LIBPATH, $(repr(pathsep)) ENV[LIBPATH_env])
                         else
                             env_mapping[LIBPATH_env] = LIBPATH
                         end
