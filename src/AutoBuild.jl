@@ -795,7 +795,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                     end
                     if adjust_LIBPATH
                         if !isempty(get(ENV, LIBPATH_env, ""))
-                            env_mapping[LIBPATH_env] = string(LIBPATH, $(repr(pathsep)) ENV[LIBPATH_env])
+                            env_mapping[LIBPATH_env] = string(LIBPATH, $(repr(pathsep)), ENV[LIBPATH_env])
                         else
                             env_mapping[LIBPATH_env] = LIBPATH
                         end
