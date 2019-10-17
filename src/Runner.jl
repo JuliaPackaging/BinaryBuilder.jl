@@ -580,8 +580,6 @@ function preferred_runner()
     if runner_override != ""
         if runner_override in ["userns", "privileged"]
             return UserNSRunner
-        elseif runner_override in ["qemu"]
-            return QemuRunner
         elseif runner_override in ["docker"]
             return DockerRunner
         end
@@ -590,7 +588,7 @@ function preferred_runner()
     @static if Sys.islinux()
         return UserNSRunner
     else
-        return QemuRunner
+        return DockerRunner
     end
 end
 

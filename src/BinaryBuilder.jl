@@ -24,7 +24,6 @@ include("Runner.jl")
 include("Rootfs.jl")
 include("squashfs_utils.jl")
 include("UserNSRunner.jl")
-include("QemuRunner.jl")
 include("DockerRunner.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
@@ -85,7 +84,7 @@ function __init__()
     if runner_override == "unprivileged"
         runner_override = "userns"
     end
-    if !(runner_override in ["", "userns", "qemu", "privileged", "docker"])
+    if !(runner_override in ["", "userns", "privileged", "docker"])
         @warn("Invalid runner value $runner_override, ignoring...")
         runner_override = ""
     end
@@ -105,11 +104,9 @@ function __init__()
             use_squashfs = true
         end
 
-        # If it hasn't been specified but we're going to use the QEMU runner,
+        # If it hasn't been specified but we're going to use the docker runner,
         # then set `use_squashfs` to `true` here.
-        if preferred_runner() == QemuRunner
-            use_squashfs = true
-        elseif preferred_runner() == DockerRunner
+        if preferred_runner() == DockerRunner
             # Conversely, if we're dock'ing it up, don't use it.
             use_squashfs = false
         elseif runner_override == "privileged"

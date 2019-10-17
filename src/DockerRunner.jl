@@ -1,9 +1,8 @@
 """
     DockerRunner
 
-A `DockerRunner` represents Elliot's bowing of his head to the inevitability
-that the QemuRunner just isn't ready for primetime yet, and he needs something
-to use while he's on the plane to JuliaCon to whip up said JuliaCon presentation.
+Use `docker` as an execution engine; a reasonable backup for platforms that do
+not have user namespaces (e.g. MacOS, Windows).
 """
 mutable struct DockerRunner <: Runner
     docker_cmd::Cmd

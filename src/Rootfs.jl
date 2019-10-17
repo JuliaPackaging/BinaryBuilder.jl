@@ -2,43 +2,10 @@ export supported_platforms, expand_gcc_versions, expand_gfortran_versions, expan
 
 import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
-## The build environment is broken up into multiple parts:
-#
-#  * RootFS - Host-only tools such as `bash`, `make`, `cmake`, etc....
-#  * BaseCompilerShard - Target-specific binutils, libc, etc....
-#  * GCC - Target-and-ABI-specific GCC compilers
-#  * LLVM - Target-nonspecific clang compilers
-#
-# Given a `Platform`, we determine the set of shards to mount in to the
-# sandbox for that `Platform`.  If there are multiple possible options,
-# (e.g. the Platform sets no ABI requirement) the oldest compiler possible 
-# is used by default, for libstdc++ compatibility reasons.  (Even though we
-# ship a very recent version of libstdc++ with Julia, we need to ensure that
-# our binaries are as compatible as possible for custom builds)
-#
-# Each chunk of the build environment (referred to as a `shard`) is served
-# as either a `.tar.gz` file or a `.squashfs` file.  While `.squashfs` files
-# are desirable for multiple reasons (smaller download size, no need to unpack
-# on the host filesystem taking up disk space) they currently require `sudo`
-# privileges to mount on Linux machines, and as such cannot be used in the
-# unprivileged user namespace setting, which is what we most often use.
-# We therefore support downloading `.squashfs` files when a privileged
-# usernamespace or qemu runnre is being used.
-#
-# Shards are downloaded to `<storage_dir>/downloads`, unpacked (in the case
-# of `.tar.gz` files) to `<storage_dir>/mounts` or mounted to
-# `<storage_dir>/mounts`.  We must take a little care when dealing with this
-# mixture of unpacked and mounted shards (especially when switching Runner
-# backends, as they will often cause the shard storage type to change!) but
-# it's still desirable as it cuts down on the complexity of needing to change
-# which paths are being mounted based on the archive type of the shard, etc...
-
-
-
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
 struct CompilerShard
-    # Something like "RootFS", or "GCC"
+    # Something like "RootFS", or "GCCBootstrap"
     name::String
     
     # Something like v"7.1.0"
@@ -47,7 +14,7 @@ struct CompilerShard
     # Things like Windows(:x86_64; compiler_abi=CompilerABI(libgfortran_version=v"3"))
     target::Union{Nothing,Platform}
 
-    # Usually `Linux(:x86_64, libc=:musl)`, but for things like QEMU could be MacOS(:x86_64)
+    # Usually `Linux(:x86_64, libc=:musl)`, with the NOTABLE exception of `Rust`
     host::Platform
     
     # :unpacked or :squashfs.  Possibly more in the future.
