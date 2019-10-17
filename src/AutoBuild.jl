@@ -591,7 +591,7 @@ function autobuild(dir::AbstractString,
 
             # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
             if [ \$(basename \$0) = "bash" ]; then
-                trap "save_env" EXIT
+                trap "auto_install_license; save_env" EXIT
                 trap "RET=\$?; trap - DEBUG; echo Previous command exited with \$RET >&2; save_env; save_srcdir" INT TERM ERR
 
                 # Swap out srcdir from underneath our feet if we've got our `ERR`
