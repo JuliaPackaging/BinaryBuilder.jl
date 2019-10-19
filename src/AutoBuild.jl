@@ -588,12 +588,11 @@ function autobuild(dir::AbstractString,
             # Stop if we hit any errors.
             set -e
 
-            # NABIL TODO: Move this into the Rootfs
             # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
             if [ \$(basename \$0) = "bash" ]; then
                 trap save_history DEBUG
                 trap "save_env" EXIT
-                trap "save_env; save_srcdir" INT TERM ERR
+                trap "RET=\$?; trap - DEBUG; echo Previous command exited with \$RET >&2; save_env; save_srcdir" INT TERM ERR
 
                 # Swap out srcdir from underneath our feet if we've got our `ERR`
                 # traps set; if we don't have this, we get very confused.  :P
@@ -601,7 +600,7 @@ function autobuild(dir::AbstractString,
             else
                 # If we're running in `sh` or something like that, we need a
                 # slightly slimmer set of traps. :(
-                trap "save_env" EXIT INT TERM
+                trap "echo Previous command exited with \$? >&2; save_env" EXIT INT TERM
             fi
 
             $(script)
