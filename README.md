@@ -11,6 +11,7 @@
 
 1. Install `BinaryBuilder`
 ```
+import Pkg
 Pkg.add("BinaryBuilder")
 ```
 
