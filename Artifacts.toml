@@ -1452,24 +1452,24 @@ os = "linux"
 
 [["LLVMBootstrap.v8.0.0.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "18cfa22c38e98d27dde8f298b077a5607ca948be"
+git-tree-sha1 = "76757b0e93b8975bcac6378f524ffacec1edfca7"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["LLVMBootstrap.v8.0.0.x86_64-linux-musl.squashfs".download]]
-    sha256 = "8c33f7500d5050519b606bfa17f3dea7b8d5275d2a684691503621f367805810"
+    sha256 = "465adcff9b5b35aa7964c3a87587e70b667d8d7886e06d365899bb9c3b83dc4e"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v8.0.0+0/LLVMBootstrap.v8.0.0.x86_64-linux-musl.squashfs.tar.gz"
 
 [["LLVMBootstrap.v8.0.0.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "a2ee62c58a436ef3c6405c77ac00477d82dc967f"
+git-tree-sha1 = "4a2898dd43f5f7141ff186a5c671abd79a91355c"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["LLVMBootstrap.v8.0.0.x86_64-linux-musl.unpacked".download]]
-    sha256 = "cfbd97a6e319718473a4093b83e69dc793939f2253fde82a41367798e0d08a42"
+    sha256 = "0cb9b65101fa52a98f5156767deb889e10bf4279ed29dc23733f0579c2b5728d"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v8.0.0+0/LLVMBootstrap.v8.0.0.x86_64-linux-musl.unpacked.tar.gz"
 
 [["PlatformSupport-aarch64-linux-gnu.v2019.10.11.x86_64-linux-musl.squashfs"]]
@@ -1758,27 +1758,27 @@ os = "linux"
     sha256 = "4b52608c0c63585399ff8d50257ad93f0f061ac080e30c37954841f154dd50b5"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.10.11+0/PlatformSupport-x86_64-w64-mingw32.v2019.10.11.x86_64-linux-musl.unpacked.tar.gz"
 
-[["Rootfs.v2019.10.22.x86_64-linux-musl.squashfs"]]
+[["Rootfs.v2019.10.24.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "f60797852e08506ca0ffb64f49d5ebc9fefe7c6d"
+git-tree-sha1 = "87f646a6364a50e3a4fc40903e17930c8701c41a"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.10.22.x86_64-linux-musl.squashfs".download]]
-    sha256 = "200cc33d0e80d3cba002ba048d5c80c6e66b0605174cc8fefd2b56aceddcc4de"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.22+0/Rootfs.v2019.10.22.x86_64-linux-musl.squashfs.tar.gz"
+    [["Rootfs.v2019.10.24.x86_64-linux-musl.squashfs".download]]
+    sha256 = "00bfe6ccbc62c63b1451af4351b2d8191db905aa1bcdf6a807ad5bd84549591b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.24+0/Rootfs.v2019.10.24.x86_64-linux-musl.squashfs.tar.gz"
 
-[["Rootfs.v2019.10.22.x86_64-linux-musl.unpacked"]]
+[["Rootfs.v2019.10.24.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "7edeb85f219f158ec275ae29c296723101c312a7"
+git-tree-sha1 = "7921cc82d5a2eb390ea084f22d79c983d6bf6770"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.10.22.x86_64-linux-musl.unpacked".download]]
-    sha256 = "178dd6c4e84ce6fa4b4e54633d862168b57d15071067558b35e9034da04144fb"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.22+0/Rootfs.v2019.10.22.x86_64-linux-musl.unpacked.tar.gz"
+    [["Rootfs.v2019.10.24.x86_64-linux-musl.unpacked".download]]
+    sha256 = "11a3221a21a23e4eadcf9966aa78cd317dbf2ffb0ede5eab74ac0375cdc7e1cd"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.24+0/Rootfs.v2019.10.24.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustBase.v1.18.3.x86_64-linux-gnu.squashfs"]]
 arch = "x86_64"
