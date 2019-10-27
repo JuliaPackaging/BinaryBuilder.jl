@@ -96,7 +96,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # If we're given link-only flags, include them only if `-c` is not provided.
         if !isempty(link_only_flags)
             println(io)
-            println(io, "if [[ \"\$@\" != *' -c '* ]] && [[ \"\$@\" != *' -E '* ]] && [[ \"\$@\" != *' -M '* ]]; then")
+            println(io, "if [[ \" \$@ \" != *' -c '* ]] && [[ \" \$@ \" != *' -E '* ]] && [[ \" \$@ \" != *' -M '* ]]; then")
             for lf in link_only_flags
                 println(io, "    POST_FLAGS+=( '$lf' )")
             end
