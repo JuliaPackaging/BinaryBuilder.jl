@@ -751,6 +751,11 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 end
             end
 
+            # If we're targeting windows, we need to add Julia's `bin` path onto PATH.
+            if platform isa Windows
+                println(io, "    push!(LIBPATH_list, Sys.BINDIR)")
+            end
+
             println(io, """
                 # Filter out duplicate and empty entries in our PATH and LIBPATH entries
                 filter!(!isempty, unique!(PATH_list))
