@@ -644,6 +644,21 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 vp = variable_name(p)
                 # An executable product's public interface is a do-block wrapper function
                 return """
+                \"\"\"
+                    $(vp)(f::Function; adjust_PATH=true, adjust_LIBPATH=true)
+
+                Wrapper to make calling executables easier.  This method will set up important environment
+                variables such as `PATH` and `LD_LIBRARY_PATH` such that invoking an executable within
+                this JLL package can find its recursive dependencies.  It will set up the environment
+                variables appropriately, then invoke the given function, giving rise to a convenient API:
+
+                    $(vp)() do exe_path
+                        run(`$exe_path arg1 arg2`)
+                    end
+
+                To disable manipulating `PATH` or `LD_LIBRARY_PATH`/`DYLD_FALLBACK_LIBRARY_PATH`, set the
+                `adjust_PATH` or `adjust_LIBPATH` values to `false`.
+                \"\"\"
                 function $(vp)(f::Function; adjust_PATH::Bool = true, adjust_LIBPATH::Bool = true)
                     global PATH, LIBPATH
                     env_mapping = Dict{String,String}()
@@ -697,7 +712,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
 
             print(io, """
             \"\"\"
-            Open all libraries
+            Open all libraries, set up PATH and LD_LIBRARY_PATH, and whatnot.
             \"\"\"
             function __init__()
                 global prefix = abspath(joinpath(@__DIR__, ".."))
