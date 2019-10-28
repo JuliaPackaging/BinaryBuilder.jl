@@ -50,16 +50,14 @@ function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false
         error("Compiler shard $(name) not found in $(artifacts_toml)")
     end
 
-    # We now generate a name that will be bound within the current artifacts_toml file
+    # We now generate a name that will be bound within `MutableArtifacts.toml`.
     # This name encodes not only which artifact we're using, but also the source hash
     # and the desired UID.  This allows us to intelligently cache output from a name
     # that is tied to a specific version of the input, and all build options.
-    mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
     cache_name = "$(name)_$(bytes2hex(progenitor_hash.bytes[end-8:end]))_$(new_uid)"
-    cache_hash = artifact_hash(cache_name, mutable_artifacts_toml)
 
     # If this name isn't bound to anything, then create it by remapping the UIDs
-    if cache_hash === nothing
+    if get_mutable_artifact_path(cache_name) === nothing
         # Grab the progenitor path, downloading it if necessary
         progenitor_path = joinpath(artifact_path(progenitor_hash), name)
 
@@ -68,7 +66,7 @@ function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false
         end
 
         # Create a new artifact that has the modified `.squashfs` file within it
-        cache_hash = create_artifact() do dir
+        create_and_bind_mutable_artifact!(cache_name) do dir
             # Copy .squashfs file over to our local directory, make it writable
             cp(progenitor_path, joinpath(dir, name))
             chmod(joinpath(dir, name), 0o644)
@@ -110,12 +108,9 @@ function generate_per_uid_squashfs(cs, new_uid = getuid(); verbose::Bool = false
                write(file, UInt32(new_uid))
             end
         end
-
-        # Then, bind the encoded name to this hash within the MutableArtifacts.toml mapping
-        bind_artifact!(mutable_artifacts_toml, cache_name, cache_hash; force=true)
     end
 
     # Finally, get the path to that cached artifact
-    return joinpath(artifact_path(cache_hash), name)
+    return joinpath(get_mutable_artifact_path(cache_name), name)
 end
 

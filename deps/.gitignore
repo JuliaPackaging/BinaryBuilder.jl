@@ -1,9 +1,5 @@
-# Ignore rootfs artifacts
-downloads/
-ccache/
+# Ignore Yggdrasil clone
+Yggdrasil
 
-# Ignore state cache
-wizard.state
-
-# Ignore build.log (lel)
-build.log
+# Ignore ccache
+ccache

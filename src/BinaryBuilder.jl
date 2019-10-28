@@ -28,21 +28,6 @@ include("DockerRunner.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
-# This is a global github authentication token that is set the first time
-# we authenticate and then reused
-const _github_auth = Ref{GitHub.Authorization}()
-
-function github_auth()
-    if !isassigned(_github_auth)
-        # If the user is feeding us a GITHUB_TOKEN token, use it!
-        if length(get(ENV, "GITHUB_TOKEN", "")) == 40
-            _github_auth[] = GitHub.authenticate(ENV["GITHUB_TOKEN"])
-        else
-            _github_auth[] = GitHub.AnonymousAuth()
-        end
-    end
-    return _github_auth[]
-end
 
 # This is the location that all binary builder-related files are stored under.
 # downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....

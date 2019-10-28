@@ -1,3 +1,18 @@
+
+function nonempty_line_prompt(name, msg; ins=stdin, outs=stdout, force_identifier=false)
+    val = ""
+    while true
+        print(outs, msg, "\n> ")
+        val = strip(readline(ins))
+        println(outs)
+        if !isempty(val) && (!force_identifier || Base.isidentifier(val))
+            break
+        end
+        printstyled(outs, "$(name) may not be empty!\n", color=:red)
+    end
+    return val
+end
+
 """
     normalize_name(file::AbstractString)
 
@@ -43,7 +58,6 @@ function filter_object_files(files)
 
             # If something else wrong then rethrow that error and pass it up
             rethrow(e)
-            return false
         end
     end
 end
@@ -105,9 +119,14 @@ function edit_script(state::WizardState, script::AbstractString)
         ur = preferred_runner()(
             prefix.path,
             cwd = "/workspace/",
-            platform = Linux(:x86_64))
-        run_interactive(ur, `/usr/bin/vi /workspace/script`;
-                        stdin=state.ins, stdout=state.outs, stderr=state.outs)
+            platform = Linux(:x86_64),
+        )
+        run_interactive(ur,
+            `/usr/bin/vim /workspace/script`;
+            stdin=state.ins,
+            stdout=state.outs,
+            stderr=state.outs,
+        )
 
         # Once the user is finished, read the script back in
         script = String(read(path))
@@ -140,222 +159,31 @@ function yn_prompt(state::WizardState, question::AbstractString, default = :y)
     end
 end
 
-function script_for_dep(dep, install_dir)
-    # If dep is a pair, peel it to override install_dir
-    if isa(dep, Pair)
-        dep, install_dir = dep
-    end
-
-    # Since remote dependencies are most common, we default plain strings to
-    # this in order to keep the build scripts small
-    if isa(dep, String)
-        dep = RemoteBuildDependency(dep, nothing)
-    end
-
-    if isa(dep, InlineBuildDependency)
-        script = dep.script
-    elseif isa(dep, RemoteBuildDependency)
-        script = dep.script === nothing ? String(HTTP.get(dep.url).body) :
-            dep.script
-    elseif isa(dep, TarballDependency)
-        script = """
-        # TODO NABIL: get rid of this
-        prefix = Prefix(ARGS[1])
-        install($(repr(dep.url)), $(repr(dep.hash)); prefix=prefix, force=true)
-        download_info = Dict(platform_key_abi() => ($(repr(dep.url)), $(repr(dep.hash))))
-        """
-    end
-    return script, install_dir
-end
-
-function symlink_tree(src::AbstractString, dest::AbstractString)
-    for (root, dirs, files) in walkdir(src)
-        # Create all directories
-        for d in dirs
-            mkpath(joinpath(dest, relpath(root, src), d))
-        end
-
-        # Symlink all files
-        for f in files
-            src_file = joinpath(root, f)
-            dest_file = joinpath(dest, relpath(root, src), f)
-            if isfile(dest_file)
-                dest_artifact_source = abspath(dest_file)
-                while occursin(".artifacts", dest_artifact_source) && basename(dirname(dest_artifact_source)) != ".artifacts"
-                    dest_artifact_source = dirname(dest_artifact_source)
-                end
-                @warn("Symlink $(f) from artifact $(basename(src)) already exists in artifact $(basename(dest_artifact_source))")
-            else
-                symlink(relpath(src_file, dirname(dest_file)), dest_file)
-            end
-        end
-    end
-end
-
-function unsymlink_tree(src::AbstractString, dest::AbstractString)
-    for (root, dirs, files) in walkdir(src)
-        # Unsymlink all files, directories will be culled in audit
-        for f in files
-            dest_file = joinpath(dest, relpath(root, src), f)
-            if islink(dest_file)
-                rm(dest_file)
-            end
-        end
-    end
-end
-
-"""
-    setup_workspace(build_path::String, src_paths::Vector,
-                    src_hashes::Vector, platform::Platform,
-                    src_name::AbstractString;
-                    extra_env::Dict{String, String} = Dict{String, String}(),
-                    verbose::Bool = false, tee_stream::IO = stdout,
-                    downloads_dir = nothing)
-
-Sets up a workspace within `build_path`, creating the directory structure
-needed by further steps, unpacking the source within `build_path`, and defining
-the environment variables that will be defined within the sandbox environment.
-
-This method returns the `Prefix` to install things into, and the runner
-that can be used to launch commands within this workspace.
-"""
-function setup_workspace(build_path::AbstractString, src_paths::Vector,
-                         src_hashes::Vector, dependencies::Vector,
-                         platform::Platform,
-                         src_name::AbstractString;
-                         extra_env::Dict{String, String} =
-                             Dict{String, String}(),
-                         verbose::Bool = false,
-                         tee_stream::IO = stdout,
-                         kwargs...)
-    # Use a random nonce to make detection of paths in embedded binary easier
-    nonce = randstring()
-    mkdir(joinpath(build_path, nonce))
-
-    # We now set up two directories, one as a source dir, one as a dest dir
-    srcdir = joinpath(build_path, nonce, "srcdir")
-    destdir = joinpath(build_path, nonce, "destdir")
-    metadir = joinpath(build_path, nonce, "metadir")
-    wrapperdir = joinpath(build_path, nonce, "compiler_wrappers")
-    mkdir(srcdir); mkdir(destdir); mkdir(metadir)
-
-    # Create a runner to work inside this workspace with the nonce built-in
-    ur = preferred_runner()(
-        joinpath(build_path, nonce);
-        cwd = "/workspace/srcdir",
-        platform = platform,
-        extra_env = extra_env,
-        verbose = verbose,
-        workspaces = [
-            metadir => "/meta",
-        ],
-        compiler_wrapper_dir = wrapperdir,
-        src_name = src_name,
-        extract_kwargs(kwargs, (:preferred_gcc_version,:compilers))...,
-    )
-
-    # For each source path, unpack it
-    for (src_path, src_hash) in zip(src_paths, src_hashes)
-        if isdir(src_path)
-            # Chop off the `.git` at the end of the src_path
-            repo_dir = joinpath(srcdir, basename(src_path)[1:end-4])
-            LibGit2.with(LibGit2.clone(src_path, repo_dir)) do repo
-                LibGit2.checkout!(repo, src_hash)
-            end
-        else
-            # Extract with host tools because it is _much_ faster on e.g. OSX.
-            # If this becomes a compatibility problem, we'll just have to install
-            # our own `tar` and `unzip` through BP as dependencies for BB.
-            tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
-                              ".tar.xz", ".tar.Z", ".txz"]
-            cd(joinpath(build_path, nonce, "srcdir")) do
-                if any(endswith(src_path, ext) for ext in tar_extensions)
-                    if verbose
-                        @info "Extracting tarball $(basename(src_path))..."
-                    end
-                    tar_flags = verbose ? "xvof" : "xof"
-                    run(`tar $(tar_flags) $(src_path)`)
-                elseif endswith(src_path, ".zip")
-                    if verbose
-                        @info "Extracting zipball $(basename(src_path))..."
-                    end
-                    run(`unzip -q $(src_path)`)
-               else
-                   if verbose
-                       @info "Copying in $(basename(src_path))..."
-                   end
-                   cp(src_path, basename(src_path))
-                end
-            end
-        end
-    end
-
-    # # For each dependency, install it into the prefix
-    # for dep in dependencies
-    #     script, install_dir = script_for_dep(dep, destdir)
-    #     m = Module(:__anon__)
-    #     Core.eval(m, quote
-    #         using Pkg
-
-    #         # Force the script to download for this platform.
-    #         platform_key() = $platform
-    #         platform_key_abi() = $platform
-
-    #         # We don't want any deps files being written out
-    #         function write_deps_file(args...; kwargs...) end
-
-    #         # Override @__DIR__ to return the destination directory,
-    #         # so that things get installed into there.  This is a protection
-    #         # against older scripts that ignore `ARGS[1]`, which is set below.
-    #         # Eventually we should be able to forgo this skullduggery.
-    #         macro __DIR__(args...); return $destdir; end
-
-    #         # Override install() to cache in our downloads directory, to
-    #         # ignore platforms, and to be verbose if we want it to be.
-    #         function install(url, hash; kwargs...)
-    #             BinaryProvider.install(url, hash;
-    #                 tarball_path=joinpath($downloads_dir, string(hash, "-", basename(url))),
-    #                 ignore_platform=true,
-    #                 verbose=$verbose,
-    #                 kwargs...,
-    #             )
-    #         end
-
-    #         ARGS = [$install_dir]
-    #     end)
-    #     include_string(m, script)
-    # end
-
-    # Return the prefix and the runner
-    return Prefix(destdir), ur
-end
-
 """
     Change the script. This will invalidate all platforms to make sure we later
     verify that they still build with the new script.
 """
 function change_script!(state, script)
-    state.history = script
+    state.history = strip(script)
     empty!(state.validated_platforms)
 end
 
 function print_wizard_logo(outs)
     logo = raw"""
 
-            o      `.
-           o*o      \'-_                 00000000: 01111111 $.
-             \\      \;"".     ,;.--*    00000001: 01000101 $E
-              \\     ,\''--.--'/         00000003: 01001100 $L
-              :=\--<' `""  _   |         00000003: 01000110 $F
-              ||\\     `" / ''--         00000004: 00000010  .
-              `/_\\,-|    |              00000005: 00000001  .
-                  \\/     L
-                   \\ ,'   \
-                 _/ L'   `  \
-                /  /    /   /          Julia Binzard
-               /  /    |    \          JuliaPackaging/BinaryBuilder.jl
-              "_''--_-''---__=;
-
+        o      `.
+       o*o      \'-_               00000000: 01111111  $.
+         \\      \;"".     ,;.--*  00000001: 01000101  $E
+          \\     ,\''--.--'/       00000003: 01001100  $L
+          :=\--<' `""  _   |       00000003: 01000110  $F
+          ||\\     `" / ''--       00000004: 00000010  .
+          `/_\\,-|    |            00000005: 00000001  .
+              \\/     L
+               \\ ,'   \             
+             _/ L'   `  \          Join us in the #binarybuilder channel on the
+            /  /    /   /          community slack: https://julialang.slack.com
+           /  /    |    \            
+          "_''--_-''---__=;        https://github.com/JuliaPackaging/BinaryBuilder.jl
     """
 
     blue    = "\033[34m"
@@ -364,15 +192,23 @@ function print_wizard_logo(outs)
     magenta = "\033[35m"
     normal  = "\033[0m\033[0m"
 
+    # These color codes are annoying to embed, just run replacements here
     logo = replace(logo, " o " => " $(green)o$(normal) ")
     logo = replace(logo, "o*o" => "$(red)o$(blue)*$(magenta)o$(normal)")
-
     logo = replace(logo, ".--*" => "$(red).$(green)-$(magenta)-$(blue)*$(normal)")
 
-    logo = replace(logo, "\$." => " $(blue).$(normal)")
-    logo = replace(logo, "\$E" => " $(red)E$(normal)")
-    logo = replace(logo, "\$L" => " $(green)L$(normal)")
-    logo = replace(logo, "\$F" => " $(magenta)F$(normal)")
+    logo = replace(logo, "\$." => "$(blue).$(normal)")
+    logo = replace(logo, "\$E" => "$(red)E$(normal)")
+    logo = replace(logo, "\$L" => "$(green)L$(normal)")
+    logo = replace(logo, "\$F" => "$(magenta)F$(normal)")
+    logo = replace(logo, "#binarybuilder" => "$(green)#binarybuilder$(normal)")
+    logo = replace(logo, "https://julialang.slack.com" => "$(green)https://julialang.slack.com$(normal)")
 
-    print(outs, logo)
+    println(outs, logo)
+
+    println(outs,
+        "Welcome to the BinaryBuilder wizard.  ",
+        "We'll get you set up in no time."
+    )
+    println(outs)
 end

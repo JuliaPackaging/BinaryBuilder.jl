@@ -4,13 +4,14 @@
 Print a hint for projets that use autoconf to have a good `./configure` line.
 """
 function print_autoconf_hint(state::WizardState)
-    print(state.outs, "     The recommended options for GNU Autoconf are")
-    print(state.outs, " `")
-    printstyled(state.outs, "./configure --prefix=\$prefix --host=\$target", bold=true)
-    println(state.outs, "`")
+    println(state.outs, "    The recommended options for GNU Autoconf are:")
+    println(state.outs)
+    printstyled(state.outs, "      ./configure --prefix=\${prefix} --build=\${MACHTYPE} --host=\${target}", bold=true)
+    println(state.outs)
+    println(state.outs)
     println(state.outs, "    followed by `make` and `make install`. Since the prefix environment")
     println(state.outs, "    variable is set already, this will automatically perform the installation")
-    println(state.outs, "    into the correct directory.\n")
+    println(state.outs, "    into the correct directory.")
 end
 
 """
@@ -21,8 +22,7 @@ building the binary bounty they so richly desire.
 """
 function provide_hints(state::WizardState, path::AbstractString)
     files = readdir(path)
-    println(state.outs,
-        "You have the following contents in your working directory:")
+    println(state.outs, "You have the following contents in your working directory:")
     println(state.outs, join(map(x->string("  - ", x),files),'\n'))
     printed = false
     function start_hints()

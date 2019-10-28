@@ -7,36 +7,43 @@ import PkgLicenses
 using JSON
 using MbedTLS
 using JLD2
+using Pkg.BinaryPlatforms
 
-# It's Magic!
+# It's Magic (TM)!
 export run_wizard
 
 include("wizard/state.jl")
+include("wizard/github.jl")
+include("wizard/yggdrasil.jl")
 include("wizard/utils.jl")
 include("wizard/obtain_source.jl")
 include("wizard/interactive_build.jl")
 include("wizard/deploy.jl")
 
-# This is here so that if the wizard crashes, we may have a shot at resuming.
-wizard_cache_path = joinpath(dirname(dirname(pathof(@__MODULE__))), "deps", "wizard.state")
 function save_last_wizard_state(state::WizardState)
-    global wizard_cache_path
-    jldopen(wizard_cache_path, "w") do f
-        serialize(f, state)
+    create_and_bind_mutable_artifact!("wizard_state") do dir
+        jldopen(joinpath(dir, "wizard.state"), "w") do f
+            serialize(f, state)
+        end
     end
-
     return state
 end
 
 function load_last_wizard_state()
-    global wizard_cache_path
-    try
-        state = jldopen(wizard_cache_path, "r") do f
+    wizard_state_dir = get_mutable_artifact_path("wizard_state")
+
+    # If no state dir exists, early-exit
+    if wizard_state_dir === nothing
+        return WizardState()
+    end
+
+    try 
+        state = jldopen(joinpath(wizard_state_dir, "wizard.state"), "r") do f
             return unserialize(f)
         end
 
+        # Looks like we had an incomplete build; ask the user if they want to continue
         if !(state.step in (:done, :step1))
-            # Looks like we had an incomplete build; ask the user if they want to continue it
             terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
             choice = request(terminal,
                 "Would you like to resume the previous incomplete wizard run?",
@@ -52,8 +59,13 @@ function load_last_wizard_state()
                 return WizardState()
             end
         end
-    catch
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
+        @error(e)
     end
+    
     # Either something went wrong, or there was nothing interesting stored.
     # Either way, just return a blank slate.
     return WizardState()
@@ -66,14 +78,6 @@ function run_wizard(state::Union{Nothing,WizardState} = nothing)
         # If we weren't given a state, check to see if we'd like to resume a
         # previous run or start from scratch again.
         state = load_last_wizard_state()
-    end
-
-    if state.step == :step1
-        print_wizard_logo(state.outs)
-
-        println(state.outs,
-            "Welcome to the BinaryBuilder wizard.\n"*
-            "We'll get you set up in no time.\n")
     end
 
     try

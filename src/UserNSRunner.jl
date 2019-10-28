@@ -197,11 +197,11 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
     end
 
     if verbose
-        @info("About to run: $(cmd)")
+        @debug("About to run: $(cmd)")
     end
 
     try
-        mount_shards(ur)
+        mount_shards(ur; verbose=verbose)
         if stdout isa IOBuffer
             if !(stdin isa IOBuffer)
                 stdin = devnull
@@ -322,7 +322,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
     return mktempdir() do tmpdir
         try
             # Construct an extremely simple sandbox command
-            mpath = mount(root_shard, tmpdir)
+            mpath = mount(root_shard, tmpdir; verbose=verbose)
             sandbox_cmd = `$(mpath)/sandbox --rootfs $(mpath)`
             cmd = `$(sandbox_cmd) -- /bin/sh -c "echo hello julia"`
 

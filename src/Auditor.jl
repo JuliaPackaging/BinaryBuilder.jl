@@ -177,7 +177,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # indicative of a simplistic build system that just don't know any
         # better with regards to windows, rather than a complicated beast.
         outside_dll_files = [f for f in shlib_files if !(f in lib_dll_files)]
-        if autofix && isempty(outside_dll_files)
+        if autofix && !isempty(lib_dll_files) && isempty(outside_dll_files)
             if !silent
                 warn(io, "Simple buildsystem detected; Moving all `.dll` files to `bin`!")
             end

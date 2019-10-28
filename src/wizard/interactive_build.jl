@@ -10,8 +10,10 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
                build_path::AbstractString, prefix::Prefix)
     printstyled(state.outs, "\t\t\t# Step 4: Select build products\n\n", bold=true)
 
-    # Collect all executable/library files
-    files = collapse_symlinks(collect_files(prefix; exculuded_files=state.dependency_files))
+    # Collect all executable/library files, explicitly exclude everything that is
+    # a symlink to the artifacts directory, as usual.
+    destdir = joinpath(prefix, "destdir")
+    files = filter(f -> startswith(f, destdir), collapse_symlinks(collect_files(destdir)))
     files = filter_object_files(files)
 
     # Check if we can load them as an object file
@@ -22,7 +24,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     end
 
     # Strip out the prefix from filenames
-    state.files = map(file->replace(file, prefix.path => ""), files)
+    state.files = map(file->replace(file, "$(destdir)/" => ""), files)
     state.file_kinds = map(files) do f
         readmeta(f) do oh
             if isexecutable(oh)
@@ -65,6 +67,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     elseif length(files) == 1
         println(state.outs, "The build has produced only one build artifact:\n")
         println(state.outs, "\t$(state.files[1])")
+        println(state.outs)
     else
         println(state.outs, "The build has produced several libraries and executables.")
         println(state.outs, "Please select which of these you want to consider `products`.")
@@ -91,8 +94,13 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     state.file_varnames = Symbol[]
     println(state.outs, "Please provide a unique variable name for each build artifact:")
     for f in state.files
-        print(state.outs, f, ":\n> ")
-        varname = readline(state.ins)
+        varname = nonempty_line_prompt(
+            "variable name",
+            string(f, ":");
+            force_identifier=true,
+            ins=state.ins,
+            outs=state.outs,
+        )
         push!(state.file_varnames, Symbol(varname))
     end
 
@@ -108,11 +116,11 @@ end
 
 Audit the `prefix`.
 """
-function step3_audit(state::WizardState, platform::Platform, prefix::Prefix)
+function step3_audit(state::WizardState, platform::Platform, destdir::String)
     printstyled(state.outs, "\n\t\t\tAnalyzing...\n\n", bold=true)
 
-    audit(prefix; io=state.outs,
-        platform=platform, verbose=true, autofix=true, require_license=false)
+    audit(Prefix(destdir); io=state.outs, platform=platform,
+        verbose=true, autofix=true, require_license=false)
 
     println(state.outs)
 end
@@ -127,26 +135,28 @@ end
 function interactive_build(state::WizardState, prefix::Prefix,
                            ur::Runner, build_path::AbstractString;
                            hist_modify = string)
-   histfile = joinpath(dirname(prefix.path), "metadir", ".bash_history")
+   histfile = joinpath(prefix, "metadir", ".bash_history")
    runshell(ur, stdin=state.ins, stdout=state.outs, stderr=state.outs)
    # This is an extremely simplistic way to capture the history,
    # but ok for now. Obviously doesn't include any interactive
    # programs, etc.
    if isfile(histfile)
        state.history = hist_modify(state.history,
-           # This is a bit of a hack for now to get around the fact
-           # that we don't know cwd when we get back from bash, but
-           # always start in the WORKSPACE. This makes sure the script
-           # accurately reflects that.
-           string("cd \$WORKSPACE/srcdir\n",
-           String(read(histfile))))
+            # This is a bit of a hack for now to get around the fact
+            # that we don't know cwd when we get back from bash, but
+            # always start in the WORKSPACE. This makes sure the script
+            # accurately reflects that.
+            string(
+               "cd \$WORKSPACE/srcdir\n",
+                String(read(histfile)),
+            ),
+        )
        rm(histfile)
    end
 
    printstyled(state.outs, "\n\t\t\tBuild complete\n\n", bold=true)
    print(state.outs, "Your build script was:\n\n\t")
-   print(state.outs, replace(state.history, "\n" => "\n\t"))
-   println(state.outs)
+   println(state.outs, replace(state.history, "\n" => "\n\t"))
 
    if yn_prompt(state, "Would you like to edit this script now?", :n) == :y
        state.history = edit_script(state, state.history)
@@ -160,7 +170,6 @@ function interactive_build(state::WizardState, prefix::Prefix,
 
        return true
    else
-
        return false
    end
 end
@@ -179,7 +188,7 @@ function step3_interactive(state::WizardState, prefix::Prefix,
     if interactive_build(state, prefix, ur, build_path)
         state.step = :step3_retry
     else
-        step3_audit(state, platform, prefix)
+        step3_audit(state, platform, joinpath(prefix, "destdir"))
 
         return step4(state, ur, platform, build_path, prefix)
     end
@@ -194,38 +203,28 @@ file manually, etc...
 function step3_retry(state::WizardState)
     platform = pick_preferred_platform(state.platforms)
 
-    msg = "\t\t\t# Attempting to build for $platform\n\n"
+    msg = "\t\t\t# Attempting to build for $(triplet(platform))\n\n"
     printstyled(state.outs, msg, bold=true)
 
     build_path = tempname()
     mkpath(build_path)
-    local ok = true
-    cd(build_path) do
-        prefix, ur = setup_workspace(
-            build_path,
-            state.source_files,
-            state.source_hashes,
-            state.dependencies,
-            platform;
-            verbose=false,
-            tee_stream=state.outs
-        )
+    prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=false)
 
-        # Record which files were added by dependencies, so we don't offer
-        # these to the user as products.
-        state.dependency_files = Set{String}(collect_files(prefix))
+    ur = preferred_runner()(
+        prefix.path;
+        cwd="/workspace/srcdir",
+        platform=platform,
+        src_name=state.name,
+    )
+    run(ur,
+        `/bin/bash -c $(state.history)`,
+        joinpath(build_path,"out.log");
+        verbose=true,
+        tee_stream=state.outs
+    )
+    step3_audit(state, platform, joinpath(prefix, "destdir"))
 
-        run(ur,
-            `/bin/bash -c $(state.history)`,
-            joinpath(build_path,"out.log");
-            verbose=true,
-            tee_stream=state.outs
-        )
-
-        step3_audit(state, platform, prefix)
-
-        return step4(state, ur, platform, build_path, prefix)
-    end
+    return step4(state, ur, platform, build_path, prefix)
 end
 
 
@@ -269,79 +268,81 @@ function step34(state::WizardState)
 
     printstyled(state.outs, "\t\t\t# Step 3: Build for $(platform)\n\n", bold=true)
 
-    msg = strip("""
-    You will now be dropped into the cross-compilation environment.
-    Please compile the library. Your initial compilation target is $(platform).
-    The \$prefix environment variable contains the target directory.
-    Once you are done, exit by typing `exit` or `^D`
-    """)
-    println(state.outs, msg)
+    println(state.outs, "You will now be dropped into the cross-compilation environment.")
+    print(state.outs, "Please compile the package. Your initial compilation target is ")
+    printstyled(state.outs, triplet(platform), bold=true)
+    println(state.outs)
+
+    print(state.outs, "The ")
+    printstyled(state.outs, "\$prefix ", bold=true)
+    println(state.outs, "environment variable contains the target directory.")
+    print(state.outs, "Once you are done, exit by typing ")
+    printstyled(state.outs, "`exit`", bold=true)
+    print(state.outs, " or ")
+    printstyled(state.outs, "`^D`", bold=true)
+    println(state.outs)
     println(state.outs)
 
     build_path = tempname()
     mkpath(build_path)
     state.history = ""
-    cd(build_path) do
-        prefix, ur = setup_workspace(
-            build_path,
-            state.source_files,
-            state.source_hashes,
-            state.dependencies,
-            platform;
-            verbose=false,
-            tee_stream=state.outs
-        )
-        provide_hints(state, joinpath(prefix.path, "..", "srcdir"))
+    prefix = setup_workspace(
+        build_path,
+        state.source_files,
+        state.source_hashes;
+        verbose=false,
+    )
+    provide_hints(state, joinpath(prefix.path, "srcdir"))
 
-        # Record which files were added by dependencies, so we don't offer
-        # these to the user as products.
-        state.dependency_files = Set{String}(collect_files(prefix))
-
-        return step3_interactive(state, prefix, platform, ur, build_path)
-    end
+    ur = preferred_runner()(
+        prefix.path;
+        cwd="/workspace/srcdir",
+        workspaces = [
+            joinpath(prefix, "metadir") => "/meta",
+        ],
+        platform=platform,
+        src_name=state.name,
+    )
+    return step3_interactive(state, prefix, platform, ur, build_path)
 end
 
-function step5_internal(state::WizardState, platform::Platform, message)
+function step5_internal(state::WizardState, platform::Platform)
     print(state.outs, "Your next build target will be ")
-    printstyled(state.outs, platform, bold=true)
-    println(state.outs, message)
+    printstyled(state.outs, triplet(platform), bold=true)
     println(state.outs)
-    println(state.outs, "Press any key to continue...")
+    print(state.outs, "Press any key to continue...")
     read(state.ins, Char)
     println(state.outs)
 
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
 
-    printstyled(state.outs, "\t\t\t# Attempting to build for $platform\n\n", bold=true)
+    printstyled(state.outs, "\t\t\t# Attempting to build for $(triplet(platform))\n\n", bold=true)
 
     build_path = tempname()
     mkpath(build_path)
     local ok = false
     while !ok
         cd(build_path) do
-            prefix, ur = setup_workspace(
-                build_path,
-                state.source_files,
-                state.source_hashes,
-                state.dependencies,
-                platform;
-                verbose=true,
-                tee_stream=state.outs
+            prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=true)
+            ur = preferred_runner()(
+                prefix.path;
+                cwd="/workspace/srcdir",
+                platform=platform,
+                src_name=state.name,
             )
-
             run(ur,
                 `/bin/bash -c $(state.history)`,
                 joinpath(build_path,"out.log");
                 verbose=true,
-                tee_stream=state.outs
+                tee_stream=state.outs,
             )
 
             while true
                 msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
                 printstyled(state.outs, msg, bold=true)
 
-                audit(prefix; io=state.outs, require_license=false,
-                    platform=platform, verbose=true, autofix=true)
+                audit(Prefix(joinpath(prefix, "destdir")); io=state.outs,
+                    platform=platform, verbose=true, autofix=true, require_license=false)
 
                 ok = isempty(match_files(state, prefix, platform, state.files))
                 if !ok
@@ -380,17 +381,21 @@ function step5_internal(state::WizardState, platform::Platform, message)
                             continue
                         end
                     elseif choice == 2
-                        rm(build_path; force = true, recursive = true)
+                        rm(build_path; force=true, recursive=true)
                         mkpath(build_path)
-                        prefix, ur = setup_workspace(
+                        prefix = setup_workspace(
                             build_path,
                             state.source_files,
-                            state.source_hashes,
-                            state.dependencies,
-                            platform;
+                            state.source_hashes;
                             verbose=true,
-                            tee_stream=state.outs
                         )
+                        ur = preferred_runner()(
+                            prefix.path;
+                            cwd="/workspace/srcdir",
+                            platform=platform,
+                            src_name=state.name,
+                        )
+
                         if interactive_build(state, prefix, ur, build_path;
                                           hist_modify = function(olds, s)
                             """
@@ -419,9 +424,10 @@ function step5_internal(state::WizardState, platform::Platform, message)
                 else
                     ok = true
                     push!(state.validated_platforms, platform)
-                    println(state.outs, "")
-                    msg = "You have successfully built for $platform. Congratulations!"
-                    println(state.outs, msg)
+                    println(state.outs)
+                    print(state.outs, "You have successfully built for ")
+                    printstyled(state.outs, triplet(platform), bold=true)
+                    println(state.outs, ". Congratulations!")
                     break
                 end
             end
@@ -447,14 +453,9 @@ function step5a(state::WizardState)
     end
     platform = pick_preferred_platform(possible_platforms)
 
-    msg = strip("""
-    We will now attempt to use the same script to build for other operating systems.
-    This will likely fail, but the failure mode will help us understand why.
-    """)
-    println(state.outs, msg)
-
-    msg = ".\n This will help iron out any issues\nwith the cross compiler"
-    if step5_internal(state, platform, msg)
+    println(state.outs, "We will now attempt to use the same script to build for other operating systems.")
+    println(state.outs, "This will help iron out any issues with the cross compiler.")
+    if step5_internal(state, platform)
         push!(state.visited_platforms, platform)
         state.step = :step5b
     end
@@ -477,8 +478,8 @@ function step5b(state::WizardState)
     end
     platform = pick_preferred_platform(possible_platforms)
 
-    if step5_internal(state, platform,
-    ".\n This should uncover issues related to architecture differences.")
+    println(state.outs, "This should uncover issues related to architecture differences.")
+    if step5_internal(state, platform)
         state.step = :step5c
         push!(state.visited_platforms, platform)
     end
@@ -486,59 +487,59 @@ end
 
 function step5c(state::WizardState)
     msg = strip("""
-    We will now attempt to build all remaining platform.
-    Note that these builds are not verbose.
-    If you have edited the script since we attempted to build for any given
-    platform, we will verify that the new script still works now.
-    This will probably take a while.
-
+    We will now attempt to build all remaining platforms.  Note that these
+    builds are not verbose.  If you have edited the script since we attempted
+    to build for any given platform, we will verify that the new script still
+    works.  This will probably take a while.
     Press any key to continue...
     """)
-    println(state.outs, msg)
+    print(state.outs, msg)
     read(state.ins, Char)
     println(state.outs)
 
     pred = x -> !(x in state.validated_platforms)
     for platform in filter(pred, state.platforms)
-        print(state.outs, "Building $platform ")
+        print(state.outs, "Building $(triplet(platform)): ")
         build_path = tempname()
         mkpath(build_path)
         local ok = true
-        cd(build_path) do
-            prefix, ur = setup_workspace(
-                build_path,
-                state.source_files,
-                state.source_hashes,
-                state.dependencies,
-                platform;
-                verbose=false,
-                tee_stream=state.outs
-            )
 
-            run(ur,
-                `/bin/bash -c $(state.history)`,
-                joinpath(build_path,"out.log");
-                verbose=false,
-                tee_stream=state.outs
-            )
+        prefix = setup_workspace(
+            build_path,
+            state.source_files,
+            state.source_hashes;
+            verbose=false,
+        )
+        ur = preferred_runner()(
+            prefix.path;
+            cwd="/workspace/srcdir",
+            platform=platform,
+            src_name=state.name,
+        )
+        run(ur,
+            `/bin/bash -c $(state.history)`,
+            joinpath(build_path,"out.log");
+            verbose=false,
+            tee_stream=state.outs
+        )
 
-            audit(prefix;
-                io=state.outs,
-                platform=platform,
-                verbose=false,
-                silent=true,
-                autofix=true,
-                require_license=false,
-            )
+        audit(Prefix(joinpath(prefix, "destdir"));
+            io=state.outs,
+            platform=platform,
+            verbose=false,
+            silent=true,
+            autofix=true,
+            require_license=false,
+        )
 
-            ok = isempty(match_files(
-                state,
-                prefix,
-                platform,
-                state.files;
-                silent = true
-            ))
-        end
+        ok = isempty(match_files(
+            state,
+            prefix,
+            platform,
+            state.files;
+            silent = true
+        ))
+
         print(state.outs, "[")
         if ok
             printstyled(state.outs, "✓", color=:green)
@@ -561,6 +562,7 @@ function step6(state::WizardState)
             state.step = :step5c
         else
             state.step = :step7
+            printstyled(state.outs, "\t\t\tDone!\n\n", bold=true)
         end
         return
     end
@@ -601,7 +603,7 @@ function step6(state::WizardState)
         else
             choice = 1
         end
-        if step5_internal(state, plats[choice], ". ")
+        if step5_internal(state, plats[choice])
             delete!(state.failed_platforms, plats[choice])
         end
         # Will wrap back around to step 6

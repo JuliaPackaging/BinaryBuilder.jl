@@ -215,7 +215,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
 
     # Ensure this artifact is on-disk; hard to mount it if it's not installed
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    ensure_artifact_installed(artifact_name(cs), artifacts_toml; platform=cs.host)
+    ensure_artifact_installed(artifact_name(cs), artifacts_toml; platform=cs.host, verbose=verbose)
 
     # Easy out if we're not Linux with a UserNSRunner trying to use a .squashfs
     if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
@@ -506,7 +506,18 @@ binaries.
 """
 function download_all_artifacts(; verbose::Bool = false)
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    ensure_all_artifacts_installed(artifacts_toml; include_lazy=true)
+    # First, download all the "normal" shards, then all the rust shards (this will become
+    # less clunky once Rust actually supports hosting on `musl`)
+    host_platform = Linux(:x86_64; libc=:musl)
+    Rust_host = Linux(:x86_64; libc=:glibc)
+    for platform in (host_platform, Rust_host)    
+        ensure_all_artifacts_installed(
+            artifacts_toml;
+            include_lazy=true,
+            verbose=verbose,
+            platform=host_platform
+        )
+    end
 end
 
 _sudo_cmd = nothing
@@ -551,4 +562,33 @@ function shard_mappings(shards::Vector{CompilerShard})
     # Reverse mapping order, because `sandbox` reads them backwards
     reverse!(mappings)
     return mappings
+end
+
+
+"""
+    create_and_bind_mutable_artifact!(f::Function, art_name::String)
+
+Create (and bind) an artifact to `MutableArtifacts.toml` in one fell swoop.
+Used in things like .squashfs UID remapping and BB wizard state serialization.
+"""
+function create_and_bind_mutable_artifact!(f::Function, art_name::String)
+    mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
+    art_hash = create_artifact(f)
+    bind_artifact!(mutable_artifacts_toml, art_name, art_hash; force=true)
+end
+
+"""
+    get_mutable_artifact_path(art_name::String)
+
+Convenience wrapper to get an artifact bound withing `MutableArtifacts.toml`.
+Returns `nothing` if artifact not bound yet.
+"""
+function get_mutable_artifact_path(art_name::String)
+    mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
+    hash = artifact_hash(art_name, mutable_artifacts_toml)
+    if hash === nothing
+        return nothing
+    end
+
+    return artifact_path(hash)
 end

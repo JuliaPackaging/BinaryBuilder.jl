@@ -37,14 +37,14 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
 
     # Otherwise, import it!
     dockerfile_cmds = "ENTRYPOINT [\"/docker_entrypoint.sh\"]"
-    rootfs_path = mount(rootfs, workspace_root)
+    rootfs_path = mount(rootfs, workspace_root; verbose=verbose)
     if verbose
         @info("Importing docker base image from $(rootfs_path) to $(docker_image(rootfs))")
     end
-    run(pipeline(
+    run(pipeline(pipeline(
         `tar -c -C $(rootfs_path) .`,
-        `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`,
-    ))
+        `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`;
+    ); stdout=devnull))
     return
 end
 
@@ -96,7 +96,7 @@ function DockerRunner(workspace_root::String;
 
     # Add in read-only mappings and read-write workspaces
     for shard in shards[2:end]
-        outside = realpath(mount(shard, workspace_root))
+        outside = realpath(mount(shard, workspace_root; verbose=verbose))
         inside = map_target(shard)
         docker_cmd = `$docker_cmd -v $(outside):$(inside):ro`
     end
@@ -139,7 +139,7 @@ function Base.run(dr::DockerRunner, cmd, logpath::AbstractString; verbose::Bool 
     did_succeed = true
     docker_cmd = `$(dr.docker_cmd) $(docker_image(dr.shards[1])) $(cmd)`
     if verbose
-        @info("About to run: $(docker_cmd)")
+        @debug("About to run: $(docker_cmd)")
     end
     oc = OutputCollector(docker_cmd; verbose=verbose, tee_stream=tee_stream)
     did_succeed = wait(oc)
@@ -166,7 +166,7 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
     run_flags = all(tty_or_nothing.((stdin, stdout, stderr))) ? "-ti" : "-i"
     docker_cmd = `$(dr.docker_cmd) $(run_flags) -i $(docker_image(dr.shards[1])) $(cmd)`
     if verbose
-        @info("About to run: $(docker_cmd)")
+        @debug("About to run: $(docker_cmd)")
     end
 
     if stdin isa AnyRedirectable
