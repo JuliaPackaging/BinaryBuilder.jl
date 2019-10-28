@@ -1,61 +1,37 @@
-export supported_platforms, expand_gcc_versions
-using BinaryProvider: compiler_abi
+export supported_platforms, expand_gcc_versions, expand_gfortran_versions, expand_cxxstring_abis
 
-## The build environment is broken up into multiple parts:
-#
-#  * RootFS - Host-only tools such as `bash`, `make`, `cmake`, etc....
-#  * BaseCompilerShard - Target-specific binutils, libc, etc....
-#  * GCC - Target-and-ABI-specific GCC compilers
-#  * LLVM - Target-nonspecific clang compilers
-#
-# Given a `Platform`, we determine the set of shards to mount in to the
-# sandbox for that `Platform`.  If there are multiple possible options,
-# (e.g. the Platform sets no ABI requirement) the oldest compiler possible 
-# is used by default, for libstdc++ compatibility reasons.  (Even though we
-# ship a very recent version of libstdc++ with Julia, we need to ensure that
-# our binaries are as compatible as possible for custom builds)
-#
-# Each chunk of the build environment (referred to as a `shard`) is served
-# as either a `.tar.gz` file or a `.squashfs` file.  While `.squashfs` files
-# are desirable for multiple reasons (smaller download size, no need to unpack
-# on the host filesystem taking up disk space) they currently require `sudo`
-# privileges to mount on Linux machines, and as such cannot be used in the
-# unprivileged user namespace setting, which is what we most often use.
-# We therefore support downloading `.squashfs` files when a privileged
-# usernamespace or qemu runnre is being used.
-#
-# Shards are downloaded to `<storage_dir>/downloads`, unpacked (in the case
-# of `.tar.gz` files) to `<storage_dir>/mounts` or mounted to
-# `<storage_dir>/mounts`.  We must take a little care when dealing with this
-# mixture of unpacked and mounted shards (especially when switching Runner
-# backends, as they will often cause the shard storage type to change!) but
-# it's still desirable as it cuts down on the complexity of needing to change
-# which paths are being mounted based on the archive type of the shard, etc...
-
-
+import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
 struct CompilerShard
-    # Something like "RootFS", or "GCC"
+    # Something like "RootFS", or "GCCBootstrap"
     name::String
     
     # Something like v"7.1.0"
     version::VersionNumber
 
-    # Things like Windows(:x86_64; gcc_version=:gcc7)
+    # Things like Windows(:x86_64; compiler_abi=CompilerABI(libgfortran_version=v"3"))
     target::Union{Nothing,Platform}
 
-    # Right now, always `Linux(:x86_64)`
+    # Usually `Linux(:x86_64, libc=:musl)`, with the NOTABLE exception of `Rust`
     host::Platform
     
-    # :squashfs or :targz.  Possibly more in the future.
+    # :unpacked or :squashfs.  Possibly more in the future.
     archive_type::Symbol
 
     function CompilerShard(name, version, host, archive_type; target = nothing)
         # Ensure we have the right archive type
-        if !(archive_type in (:squashfs, :targz))
+        if !(archive_type in (:squashfs, :unpacked))
             error("Invalid archive type '$(archive_type)'")
+        end
+
+        # If host or target are unparsed, parse them:
+        if isa(host, AbstractString)
+            host = platform_key_abi(host)
+        end
+        if isa(target, AbstractString)
+            target = platform_key_abi(target)
         end
 
         # Ensure the platforms have no ABI portion (that is only used
@@ -78,56 +54,84 @@ end
 Strip out the CompilerABI portion of a Platform, making it "ABI agnostic".
 """
 function abi_agnostic(p::P) where {P <: Platform}
-    return P(arch(p), libc(p), call_abi(p))
+    return P(arch(p); libc=libc(p), call_abi=call_abi(p))
 end
 
 """
-    filename(cs::CompilerShard)
+    artifact_name(cs::CompilerShard)
 
-Return the filename of this shard.  Used by e.g. `url()` or `download_path()`.
+Return the bound artifact name for a particular shard.
 """
-function filename(cs::CompilerShard)
-    ext = Dict(:squashfs => "squashfs", :targz => "tar.gz")[cs.archive_type]
-    return string(dir_name(cs), ".", ext)
-end
-
-"""
-    url(cs::CompilerShard)
-
-Return the URL from which this shard can be downloaded.
-"""
-function url(cs::CompilerShard)
-    urlroot = "https://julialangmirror.s3.amazonaws.com/binarybuilder"
-    return joinpath(urlroot, filename(cs))
-end
-
-"""
-    hash(cs::CompilerShard)
-
-Return the integrity hash for this compiler shard, for ensuring it has been
-downloaded properly/has not been tampered with.
-"""
-function hash(cs::CompilerShard)
-    global shard_hash_table
-    try
-        return shard_hash_table[cs]
-    catch
-        throw(ArgumentError("Compiler shard $(cs) is not found in our hash table!"))
-    end
-end
-
-"""
-    dir_name(cs::CompilerShard)
-
-Return a "directory name" for a compiler shard; used by e.g. `extraction_path()`
-or `mount_path()`, to create names like "Rootfs.v2018.08.27-x86_64-linux-gnu".
-"""
-function dir_name(cs::CompilerShard)
-    target = ""
+function artifact_name(cs::CompilerShard)
+    target_str = ""
     if cs.target != nothing
-        target = "-$(triplet(cs.target))"
+        target_str = "-$(triplet(cs.target))"
     end
-    return "$(cs.name)$(target).v$(cs.version).$(triplet(cs.host))"
+    ext = Dict(:squashfs => "squashfs", :unpacked => "unpacked")[cs.archive_type]
+    return "$(cs.name)$(target_str).v$(cs.version).$(triplet(cs.host)).$(ext)"
+end
+
+# The inverse of `artifact_name(cs)`
+function CompilerShard(art_name::String)
+    m = match(r"^([^-]+)(?:-(.+))?\.(v[\d\.]+)\.([^0-9].+-.+)\.(\w+)", art_name)
+    if m === nothing
+        error("Unable to parse '$(art_name)'")
+    end
+    return CompilerShard(
+        m.captures[1],
+        VersionNumber(m.captures[3]),
+        m.captures[4],
+        Symbol(m.captures[5]);
+        target=m.captures[2]
+    )
+end
+
+const ALL_SHARDS = Ref{Union{Vector{CompilerShard},Nothing}}(nothing)
+function all_compiler_shards()
+    if ALL_SHARDS[] === nothing
+        artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+        artifact_dict = load_artifacts_toml(artifacts_toml)
+
+        ALL_SHARDS[] = CompilerShard[]
+        for name in keys(artifact_dict)
+            cs = try
+                CompilerShard(name)
+            catch
+                continue
+            end
+            push!(ALL_SHARDS[], cs)
+        end
+    end
+    return ALL_SHARDS[]
+end
+
+"""
+    shard_path(cs::CompilerShard)
+
+Return the path to this shard on-disk; for unpacked shards, this is a directory.
+For squashfs shards, this is a file.  This will not cause a shard to be downloaded.
+"""
+function shard_path(cs::CompilerShard)
+    if cs.shard_type == :squashfs
+        mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
+        artifacts_dict = artifact_meta(
+            artifact_name(cs),
+            artifacts_toml;
+            platform=something(cs.target, cs.host),
+        )
+    end
+
+    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+    artifacts_dict = artifact_meta(
+        artifact_name(cs),
+        artifacts_toml;
+        platform=something(cs.target, cs.host),
+    )
+    if artifacts_dict == nothing
+        error("CompilerShard $(artifact_name(cs)) not registered in Artifacts.toml!")
+    end
+    
+    return artifact_path(artifacts_dict["git-tree-sha1"])
 end
 
 """
@@ -139,31 +143,30 @@ analyze the name and platform of this shard and return a path based on that.
 function map_target(cs::CompilerShard)
     if lowercase(cs.name) == "rootfs"
         return "/"
-    elseif lowercase(cs.name) in ("gcc", "basecompilershard")
-        return joinpath("/opt", triplet(cs.target), "$(cs.name)-$(cs.version)")
-    elseif lowercase(cs.name) == "llvm"
-        return joinpath("/opt", triplet(cs.host), "$(cs.name)-$(cs.version)")
+    elseif lowercase(cs.name) == "rusttoolchain"
+        # We override RustToolchain because they all have to sit in the same location
+        return "/opt/$(triplet(cs.host))/$(cs.name)-$(cs.version)-$(triplet(cs.target)))"
     else
-        error("Unknown mapping for shard named $(cs.name)")
+        return joinpath("/opt", triplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
+    end
+end
+
+function mount_path(cs::CompilerShard, build_prefix::AbstractString)
+    if cs.archive_type == :squashfs
+        return joinpath(build_prefix, "mounts", artifact_name(cs))
+    else
+        name = artifact_name(cs)
+        artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
+        hash = artifact_hash(name, artifacts_toml; platform=cs.host)
+        if hash === nothing
+            error("Unable to find artifact $(name) within $(artifacts_toml)")
+        end
+        return artifact_path(hash)
     end
 end
 
 """
-    download_path(cs::CompilerShard)
-
-Return the location this shard will be downloaded to.
-"""
-download_path(cs::CompilerShard) = storage_dir("downloads", filename(cs))
-"""
-    mount_path(cs::CompilerShard)
-
-Return the location this shard will be mounted to.  For `.tar.gz` shards,
-this is also the location it will be extracted to.
-"""
-mount_path(cs::CompilerShard) = storage_dir("mounts", dir_name(cs))
-
-"""
-    mount(cs::CompilerShard)
+    mount(cs::CompilerShard, build_prefix::String)
 
 Mount a compiler shard, if possible.  Uses `run()` so will error out if
 something goes awry.  Note that this function only does something when
@@ -171,98 +174,7 @@ using a `.squashfs` shard, with a UserNS or Docker runner, on Linux.
 All other combinations of shard archive type, runner and platform result
 in a no-op from this function.
 """
-function mount(cs::CompilerShard; verbose::Bool = false)
-    # Skip out if we're not Linux with a UserNSRunner trying to use a .squashfs
-    if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
-                          preferred_runner() != DockerRunner) ||
-                         cs.archive_type != :squashfs ||
-                         is_mounted(cs)
-        return
-    end
-
-    # Signal to the user what's going on, since this probably requires sudo.
-    if verbose
-        @info("Mounting $(download_path(cs)) to $(mount_path(cs))")
-    end
-
-    # If the destination directory does not already exist, create it
-    mkpath(mount_path(cs))
-
-    # Run the mountaining
-    run(`$(sudo_cmd()) mount $(download_path(cs)) $(mount_path(cs)) -o ro,loop`)
-end
-
-"""
-    is_mounted(cs::CompilerShard)
-
-Return true if the given shard is mounted.  Uses `run()` so will error out if
-something goes awry.  Note that if you ask if a `.tar.gz` shard is mounted,
-this method will return true if the `.squashfs` version is mounted.  This is
-actually desirable, as we use this to see if we should unmount the `.squashfs`
-version before unpacking the `.tar.gz` version into the same place.
-"""
-function is_mounted(cs::CompilerShard)
-    # Note that unlike `mount()`, we don't care about the current runner,
-    # because it is possible that we're checking if something is mounted
-    # after switching runners.
-    if !Sys.islinux()
-        return false
-    end
-
-    return success(`mountpoint $(mount_path(cs))`)
-end
-
-"""
-    unmount(cs::CompilerShard)
-
-Unmount a compiler shard, if possible.  Uses `run()` so will error out if
-something goes awry.  Note that this function only does something when using a
-`.squashfs` shard, on Linux.  All other combinations of shard archive type
-and platform result in a no-op from this function.
-"""
-function unmount(cs::CompilerShard; verbose::Bool = false, fail_on_error::Bool = false)
-    # Only try to unmount if it's mounted
-    if is_mounted(cs)
-        if verbose
-            @info("Unmounting $(mount_path(cs))`")
-        end
-        try
-            cmd = `$(sudo_cmd()) umount $(mount_path(cs))`
-            run(pipeline(cmd, stdin=devnull, stdout=devnull, stderr=devnull))
-
-            # Remove mountpoint directory
-            rm(mount_path(cs); force=true, recursive=false)
-        catch e
-            # By default we don't error out if this unmounting fails
-            if fail_on_error
-                rethrow(e)
-            end
-        end
-    end
-end
-
-function macos_sdk_already_installed()
-    # We just check to see if there are any BaseCompilerShard downloads for
-    # macOS in our downloads directory.  If so, say we have already installed it.
-    files = filter(x -> occursin("BaseCompilerShard", x) || occursin("GCC", x), readdir(storage_dir("downloads")))
-    return !isempty(filter(x -> occursin("-darwin", x), files))
-end
-
-
-"""
-    prepare_shard(cs::CompilerShard; mount_squashfs = true, verbose = false)
-
-Download and mount the given compiler shard.  If it is a `.tar.gz` shard, it
-will be unpacked into the directory given by `mount_path(cs)`.  If it is a
-`.squashfs` shard, it will be mounted into the directory given by
-`mount_path(cs)` (unless `mount_squashfs` is set to `false`.  This is done by
-the QEMU runner, for instance, as it prefers to read the `.squashfs` files
-directly, so no need to try mounting things).
-
-If it is a macOS shard, you must have accepted the Xcode license before it will
-be downloaded or mounted.
-"""
-function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::Bool = false)
+function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = false)
     # Before doing anything with a MacOS shard, make sure the user knows that
     # they must accept the Xcode EULA.  This will be skipped if either the
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
@@ -275,7 +187,7 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
             to download and install the macOS SDK.  Because you have not agreed
             to the Xcode license terms, we will not be able to build for MacOS.
             """)
-            @warn(msg)
+            @error(msg)
             error("macOS SDK not installable")
         else
             msg = strip("""
@@ -301,48 +213,111 @@ function prepare_shard(cs::CompilerShard; mount_squashfs::Bool = true, verbose::
         end
     end
 
-    # Unmount previously mounted `.squashfs` version of this file if it existed.
-    # If we're switching to a `.tar.gz` this is desirable because we want to
-    # unpack into that direcftory.  If we're updating a `.squashfs` file, this
-    # is also desirable as we're about to 
-    unmount(cs; verbose=verbose)
+    # Ensure this artifact is on-disk; hard to mount it if it's not installed
+    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+    ensure_artifact_installed(artifact_name(cs), artifacts_toml; platform=cs.host, verbose=verbose)
 
-    # For .tar.gz shards, we unpack as well
-    if cs.archive_type == :targz
-        # verify/redownload/reunpack the tarball, if necessary
-        download_verify_unpack(
-            url(cs),
-            hash(cs),
-            mount_path(cs);
-            tarball_path = download_path(cs),
-            verbose = verbose,
-            force = true,
-        )
+    # Easy out if we're not Linux with a UserNSRunner trying to use a .squashfs
+    if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
+                          preferred_runner() != DockerRunner) ||
+                         cs.archive_type != :squashfs
+        # We'll just give back the artifact path in this case
+        return mount_path(cs, build_prefix)
+    end
 
-        # Finally, mount this shard (if we need to)
-        mount(cs; verbose=verbose)
-    elseif cs.archive_type == :squashfs
-        download_verify(
-            url(cs),
-            hash(cs),
-            download_path(cs);
-            verbose = verbose,
-            force = true
-        )
+    # If it's already mounted, also just return the mount path
+    if is_mounted(cs, build_prefix)
+        return mount_path(cs, build_prefix)
+    end
 
-        rewrite_squashfs_uids(download_path(cs), getuid(); verbose=verbose)
-        touch(string(download_path(cs), ".sha256"))
+    # Ensure that we've got a UID-appropriate .squashfs
+    squashfs_path = generate_per_uid_squashfs(cs; verbose=verbose)
 
-        # Finally, mount this shard (if we need to)
-        if mount_squashfs
-            mount(cs; verbose=verbose)
+    # Signal to the user what's going on, since this might require sudo.
+    mpath = mount_path(cs, build_prefix)
+    if verbose
+        @debug("Mounting $(squashfs_path) to $(mpath)")
+    end
+
+    # If the destination directory does not already exist, create it
+    mkpath(mpath)
+
+    # Run the mountaining
+    run(`$(sudo_cmd()) mount $(squashfs_path) $(mpath) -o ro,loop`)
+
+    # Give back the mount path
+    return mpath
+end
+
+"""
+    is_mounted(cs::CompilerShard, build_prefix::String)
+
+Return true if the given shard is mounted.  Uses `run()` so will error out if
+something goes awry.
+"""
+function is_mounted(cs::CompilerShard, build_prefix::AbstractString)
+    return success(`mountpoint $(mount_path(cs, build_prefix))`)
+end
+
+"""
+    unmount(cs::CompilerShard, build_prefix::String)
+
+Unmount a compiler shard from a given build prefix, if possible.  Uses `run()`
+so will error out if something goes awry.  Note that this function only does
+something when using a squashfs shard on Linux.  All other combinations of
+shard archive type and platform result in a no-op.
+"""
+function unmount(cs::CompilerShard, build_prefix::String; verbose::Bool = false, fail_on_error::Bool = false)
+    # Only try to unmount if it's mounted
+    if is_mounted(cs, build_prefix)
+        mpath = mount_path(cs, build_prefix)
+        if verbose
+            @debug("Unmounting $(mpath)`")
+        end
+        try
+            cmd = `$(sudo_cmd()) umount $(mpath)`
+            run(cmd, (devnull, devnull, devnull))
+
+            # Remove mountpoint directory
+            rm(mpath; force=true, recursive=false)
+        catch e
+            # By default we don't error out if this unmounting fails
+            if e isa InterruptException || fail_on_error
+                rethrow(e)
+            end
         end
     end
 end
 
+function macos_sdk_already_installed()
+    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+    # We just check to see if there are any BaseCompilerShard downloads for
+    # macOS in our downloads directory.  If so, say we have already installed it.
+    files = filter(x -> occursin("BaseCompilerShard", x) || occursin("GCC", x), readdir(storage_dir("downloads")))
+    return !isempty(filter(x -> occursin("-darwin", x), files))
+end
+
+function select_gcc_version(p::Platform,
+             GCC_builds::Vector{VersionNumber} = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
+             preferred_gcc_version::VersionNumber = GCC_builds[1],
+         )
+    # Determine which GCC build we're going to match with this CompilerABI:
+    GCC_builds = Pkg.BinaryPlatforms.gcc_version(compiler_abi(p), GCC_builds)
+
+    if isempty(GCC_builds)
+        error("Impossible CompilerABI constraints $(cabi)!")
+    end
+
+    # Otherwise, choose the version that is closest to our preferred version
+    ver_to_tuple(v) = (Int(v.major), Int(v.minor), Int(v.patch))
+    pgv = ver_to_tuple(preferred_gcc_version)
+    closest_idx = findmin([abs.(pgv .- ver_to_tuple(x)) for x in GCC_builds])[2]
+    return GCC_builds[closest_idx]
+end
+
 
 """
-    choose_shards(p::Platform; rootfs_build, bcs_build, GCC_builds,
+    choose_shards(p::Platform; rootfs_build, ps_build, GCC_builds,
                                LLVM_builds, archive_type)
 
 This method chooses, given a `Platform`, which shards to download, extract and
@@ -350,42 +325,83 @@ mount, returning a list of `CompilerShard` objects.  At the moment, this always
 consists of four shards, but that may not always be the case.
 """
 function choose_shards(p::Platform;
-            rootfs_build::VersionNumber=v"2018.11.11",
-            bcs_build::VersionNumber=v"2018.11.11",
-            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"6.1.0", v"7.1.0", v"8.1.0"],
-            LLVM_build::VersionNumber=v"6.0.1-0",
-            archive_type::Symbol = (use_squashfs ? :squashfs : :targz),
+            compilers::Vector{Symbol} = [:c],
+            rootfs_build::VersionNumber=v"2019.10.24",
+            ps_build::VersionNumber=v"2019.10.11",
+            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
+            LLVM_build::VersionNumber=v"8.0.0",
+            Rust_build::VersionNumber=v"1.18.3",
+            Go_build::VersionNumber=v"1.13",
+            archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
+            bootstrap_list::Vector{Symbol} = bootstrap_list,
+            # We prefer the oldest GCC version by default
+            preferred_gcc_version::VersionNumber = GCC_builds[1],
         )
 
-    # If GCC version is not specificed by `p`, choose earliest possible.
-    if compiler_abi(p).gcc_version == :gcc_any
-        GCC_build = GCC_builds[1]
+    GCC_build = select_gcc_version(p, GCC_builds, preferred_gcc_version)
+    # Our host platform is x86_64-linux-musl
+    host_platform = Linux(:x86_64; libc=:musl)
+
+    shards = CompilerShard[]
+    if isempty(bootstrap_list)
+        append!(shards, [
+            CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
+            # Shards for the target architecture
+            CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=p),
+        ])
+
+        platform_match(a, b) = ((typeof(a) <: typeof(b)) && (arch(a) == arch(b)) && (libc(a) == libc(b)))
+        if :c in compilers
+            append!(shards, [
+                CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=p),
+                CompilerShard("LLVMBootstrap", LLVM_build, host_platform, archive_type),
+            ])
+            # If we're not building for the host platform, then add host shard for host tools
+            if !platform_match(p, host_platform)
+                append!(shards, [
+                    CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=host_platform),
+                    CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=host_platform),
+                ])
+            end
+        end
+
+        if :rust in compilers
+            # Our rust base shard is technically x86_64-linux-gnu, not x86_64-linux-musl, since rust is broken  when hosted on `musl`:
+            Rust_host = Linux(:x86_64; libc=:glibc)
+            append!(shards, [
+                CompilerShard("RustBase", Rust_build, Rust_host, archive_type),
+                CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=p),
+            ])
+
+            if !platform_match(p, Rust_host)
+                push!(shards, CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=Rust_host))
+
+                # We have to add these as well for access to linkers and whatnot for Rust.  Sigh.
+                push!(shards, CompilerShard("PlatformSupport", ps_build, host_platform, archive_type; target=Rust_host))
+                push!(shards, CompilerShard("GCCBootstrap", GCC_build, host_platform, archive_type; target=Rust_host))
+            end
+            if !platform_match(p, host_platform)
+                push!(shards, CompilerShard("RustToolchain", Rust_build, Rust_host, archive_type; target=host_platform))
+            end
+        end
+
+        if :go in compilers
+            push!(shards, CompilerShard("Go", Go_build, host_platform, archive_type))
+        end
     else
-        # Otherwise, match major versions with a delightfully convoluted line:
-        GCC_build = GCC_builds[Dict(
-            :gcc4 => 1,
-            :gcc6 => 2,
-            :gcc7 => 3,
-            :gcc8 => 4)[compiler_abi(p).gcc_version]]
-    end
+        function find_latest_version(name)
+            versions = [cs.version for cs in all_compiler_shards()
+                if cs.name == name && cs.archive_type == archive_type && (something(cs.target, p) == p)
+            ]
+            return maximum(versions)
+        end
 
-    host_platform = Linux(:x86_64)
-    shards = [
-        # We always need our Rootfs for Linux(:x86_64)
-        CompilerShard("Rootfs", rootfs_build, host_platform, archive_type),
-        # BCS contains our binutils, libc, etc...
-        CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=p),
-        # GCC gets a particular version that was chosen above
-        CompilerShard("GCC", GCC_build, host_platform, archive_type; target=p),
-        # God bless LLVM; a single binary that targets all platforms!
-        CompilerShard("LLVM", LLVM_build, host_platform, archive_type),
-    ]
-
-    # If we're not building for the host platform, then add host shard for things
-    # like HOSTCC, HOSTCXX, etc...
-    if !(typeof(p) <: typeof(host_platform)) || (arch(p) != arch(host_platform) || libc(p) != libc(host_platform))
-        push!(shards, CompilerShard("BaseCompilerShard", bcs_build, host_platform, archive_type; target=host_platform))
-        push!(shards, CompilerShard("GCC", GCC_build, host_platform, archive_type; target=host_platform))
+        if :rootfs in bootstrap_list
+            push!(shards, CompilerShard("Rootfs", find_latest_version("Rootfs"), host_platform, archive_type))
+        end
+        if :platform_support in bootstrap_list
+            push!(shards, CompilerShard("PlatformSupport", find_latest_version("PlatformSupport"), host_platform, archive_type; target=p))
+        end
     end
     return shards
 end
@@ -417,10 +433,10 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
         Linux(:powerpc64le),
 
         # musl Linuces
-        Linux(:i686, :musl),
-        Linux(:x86_64, :musl),
-        Linux(:aarch64, :musl),
-        Linux(:armv7l, :musl),
+        Linux(:i686, libc=:musl),
+        Linux(:x86_64, libc=:musl),
+        Linux(:aarch64, libc=:musl),
+        Linux(:armv7l, libc=:musl),
 
         # BSDs
         MacOS(:x86_64),
@@ -433,124 +449,86 @@ function supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->fal
     return exclude_platforms!(standard_platforms,exclude)
 end
 
-function replace_gcc_version(p::Platform, gcc_version::Symbol)
-    new_cabi = CompilerABI(gcc_version, compiler_abi(p).cxx_abi)
+function replace_libgfortran_version(p::Platform, libgfortran_version::VersionNumber)
+    new_cabi = CompilerABI(compiler_abi(p); libgfortran_version=libgfortran_version)
+    return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
+end
+
+function replace_cxxstring_abi(p::Platform, cxxstring_abi::Symbol)
+    new_cabi = CompilerABI(compiler_abi(p), cxxstring_abi=cxxstring_abi)
     return typeof(p)(arch(p); libc=libc(p), call_abi=call_abi(p), compiler_abi=new_cabi)
 end
 
 """
-    expand_gcc_versions(p::Platform)
+    expand_gfortran_versions(p::Platform)
 
 Given a `Platform`, returns an array of `Platforms` with a spread of identical
 entries with the exception of the `gcc_version` member of the `CompilerABI`
 struct within the `Platform`.  This is used to take, for example, a list of
 supported platforms and expand them to include multiple GCC versions for
 the purposes of ABI matching.  If the given `Platform` already specifies a
-GCC version (as opposed to `:gcc_any`) only that `Platform` is returned.
+GCC version (as opposed to `nothing`) only that `Platform` is returned.
 """
-function expand_gcc_versions(p::Platform)
+function expand_gfortran_versions(p::Platform)
     # If this platform cannot be expanded, then exit out fast here.
-    if compiler_abi(p).gcc_version != :gcc_any
+    if compiler_abi(p).libgfortran_version != nothing
         return [p]
     end
 
     # Otherwise, generate new versions!
-    gcc_versions = [:gcc4, :gcc7, :gcc8]
-    return replace_gcc_version.(Ref(p), gcc_versions)
+    libgfortran_versions = [v"3", v"4", v"5"]
+    return replace_libgfortran_version.(Ref(p), libgfortran_versions)
 end
+function expand_gfortran_versions(ps::Vector{P}) where {P <: Platform}
+    return collect(Iterators.flatten(expand_gfortran_versions.(ps)))
+end
+@deprecate expand_gcc_versions expand_gfortran_versions
 
-function expand_gcc_versions(ps::Vector{P}) where {P <: Platform}
-    expanded_ps = Platform[]
-    for p in ps
-        append!(expanded_ps, expand_gcc_versions(p))
+"""
+    expand_cxxstring_abis(p::Platform)
+
+Given a `Platform`, returns an array of `Platforms` with a spread of identical
+entries with the exception of the `cxxstring_abi` member of the `CompilerABI`
+struct within the `Platform`.  This is used to take, for example, a list of
+supported platforms and expand them to include multiple GCC versions for
+the purposes of ABI matching.  If the given `Platform` already specifies a
+GCC version (as opposed to `nothing`) only that `Platform` is returned.
+"""
+function expand_cxxstring_abis(p::Platform)
+    # If this platform cannot be expanded, then exit out fast here.
+    if compiler_abi(p).cxxstring_abi != nothing
+        return [p]
     end
-    return expanded_ps
+
+    # Otherwise, generate new versions!
+    gcc_versions = [:cxx03, :cxx11]
+    return replace_cxxstring_abi.(Ref(p), gcc_versions)
+end
+function expand_cxxstring_abis(ps::Vector{P}) where {P <: Platform}
+    return collect(Iterators.flatten(expand_cxxstring_abis.(ps)))
 end
 
 """
     download_all_shards(; verbose::Bool=false)
 
-Helper function to download all (.tar.gz AND .squashfs) shards, so that no
-matter what happens, you don't need an internet connection to build your
-precious, precious binaries.
+Helper function to download all shards/helper binaries so that no matter what
+happens, you don't need an internet connection to build your precious, precious
+binaries.
 """
-function download_all_shards(; verbose::Bool = false)
-    prepare_shard.(keys(shard_hash_table); mount_squashfs=false, verbose=verbose)
-end
-
-"""
-    getuid()
-
-Wrapper around libc's `getuid()` function
-"""
-function getuid()
-    return ccall(:getuid, Cint, ())
-end
-"""
-    getgid()
-
-Wrapper around libc's `getgid()` function
-"""
-function getgid()
-    return ccall(:getgid, Cint, ())
-end
-
-# Note: produce these values by #including squashfs_fs.h from linux in Cxx.jl
-# and running the indicated command
-const offsetof_id_table_start = 0x30    # offsetof(struct suqashfs_super_block, id_table_start)
-const offsetof_no_ids = 0x1a            # offsetof(struct suqashfs_super_block, no_ids)
-
-# From squashfs_fs.h
-const SQUASHFS_COMPRESSED_BIT = UInt16(1) << 15
-const SQUASHFS_MAGIC = 0x73717368
-
-"""
-    rewrite_squashfs_uids(path, new_uid)
-
-In order for the sandbox to work well, we need to have the uids of the squashfs
-images match the uid of the current unpriviledged user. Unfortunately there is
-no mount-time option to do this for us. However, fortunately, squashfs is simple
-enough that if the id table is uncompressed, we can just manually patch the uids
-to be what we need. This functions performs this operation, by rewriting all
-uids/gids to new_uid.
-"""
-function rewrite_squashfs_uids(path, new_uid; verbose::Bool = false)
-    open(path, "r+") do file
-       # Check magic
-       if read(file, UInt32) != SQUASHFS_MAGIC
-           error("`$path` is not a squashfs file")
-       end
-       # Check that the image contains only one id (which we will rewrite)
-       seek(file, offsetof_no_ids)
-       if read(file, UInt16) != 1
-           error("`$path` uses more than one uid/gid")
-       end
-       # Find the index table
-       seek(file, offsetof_id_table_start)
-       offset = read(file, UInt64)
-       seek(file, offset)
-       # Find the correct metdata block
-       index = read(file, UInt64)
-       seek(file, index)
-       # Read the metadata block
-       size = read(file, UInt16)
-       # Make sure it's uncompressed (yes, I know that flag is terribly
-       # named - it indicates that the data is uncompressed)
-       if ((size & SQUASHFS_COMPRESSED_BIT) == 0)
-           error("Metadata block is compressed")
-       end
-       p = position(file)
-       uid = read(file, UInt32)
-       if uid == new_uid
-           return
-       end
-       if verbose
-           @info("Rewriting $(basename(path)) from UID $(uid) -> $(new_uid)")
-       end
-       seek(file, p)
-       write(file, UInt32(new_uid))
+function download_all_artifacts(; verbose::Bool = false)
+    artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+    # First, download all the "normal" shards, then all the rust shards (this will become
+    # less clunky once Rust actually supports hosting on `musl`)
+    host_platform = Linux(:x86_64; libc=:musl)
+    Rust_host = Linux(:x86_64; libc=:glibc)
+    for platform in (host_platform, Rust_host)    
+        ensure_all_artifacts_installed(
+            artifacts_toml;
+            include_lazy=true,
+            verbose=verbose,
+            platform=host_platform
+        )
     end
-    return nothing
 end
 
 _sudo_cmd = nothing
@@ -595,4 +573,33 @@ function shard_mappings(shards::Vector{CompilerShard})
     # Reverse mapping order, because `sandbox` reads them backwards
     reverse!(mappings)
     return mappings
+end
+
+
+"""
+    create_and_bind_mutable_artifact!(f::Function, art_name::String)
+
+Create (and bind) an artifact to `MutableArtifacts.toml` in one fell swoop.
+Used in things like .squashfs UID remapping and BB wizard state serialization.
+"""
+function create_and_bind_mutable_artifact!(f::Function, art_name::String)
+    mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
+    art_hash = create_artifact(f)
+    bind_artifact!(mutable_artifacts_toml, art_name, art_hash; force=true)
+end
+
+"""
+    get_mutable_artifact_path(art_name::String)
+
+Convenience wrapper to get an artifact bound withing `MutableArtifacts.toml`.
+Returns `nothing` if artifact not bound yet.
+"""
+function get_mutable_artifact_path(art_name::String)
+    mutable_artifacts_toml = joinpath(dirname(@__DIR__), "MutableArtifacts.toml")
+    hash = artifact_hash(art_name, mutable_artifacts_toml)
+    if hash === nothing
+        return nothing
+    end
+
+    return artifact_path(hash)
 end

@@ -13,31 +13,36 @@ mutable struct UserNSRunner <: Runner
     sandbox_cmd::Cmd
     env::Dict{String, String}
     platform::Platform
-end
 
-sandbox_path(rootfs) = joinpath(mount_path(rootfs), "sandbox")
+    shards::Vector{CompilerShard}
+    workspace_root::String
+end
 
 function UserNSRunner(workspace_root::String;
                       cwd = nothing,
                       workspaces::Vector = Pair[],
+                      mappings::Vector = Pair[],
                       platform::Platform = platform_key_abi(),
                       extra_env=Dict{String, String}(),
-                      verbose::Bool = false)
+                      verbose::Bool = false,
+                      compiler_wrapper_path::String = mktempdir(),
+                      src_name::AbstractString = "",
+                      kwargs...)
     global use_ccache, use_squashfs, runner_override
 
-	# Check that our kernel is new enough to use this runner
-	kernel_version_check()
+    # Check that our kernel is new enough to use this runner
+    kernel_version_check()
 
     # Check to make sure we're not going to try and bindmount within an
     # encrypted directory, as that triggers kernel bugs
     check_encryption(workspace_root; verbose=verbose)
 
-    # Choose and prepare our shards
-    shards = choose_shards(platform)
-    prepare_shard.(shards; verbose=verbose)
-	
     # Construct environment variables we'll use from here on out
-    envs = merge(platform_envs(platform), extra_env)
+    envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
+
+    # JIT out some compiler wrappers, add it to our mounts
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,))...)
+    push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     # the workspace_root is always a workspace, and we always mount it first
     insert!(workspaces, 1, workspace_root => "/workspace")
@@ -50,12 +55,16 @@ function UserNSRunner(workspace_root::String;
         push!(workspaces, ccache_dir() => "/root/.ccache")
     end
 
-    # Construct sandbox command
-    sandbox_cmd = `$(sandbox_path(shards[1]))`
+    # Choose the shards we're going to mount
+    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:bootstrap_list,:compilers))...)
+	
+    # Construct sandbox command to look at the location it'll be mounted under
+    mpath = mount_path(shards[1], workspace_root)
+    sandbox_cmd = `$(mpath)/sandbox`
     if verbose
         sandbox_cmd = `$sandbox_cmd --verbose`
     end
-    sandbox_cmd = `$sandbox_cmd --rootfs $(mount_path(shards[1]))`
+    sandbox_cmd = `$sandbox_cmd --rootfs $(mpath)`
     if cwd != nothing
         sandbox_cmd = `$sandbox_cmd --cd $cwd`
     end
@@ -67,27 +76,33 @@ function UserNSRunner(workspace_root::String;
 
     # Mount in compiler shards (excluding the rootfs shard)
     for shard in shards[2:end]
-        sandbox_cmd = `$sandbox_cmd --map $(mount_path(shard)):$(map_target(shard))`
+        mpath = mount_path(shard, workspace_root)
+        sandbox_cmd = `$sandbox_cmd --map $(mpath):$(map_target(shard))`
     end
 
-	# If runner_override is not yet set, let's probe to see if we can use
-	# unprivileged containers, and if we can't, switch over to privileged.
-	if runner_override == ""
-		if !probe_unprivileged_containers()
-			msg = strip("""
-			Unable to run unprivileged containers on this system!
-			This may be because your kernel does not support mounting overlay
-			filesystems within user namespaces. To work around this, we will
-			switch to using privileged containers. This requires the use of
-			sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
-			environment variable to "privileged" before starting Julia.
-			""")
-			@warn(replace(msg, "\n" => " "))
-			runner_override = "privileged"
-		else
-			runner_override = "userns"
-		end
-	end
+    # Mount in externally-defined read-only mappings
+    for (outside, inside) in mappings
+        sandbox_cmd = `$sandbox_cmd --map $(outside):$(inside)`
+    end
+
+    # If runner_override is not yet set, let's probe to see if we can use
+    # unprivileged containers, and if we can't, switch over to privileged.
+    if runner_override == ""
+        if !probe_unprivileged_containers()
+            msg = strip("""
+            Unable to run unprivileged containers on this system!
+            This may be because your kernel does not support mounting overlay
+            filesystems within user namespaces. To work around this, we will
+            switch to using privileged containers. This requires the use of
+            sudo. To choose this automatically, set the BINARYBUILDER_RUNNER
+            environment variable to "privileged" before starting Julia.
+            """)
+            @warn(replace(msg, "\n" => " "))
+            runner_override = "privileged"
+        else
+            runner_override = "userns"
+        end
+    end
 
     # Check to see if we need to run privileged containers.
     if runner_override == "privileged"
@@ -103,7 +118,7 @@ function UserNSRunner(workspace_root::String;
     end
 
     # Finally, return the UserNSRunner in all its glory
-    return UserNSRunner(sandbox_cmd, envs, platform)
+    return UserNSRunner(sandbox_cmd, envs, platform, shards, workspace_root)
 end
 
 function show(io::IO, x::UserNSRunner)
@@ -114,36 +129,60 @@ function show(io::IO, x::UserNSRunner)
           "UserNSRunner")
 end
 
+mount_shards(ur::UserNSRunner; verbose::Bool = false) = mount.(ur.shards, ur.workspace_root; verbose=verbose)
+function unmount_shards(ur::UserNSRunner; verbose::Bool = false)
+    unmount.(ur.shards, ur.workspace_root; verbose=verbose)
+
+    # Remove `mounts` if it's empty
+    try
+        rm(joinpath(ur.workspace_root, "mounts"))
+    catch
+    end
+end
+
+prompted_userns_run_privileged = false
 function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
-    if runner_override == "privileged"
-        msg = "Running privileged container via `sudo`, may ask for your password:"
-        BinaryProvider.info_onchange(msg, "privileged", "userns_run_privileged")
+    global prompted_userns_run_privileged
+    if runner_override == "privileged" && !prompted_userns_run_privileged
+        @info("Running privileged container via `sudo`, may ask for your password:")
+        prompted_userns_run_privileged = true
     end
 
-    did_succeed = true
-    oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
+    did_succeed = false
+    try
+        mount_shards(ur; verbose=verbose)
+        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
+        did_succeed = wait(oc)
 
-    did_succeed = wait(oc)
+        if !isempty(logpath)
+            # Write out the logfile, regardless of whether it was successful
+            mkpath(dirname(logpath))
 
-    if !isempty(logpath)
-        # Write out the logfile, regardless of whether it was successful
-        mkpath(dirname(logpath))
-        open(logpath, "w") do f
-            # First write out the actual command, then the command output
-            println(f, cmd)
-            print(f, merge(oc))
+            # Sometimes it already exists, if so just wipe it out.
+            if isfile(logpath)
+                rm(logpath; force=true)
+            end
+            open(logpath, "w") do f
+                # First write out the actual command, then the command output
+                println(f, cmd)
+                print(f, merge(oc))
+            end
         end
+    finally
+        unmount_shards(ur; verbose=verbose)
     end
+
 
     # Return whether we succeeded or not
     return did_succeed
 end
 
 const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
-function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing)
-    if runner_override == "privileged"
-        msg = "Running privileged container via `sudo`, may ask for your password:"
-        BinaryProvider.info_onchange(msg, "privileged", "userns_run_privileged")
+function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
+    global prompted_userns_run_privileged
+    if runner_override == "privileged" && !prompted_userns_run_privileged
+        @info("Running privileged container via `sudo`, may ask for your password:")
+        prompted_userns_run_privileged = true
     end
 
     cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
@@ -157,19 +196,28 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
         cmd = pipeline(cmd, stderr=stderr)
     end
 
-    if stdout isa IOBuffer
-        if !(stdin isa IOBuffer)
-            stdin = devnull
-        end
-        process = open(cmd, "r", stdin)
-        @async begin
-            while !eof(process)
-                write(stdout, read(process))
+    if verbose
+        @debug("About to run: $(cmd)")
+    end
+
+    try
+        mount_shards(ur; verbose=verbose)
+        if stdout isa IOBuffer
+            if !(stdin isa IOBuffer)
+                stdin = devnull
             end
+            process = open(cmd, "r", stdin)
+            @async begin
+                while !eof(process)
+                    write(stdout, read(process))
+                end
+            end
+            wait(process)
+        else
+            run(cmd)
         end
-        wait(process)
-    else
-        run(cmd)
+    finally
+        unmount_shards(ur)
     end
 end
 
@@ -266,22 +314,26 @@ end
 function probe_unprivileged_containers(;verbose::Bool=false)
     # Choose and prepare our shards
     root_shard = choose_shards(Linux(:x86_64))[1]
-    prepare_shard(root_shard)
 
     # Ensure we're not about to make fools of ourselves by trying to mount an
     # encrypted directory, which triggers kernel bugs.  :(
     check_encryption(tempdir())
 
-    return cd(tempdir()) do
-        # Construct an extremely simple sandbox command
-        sandbox_cmd = `$(sandbox_path(root_shard)) --rootfs $(mount_path(root_shard))`
-        cmd = `$(sandbox_cmd) -- /bin/bash -c "echo hello julia"`
+    return mktempdir() do tmpdir
+        try
+            # Construct an extremely simple sandbox command
+            mpath = mount(root_shard, tmpdir; verbose=verbose)
+            sandbox_cmd = `$(mpath)/sandbox --rootfs $(mpath)`
+            cmd = `$(sandbox_cmd) -- /bin/sh -c "echo hello julia"`
 
-        if verbose
-            @info("Probing for unprivileged container capability...")
+            if verbose
+                @info("Probing for unprivileged container capability...")
+            end
+            oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
+            return wait(oc) && merge(oc) == "hello julia\n"
+        finally
+            unmount(root_shard, tmpdir)
         end
-        oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
-        return wait(oc) && merge(oc) == "hello julia\n"
     end
 end
 

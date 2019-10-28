@@ -15,8 +15,7 @@ ENV BINARYBUILDER_USE_CCACHE true
 # we'll make this even though the user should mount something in here
 RUN mkdir -p /storage
 
-# Install BinaryBuilder (and BinaryProvider, both on `master` versions)
-RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryProvider", rev="master"))'
+# Install BinaryBuilder
 RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master"))'
 RUN julia -e 'using Pkg; Pkg.API.precompile();'
 

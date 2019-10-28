@@ -4,6 +4,8 @@ include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")
 include("auditor/symlink_translator.jl")
 include("auditor/compiler_abi.jl")
+include("auditor/soname_matching.jl")
+include("auditor/filesystems.jl")
 
 # AUDITOR TODO LIST:
 #
@@ -14,7 +16,8 @@ include("auditor/compiler_abi.jl")
     audit(prefix::Prefix; platform::Platform = platform_key_abi();
                           verbose::Bool = false,
                           silent::Bool = false,
-                          autofix::Bool = false)
+                          autofix::Bool = false,
+                          require_license::Bool = true)
 
 Audits a prefix to attempt to find deployability issues with the binary objects
 that have been installed within.  This auditing will check for relocatability
@@ -26,12 +29,13 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(prefix::Prefix; io=stderr,
+function audit(prefix::Prefix, src_name::AbstractString = "";
+                               io=stderr,
                                platform::Platform = platform_key_abi(),
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = false,
-                               ignore_manifests::Vector = [])
+                               require_license::Bool = true)
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
         verbose = false
@@ -47,17 +51,12 @@ function audit(prefix::Prefix; io=stderr,
     # Translate absolute symlinks to relative symlinks, if possible
     translate_symlinks(prefix.path; verbose=verbose)
 
-    # If a file exists within ignore_manifests, then we won't inspect it
-    # as it belongs to some dependent package.
-    ignore_files = vcat((readlines(f) for f in ignore_manifests)...)
-    ignore_files = [abspath(joinpath(prefix, f)) for f in ignore_files]
-
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
-    bin_files = collect_files(prefix, predicate)
+    bin_files = collect_files(prefix, predicate; exclude_externalities=false)
     for f in collapse_symlinks(bin_files)
-        # If this file is contained within the `ignore_manifests`, skip it
-        if f in ignore_files
+        # If `f` is outside of our prefix, ignore it.  This happens with files from our dependencies
+        if !startswith(f, prefix.path)
             continue
         end
 
@@ -71,8 +70,10 @@ function audit(prefix::Prefix; io=stderr,
                 else
                     # Check that the ISA isn't too high
                     all_ok &= check_isa(oh, platform, prefix; io=io, verbose=verbose, silent=silent)
-                    # Check that the libgfortran ABI matches
-                    all_ok &= check_gcc_version(oh, platform; io=io, verbose=verbose)
+                    # Check that the libgfortran version matches
+                    all_ok &= check_libgfortran_version(oh, platform; io=io, verbose=verbose)
+                    # Check that the libstdcxx string ABI matches
+                    all_ok &= check_cxxstring_abi(oh, platform; io=io, verbose=verbose)
                     # Check that this binary file's dynamic linkage works properly.  Note to always
                     # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
                     # checks to freak out a little bit.
@@ -93,14 +94,13 @@ function audit(prefix::Prefix; io=stderr,
         end
     end
 
-    # Inspect all shared library files for our platform (but only if we're
-    # running native, don't try to load library files from other platforms)
-    if BinaryProvider.platforms_match(platform, platform_key_abi())
-        # Find all dynamic libraries
-        predicate = f -> valid_dl_path(f, platform) && !(f in ignore_files)
-        shlib_files = collect_files(prefix, predicate)
+    # Find all dynamic libraries
+    shlib_files = filter(f -> valid_dl_path(f, platform), bin_files)
 
-        for f in shlib_files
+    for f in shlib_files
+        # Inspect all shared library files for our platform (but only if we're
+        # running native, don't try to load library files from other platforms)
+        if Pkg.BinaryPlatforms.platforms_match(platform, platform_key_abi())
             if verbose
                 info(io, "Checking shared library $(relpath(f, prefix.path))")
             end
@@ -110,16 +110,16 @@ function audit(prefix::Prefix; io=stderr,
             # LLVM in interesting ways on startup, it doesn't kill our main
             # Julia process.
             dlopen_cmd = """
-            using Libdl
-            try
-                dlopen($(repr(f)))
-                return 0
-            catch e
-                if $(repr(verbose))
-                    Base.display_error(e)
+                using Libdl
+                try
+                    dlopen($(repr(f)))
+                    return 0
+                catch e
+                    if $(repr(verbose))
+                        Base.display_error(e)
+                    end
+                    return 1
                 end
-                return 1
-            end
             """
             try
                 p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
@@ -136,23 +136,21 @@ function audit(prefix::Prefix; io=stderr,
                 all_ok = false
             end
         end
+
+        # Ensure that all libraries have at least some kind of SONAME, if we're
+        # on that kind of platform
+        if !(platform isa Windows)
+            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
+        end
+
+        # Ensure that this library is available at its own SONAME
+        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
     end
 
     if platform isa Windows
-        # If we're targeting a windows platform, check to make sure no .dll
-        # files are sitting in `$prefix/lib`, as that's a no-no.  This is
-        # not a fatal offense, but we'll yell about it.
-        predicate = f -> f[end-3:end] == ".dll" && !(f in ignore_files)
-        lib_dll_files = collect_files(joinpath(prefix, "lib"), predicate)
-        for f in lib_dll_files
-            if !silent
-                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
-            end
-        end
-
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
-        symlinks = collect_files(prefix, f -> islink(f))
+        symlinks = collect_files(prefix, islink)
         for f in symlinks
             try
                 src_path = realpath(f)
@@ -164,13 +162,22 @@ function audit(prefix::Prefix; io=stderr,
             end
         end
         
+        # If we're targeting a windows platform, check to make sure no .dll
+        # files are sitting in `$prefix/lib`, as that's a no-no.  This is
+        # not a fatal offense, but we'll yell about it.
+        lib_dll_files =  filter(f -> valid_dl_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
+        for f in lib_dll_files
+            if !silent
+                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
+            end
+        end
+
         # Even more than yell about it, we're going to automatically move
         # them if there are no `.dll` files outside of `lib`.  This is
         # indicative of a simplistic build system that just don't know any
         # better with regards to windows, rather than a complicated beast.
-        all_dll_files = collect_files(prefix, predicate)
-        outside_dll_files = [f for f in all_dll_files if !(f in lib_dll_files)]
-        if autofix && isempty(outside_dll_files)
+        outside_dll_files = [f for f in shlib_files if !(f in lib_dll_files)]
+        if autofix && !isempty(lib_dll_files) && isempty(outside_dll_files)
             if !silent
                 warn(io, "Simple buildsystem detected; Moving all `.dll` files to `bin`!")
             end
@@ -182,30 +189,19 @@ function audit(prefix::Prefix; io=stderr,
         end
     end
 
-    # Search _every_ file in the prefix path to find hardcoded paths
-    predicate = f -> !startswith(f, joinpath(prefix, "logs")) &&
-                     !startswith(f, joinpath(prefix, "manifests")) &&
-                     !(f in ignore_files)
-    all_files = collect_files(prefix, predicate)
-
-    # Finally, check for absolute paths in any files.  This is not a "fatal"
-    # offense, as many files have absolute paths.  We want to know about it
-    # though, so we'll still warn the user.
-    for f in all_files
-        try
-            file_contents = String(read(f))
-            if occursin(prefix.path, file_contents)
-                if !silent
-                    warn(io, "$(relpath(f, prefix.path)) contains an absolute path")
-                end
-            end
-        catch
-            if !silent
-                warn(io, "Skipping abspath scanning of $(f), as we can't open it")
-            end
-        end
+    # Check that we're providing a license file
+    if require_license
+        all_ok &= check_license(prefix, src_name; verbose=verbose, io=io, silent=silent)
     end
 
+    # Perform filesystem-related audit passes    predicate = f -> !startswith(f, joinpath(prefix, "logs"))
+    all_files = collect_files(prefix, predicate)
+
+    # Search for absolute paths in this prefix
+    all_ok &= check_absolute_paths(prefix, all_files; io=io, silent=silent)
+
+    # Search for case-sensitive ambiguities
+    all_ok &= check_case_sensitivity(prefix; io=io)
     return all_ok
 end
 
@@ -344,16 +340,23 @@ end
 Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
 """
-function collect_files(path::AbstractString, predicate::Function = f -> true; exculuded_files=Set{String}())
+function collect_files(path::AbstractString, predicate::Function = f -> true;
+                       exclude_externalities::Bool = true)
     if !isdir(path)
         return String[]
+    end
+    # If we are set to exclude externalities, then filter out symlinks that point
+    # outside of our given `path`.
+    if exclude_externalities
+        old_predicate = predicate
+        predicate = f -> old_predicate(f) && !(islink(f) && !startswith(Pkg.Types.safe_realpath(f), path))
     end
     collected = String[]
     for (root, dirs, files) in walkdir(path)
         for f in files
             f_path = joinpath(root, f)
 
-            if predicate(f_path) && !(f_path in exculuded_files)
+            if predicate(f_path)
                 push!(collected, f_path)
             end
         end
@@ -390,3 +393,28 @@ function collapse_symlinks(files::Vector{String})
     return filter(predicate, files)
 end
 
+"""
+    check_license(prefix, src_name; io::IO = stderr,
+                  verbose::Bool = false,, silent::Bool = false)
+
+Check that there are license files for the project called `src_name` in the `prefix`.
+"""
+function check_license(prefix::Prefix, src_name::AbstractString = "";
+                       io::IO = stderr, verbose::Bool = false, silent::Bool = false)
+    if verbose
+        info(io, "Checking license file")
+    end
+    license_dir = joinpath(prefix.path, "share", "licenses", src_name)
+    if isdir(license_dir) && length(readdir(license_dir)) >= 1
+        if verbose
+            @info "Found license file(s): " * join(readdir(license_dir), ", ")
+        end
+        return true
+    else
+        if !silent
+            warn(io, "Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
+        end
+        # This is pretty serious; don't let us get through without a license
+        return false
+    end
+end

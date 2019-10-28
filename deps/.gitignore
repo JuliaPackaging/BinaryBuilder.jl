@@ -1,12 +1,5 @@
-# Ignore rootfs artifacts
-root/
-downloads/
-qemu/
-ccache/
-mounts/
+# Ignore Yggdrasil clone
+Yggdrasil
 
-# Ignore sandbox executable
-sandbox
-
-# Ignore state cache
-wizard.state
+# Ignore ccache
+ccache

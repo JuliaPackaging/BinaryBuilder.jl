@@ -68,7 +68,7 @@ mkdir(tempspace)
 tar_hash = nothing
 open(joinpath(tempspace, "source.tar.gz"), "w") do f
     data = tar_libfoo()
-    global tar_hash = BinaryProvider.sha256(data)
+    global tar_hash = sha256(data)
     write(f, data)
 end
 

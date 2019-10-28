@@ -3,39 +3,31 @@
 
 module BinaryBuilder
 using Libdl, LibGit2, Random, Sockets, Base64
-using Reexport
 using ObjectFile
 using GitHub
 import InteractiveUtils
+using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts
 
-@reexport using BinaryProvider
+# Re-export useful stuff from Pkg:
+export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi,
+       libgfortran_version, libstdcxx_version, cxxstring_abi, parse_dl_name_version,
+       detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi,
+       call_abi, wordsize, triplet, select_platform, platforms_match,
+       CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
 
 include("compat.jl")
+include("OutputCollector.jl")
+include("Prefix.jl")
+include("Products.jl")
 include("Auditor.jl")
 include("Runner.jl")
 include("Rootfs.jl")
-include("RootfsHashTable.jl")
+include("squashfs_utils.jl")
 include("UserNSRunner.jl")
-include("QemuRunner.jl")
 include("DockerRunner.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 
-# This is a global github authentication token that is set the first time
-# we authenticate and then reused
-const _github_auth = Ref{GitHub.Authorization}()
-
-function github_auth()
-    if !isassigned(_github_auth)
-        # If the user is feeding us a GITHUB_TOKEN token, use it!
-        if length(get(ENV, "GITHUB_TOKEN", "")) == 40
-            _github_auth[] = GitHub.authenticate(ENV["GITHUB_TOKEN"])
-        else
-            _github_auth[] = GitHub.AnonymousAuth()
-        end
-    end
-    return _github_auth[]
-end
 
 # This is the location that all binary builder-related files are stored under.
 # downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
@@ -45,7 +37,6 @@ function storage_dir(args::AbstractString...)
 end
 ccache_dir() = storage_dir("ccache")
 
-
 # These globals store important information such as where we're downloading
 # the rootfs to, and where we're unpacking it.  These constants are initialized
 # by `__init__()` to allow for environment variable overrides from the user.
@@ -54,10 +45,14 @@ automatic_apple = false
 use_squashfs = false
 allow_ecryptfs = false
 use_ccache = false
+bootstrap_list = Symbol[]
 
 function __init__()
     global runner_override, use_squashfs, automatic_apple, allow_ecryptfs
     global use_ccache, storage_cache
+
+    # Pkg does this lazily; do it explicitly here.
+    Pkg.PlatformEngines.probe_platform_engines!()
 
     # Allow the user to override the default value for `storage_dir`
     storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",
@@ -71,7 +66,10 @@ function __init__()
 
     # If the user has overridden our runner selection algorithms, honor that
     runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
-    if !(runner_override in ["", "userns", "qemu", "privileged", "docker"])
+    if runner_override == "unprivileged"
+        runner_override = "userns"
+    end
+    if !(runner_override in ["", "userns", "privileged", "docker"])
         @warn("Invalid runner value $runner_override, ignoring...")
         runner_override = ""
     end
@@ -91,11 +89,9 @@ function __init__()
             use_squashfs = true
         end
 
-        # If it hasn't been specified but we're going to use the QEMU runner,
+        # If it hasn't been specified but we're going to use the docker runner,
         # then set `use_squashfs` to `true` here.
-        if preferred_runner() == QemuRunner
-            use_squashfs = true
-        elseif preferred_runner() == DockerRunner
+        if preferred_runner() == DockerRunner
             # Conversely, if we're dock'ing it up, don't use it.
             use_squashfs = false
         elseif runner_override == "privileged"

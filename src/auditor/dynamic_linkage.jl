@@ -129,13 +129,29 @@ end
 # These are libraries we should straight-up ignore, like libsystem on OSX
 function should_ignore_lib(lib, ::ELFHandle)
     ignore_libs = [
-        # Basic runtimes for both Linux and FreeBSD
+        # dynamic loaders
+        "ld-linux-x86-64.so.2",
+        "ld-linux.so.2",
+        "ld-linux-armhf.so.3",
+        "ld-linux-aarch64.so.1",
+        "ld-musl-x86_64.so.1",
+        "ld-musl-i386.so.1",
+        "ld-musl-aarch64.so.1",
+        "ld-musl-armhf.so.1",
+        "ld64.so.2",
+        # C runtime
         "libc.so",
         "libc.so.6",
         "libc.so.7",
+        "libc.musl-x86_64.so.1",
+        "libc.musl-i386.so.1",
+        "libc.musl-aarch64.so.1",
+        "libc.musl-armhf.so.1",
+        # C++ runtime
         "libstdc++.so.6",
         "libc++.so.1",
         "libcxxrt.so.1",
+        # GCC libraries
         "libdl.so.2",
         "librt.so.1",
         "libgcc_s.1.so",
@@ -147,13 +163,8 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libgfortran.so.5",
         "libquadmath.so.0",
         "libthr.so.3",
-        # libpthread and libgomp are pretty safe bets
         "libpthread.so.0",
         "libgomp.so.1",
-        # dynamic loaders
-        "ld-linux-x86-64.so.2",
-        "ld-linux.so.2",
-        "ld-musl-x86_64.so.1",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
@@ -167,15 +178,49 @@ function should_ignore_lib(lib, ::MachOHandle)
 end
 function should_ignore_lib(lib, ::COFFHandle)
     ignore_libs = [
+        # Core runtime libs
+        "ntdll.dll",
         "msvcrt.dll",
         "kernel32.dll",
         "user32.dll",
+        "shell32.dll",
+        "shlwapi.dll",
+        "advapi32.dll",
+        "crypt32.dll",
+        "ws2_32.dll",
+        "rpcrt4.dll",
+        "usp10.dll",
+        "dwrite.dll",
+        "gdi32.dll",
+        "gdiplus.dll",
+        "comdlg32.dll",
+        "secur32.dll",
+        "ole32.dll",
+        "dbeng.dll",
+        "wldap32.dll",
+        "opengl32.dll",
+        "winmm.dll",
+        "iphlpapi.dll",
+        "imm32.dll",
+        "comctl32.dll",
+        "oleaut32.dll",
+        "userenv.dll",
+        "netapi32.dll",
+        "winhttp.dll",
+        "msimg32.dll",
+        "dnsapi.dll",
+
+        # Compiler support libraries
         "libgcc_s_seh-1.dll",
         "libgcc_s_sjlj-1.dll",
         "libgfortran-3.dll",
         "libgfortran-4.dll",
         "libgfortran-5.dll",
         "libstdc++-6.dll",
+        "libwinpthread-1.dll",
+
+        # This one needs some special attention, eventually
+        "libgomp-1.dll",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
@@ -202,21 +247,21 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
     relink_cmd = ``
 
     if Sys.isapple(platform)
-        install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+        install_name_tool = "/opt/bin/install_name_tool"
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        patchelf = "/usr/local/bin/patchelf"
+        patchelf = "/usr/bin/patchelf"
         relink_cmd = `$patchelf --replace-needed $(old_libpath) $(libname) $(rel_path)`
     end
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
-    logpath = joinpath(logdir(prefix), "relink_to_rpath_$(basename(rel_path))_$(libname).log")
+    logpath = joinpath(logdir(prefix), "relink_to_rpath_$(basename(rel_path)).log")
     run(ur, relink_cmd, logpath; verbose=verbose)
 end
 
 # Only macOS needs to fix identity mismatches
 fix_identity_mismatch(prefix, platform, path, oh; kwargs...) = nothing
-function fix_identity_mismatch(prefix::Prefix, platform::Platform, path::AbstractString,
+function fix_identity_mismatch(prefix::Prefix, platform::MacOS, path::AbstractString,
                                oh::MachOHandle; verbose::Bool = false)
     id_lc = [lc for lc in MachOLoadCmds(oh) if typeof(lc) <: MachOIdDylibCmd]
     if isempty(id_lc)
@@ -231,20 +276,20 @@ function fix_identity_mismatch(prefix::Prefix, platform::Platform, path::Abstrac
         return nothing
     end
 
-    # Convert identity from 
-
     if verbose
         @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
     end
     
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
-    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+    install_name_tool = "/opt/bin/install_name_tool"
     id_cmd = `$install_name_tool -id $(new_id) $(rel_path)`
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
     logpath = joinpath(logdir(prefix), "fix_identity_mismatch_$(basename(rel_path)).log")
     run(ur, id_cmd, logpath; verbose=verbose)
 end
+
+
 """
     update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
                    old_libpath, new_libpath; verbose::Bool = false)
@@ -265,28 +310,35 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
 
+    normalize_rpath = rp -> rp
     add_rpath = x -> ``
     relink = (x, y) -> ``
-    patchelf = "/usr/local/bin/patchelf"
-    install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+    patchelf = "/usr/bin/patchelf"
+    install_name_tool = "/opt/bin/install_name_tool"
     if Sys.isapple(platform)
-        add_rpath = rp -> `$install_name_tool -add_rpath @loader_path/$(rp) $(rel_path)`
+        normalize_rpath = rp -> begin
+            if !startswith(rp, "@loader_path")
+                return "@loader_path/$(rp)"
+            end
+            return rp
+        end
+        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
+        normalize_rpath = rp -> begin
+            if rp == "."
+                return "\$ORIGIN"
+            end
+            if startswith(rp, ".")
+                return "\$ORIGIN/$(rp)"
+            end
+            return rp
+        end
         current_rpaths = [r for r in rpaths(path) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
             rpaths = unique(vcat(current_rpaths, rp))
 
-            # If any rpaths are `.`, map that to `$ORIGIN`
-            remap_to_origin = path -> begin
-                if path == "."
-                    return "\$ORIGIN"
-                end
-                return path
-            end
-            rpaths = remap_to_origin.(rpaths)
-            
             # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
             # it semantically makes a difference, but why not be correct AND beautiful?
             chomp_slashdot = path -> begin
@@ -308,8 +360,8 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     new_libdir = abspath(dirname(new_libpath) * "/")
     if !(new_libdir in canonical_rpaths(path))
         libname = basename(old_libpath)
-        logpath = joinpath(logdir(prefix), "update_rpath_$(libname).log")
-        cmd = add_rpath(relpath(new_libdir, dirname(path)))
+        logpath = joinpath(logdir(prefix), "update_rpath_$(basename(path))_$(libname).log")
+        cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
         run(ur, cmd, logpath; verbose=verbose)
     end
 

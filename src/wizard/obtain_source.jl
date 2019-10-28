@@ -1,5 +1,5 @@
 using ProgressMeter
-
+const update! = ProgressMeter.update!
 
 """
 Canonicalize a GitHub repository URL
@@ -13,6 +13,23 @@ function canonicalize_source_url(url)
         if !endswith(repo, ".git")
             return "https://github.com/$user/$repo.git"
         end
+    end
+    url
+end
+
+"""
+Canonicalize URL to a file within a GitHub repo
+"""
+function canonicalize_file_url(url)
+    blob_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)"
+    m = match(blob_regex, url)
+    if m !== nothing
+        _, user, repo, ref, filepath = m.captures
+        if length(ref) != 40 || !all(c->isnumeric(c) || c in 'a':'f' || c in 'A':'F', ref)
+            # Ask github to resolve this ref for us
+            ref = GitHub.reference(GitHub.Repo("$user/$repo"), "heads/$ref").object["sha"]
+        end
+        return "https://raw.githubusercontent.com/$user/$repo/$ref/$(filepath)"
     end
     url
 end
@@ -40,21 +57,25 @@ function transfer_progress(progress::Ptr{GitTransferProgress}, p::Any)
     return Cint(0)
 end
 
-macro compat_gc_preserve(args...)
-    esc(Expr(:macrocall, Expr(:., :GC, QuoteNode(Symbol("@preserve"))), args...))
-end
+"""
+    clone(url::String, source_path::String)
 
-function clone(url, source_path)
+Clone a git repository hosted at `url` into `source_path`, with a progress bar
+displayed to stdout.
+"""
+function clone(url::String, source_path::String)
+    # Clone with a progress bar
     p = Progress(0, 1, "Cloning: ")
-    @compat_gc_preserve p begin
-        @static if VERSION >= v"0.7-"
-            callbacks = LibGit2.RemoteCallbacks(transfer_progress=@cfunction(transfer_progress, Cint, (Ptr{GitTransferProgress}, Any)),
-                payload = p)
-        else
-            callbacks = LibGit2.RemoteCallbacks(transfer_progress=cfunction(transfer_progress, Cint, Tuple{Ptr{GitTransferProgress}, Any}),
-                payload = pointer_from_objref(p))
-        end
-        fetch_opts = LibGit2.FetchOptions(callbacks = callbacks)
+    GC.@preserve p begin
+        callbacks = LibGit2.RemoteCallbacks(
+            transfer_progress=@cfunction(
+                transfer_progress,
+                Cint,
+                (Ptr{GitTransferProgress}, Any)
+            ),
+            payload = p
+        )
+        fetch_opts = LibGit2.FetchOptions(callbacks=callbacks)
         clone_opts = LibGit2.CloneOptions(fetch_opts=fetch_opts, bare = Cint(true))
         return LibGit2.clone(url, source_path, clone_opts)
     end
@@ -71,16 +92,34 @@ exact commit used to build the code, in the case of a tarball, it is the
 `sha256` hash of the tarball itself.
 """
 function download_source(state::WizardState)
-    # First, ask the user where this is all coming from
-    msg = replace(strip("""
-    Please enter a URL (git repository or compressed archive) containing the
-    source code to build:
-    """), "\n" => " ")
-    print(state.outs, msg, "\n> ")
-    entered_url = readline(state.ins)
-    println(state.outs)
+    entered_url = nothing
+    while entered_url === nothing #&& !eof(state.ins)
+        # First, ask the user where this is all coming from
+        msg = replace(strip("""
+        Please enter a URL (git repository or compressed archive) containing the
+        source code to build:
+        """), "\n" => " ")
+        new_entered_url = nonempty_line_prompt("URL", msg; ins=state.ins, outs=state.outs)
 
-    url = canonicalize_source_url(entered_url)
+        # Early-exit for invalid URLs, using HTTP.URIs.parse_uri() to ensure
+        # it is a valid URL
+        try
+            HTTP.URIs.parse_uri(new_entered_url; strict=true)
+            entered_url = new_entered_url
+        catch e
+            printstyled(state.outs, e.msg, color=:red, bold=true)
+            println(state.outs)
+            println(state.outs)
+            continue
+        end
+    end
+
+    # Did the user exit out with ^D or something else go horribly wrong?
+    if entered_url === nothing
+        error("Could not obtain source URL")
+    end
+
+    url = string(canonicalize_source_url(entered_url))
     if url != entered_url
         print(state.outs, "The entered URL has been canonicalized to\n")
         printstyled(state.outs, url, bold=true)
@@ -100,9 +139,8 @@ function download_source(state::WizardState)
         "Please note that for reproducability, the exact commit will be recorded, \n" *
         "so updates to the remote resource will not be used automatically; \n" *
         "you will have to manually update the recorded commit."
-        print(state.outs, msg, "\n> ")
-        treeish = readline(state.ins)
-        println(state.outs)
+        #print(state.outs, msg, "\n> ")
+        treeish = nonempty_line_prompt("git reference", msg; ins=state.ins, outs=state.outs)
 
         obj = try
             LibGit2.GitObject(repo, treeish)
@@ -129,7 +167,7 @@ function download_source(state::WizardState)
             source_path = joinpath(state.workspace, "$(name)_$n$ext")
         end
 
-        download_cmd = gen_download_cmd(url, source_path)
+        download_cmd = Pkg.PlatformEngines.gen_download_cmd(url, source_path)
         oc = OutputCollector(download_cmd; verbose=true, tee_stream=state.outs)
         try
             if !wait(oc)
@@ -141,7 +179,7 @@ function download_source(state::WizardState)
 
         # Save the source hash
         open(source_path) do file
-            source_hash = bytes2hex(BinaryProvider.sha256(file))
+            source_hash = bytes2hex(sha256(file))
         end
     end
 
@@ -153,12 +191,14 @@ end
     step1(state::WizardState)
 
 It all starts with a single step, the unabashed ambition to leave your current
-stability and engage with the universe on a quest to create something new, and
+stability and engage with the universe on a quest to create something new,
 beautiful and unforseen.  It all ends with compiler errors.
 
-This step selets the relevant platform(s) for the built binaries.
+This step selects the relevant platform(s) for the built binaries.
 """
 function step1(state::WizardState)
+    print_wizard_logo(state.outs)
+
     # Select a platform
     msg = "\t\t\t# Step 1: Select your platforms\n\n"
     printstyled(state.outs, msg, bold=true)
@@ -166,10 +206,9 @@ function step1(state::WizardState)
     platform_select = request(terminal,
         "Make a platform selection",
         RadioMenu([
-            "All supported architectures",
-            "Specific operating system",
-            "Specific architecture",
-            "Custom",
+            "All Supported Platforms",
+            "Select by Operating System",
+            "Fully Custom Platform Choice",
         ])
     )
     println(state.outs)
@@ -187,28 +226,13 @@ function step1(state::WizardState)
             )
             result = map(x->oses[x], collect(result))
             if isempty(result)
-                println("Must select at least one operating system (CTRL-C to cancel)")
+                println("Must select at least one operating system")
             else
                 break
             end
         end
         state.platforms = collect(filter(x->typeof(x) in result, supported_platforms()))
     elseif platform_select == 3
-        arches = sort(unique(map(arch, supported_platforms())), by = repr)
-        while true
-            result = request(terminal,
-                "Select architectures",
-                MultiSelectMenu(map(repr, arches))
-            )
-            result = map(x->arches[x], collect(result))
-            if isempty(result)
-                println("Must select at least one architecture (CTRL-C to cancel)")
-            else
-                break
-            end
-        end
-        state.platforms = collect(filter(x->arch(x) in result, supported_platforms()))
-    elseif platform_select == 4
         platfs = supported_platforms()
         while true
             result = request(terminal,
@@ -216,7 +240,7 @@ function step1(state::WizardState)
                 MultiSelectMenu(map(repr, platfs))
             )
             if isempty(result)
-                println("Must select at least one platform (CTRL-C to cancel)")
+                println("Must select at least one platform")
             else
                 break
             end
@@ -229,72 +253,28 @@ function step1(state::WizardState)
     println(state.outs)
 end
 
-"""
-Canonicalize URL to a file within a GitHub repo
-"""
-function canonicalize_file_url(url)
-    blob_regex = r"(https:\/\/)?github.com\/([^\/]+)\/([^\/]+)\/blob\/([^\/]+)\/(.+)"
-    m = match(blob_regex, url)
-    if m !== nothing
-        _, user, repo, ref, filepath = m.captures
-        if length(ref) != 40 || !all(c->isnumeric(c) || c in 'a':'f' || c in 'A':'F', ref)
-            # Ask github to resolve this ref for us
-            ref = GitHub.reference(GitHub.Repo("$user/$repo"), "heads/$ref").object["sha"]
-        end
-        return "https://raw.githubusercontent.com/$user/$repo/$ref/$(filepath)"
-    end
-    url
-end
-
 function obtain_binary_deps(state::WizardState)
     msg = "\t\t\t# Step 2b: Obtain binary dependencies (if any)\n\n"
     printstyled(state.outs, msg, bold=true)
 
     q = "Do you require any (binary) dependencies? "
     if yn_prompt(state, q, :n) == :y
-        empty!(state.dependencies)
+        state.dependencies = String[]
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         while true
-            bindep_select = request(terminal,
-                "How would you like to specify this dependency?",
-                RadioMenu([
-                    "Provide remote build.jl file",
-                    "Paste in a build.jl file",
-                    "Never mind",
-                ])
-            )
-            println(state.outs)
+            jll_name = nonempty_line_prompt("package name", "Enter JLL package name:"; ins=state.ins, outs=state.outs)
 
-            if bindep_select == 1
-                println(state.outs, "Enter the URL to use: ")
-                print(state.outs, "> ")
-                url = readline(state.ins)
-                println(state.outs)
-                canon_url = canonicalize_file_url(url)
-                if url != canon_url
-                    print(state.outs, "The entered URL has been canonicalized to\n")
-                    printstyled(state.outs, canon_url, bold=true)
-                    println(state.outs)
-                    println(state.outs)
-                end
-                push!(state.dependencies, RemoteBuildDependency(canon_url,
-                    String(HTTP.get(canon_url).body)))
-            elseif bindep_select == 2
-                println(state.outs, "Please provide the build.jl file. Press ^D when you're done")
-                script = String(read(state.ins))
-                Base.reseteof(terminal)
-                push!(state.dependencies, InlineBuildDependency(script))
-            elseif bindep_select == 3
-                break
-            end
+            # Check to see if this JLL package name can be resolved:
+            @warn("TODO: check resolution of JLL package name here")            
+            push!(state.dependencies, jll_name)
             
             q = "Would you like to provide additional dependencies? "
             if yn_prompt(state, q, :n) != :y
-                println(state.outs)
                 break
             end
         end
     end
+    println(state.outs)
 end
 
 function obtain_source(state::WizardState)
@@ -326,6 +306,29 @@ function obtain_source(state::WizardState)
     println(state.outs)
 end
 
+function get_name_and_version(state::WizardState)
+    yggdrasil_path = get_yggdrasil()
+
+    while state.name === nothing
+        msg = "Enter a name for this project.  This will be used for filenames:"
+        new_name = nonempty_line_prompt("Name", msg; ins=state.ins, outs=state.outs)
+
+        # Check to see if this project name already exists
+        if case_insensitive_file_exists(joinpath(yggdrasil_path, yggdrasil_build_tarballs_path(new_name)))
+            println(state.outs, "A build recipe with that name already exists within Yggdrasil.")
+
+            if yn_prompt(state, "Choose a new project name?", :y) == :n
+                break
+            end
+        else
+            state.name = new_name
+        end
+    end
+
+    msg = "Enter a version number for this project:"
+    state.version = VersionNumber(nonempty_line_prompt("Version", msg; ins=state.ins, outs=state.outs))
+end
+
 """
     step2(state::WizardState)
 
@@ -334,4 +337,5 @@ This step obtains the source code to be built and required binary dependencies.
 function step2(state::WizardState)
     obtain_source(state)
     obtain_binary_deps(state)
+    get_name_and_version(state)
 end
