@@ -424,15 +424,14 @@ function autobuild(dir::AbstractString,
 
             # Create a runner to work inside this workspace with the nonce built-in
             ur = preferred_runner()(
-                prefix;
+                prefix.path;
                 cwd = "/workspace/srcdir",
                 platform = platform,
-                extra_env = extra_env,
                 verbose = verbose,
                 workspaces = [
-                    metadir => "/meta",
+                    joinpath(prefix, "metadir") => "/meta",
                 ],
-                compiler_wrapper_dir = wrapperdir,
+                compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
                 src_name = src_name,
                 extract_kwargs(kwargs, (:preferred_gcc_version,:compilers))...,
             )

@@ -277,7 +277,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             # our own `tar` and `unzip` through BP as dependencies for BB.
             tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
                               ".tar.xz", ".tar.Z", ".txz"]
-            cd(joinpath(build_path, nonce, "srcdir")) do
+            cd(srcdir) do
                 if any(endswith(src_path, ext) for ext in tar_extensions)
                     if verbose
                         @info "Extracting tarball $(basename(src_path))..."
