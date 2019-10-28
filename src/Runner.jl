@@ -265,7 +265,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # Default these tools to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
-                 :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc)
+                 :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc, :lipo)
         @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(p), "/bin/", triplet(p), "-", $(string(tool))); allow_ccache=false)
     end
  
@@ -274,7 +274,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     cxxfilt(io::IO, p::MacOS) = wrapper(io, string("/opt/", triplet(p), "/bin/llvm-cxxfilt"); allow_ccache=false)
 
     # Overrides for macOS binutils because Apple is always so "special"
-    for tool in (:ar, :ranlib)
+    for tool in (:ar, :ranlib, :dsymutil)
         @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", triplet(p), "/bin/llvm-", $tool))
     end
 
@@ -322,8 +322,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(winmc, p, "$(t)-winmc")
 
         # Special mac stuff
-        write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
-        write_wrapper(otool, p, "$(t)-otool")
+        if isa(p, MacOS)
+            write_wrapper(install_name_tool, p, "$(t)-install_name_tool")
+            write_wrapper(lipo, p, "$(t)-lipo")
+            write_wrapper(dsymutil, p, "$(t)-dsymutil")
+            write_wrapper(otool, p, "$(t)-otool")
+        end
 
         # Generate go stuff
         if :go in compilers
