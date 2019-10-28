@@ -11,6 +11,9 @@ On Linux platforms that use `glibc` as the C runtime library (at the time of wri
 * `gfortran` versioning
 When compiling FORTRAN code, the `gfortran` compiler has broken ABI compatibility in the 6.X -> 7.X transition, and the 7.X -> 8.X transition.  This means that code built with `gfortran` 6.X cannot be linked against code built with `gfortran` 7.X.  We therefore compile all `gfortran` code against multiple different `gfortran` versions, then at runtime decide which to download based upon the currently running process' existing linkage.
 
+* `cxx11` string ABI
+When switching from the `cxx03` standard to `cxx11` in GCC 5, the internal layout of `std::string` objects changed.  This causes incompatibility between C++ code passing strings back and forth across the public interface if they are not built with the same C++ string ABI.  We therefore detect when `std::string` objects are being passed around, and warn that you need to build two different versions, one with `cxx03`-style strings (doable by setting `-D_GLIBCXX_USE_CXX11_ABI=0` for newer GCC versions) and one with `cxx11`-style strings.
+
 * Library Dependencies
 A large source of problems in binary distribution is improper library linkage.  When building a binary object that depends upon another binary object, some operating systems (such as macOS) bake the absolute path to the dependee library into the dependent, whereas others rely on the library being present within a default search path.  BinaryBuilder.jl takes care of this by automatically discovering these errors and fixing them by using the `RPATH`/`RUNPATH` semantics of whichever platform it is targeting.  Note that this is technically a build system error, and although we will fix it automatically, it will raise a nice yellow warning during build prefix audit time.
 
