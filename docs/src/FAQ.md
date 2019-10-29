@@ -30,7 +30,7 @@ Some linux distributions have a bug in their `overlayfs` implementation that pre
 
 ### I have to build a very small project without a Makefile, what do I have to do?
 
-What BinaryBuilder needs is to find the relevant file (shared libraries, or executables, etc...) organised under the `$prefix` directory: libraries should go to `$prefix/lib`, executables to `$prefix/bin`.  You may need to create those directory.  You are free to choose whether to create a simple Makefile to build the project or to do everything within the `build_tarballs.jl` script.
+What BinaryBuilder needs is to find the relevant file (shared libraries, or executables, etc...) organised under the `$prefix` directory: libraries should go to `$prefix/lib` (`$prefix/bin` on Windows), executables to `$prefix/bin`.  You may need to create those directory.  You are free to choose whether to create a simple Makefile to build the project or to do everything within the `build_tarballs.jl` script.
 When the script completes, BinaryBuilder expects to find at least one artifact _built for the expected architecture_ in either `$prefix/lib` or `$prefix/bin`.
 Remember also that you should use the standard environment variables like `CC`, `CXX`, `CFLAGS`, `LDFLAGS` as appropriate in order to cross compile.  See [the list of variables](environment_variables.md).
 

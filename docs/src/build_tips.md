@@ -57,6 +57,32 @@ The toolchain file sets up several CMake environment variables for better cross-
   - Needs to copy *.dll files from `destdir/lib` to `destdir/bin` for windows; this also removes symlinks by using `cp -L`
   - Needs `-DCMAKE_FIND_ROOT_PATH="$WORKSPACE/destdir"`, so CMake's `find_library` can find libraries from KLU
 
+## Meson builds
+
+BinaryBuilder supports also building with Meson.  Since this is going to be a cross-compilation, you have to specify a Meson cross file:
+
+```sh
+meson --cross-file="${MESON_TARGET_TOOLCHAIN}"
+```
+
+After configuring the project with `meson`, you can then build and install it with
+
+```
+ninja -j${nproc}
+ninja install
+```
+
+The wizard automatically suggests using Meson if the `meson.build` file is present.
+
+Examples of builds performed with Meson include:
+
+* [gdk-pixbuf](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/G/gdk_pixbuf/build_tarballs.jl)
+  - Here meson uses platform-dependent options
+
+* [libepoxy](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/L/Libepoxy/build_tarballs.jl)
+  - This script modifies `c_args` in the Meson cross file in order to add an include directory
+
+* [xkbcommon](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/X/xkbcommon/build_tarballs.jl)
 
 ## Builds with binary dependencies
 
