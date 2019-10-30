@@ -34,17 +34,23 @@ What BinaryBuilder needs is to find the relevant file (shared libraries, or exec
 When the script completes, BinaryBuilder expects to find at least one artifact _built for the expected architecture_ in either `$prefix/lib` or `$prefix/bin`.
 Remember also that you should use the standard environment variables like `CC`, `CXX`, `CFLAGS`, `LDFLAGS` as appropriate in order to cross compile.  See the list of variables in the [Tips for Building Packages](build_tips.md) section.
 
-### Can I run the build script only for one or a few targets?
+### I love the wizard, but now I want to break free: can I build the tarballs without it?
 
-Yes.  The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script with
+The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script with
 ```
 julia build_tarballs.jl --help
 ```
-For example, with
+Instead of using the wizard, you can adapt for a new library a `build_tarballs.jl` script originally written for another library.  Then, you can build the tarballs with
+```
+julia --color=yes build_tarballs.jl --debug --verbose
+```
+The `--debug` option will drop you into the BinaryBuilder interactive shell if an error occurs.  If the build fails, after finding out the steps needed to fix the build you have to manually update the script in `build_tarballs.jl`.  You should run again the above command to make sure that everything is actually working.
+
+Since `build_tarballs.jl` takes as argument the comma-separated list of targets for which to build the tarballs, you can select only a few of them.  For example, with
 ```
 julia --color=yes build_tarballs.jl --debug --verbose aarch64-linux-musl,arm-linux-musleabihf
 ```
-you can run the build script only for `aarch64-linux-musl` and `arm-linux-musleabihf` targets.  The `--debug` option causes a failed build to drop into an interactive bash shell for debugging purposes.
+you'll run the build script only for the `aarch64-linux-musl` and `arm-linux-musleabihf` targets.
 
 ### Can I open a shell in a particular build environment for doing some quick tests?
 
@@ -52,8 +58,27 @@ Yes!  You can use `BinaryBuilder.runshell(platform)` to quickly start a shell in
 ```
 julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Windows(:i686))'
 ```
-will open a shell in a Windows 32-bit buid environment.
+will open a shell in a Windows 32-bit buid environment, without any source loaded.  The current working directory of your system will be mounted on `${WORKSPACE}` within this BinaryBuilder environment.
 
 ### Can I install packages in the build environment?
 
 Yes, but it's unlikely that you'll need to.  The build environment is based on Alpine Linux (triplet: `x86_64-linux-musl`) so you can use [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management) to install packages in it.  However, if you need runtime libraries or programs for the target system these packages won't help you.  The package manager is useful only to install utilities, tools or libraries that are needed exclusively at compile time on the build system.
+
+### What are those numbers in the list of sources?  How do I get them?
+
+The list source of sources is a vector of dictionaries, whose key is the URL of the source and whose value is its hash.  What kind of hash depends on what the source actually is:
+
+* If the source is a file to be downloaded, the hash is a 64-character SHA256 checksum.  If you have a copy of that file, you can compute the hash in Julia with
+  ```julia
+  using SHA
+  open(path_to_the_file, "r") do f
+       bytes2hex(sha256(f))
+  end
+  ```
+  where `path_to_the_file` is a string with the path to the file.  Alternatively, you can use the command line utilities `curl` and `sha256sum` to compute the hash of a remote file:
+  ```
+  $ curl -L http://example.org/file.tar.gz | shasum -a 256
+  ```
+  replacing `http://example.org/file.tar.gz` with the actual URL of the file you want to download.
+
+* If the source is a Git repository, the hash is the 40-character SHA1 hash of the revision you want to checkout.  For reproducibility you must indicate a specific revision, and not a branch or tag name, which are moving targets.
