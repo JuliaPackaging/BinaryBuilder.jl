@@ -30,18 +30,20 @@ function check_foo(fooifier_path = "fooifier$(exe_ext)",
     Libdl.dlclose(libfoo)
 end
 
-libfoo_products(prefix) = [
-    LibraryProduct(prefix, "libfoo", :libfoo)
-    ExecutableProduct(prefix, "fooifier", :fooifier)
+libfoo_products = [
+    LibraryProduct("libfoo", :libfoo)
+    ExecutableProduct("fooifier", :fooifier)
 ]
+
 libfoo_make_script = """
 make clean
 make install
 """
+
 libfoo_cmake_script = raw"""
 mkdir build
 cd build
-cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=/opt/${target}/${target}.toolchain ..
+cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} ..
 make install
 """
 

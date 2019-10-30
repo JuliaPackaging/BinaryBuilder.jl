@@ -10,12 +10,12 @@
 
         files = collect_files(prefix)
         @test length(files) == 2
-        @test f in files
-        @test f_link in files
+        @test realpath(f) in files
+        @test realpath(f_link) in files
 
         collapsed_files = collapse_symlinks(files)
         @test length(collapsed_files) == 1
-        @test f in collapsed_files
+        @test realpath(f) in collapsed_files
     end
 end
 
@@ -69,29 +69,81 @@ end
     end
 end
 
+# Is docker available?  If so, test that the docker runner works...
+if Sys.which("docker") != nothing
+    @testset "Docker Runner" begin
+        @testset "Docker image importing" begin
+            # First, delete the docker image, in case it already existed
+            BinaryBuilder.delete_docker_image()
+
+            # Next, import it and ensure that doesn't throw
+            rootfs = first(BinaryBuilder.choose_shards(platform))
+            mktempdir() do dir
+                @test BinaryBuilder.import_docker_image(rootfs, dir; verbose=true) === nothing
+            end
+
+            # Test that deleting the docker image suceeds, now that we know
+            # it exists
+            @test BinaryBuilder.delete_docker_image()
+        end
+
+        @testset "Docker hello world" begin
+            mktempdir() do dir
+                dr = BinaryBuilder.DockerRunner(dir; platform=Linux(:x86_64; libc=:musl))
+                iobuff = IOBuffer()
+                @test run(dr, `/bin/bash -c "echo test"`, iobuff)
+                seek(iobuff, 0)
+                # Test that we get the output we expect (e.g. the second line is `test`)
+                @test split(String(read(iobuff)), "\n")[2] == "test"
+            end
+        end
+    end
+end
+
+
 @testset "environment and history saving" begin
-    build_path = tempname()
-    mkpath(build_path)
-    prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], platform)
-    @test_throws ErrorException build(ur, "foo", libfoo_products(prefix), "MARKER=1\nexit 1", platform, prefix)
+    mktempdir() do temp_path; cd(temp_path) do
+        @test_throws ErrorException autobuild(
+            temp_path,
+            "this_will_fail",
+            v"1.0.0",
+            # No sources to speak of
+            [],
+            # Simple script that just sets an environment variable
+            """
+            MARKER=1
+            exit 1
+            """,
+            # Build for this platform
+            [platform],
+            # No products
+            Product[],
+            # No depenedencies
+            [],
+        )
 
-    # Ensure that we get a metadir, and that our history and .env files are in there!
-    metadir = joinpath(prefix.path, "..", "metadir")
-    @test isdir(metadir)
+        # build_path is the nonce'd build directory
+        build_path = joinpath(temp_path, "build", triplet(platform))
+        build_path = joinpath(build_path, first(readdir(build_path)))
 
-    hist_file = joinpath(metadir, ".bash_history")
-    env_file = joinpath(metadir, ".env")
-    @test isfile(hist_file)
-    @test isfile(env_file)
+        # Ensure that we get a metadir, and that our history and .env files are in there!
+        metadir = joinpath(build_path, "metadir")
+        @test isdir(metadir)
 
-    # Test that exit 1 is in .bash_history
-    @test occursin("\nexit 1\n", read(open(hist_file), String))
+        hist_file = joinpath(metadir, ".bash_history")
+        env_file = joinpath(metadir, ".env")
+        @test isfile(hist_file)
+        @test isfile(env_file)
 
-    # Test that MARKER=1 is in .env:
-    @test occursin("\nMARKER=1\n", read(open(env_file), String))
+        # Test that exit 1 is in .bash_history
+        @test occursin("\nexit 1\n", read(open(hist_file), String))
 
-    # Delete the build path
-    rm(build_path, recursive = true)
+        # Test that MARKER=1 is in .env:
+        @test occursin("\nMARKER=1\n", read(open(env_file), String))
+
+        # Delete the build path
+        rm(build_path, recursive = true)
+    end; end
 end
 
 @testset "Wizard Utilities" begin

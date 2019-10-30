@@ -12,7 +12,25 @@
 
 		begin
 			build_path = tempname()
-			mkpath(build_path)
+            autobuild(
+                build_path,
+                "libfoo",
+                v"1.0.0",
+                # No sources to speak of
+                [],
+                # Simple script that just sets an environment variable
+                """
+                MARKER=1
+                exit 1
+                """,
+                # Build for this platform
+                [platform],
+                # No products
+                libfoo_products,
+                # No depenedencies
+                [];
+                verbose=true,
+            )
 			prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], platform)
 			cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
 				run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
