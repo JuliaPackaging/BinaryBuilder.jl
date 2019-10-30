@@ -254,9 +254,10 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
         relink_cmd = `$patchelf --replace-needed $(old_libpath) $(libname) $(rel_path)`
     end
 
-    # Create a new linkage that looks like @rpath/$lib on OSX, 
-    logpath = joinpath(logdir(prefix), "relink_to_rpath_$(basename(rel_path)).log")
-    run(ur, relink_cmd, logpath; verbose=verbose)
+    # Create a new linkage that looks like @rpath/$lib on OSX
+    with_logfile(prefix, "relink_to_rpath_$(basename(rel_path)).log") do io
+        run(ur, relink_cmd, io; verbose=verbose)
+    end
 end
 
 # Only macOS needs to fix identity mismatches
@@ -285,8 +286,9 @@ function fix_identity_mismatch(prefix::Prefix, platform::MacOS, path::AbstractSt
     id_cmd = `$install_name_tool -id $(new_id) $(rel_path)`
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
-    logpath = joinpath(logdir(prefix), "fix_identity_mismatch_$(basename(rel_path)).log")
-    run(ur, id_cmd, logpath; verbose=verbose)
+    with_logfile(prefix, "fix_identity_mismatch_$(basename(rel_path)).log") do io
+        run(ur, id_cmd, io; verbose=verbose)
+    end
 end
 
 
@@ -360,16 +362,16 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
     new_libdir = abspath(dirname(new_libpath) * "/")
     if !(new_libdir in canonical_rpaths(path))
         libname = basename(old_libpath)
-        logpath = joinpath(logdir(prefix), "update_rpath_$(basename(path))_$(libname).log")
         cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
-        run(ur, cmd, logpath; verbose=verbose)
+        with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log") do io
+            run(ur, cmd, io; verbose=verbose)
+        end
     end
 
     # Create a new linkage that uses the RPATH and/or environment variables to find things.
     # This allows us to split things up into multiple packages, and as long as the
     # libraries that this guy is interested in have been `dlopen()`'ed previously,
     # (and have the appropriate SONAME) things should "just work".
-    logpath = joinpath(logdir(prefix), "update_linkage_$(basename(path))_$(basename(old_libpath)).log")
     if Sys.isapple(platform)
         # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
         # Note that this is still overridable through DYLD_FALLBACK_LIBRARY_PATH
@@ -380,7 +382,9 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
         new_libpath = basename(new_libpath)
     end
     cmd = relink(old_libpath, new_libpath)
-    run(ur, cmd, logpath; verbose=verbose)
+    with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log") do io
+        run(ur, cmd, io; verbose=verbose)
+    end
 
     return new_libpath
 end

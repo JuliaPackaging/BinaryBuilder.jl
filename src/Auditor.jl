@@ -342,6 +342,9 @@ passed in, returning the list of file paths.
 """
 function collect_files(path::AbstractString, predicate::Function = f -> true;
                        exclude_externalities::Bool = true)
+    # Sometimes `path` doesn't actually live where we think it does, so canonicalize it immediately
+    path = Pkg.Types.safe_realpath(path)
+
     if !isdir(path)
         return String[]
     end
@@ -407,7 +410,7 @@ function check_license(prefix::Prefix, src_name::AbstractString = "";
     license_dir = joinpath(prefix.path, "share", "licenses", src_name)
     if isdir(license_dir) && length(readdir(license_dir)) >= 1
         if verbose
-            @info "Found license file(s): " * join(readdir(license_dir), ", ")
+            info(io, "Found license file(s): " * join(readdir(license_dir), ", "))
         end
         return true
     else

@@ -307,7 +307,7 @@ end
 """
     setup_dependencies(prefix::Prefix, dependencies::Vector{String})
 
-Given a list of JLL package specifiers
+Given a list of JLL package specifiers, install them into the given prefix
 """
 function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.PackageSpec})
     artifact_paths = String[]
@@ -321,7 +321,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.Packa
     # Update registry first, in case the jll packages we're looking for have just been registered/updated
     Pkg.Registry.update()
 
-    deps_project = joinpath(dirname(prefix.path), ".project")
+    deps_project = joinpath(prefix, ".project")
     Pkg.activate(deps_project) do
         # Find UUIDs for all dependencies
         ctx = Pkg.Types.Context()
@@ -380,6 +380,14 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.Packa
 
     # Symlink all the deps into the prefix
     for art_path in artifact_paths
-        symlink_tree(art_path, prefix.path)
+        symlink_tree(art_path, joinpath(prefix, "destdir"))
+    end
+
+    return artifact_paths
+end
+
+function cleanup_dependencies(prefix::Prefix, artifact_paths)
+    for art_path in artifact_paths
+        unsymlink_tree(art_path, joinpath(prefix, "destdir"))
     end
 end

@@ -76,8 +76,9 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     end
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
-    logpath = joinpath(logdir(prefix), "set_soname_$(basename(rel_path))_$(soname).log")
-    retval = run(ur, set_soname_cmd, logpath; verbose=verbose)
+    retval = with_logfile(prefix, "set_soname_$(basename(rel_path))_$(soname).log") do io
+        run(ur, set_soname_cmd, io; verbose=verbose)
+    end
 
     if !retval
         @warn("Unable to set SONAME on $(rel_path)")

@@ -141,7 +141,7 @@ function unmount_shards(ur::UserNSRunner; verbose::Bool = false)
 end
 
 prompted_userns_run_privileged = false
-function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool = false, tee_stream=stdout)
+function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = false, tee_stream=stdout)
     global prompted_userns_run_privileged
     if runner_override == "privileged" && !prompted_userns_run_privileged
         @info("Running privileged container via `sudo`, may ask for your password:")
@@ -154,20 +154,9 @@ function Base.run(ur::UserNSRunner, cmd, logpath::AbstractString; verbose::Bool 
         oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
         did_succeed = wait(oc)
 
-        if !isempty(logpath)
-            # Write out the logfile, regardless of whether it was successful
-            mkpath(dirname(logpath))
-
-            # Sometimes it already exists, if so just wipe it out.
-            if isfile(logpath)
-                rm(logpath; force=true)
-            end
-            open(logpath, "w") do f
-                # First write out the actual command, then the command output
-                println(f, cmd)
-                print(f, merge(oc))
-            end
-        end
+        # First print out the command, then the output
+        println(logger, cmd)
+        print(logger, merge(oc))
     finally
         unmount_shards(ur; verbose=verbose)
     end
@@ -313,7 +302,7 @@ end
 
 function probe_unprivileged_containers(;verbose::Bool=false)
     # Choose and prepare our shards
-    root_shard = choose_shards(Linux(:x86_64))[1]
+    root_shard = first(choose_shards(Linux(:x86_64; libc=:musl)))
 
     # Ensure we're not about to make fools of ourselves by trying to mount an
     # encrypted directory, which triggers kernel bugs.  :(

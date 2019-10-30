@@ -212,3 +212,17 @@ function print_wizard_logo(outs)
     )
     println(outs)
 end
+
+
+with_logfile(f::Function, prefix::Prefix, name::String) = with_logfile(f, joinpath(logdir(prefix), name))
+function with_logfile(f::Function, logfile::String)
+    mkpath(dirname(logfile))    
+
+    # If it's already a file, remove it, as it is probably an incorrect symlink
+    if isfile(logfile)
+        rm(logfile; force=true)
+    end
+    open(logfile, "w") do io
+        f(io)
+    end
+end

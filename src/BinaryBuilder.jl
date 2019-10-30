@@ -149,7 +149,6 @@ function versioninfo()
     env_var_suffixes = [
         "AUTOMATIC_APPLE",
         "USE_SQUASHFS",
-        "DOWNLOADS_CACHE",
         "STORAGE_DIR",
         "RUNNER",
         "ALLOW_ECRYPTFS",

@@ -216,12 +216,9 @@ function step3_retry(state::WizardState)
         platform=platform,
         src_name=state.name,
     )
-    run(ur,
-        `/bin/bash -c $(state.history)`,
-        joinpath(build_path,"out.log");
-        verbose=true,
-        tee_stream=state.outs
-    )
+    with_logfile(joinpath(build_path, "out.log")) do io
+        run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
+    end
     step3_audit(state, platform, joinpath(prefix, "destdir"))
 
     return step4(state, ur, platform, build_path, prefix)
@@ -330,12 +327,9 @@ function step5_internal(state::WizardState, platform::Platform)
                 platform=platform,
                 src_name=state.name,
             )
-            run(ur,
-                `/bin/bash -c $(state.history)`,
-                joinpath(build_path,"out.log");
-                verbose=true,
-                tee_stream=state.outs,
-            )
+            with_logfile(joinpath(build_path, "out.log")) do io
+                run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
+            end
 
             while true
                 msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
@@ -516,12 +510,9 @@ function step5c(state::WizardState)
             platform=platform,
             src_name=state.name,
         )
-        run(ur,
-            `/bin/bash -c $(state.history)`,
-            joinpath(build_path,"out.log");
-            verbose=false,
-            tee_stream=state.outs
-        )
+        with_logfile(joinpath(build_path, "out.log")) do io
+            run(ur, `/bin/bash -c $(state.history)`, io; verbose=false, tee_stream=state.outs)
+        end
 
         audit(Prefix(joinpath(prefix, "destdir"));
             io=state.outs,
