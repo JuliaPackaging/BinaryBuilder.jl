@@ -3,3 +3,6 @@ Yggdrasil
 
 # Ignore ccache
 ccache
+
+# Ignore cached downloads
+downloads
