@@ -475,8 +475,9 @@ function autobuild(dir::AbstractString,
             end
 
             # Run an audit of the prefix to ensure it is properly relocatable
+            dest_prefix = Prefix(joinpath(prefix, "destdir"))
             if !skip_audit
-                audit_result = audit(prefix, src_name;
+                audit_result = audit(dest_prefix, src_name;
                                      platform=platform, verbose=verbose,
                                      autofix=autofix, require_license=require_license)
                 if !audit_result && !ignore_audit_errors
@@ -492,10 +493,10 @@ function autobuild(dir::AbstractString,
             # Finally, error out if something isn't satisfied
             unsatisfied_so_die = false
             for p in products
-                if !satisfied(p, prefix; verbose=verbose, platform=platform)
+                if !satisfied(p, dest_prefix; verbose=verbose, platform=platform)
                     if !verbose
                         # If we never got a chance to see the verbose output, give it here:
-                        locate(p, prefix; verbose=true, platform=platform)
+                        locate(p, dest_prefix; verbose=true, platform=platform)
                     end
                     @error("Built $(src_name) but $(variable_name(p)) still unsatisfied:")
                     unsatisfied_so_die = true
@@ -508,8 +509,8 @@ function autobuild(dir::AbstractString,
             # We also need to capture some info about each product
             products_info = Dict()
             for p in products
-                product_path = locate(p, prefix; platform=platform)
-                products_info[p] = Dict("path" => relpath(product_path, prefix.path))
+                product_path = locate(p, dest_prefix; platform=platform)
+                products_info[p] = Dict("path" => relpath(product_path, dest_prefix.path))
                 if p isa LibraryProduct
                     products_info[p]["soname"] = something(
                         get_soname(product_path),
@@ -520,12 +521,12 @@ function autobuild(dir::AbstractString,
 
             # Unsymlink all the deps from the prefix
             for dep_path in artifact_paths
-                unsymlink_tree(dep_path, prefix.path)
+                unsymlink_tree(dep_path, dest_prefix.path)
             end
 
             # Cull empty directories, for neatness' sake, unless auditing is disabled
             if !skip_audit
-                for (root, dirs, files) = walkdir(prefix.path; topdown=false)
+                for (root, dirs, files) = walkdir(dest_prefix.path; topdown=false)
                     # We do readdir() here because `walkdir()` does not do a true in-order traversal
                     if isempty(readdir(root))
                         rm(root)
@@ -535,7 +536,7 @@ function autobuild(dir::AbstractString,
 
             # Once we're built up, go ahead and package this prefix out
             tarball_path, tarball_hash, git_hash = package(
-                prefix,
+                dest_prefix,
                 joinpath(out_path, src_name),
                 src_version;
                 platform=platform,
@@ -551,7 +552,7 @@ function autobuild(dir::AbstractString,
             )
 
             # Destroy the workspace
-            rm(dirname(prefix.path); recursive=true)
+            rm(prefix.path; recursive=true)
 
             # If the whole build_path is empty, then remove it too.  If it's not, it's probably
             # because some other build is doing something simultaneously with this target, and we
