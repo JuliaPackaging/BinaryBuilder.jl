@@ -10,16 +10,18 @@ RUN cd /usr/local/bin && \
 ENV BINARYBUILDER_USE_SQUASHFS true
 ENV BINARYBUILDER_AUTOMATIC_APPLE true
 ENV BINARYBUILDER_USE_CCACHE true
+ENV BINARYBUILDER_STORAGE_DIR /storage
 
-# we'll make these, in expectation of the user should mount something in here
+# we'll make these, in expectation of the user mounting something in here
 RUN mkdir -p /storage/ccache
 RUN mkdir -p /storage/artifacts
+RUN mkdir -p /storage/downloads
 
 # Install BinaryBuilder
 RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master"))'
 RUN julia -e 'using Pkg; Pkg.API.precompile();'
 
-# Force artifact storage into /storage
+# Force artifact storage into /storage/artifacts
 RUN ln -fs /storage/artifacts /root/.julia/artifacts
 
 # The user should mount something in /storage so that it persists from run to run
