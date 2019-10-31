@@ -332,6 +332,10 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.Packa
             end
             specs = Pkg.Types.registry_resolve!(ctx.env, spec)
 
+            if specs === nothing
+                error("Unknown dependency $(repr(spec))")
+            end
+
             # If we have not been able to determine a UUID for this package, error out
             for s in specs
                 if s.uuid === nothing
