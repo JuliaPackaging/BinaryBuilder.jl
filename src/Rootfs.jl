@@ -291,9 +291,16 @@ end
 
 function macos_sdk_already_installed()
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+    downloads_dir = storage_dir("downloads")
+    if !isdir(downloads_dir)
+        # downloads directory doesn't even exist, SDK is surely not installed.
+        # This check also prevents an error trying to `readdir` a non-existing
+        # directory.
+        return false
+    end
     # We just check to see if there are any BaseCompilerShard downloads for
     # macOS in our downloads directory.  If so, say we have already installed it.
-    files = filter(x -> occursin("BaseCompilerShard", x) || occursin("GCC", x), readdir(storage_dir("downloads")))
+    files = filter(x -> occursin("BaseCompilerShard", x) || occursin("GCC", x), readdir(downloads_dir))
     return !isempty(filter(x -> occursin("-darwin", x), files))
 end
 
