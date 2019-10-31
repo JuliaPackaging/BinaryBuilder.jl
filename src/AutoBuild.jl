@@ -652,7 +652,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
             end
 
             # No precompilation needed for LibraryProduct
-            precompile_call(p::LibraryProduct) = ""
+            precompile_call(p::LibraryProduct, p_info::Dict) = ""
 
             function global_declaration(p::ExecutableProduct, p_info::Dict)
                 vp = variable_name(p)
@@ -770,7 +770,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
             if ccall(:jl_generating_output, Cint, ()) == 1
             """)
             for (p, p_info) in products_info
-                println(io, precompile_call(p))
+                println(io, precompile_call(p, p_info))
             end
             println(io, "end")
         end
