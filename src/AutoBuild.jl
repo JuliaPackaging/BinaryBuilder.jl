@@ -651,9 +651,6 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 """
             end
 
-            # No precompilation needed for LibraryProduct
-            precompile_call(p::LibraryProduct, p_info::Dict) = ""
-
             function global_declaration(p::ExecutableProduct, p_info::Dict)
                 vp = variable_name(p)
                 # An executable product's public interface is a do-block wrapper function
@@ -680,10 +677,6 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                     end
                 end
                 """
-            end
-
-            function precompile_call(p::ExecutableProduct, p_info::Dict)
-                return "precompile(Tuple{typeof($(vp)), Function})"
             end
 
             function global_declaration(p::FileProduct, p_info::Dict)
@@ -764,15 +757,6 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 #end
             end  # __init__()
             """)
-
-            # Emit precompilation hints
-            println(io, """
-            if ccall(:jl_generating_output, Cint, ()) == 1
-            """)
-            for (p, p_info) in products_info
-                println(io, precompile_call(p, p_info))
-            end
-            println(io, "end")
         end
     end
 
