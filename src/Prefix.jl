@@ -309,7 +309,7 @@ end
 
 Given a list of JLL package specifiers, install them into the given prefix
 """
-function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.PackageSpec})
+function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.PackageSpec}, platform::Platform)
     artifact_paths = String[]
     if isempty(dependencies)
         return artifact_paths

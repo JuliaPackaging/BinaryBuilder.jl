@@ -437,7 +437,7 @@ function autobuild(dir::AbstractString,
                 src_hashes;
                 verbose=verbose,
             )
-            artifact_paths = setup_dependencies(prefix, dependencies)
+            artifact_paths = setup_dependencies(prefix, dependencies, platform)
 
             # Create a runner to work inside this workspace with the nonce built-in
             ur = preferred_runner()(
