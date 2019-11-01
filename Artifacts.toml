@@ -1758,27 +1758,27 @@ os = "linux"
     sha256 = "4b52608c0c63585399ff8d50257ad93f0f061ac080e30c37954841f154dd50b5"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.10.11+0/PlatformSupport-x86_64-w64-mingw32.v2019.10.11.x86_64-linux-musl.unpacked.tar.gz"
 
-[["Rootfs.v2019.10.24.x86_64-linux-musl.squashfs"]]
+[["Rootfs.v2019.10.31.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "87f646a6364a50e3a4fc40903e17930c8701c41a"
+git-tree-sha1 = "040dc98edad42c948d5eff8a4810dbb512dec273"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.10.24.x86_64-linux-musl.squashfs".download]]
-    sha256 = "00bfe6ccbc62c63b1451af4351b2d8191db905aa1bcdf6a807ad5bd84549591b"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.24+0/Rootfs.v2019.10.24.x86_64-linux-musl.squashfs.tar.gz"
+    [["Rootfs.v2019.10.31.x86_64-linux-musl.squashfs".download]]
+    sha256 = "91c7c51f528a4b26fb3b0a36378ac92528f397b0fb25d1ff53d458a30686dc0c"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.31+0/Rootfs.v2019.10.31.x86_64-linux-musl.squashfs.tar.gz"
 
-[["Rootfs.v2019.10.24.x86_64-linux-musl.unpacked"]]
+[["Rootfs.v2019.10.31.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "7921cc82d5a2eb390ea084f22d79c983d6bf6770"
+git-tree-sha1 = "63f6edf8dd8993c8572623f71b0e7e0488723754"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["Rootfs.v2019.10.24.x86_64-linux-musl.unpacked".download]]
-    sha256 = "11a3221a21a23e4eadcf9966aa78cd317dbf2ffb0ede5eab74ac0375cdc7e1cd"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.24+0/Rootfs.v2019.10.24.x86_64-linux-musl.unpacked.tar.gz"
+    [["Rootfs.v2019.10.31.x86_64-linux-musl.unpacked".download]]
+    sha256 = "ab165ddba88381f66b35ca609c79b0c931cc044864f3d1fc20effeb64d824f44"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2019.10.31+0/Rootfs.v2019.10.31.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustBase.v1.18.3.x86_64-linux-gnu.squashfs"]]
 arch = "x86_64"
