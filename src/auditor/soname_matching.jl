@@ -72,7 +72,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
         set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
         patchelf = "/usr/bin/patchelf"
-        set_soname_cmd = `$patchelf --set-soname $(soname) $(rel_path)`
+        set_soname_cmd = `$patchelf $(patchelf_flags(platform)) --set-soname $(soname) $(rel_path)`
     end
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 

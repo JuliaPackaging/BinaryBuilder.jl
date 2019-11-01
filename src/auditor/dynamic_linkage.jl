@@ -239,6 +239,16 @@ function is_default_lib(lib, ::MachOHandle)
     return lowercase(basename(lib)) in default_libs
 end
 
+function patchelf_flags(p::Platform)
+    flags = ""
+
+    # ppc64le and aarch64 have 64KB page sizes, don't muck up the ELF section load alignment
+    if arch(p) in (:powerpc64le, :aarch64)
+        flags *= "--page-size 65536"
+    end
+    return flags
+end
+
 function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractString,
                          old_libpath::AbstractString; verbose::Bool = false)
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
@@ -251,7 +261,7 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
         patchelf = "/usr/bin/patchelf"
-        relink_cmd = `$patchelf --replace-needed $(old_libpath) $(libname) $(rel_path)`
+        relink_cmd = `$patchelf $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(rel_path)`
     end
 
     # Create a new linkage that looks like @rpath/$lib on OSX
@@ -352,9 +362,9 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
             rpaths = chomp_slashdot.(rpaths)
 
             rpath_str = join(rpaths, ':')
-            return `$patchelf --set-rpath $(rpath_str) $(rel_path)`
+            return `$patchelf $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(rel_path)`
         end
-        relink = (op, np) -> `$patchelf --replace-needed $(op) $(np) $(rel_path)`
+        relink = (op, np) -> `$patchelf $(patchelf_flags(platform)) --replace-needed $(op) $(np) $(rel_path)`
     end
 
     # If the relative directory doesn't already exist within the RPATH of this
