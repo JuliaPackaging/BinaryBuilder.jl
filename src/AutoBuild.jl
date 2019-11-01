@@ -335,10 +335,12 @@ function autobuild(dir::AbstractString,
     # This is what we'll eventually return
     build_output_meta = Dict()
 
-    # Resolve dependencies into PackageSpecs now:
-    resolve_jll(name::String) = Pkg.Types.PackageSpec(;name=name)
-    resolve_jll(ps::Pkg.Types.PackageSpec) = ps
-    dependencies = resolve_jll.(dependencies)
+    # Resolve dependencies into PackageSpecs now, ensuring we have UUIDs for all deps
+    ctx = Pkg.Types.Context()
+    pkgspecify(name::String) = Pkg.Types.PackageSpec(;name=name)
+    pkgspecify(ps::Pkg.Types.PackageSpec) = ps
+    dependencies = pkgspecify.(dependencies)
+    Pkg.Types.registry_resolve!(ctx.env, dependencies)
 
     # If we end up packaging any local directories into tarballs, we'll store them here
     mktempdir() do tempdir

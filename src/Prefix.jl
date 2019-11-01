@@ -307,7 +307,14 @@ end
 """
     setup_dependencies(prefix::Prefix, dependencies::Vector{String})
 
-Given a list of JLL package specifiers, install them into the given prefix
+Given a list of JLL package specifiers, install their artifacts into the build prefix.
+The artifacts are installed into the global artifact store, then copied into a temporary location,
+then finally symlinked into the build prefix.  This allows us to (a) save download bandwidth by not
+downloading the same artifacts over and over again, (b) maintain separation in the event of
+catastrophic containment failure, avoiding hosing the main system if a build script decides to try
+to modify the dependent artifact files, and (c) keeping a record of what files are a part of
+dependencies as opposed to the package being built, in the form of symlinks to a specific artifacts
+directory.
 """
 function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.PackageSpec}, platform::Platform)
     artifact_paths = String[]
@@ -315,47 +322,32 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.Packa
         return artifact_paths
     end
 
+    # Immediately copy so we don't clobber the caller's dependencies
+    dependencies = deepcopy(dependencies)
+
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix 
         
     # Update registry first, in case the jll packages we're looking for have just been registered/updated
     Pkg.Registry.update()
 
+    mkpath(joinpath(prefix, "artifacts"))
     deps_project = joinpath(prefix, ".project")
     Pkg.activate(deps_project) do
         # Find UUIDs for all dependencies
         ctx = Pkg.Types.Context()
-        dep_specs = Pkg.Types.PackageSpec[]
-        for spec in dependencies
-            if !isa(spec, Pkg.Types.PackageSpec)
-                spec = Pkg.Types.PackageSpec(spec)
-            end
-            specs = Pkg.Types.registry_resolve!(ctx.env, spec)
-
-            if specs === nothing
-                error("Unknown dependency $(repr(spec))")
-            end
-
-            # If we have not been able to determine a UUID for this package, error out
-            for s in specs
-                if s.uuid === nothing
-                    error("Unknown dependency $(repr(s))")
-                end
-            end
-            append!(dep_specs, specs)
-        end
-        Pkg.Operations.resolve_versions!(ctx, dep_specs)
+        Pkg.Operations.resolve_versions!(ctx, dependencies)
 
         # Add all dependencies
-        Pkg.add(dep_specs; platform=platform)
+        Pkg.add(dependencies; platform=platform)
 
         # Filter out everything that doesn't end in `_jll`
-        dep_specs = [s for s in dep_specs if endswith(s.name, "_jll")]
+        dependencies = filter(x -> endswith(x.name, "_jll"), dependencies)
 
         # Load their Artifacts.toml files
-        for spec in dep_specs
-            dep_path = Pkg.Operations.source_path(spec)
-            name = spec.name
+        for dep in dependencies
+            dep_path = Pkg.Operations.source_path(dep)
+            name = dep.name
 
             # Skip dependencies that didn't get installed?
             if dep_path === nothing
@@ -376,9 +368,14 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.Packa
                 @warn("Dependency $(name) does not have a mapping for $(name[1:end-4])!")
                 continue
             end
+
+            # Copy the artifact from the global installation location into this build-specific artifacts collection
+            src_path = Pkg.Artifacts.artifact_path(artifact_hash)
+            dest_path = joinpath(prefix, "artifacts", basename(src_path))
+            cp(src_path, dest_path)
             
             # Keep track of our dep paths for later symlinking
-            push!(artifact_paths, Pkg.Artifacts.artifact_path(artifact_hash))
+            push!(artifact_paths, dest_path)
         end
     end
 
@@ -387,6 +384,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.Packa
         symlink_tree(art_path, joinpath(prefix, "destdir"))
     end
 
+    # Return the artifact_paths so that we can clean them up later
     return artifact_paths
 end
 
