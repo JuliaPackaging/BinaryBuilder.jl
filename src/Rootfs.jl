@@ -289,12 +289,27 @@ function unmount(cs::CompilerShard, build_prefix::String; verbose::Bool = false,
     end
 end
 
+"""
+    macos_sdk_already_installed()
+
+Returns `true` if any piece of the MacOS SDK is already installed.
+"""
 function macos_sdk_already_installed()
+    # Get all compiler shards we know about
+    css = all_compiler_shards()
+    macos_artifact_names = artifact_name.(filter(cs -> isa(cs.target, MacOS), css))
+
+    host_platform = Linux(:x86_64; libc=:musl)
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    # We just check to see if there are any BaseCompilerShard downloads for
-    # macOS in our downloads directory.  If so, say we have already installed it.
-    files = filter(x -> occursin("BaseCompilerShard", x) || occursin("GCC", x), readdir(storage_dir("downloads")))
-    return !isempty(filter(x -> occursin("-darwin", x), files))
+    macos_artifact_hashes = artifact_hash.(artifact_names, artifacts_toml; platform=host_platform)
+
+    # The Rust shards will return `nothing` above (so we filter them out here) since they
+    # are TECHNICALLY `Linux(:x86_64; libc=:glibc)`-hosted.  Whatever. You need to download
+    # one of the `PlatformSupport` shards for this anyway, so we don't really care.
+    macos_artifact_hashes = filter(x -> x != nothing, macos_artifact_hashes)
+
+    # Return `true` if _any_ of these artifacts exist on-disk:
+    return any(artifact_exists.(macos_artifact_hashes))
 end
 
 function select_gcc_version(p::Platform,
