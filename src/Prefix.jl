@@ -300,7 +300,7 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
     end
 
     # Return the build prefix
-    return Prefix(joinpath(build_path, nonce))
+    return Prefix(realpath(joinpath(build_path, nonce)))
 end
 
 

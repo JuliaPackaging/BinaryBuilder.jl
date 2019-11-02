@@ -47,7 +47,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     end
 
     # Skip if this file already contains an SONAME
-    rel_path = relpath(path, prefix.path)
+    rel_path = relpath(realpath(path), realpath(prefix.path))
     soname = get_soname(path)
     if soname != nothing
         if verbose
