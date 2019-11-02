@@ -61,7 +61,7 @@ end
 
 # Helper function to delete a previously-imported docker image
 delete_docker_image() = delete_docker_image(first(choose_shards(platform_key_abi())))
-delete_docker_image(rootfs::CompilerShard) = success(`docker rmi $(docker_image(rootfs))`)
+delete_docker_image(rootfs::CompilerShard) = success(`docker rmi -f $(docker_image(rootfs))`)
 
 function DockerRunner(workspace_root::String;
                       cwd = nothing,
