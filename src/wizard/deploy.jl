@@ -10,7 +10,14 @@ function print_build_tarballs(io::IO, state::WizardState)
         file, kind, varname = x
         
         if kind == :executable
-            return "ExecutableProduct($(repr(file)), $(repr(varname)))"
+            # It's very common that executable products are in `bin`,
+            # so we special-case these to just print the basename:
+            dir_path = dirname(file)
+            if isempty(dir_path) || dirname(file) == "bin"
+                return "ExecutableProduct($(repr(basename(file))), $(repr(varname)))"
+            else
+                return "ExecutableProduct($(repr(basename(file))), $(repr(varname)); dir_path=$(repr(dir_path)))"
+            end
         elseif kind == :library
             # Normalize library names, since they are almost always in `lib`/`bin`
             return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)))"
