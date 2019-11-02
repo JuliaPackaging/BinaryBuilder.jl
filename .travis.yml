@@ -20,37 +20,31 @@ matrix:
 env:
   global:
     - BINARYBUILDER_AUTOMATIC_APPLE=true
-    - BINARYBUILDER_FULL_SHARD_TEST=false
 cache:
   directories:
-    - deps/downloads
+    - deps
 
 jobs:
   include:
-    # Add a job that uses squashfs and also runs the package tests
-    - julia: 1.3
-      env:
-        - BINARYBUILDER_USER_SQUASHFS=true
-        - BINARYBUILDER_PACKAGE_TESTS=true
-
-    # Add a job that doesn't use the squashfs but otherwise does normal tests
-    # We don't have the disk space available to do a full shard test here.
-    - julia: 1.3
-      env:
-        - BINARYBUILDER_USE_SQUASHFS=false
-
-    # Add a job that uses the privileged builder
+    # Add a job that uses the privileged builder with squashfs shards
     - julia: 1.3
       env:
         - BINARYBUILDER_RUNNER=privileged
+        - BINARYBUILDER_USER_SQUASHFS=true
 
-    # Add a job that uses the docker builder (disabled for now, because it's not working on Travis)
+    # Add a job that uses the unprivileged builder with unpacked shards
+    - julia: 1.3
+      env:
+        - BINARYBUILDER_RUNNER=unprivileged
+
+    # Add a job that uses the docker builder with unpacked shards
     - julia: 1.3
       env:
         - BINARYBUILDER_RUNNER=docker
 
+    # Build the docs!
     - stage: Documentation
-      julia: 1.0
+      julia: 1.3
       os: linux
       script:
         - julia --project=docs -e 'using Pkg; Pkg.instantiate()'
@@ -59,9 +53,6 @@ jobs:
 
 script:
    - julia --project -e 'using Pkg; Pkg.build("BinaryBuilder")'
-   - if [ ${TEST_SANDBOX:-false} = true ]; then
-         julia -e 'cd("deps"); run(`gcc -std=c99 -o /tmp/sandbox sandbox.c`)';
-     fi
    - julia --project -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryProvider", rev="master"))'
    - julia --project --color=yes --check-bounds=yes -e 'using Pkg; Pkg.test("BinaryBuilder", coverage=true)'
 
