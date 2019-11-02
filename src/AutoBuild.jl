@@ -462,8 +462,20 @@ function autobuild(dir::AbstractString,
 
             # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
             if [ \$(basename \$0) = "bash" ]; then
-                trap "trap - DEBUG; set +e +x; auto_install_license; save_env" EXIT
-                trap "RET=\\\$?; trap - DEBUG; trap - EXIT; set +e +x; echo Previous command exited with \\\$RET >&2; save_srcdir; save_env; exit \\\$RET" INT TERM ERR
+                trap "trap - DEBUG INT TERM ERR EXIT; \\
+                      set +e +x; \\
+                      auto_install_license; \\
+                      save_env" \\
+                    EXIT
+
+                trap "RET=\\\$?; \\
+                      trap - DEBUG INT TERM ERR EXIT; \\
+                      set +e +x; \\
+                      echo Previous command \\\$! exited with \\\$RET >&2; \\
+                      save_srcdir; \\
+                      save_env; \\
+                      exit \\\$RET" \\
+                    INT TERM ERR
 
                 # Swap out srcdir from underneath our feet if we've got our `ERR`
                 # traps set; if we don't have this, we get very confused.  :P
@@ -474,7 +486,12 @@ function autobuild(dir::AbstractString,
             else
                 # If we're running in `sh` or something like that, we need a
                 # slightly slimmer set of traps. :(
-                trap "echo Previous command exited with \$? >&2; set +e +x; save_env" EXIT INT TERM
+                trap "RET=\\\$?; \\
+                      echo Previous command exited with \\\$RET >&2; \\
+                      set +e +x; \\
+                      save_env; \\
+                      exit \\\$RET" \\
+                    EXIT INT TERM
             fi
 
             $(script)
