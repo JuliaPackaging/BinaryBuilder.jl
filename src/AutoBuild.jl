@@ -430,7 +430,7 @@ function autobuild(dir::AbstractString,
 
         for platform in platforms
             # We build in a platform-specific directory
-            build_path = joinpath(pwd(), "build", triplet(platform))
+            build_path = joinpath(dir, "build", triplet(platform))
             mkpath(build_path)
 
             prefix = setup_workspace(
@@ -561,7 +561,7 @@ function autobuild(dir::AbstractString,
             )
 
             build_output_meta[platform] = (
-                basename(tarball_path),
+                tarball_path,
                 tarball_hash,
                 git_hash,
                 products_info,
@@ -606,7 +606,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         # Add an Artifacts.toml
         artifacts_toml = joinpath(code_dir, "Artifacts.toml")
         download_info = Tuple[
-            (joinpath(bin_path, tarball_name), tarball_hash),
+            (joinpath(bin_path, basename(tarball_name)), tarball_hash),
         ]
         bind_artifact!(artifacts_toml, src_name, git_hash; platform=platform, download_info=download_info, force=true)
 

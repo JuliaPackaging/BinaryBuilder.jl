@@ -102,7 +102,7 @@ end
 
 
 @testset "environment and history saving" begin
-    mktempdir() do temp_path; cd(temp_path) do
+    mktempdir() do temp_path
         @test_throws ErrorException autobuild(
             temp_path,
             "this_will_fail",
@@ -143,7 +143,7 @@ end
 
         # Delete the build path
         rm(build_path, recursive = true)
-    end; end
+    end
 end
 
 @testset "Wizard Utilities" begin
