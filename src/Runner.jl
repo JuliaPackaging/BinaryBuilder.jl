@@ -272,6 +272,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     for tool in (:ar, :ranlib, :dsymutil)
         @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", triplet(p), "/bin/llvm-", $tool))
     end
+    # macOS doesn't have a readelf; default to using the host version
+    @eval readelf(io::IO, p::MacOS) = readelf(io, $(host_platform))
 
     function write_wrapper(wrappergen, p, fname)
         open(io -> Base.invokelatest(wrappergen, io, p), joinpath(bin_path, fname), "w")
