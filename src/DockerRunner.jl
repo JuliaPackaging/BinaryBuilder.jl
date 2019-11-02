@@ -14,7 +14,18 @@ mutable struct DockerRunner <: Runner
 end
 
 docker_image(version::VersionNumber) = "julia_binarybuilder_rootfs:v$(version)"
-docker_image(rootfs::CompilerShard) = docker_image(rootfs.version)
+function docker_image(rootfs::CompilerShard)
+    name = artifact_name(rootfs)
+    artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
+    hash = artifact_hash(name, artifacts_toml; platform=rootfs.host)
+    return string(
+        "julia_binarybuilder_rootfs:",
+        "v",
+        string(rootfs.version),
+        "-",
+        string(bytes2hex(hash.bytes))[end-5:end],
+    )
+end
 
 """
     import_docker_image(rootfs::CompilerShard; verbose::Bool = false)
