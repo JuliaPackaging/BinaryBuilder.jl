@@ -7,7 +7,11 @@ add_executable(fooifier fooifier.cpp)
 target_link_libraries(fooifier foo)
 
 # Enable relative RPATH
-set_target_properties(fooifier PROPERTIES INSTALL_RPATH "$ORIGIN/../lib:$ORIGIN/")
+if (APPLE)
+    set_target_properties(fooifier PROPERTIES INSTALL_RPATH "@executable_path/../lib")
+elseif (LINUX)
+    set_target_properties(fooifier PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
+endif()
 
 install(TARGETS foo DESTINATION lib)
 install(TARGETS fooifier RUNTIME DESTINATION bin)

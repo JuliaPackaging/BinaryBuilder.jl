@@ -1,224 +1,157 @@
 ## Tests involing building packages and whatnot
+import BinaryBuilder: exeext, dlext
+using Pkg.PlatformEngines
 
-@testset "Builder Packaging" begin
-    # Gotta set this guy up beforehand
-    tarball_path = nothing
-    tarball_hash = nothing
-
-	# Test building with both `make` and `cmake`
+@testset "Building libfoo" begin
+	# Test building with both `make` and `cmake`, using directory and git repository
     for script in (libfoo_make_script, libfoo_cmake_script)
-        product_storage = tempname()
-        mkpath(product_storage)
+        # Do build within a separate temporary directory
+        mktempdir() do build_path
+            # Create local git repository of `libfoo` sources
+            git_path = joinpath(build_path, "libfoo.git")
+            mkpath(git_path)
 
-		begin
-			build_path = tempname()
-            autobuild(
-                build_path,
-                "libfoo",
-                v"1.0.0",
-                # No sources to speak of
-                [],
-                # Simple script that just sets an environment variable
-                """
-                MARKER=1
-                exit 1
-                """,
-                # Build for this platform
-                [platform],
-                # No products
-                libfoo_products,
-                # No depenedencies
-                [];
-                verbose=true,
-            )
-			prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], platform)
-			cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
-				run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
-				@test build(ur, "foo", libfoo_products(prefix), script, platform, prefix)
-			end
-
-			# Next, package it up as a .tar.gz file
-            tarball_path, tarball_hash = package(prefix, joinpath(product_storage, "libfoo"), v"1.0.0"; verbose=true)
-			@test isfile(tarball_path)
-
-			# Delete the build path
-			rm(build_path, recursive = true)
-		end
-
-		# Test that we can inspect the contents of the tarball
-		contents = list_tarball_files(tarball_path)
-		@test "bin/fooifier" in contents
-		@test "lib/libfoo.$(Libdl.dlext)" in contents
-
-		# Install it within a new Prefix
-		temp_prefix() do prefix
-			# Install the thing
-			@test install(tarball_path, tarball_hash; prefix=prefix, verbose=true)
-
-			# Ensure we can use it
-			fooifier_path = joinpath(bindir(prefix), "fooifier")
-			libfoo_path = joinpath(libdir(prefix), "libfoo.$(Libdl.dlext)")
-			check_foo(fooifier_path, libfoo_path)
-		end
-
-        rm(product_storage; recursive=true, force=true)
-    end
-end
-
-if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"
-    @info("Beginning full shard test...")
-    # Perform a sanity test on each and every shard.
-    @testset "Shard sanity tests" begin
-        for shard_platform in expand_gcc_versions(supported_platforms())
-            @info(" --> $(triplet(shard_platform))")
-            build_path = tempname()
-            mkpath(build_path)
-
-            # build with make
-            prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], shard_platform)
-            cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
-                run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
-
-                # Build libfoo, warn if we fail
-                @test build(ur, "foo", libfoo_products(prefix), libfoo_make_script, shard_platform, prefix)
+            # Copy files in, commit them.  This is the commit we will build.
+            repo = LibGit2.init(git_path)
+            LibGit2.commit(repo, "Initial empty commit")
+            run(`cp -r $(libfoo_src_dir)/$(readdir(libfoo_src_dir)) $(git_path)/`)
+            for file in readdir(git_path)
+                LibGit2.add!(repo, file)
             end
-            rm(build_path, recursive = true)
+            commit = LibGit2.commit(repo, "Add libfoo files")
 
-            # build again with cmake
-            mkpath(build_path)
-            prefix, ur = BinaryBuilder.setup_workspace(build_path, [], [], [], shard_platform)
-			cd(joinpath(dirname(@__FILE__),"build_tests","libfoo")) do
-                run(`cp $(readdir()) $(joinpath(prefix.path,"..","srcdir"))/`)
-
-                # Build libfoo, warn if we fail
-                @test build(ur, "foo", libfoo_products(prefix), libfoo_cmake_script, shard_platform, prefix)
+            # Add another commit to ensure that the git checkout is getting the right commit.
+            open(joinpath(git_path, "Makefile"), "w") do io
+                println(io, "THIS WILL BREAK EVERYTHING")
             end
-            rm(build_path, recursive = true)
+            LibGit2.add!(repo, "Makefile")
+            LibGit2.commit(repo, "Break Makefile")
+
+            for source in (dirname(libfoo_src_dir), git_path => bytes2hex(LibGit2.raw(LibGit2.GitHash(commit))))
+                build_output_meta = autobuild(
+                    build_path,
+                    "libfoo",
+                    v"1.0.0",
+                    # Copy in the libfoo sources
+                    [source],
+                    # Use the particular build script we're interested in
+                    script,
+                    # Build for this platform
+                    [platform],
+                    # The products we expect to be build
+                    libfoo_products,
+                    # No depenedencies
+                    [],
+                )
+
+                @test haskey(build_output_meta, platform)
+                tarball_path, tarball_hash = build_output_meta[platform][1:2]
+
+                # Ensure the build products were created
+                @test isfile(tarball_path)
+
+                # Ensure that the file contains what we expect
+                contents = list_tarball_files(tarball_path)
+                @test "bin/fooifier$(exeext(platform))" in contents
+                @test "lib/libfoo.$(dlext(platform))" in contents
+
+                # Unpack it somewhere else
+                @test verify(tarball_path, tarball_hash)
+                testdir = joinpath(build_path, "testdir")
+                mkpath(testdir)
+                unpack(tarball_path, testdir)
+
+                # Ensure we can use it
+                prefix = Prefix(testdir)
+                fooifier_path = joinpath(bindir(prefix), "fooifier$(exeext(platform))")
+                libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(dlext(platform))")))
+
+                check_foo(fooifier_path, libfoo_path)
+                rm(testdir; recursive=true, force=true)
+            end
         end
     end
 end
 
-# Testset to make sure we can build_tarballs() from a local directory
-@testset "build_tarballs() local directory based" begin
-    build_path = tempname()
-    local_dir_path = joinpath(build_path, "libfoo")
-    mkpath(local_dir_path)
+shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(platform))
+if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"    
+    @info("Beginning full shard test... (this can take a while)")
+    shards_to_test = supported_platforms()
+else
+    shards_to_test = [platform]
+end
 
-    cd(build_path) do
-        # Just like we package up libfoo into a tarball above, we'll just copy it
-        # into a new directory and use build_tarball's ability to auto-package
-        # local directories to do all the heavy lifting.
-        libfoo_dir = joinpath(@__DIR__, "build_tests", "libfoo")
-        run(`cp -r $(libfoo_dir)/$(readdir(libfoo_dir)) $local_dir_path`)
+# Expand to all platforms
+shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
-        build_tarballs(
-            [], # fake ARGS
-            "libfoo",
+# Perform a sanity test on each and every shard.
+@testset "Shard sanity tests" begin
+    mktempdir() do build_path
+        build_output_meta = autobuild(
+            build_path,
+            "testsuite",
             v"1.0.0",
-            [local_dir_path],
-            libfoo_make_script,
-            [Linux(:x86_64, :glibc)],
-            libfoo_products,
-            [], # no dependencies
+            # No sources
+            [],
+            # Build the test suite, install the binaries into our prefix's `bin`
+            raw"""
+            # Build testsuite
+            make -j${nproc} -sC /usr/share/testsuite install
+            # Install fake license just to silence the warning
+            install_license /usr/share/licenses/libuv/LICENSE
+            """,
+            # Build for ALL the platforms
+            shards_to_test,
+            # Some executable products
+            Product[
+                ExecutableProduct("hello_world_c", :hello_world_c),
+                ExecutableProduct("hello_world_cxx", :hello_world_cxx),
+                ExecutableProduct("hello_world_fortran", :hello_world_fortran),
+                ExecutableProduct("hello_world_go", :hello_world_go),
+                ExecutableProduct("hello_world_rust", :hello_world_rust),
+            ],
+            # No dependencies
+            [];
+            # We need to be able to build go and rust and whatnot
+            compilers=[:c, :go, :rust],
         )
 
-        # Make sure that worked
-        @test isfile("products/libfoo.v1.0.0.x86_64-linux-gnu.tar.gz")
-        @test isfile("products/build_libfoo.v1.0.0.jl")
-    end
-end
+        # Test that we built everything (I'm not entirely sure how I expect
+        # this to fail without some kind of error being thrown earlier on,
+        # to be honest I just like seeing lots of large green numbers.)
+        @test length(keys(shards_to_test)) == length(keys(build_output_meta))
 
-# Testset to make sure we can build_tarballs() from a git repository
-@testset "build_tarballs() Git-Based" begin
-    # Skip this testset on Travis, because its libgit2 is broken right now.
-    if get(ENV, "TRAVIS", "") == "true"
-        return
-    end
+        # Extract our platform's build, run the hello_world tests:
+        output_meta = select_platform(build_output_meta, platform)
+        @test output_meta != nothing
+        tarball_path, tarball_hash = output_meta[1:2]
 
-    build_path = tempname()
-    git_path = joinpath(build_path, "libfoo.git")
-    mkpath(git_path)
+        # Ensure the build products were created
+        @test isfile(tarball_path)
 
-    cd(build_path) do
-        # Just like we package up libfoo into a tarball above, we'll create a fake
-        # git repo for it here, then build from that.
-        repo = LibGit2.init(git_path)
-        LibGit2.commit(repo, "Initial empty commit")
-        libfoo_dir = joinpath(@__DIR__, "build_tests", "libfoo")
-        run(`cp -r $(libfoo_dir)/$(readdir(libfoo_dir)) $git_path/`)
-        for file in ["fooifier.cpp", "libfoo.c", "Makefile"]
-            LibGit2.add!(repo, file)
-        end
-        commit = LibGit2.commit(repo, "Add libfoo files")
+        # Unpack it somewhere else
+        @test verify(tarball_path, tarball_hash)
+        mkdir(joinpath(build_path, "testdir"))
+        unpack(tarball_path, joinpath(build_path, "testdir"))
 
-        # Now build that git repository for Linux x86_64
-        sources = [
-            git_path =>
-            LibGit2.string(LibGit2.GitHash(commit)),
-        ]
-
-        build_tarballs(
-            [], # fake ARGS
-            "libfoo",
-            v"1.0.0",
-            sources,
-            "cd libfoo\n$libfoo_make_script",
-            [Linux(:x86_64, :glibc)],
-            libfoo_products,
-            [], # no dependencies
-        )
-
-        # Make sure that worked
-        @test isfile("products/libfoo.v1.0.0.x86_64-linux-gnu.tar.gz")
-        @test isfile("products/build_libfoo.v1.0.0.jl")
-    end
-
-    rm(build_path; force=true, recursive=true)
-end
-
-@testset "build_tarballs() --only-buildjl" begin
-    build_path = tempname()
-    mkpath(build_path)
-    cd(build_path) do
-        # Clone down OggBuilder.jl
-        repo = LibGit2.clone("https://github.com/staticfloat/OggBuilder", ".")
-
-        # Check out a known-good tag
-        LibGit2.checkout!(repo, string(LibGit2.GitHash(LibGit2.GitCommit(repo, "v1.3.3-6"))))
-
-        # Reconstruct binaries!  We don't want it to pick up BinaryBuilder.jl information from CI,
-        # so wipe out those environment variables through withenv:
-        blacklist = ["CI_REPO_OWNER", "CI_REPO_NAME", "TRAVIS_REPO_SLUG", "TRAVIS_TAG", "CI_COMMIT_TAG"]
-        withenv((envvar => nothing for envvar in blacklist)...) do
-            m = Module(:__anon__)
-            Core.eval(m, quote
-                ARGS = ["--only-buildjl"]
-            end)
-            Base.include(m, joinpath(build_path, "build_tarballs.jl"))
+        # Run the hello_world executables; we add the lib of libquadmath onto
+        # the LD_LIBRARY_PATH so that `hello_world_fortran` can find its
+        # compiler support libraries, the poor thing.
+        csl_path = dirname(first(filter(x -> occursin("libgfortran", x), Libdl.dllist())))
+        LIBPATH_var, envsep = if Sys.iswindows()
+            ("PATH", ";")
+        elseif Sys.isapple()
+            ("DYLD_FALLBACK_LIBRARY_PATH", ":")
+        else
+            ("LD_LIBRARY_PATH", ":")
         end
 
-        # Read in `products/build.jl` to get download_info
-        m = Module(:__anon__)
-        download_info = Core.eval(m, quote
-            using Pkg
-            # Override BinaryProvider functionality so that it doesn't actually install anything
-            function install(args...; kwargs...); end
-            function write_deps_file(args...; kwargs...); end
-        end)
-        # Include build.jl file to extract download_info
-        Base.include(m, joinpath(build_path, "products", "build_Ogg.v1.3.3.jl"))
-        download_info = Core.eval(m, :(download_info))
-
-        # Test that we get the info right about some of these platforms
-        bin_prefix = "https://github.com/staticfloat/OggBuilder/releases/download/v1.3.3-6"
-        @test download_info[Linux(:x86_64)] == (
-            "$bin_prefix/Ogg.v1.3.3.x86_64-linux-gnu.tar.gz",
-            "6ef771242553b96262d57b978358887a056034a3c630835c76062dca8b139ea6",
-        )
-        @test download_info[Windows(:i686)] == (
-            "$bin_prefix/Ogg.v1.3.3.i686-w64-mingw32.tar.gz",
-            "3f6f6f524137a178e9df7cb5ea5427de6694c2a44ef78f1491d22bd9c6c8a0e8",
-        )
+        withenv(LIBPATH_var => string(csl_path, envsep, get(ENV, LIBPATH_var, ""))) do
+            testbin_dir = joinpath(build_path, "testdir", "bin")
+            for f in filter(f -> occursin("hello_world", f), readdir(testbin_dir))
+                f = joinpath(testbin_dir, f)
+                @test strip(String(read(`$f`))) == "Hello, World!"
+            end
+        end
     end
 end
-

@@ -1,0 +1,1 @@
+This software is released under the "BinaryBuilder Test Suite" public license.  Do whatever you wish with it.

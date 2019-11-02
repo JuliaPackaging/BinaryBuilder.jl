@@ -1,23 +1,12 @@
 all: fooifier
 
-# We provide sane defaults, but BinaryBuilder may override most of these values.
-prefix ?= /usr/local
-bindir ?= $(prefix)/bin
-libdir ?= $(prefix)/lib
-CC ?= gcc
-
 ifeq ($(shell uname),Darwin)
-CFLAGS = -target x86_64-apple-macosx10.7
-CXXFLAGS = -target x86_64-apple-macosx10.7
-dlext ?= dylib
-RPATH ?= -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
+RPATH := -Wl,-rpath,'@executable_path/../lib' -Wl,-rpath,'@executable_path'
+INSTALL_NAME = -install_name '@rpath/libfoo.dylib'
 else ifneq ($(findstring MSYS,$(shell uname)),)
-libdir ?= $(bindir)
-dlext ?= dll
-EXE_EXT ?= .exe
+RPATH :=
 else
-dlext ?= so
-RPATH ?= -Wl,-rpath,'$$ORIGIN/../lib' -Wl,-rpath,'$$ORIGIN'
+RPATH := -Wl,-rpath,'$$ORIGIN/../lib' -Wl,-rpath,'$$ORIGIN'
 endif
 
 $(bindir):
@@ -25,14 +14,14 @@ $(bindir):
 $(libdir):
 	mkdir -p $(libdir)
 
-fooifier$(EXE_EXT): fooifier.cpp Makefile | libfoo
+fooifier$(exeext): fooifier.cpp Makefile | libfoo
 	$(CXX) $(CXXFLAGS) fooifier.cpp -g -o $@ -L"$(shell pwd)" $(LDFLAGS) $(RPATH) -lfoo
-install-fooifier: $(bindir) fooifier$(EXE_EXT)
-	cp fooifier$(EXE_EXT) $(bindir)/
+install-fooifier: $(bindir) fooifier$(exeext)
+	cp fooifier$(exeext) $(bindir)/
 
 
 libfoo.$(dlext): libfoo.c Makefile
-	$(CC) $(CFLAGS) libfoo.c -g -o $@ $(LDFLAGS) -shared
+	$(CC) $(CFLAGS) libfoo.c -g -o $@ $(LDFLAGS) -shared $(INSTALL_NAME)
 libfoo: libfoo.$(dlext)
 install-libfoo: $(libdir) libfoo.$(dlext)
 	cp libfoo.$(dlext) $(libdir)/

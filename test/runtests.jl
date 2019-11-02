@@ -30,21 +30,24 @@ function check_foo(fooifier_path = "fooifier$(exe_ext)",
     Libdl.dlclose(libfoo)
 end
 
+libfoo_src_dir = joinpath(@__DIR__, "build_tests", "libfoo")
 libfoo_products = [
-    LibraryProduct("libfoo", :libfoo)
-    ExecutableProduct("fooifier", :fooifier)
+    LibraryProduct("libfoo", :libfoo),
+    ExecutableProduct("fooifier", :fooifier),
 ]
 
-libfoo_make_script = """
+libfoo_make_script = raw"""
+cd ${WORKSPACE}/srcdir/libfoo
 make clean
 make install
+install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 """
 
 libfoo_cmake_script = raw"""
-mkdir build
-cd build
+mkdir ${WORKSPACE}/srcdir/libfoo/build && cd ${WORKSPACE}/srcdir/libfoo/build
 cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} ..
 make install
+install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 """
 
 # Helper function to try something and panic if it doesn't work
