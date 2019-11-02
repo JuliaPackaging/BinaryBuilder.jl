@@ -1,41 +1,36 @@
 import Base: strip
 abstract type Runner; end
 
-function target_nbits(target::AbstractString)
-    if startswith(target, "i686-") || startswith(target, "arm-")
-        return "32"
+function nbits(p::Platform)
+    if arch(p) in (:i686, :armv7l)
+        return 32
+    elseif arch(p) in (:x86_64, :aarch64, :powerpc64le)
+        return 64
     else
-        return "64"
+        error("Unknown bitwidth for architecture $(arch(p))")
     end
 end
 
-function target_proc_family(target::AbstractString)
-    if startswith(target, "arm") || startswith(target, "aarch")
-        return "arm"
-    elseif startswith(target, "power")
-        return "power"
+function proc_family(p::Platform)
+    if arch(p) in (:x86_64, :i686)
+        return :intel
+    elseif arch(p) in (:armv7l, :aarch64)
+        return :arm
+    elseif arch(p) == :powerpc64le
+        return :power
     else
-        return "intel"
+        error("Unknown processor family for architecture $(arch(p))")
     end
 end
 
-function target_dlext(target::AbstractString)
-    if endswith(target, "-mingw32")
-        return "dll"
-    elseif occursin("-apple-", target)
-        return "dylib"
-    else
-        return "so"
-    end
-end
+dlext(p::Windows) = "dll"
+dlext(p::MacOS) = "dylib"
+dlext(p::Union{Linux,FreeBSD}) = "so"
+dlext(p::Platform) = error("Unknown dlext for platform $(p)")
 
-function target_exeext(target::AbstractString)
-    if endswith(target, "-mingw32")
-        return ".exe"
-    else
-        return ""
-    end
-end
+exeext(p::Windows) = ".exe"
+exeext(p::Union{Linux,FreeBSD,MacOS}) = ""
+exeext(p::Platform) = error("Unknown exeext for platform $(p)")
 
 """
     generate_compiler_wrappers(p::Platform, bin_path::AbstractString)
@@ -440,10 +435,10 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         "rust_target" => map_rust_target(platform),
         "rust_host" => map_rust_target(rust_host), # use glibc since musl is broken. :( https://github.com/rust-lang/rust/issues/59302
         "nproc" => "$(Sys.CPU_THREADS)",
-        "nbits" => target_nbits(target),
-        "proc_family" => target_proc_family(target),
-        "dlext" => target_dlext(target),
-        "exeext" => target_exeext(target),
+        "nbits" => string(nbits(platform)),
+        "proc_family" => string(proc_family(platform)),
+        "dlext" => dlext(platform),
+        "exeext" => exeext(platform),
         "PATH" => "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
         "MACHTYPE" => "x86_64-linux-musl",
 

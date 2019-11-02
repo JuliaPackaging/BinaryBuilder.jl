@@ -31,28 +31,34 @@ end
 end
 
 @testset "Target properties" begin
-    for t in ["i686-linux-gnu", "i686-w64-mingw32", "arm-linux-gnueabihf"]
-        @test BinaryBuilder.target_nbits(t) == "32"
+    for p in [Linux(:i686), Windows(:i686), Linux(:armv7l)]
+        @test BinaryBuilder.nbits(p) == 32
     end
 
-    for t in ["x86_64-linux-gnu", "x86_64-w64-mingw32", "aarch64-linux-gnu",
-              "powerpc64le-linux-gnu", "x86_64-apple-darwin14"]
-        @test BinaryBuilder.target_nbits(t) == "64"
+    for p in [Linux(:x86_64), Windows(:x86_64), Linux(:aarch64),
+              Linux(:powerpc64le), MacOS()]
+        @test BinaryBuilder.nbits(p) == 64
     end
 
-    for t in ["x86_64-linux-gnu", "x86_64-apple-darwin14", "i686-w64-mingw32"]
-        @test BinaryBuilder.target_proc_family(t) == "intel"
+    for p in [Linux(:x86_64), MacOS(), Windows(:i686)]
+        @test BinaryBuilder.proc_family(p) == :intel
     end
-    for t in ["aarch64-linux-gnu", "arm-linux-gnueabihf"]
-        @test BinaryBuilder.target_proc_family(t) == "arm"
+    for p in [Linux(:aarch64; libc=:musl), Linux(:armv7l)]
+        @test BinaryBuilder.proc_family(p) == :arm
     end
-    @test BinaryBuilder.target_proc_family("powerpc64le-linux-gnu") == "power"
+    @test BinaryBuilder.proc_family(Linux(:powerpc64le)) == :power
 
-    for t in ["aarch64-linux-gnu", "x86_64-unknown-freebsd11.1"]
-        @test BinaryBuilder.target_dlext(t) == "so"
+    for p in [Linux(:aarch64), FreeBSD(:x86_64)]
+        @test BinaryBuilder.dlext(p) == "so"
     end
-    @test BinaryBuilder.target_dlext("x86_64-apple-darwin14") == "dylib"
-    @test BinaryBuilder.target_dlext("i686-w64-mingw32") == "dll"
+    @test BinaryBuilder.dlext(MacOS()) == "dylib"
+    @test BinaryBuilder.dlext(Windows(:i686)) == "dll"
+
+    for p in [Linux(:x86_64), FreeBSD(:x86_64), Linux(:powerpc64le), MacOS()]
+        @test BinaryBuilder.exeext(p) == ""
+    end
+    @test BinaryBuilder.exeext(Windows(:x86_64)) == ".exe"
+    @test BinaryBuilder.exeext(Windows(:i686)) == ".exe"
 end
 
 @testset "UserNS utilities" begin
