@@ -1,4 +1,4 @@
-export supported_platforms, expand_gcc_versions, expand_gfortran_versions, expand_cxxstring_abis
+export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis
 
 import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
@@ -479,10 +479,9 @@ function expand_gfortran_versions(p::Platform)
     libgfortran_versions = [v"3", v"4", v"5"]
     return replace_libgfortran_version.(Ref(p), libgfortran_versions)
 end
-function expand_gfortran_versions(ps::Vector{P}) where {P <: Platform}
-    return collect(Iterators.flatten(expand_gfortran_versions.(ps)))
+function expand_gfortran_versions(ps::Vector{<:Platform})
+    return Platform[p for p in Iterators.flatten(expand_gfortran_versions.(ps))]
 end
-@deprecate expand_gcc_versions expand_gfortran_versions
 
 """
     expand_cxxstring_abis(p::Platform)
@@ -504,8 +503,8 @@ function expand_cxxstring_abis(p::Platform)
     gcc_versions = [:cxx03, :cxx11]
     return replace_cxxstring_abi.(Ref(p), gcc_versions)
 end
-function expand_cxxstring_abis(ps::Vector{P}) where {P <: Platform}
-    return collect(Iterators.flatten(expand_cxxstring_abis.(ps)))
+function expand_cxxstring_abis(ps::Vector{<:Platform})
+    return Platform[p for p in Iterators.flatten(expand_cxxstring_abis.(ps))]
 end
 
 """

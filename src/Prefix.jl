@@ -4,7 +4,7 @@
 import Base: convert, joinpath, show, withenv
 using SHA
 
-export Prefix, bindir, libdir, includedir, logdir, activate, deactivate,
+export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
        isinstalled,
        install, uninstall, list_tarball_files, verify, temp_prefix
 import Pkg.PlatformEngines: package
