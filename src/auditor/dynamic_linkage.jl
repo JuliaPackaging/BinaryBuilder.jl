@@ -240,12 +240,14 @@ function is_default_lib(lib, ::MachOHandle)
 end
 
 function patchelf_flags(p::Platform)
-    flags = ""
+    flags = []
 
     # ppc64le and aarch64 have 64KB page sizes, don't muck up the ELF section load alignment
     if arch(p) in (:powerpc64le, :aarch64)
-        flags *= "--page-size 65536"
+        append!(flags, ["--page-size", "65536"])
     end
+
+    # We return arrays so that things interpolate properly
     return flags
 end
 
