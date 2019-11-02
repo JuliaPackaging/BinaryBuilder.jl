@@ -50,6 +50,13 @@ make install
 install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 """
 
+libfoo_meson_script = raw"""
+mkdir ${WORKSPACE}/srcdir/libfoo/build && cd ${WORKSPACE}/srcdir/libfoo/build
+meson .. -Dprefix=${prefix} --cross-file="${MESON_TARGET_TOOLCHAIN}"
+ninja install
+install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
+"""
+
 # Helper function to try something and panic if it doesn't work
 do_try(f) = try
     f()
