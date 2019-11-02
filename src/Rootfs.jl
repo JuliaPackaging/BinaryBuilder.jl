@@ -215,7 +215,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
 
     # Ensure this artifact is on-disk; hard to mount it if it's not installed
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    ensure_artifact_installed(artifact_name(cs), artifacts_toml; platform=cs.host, verbose=verbose)
+    ensure_artifact_installed(artifact_name(cs), artifacts_toml; platform=cs.host, verbose=true)
 
     # Easy out if we're not Linux with a UserNSRunner trying to use a .squashfs
     if !Sys.islinux() || (preferred_runner() != UserNSRunner &&
