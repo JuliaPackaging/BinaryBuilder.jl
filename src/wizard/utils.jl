@@ -1,9 +1,40 @@
+# `_getpass` is based on `Base.getpass` but doesn't print any prompt
+if Sys.iswindows()
+function _getpass(input::Base.TTY)
+    input === stdin || throw(ArgumentError("getpass only works for stdin"))
+    s = SecretBuffer()
+    plen = 0
+    while true
+        c = UInt8(ccall(:_getch, Cint, ()))
+        if c == 0xff || c == UInt8('\n') || c == UInt8('\r')
+            break # EOF or return
+        elseif c == 0x00 || c == 0xe0
+            ccall(:_getch, Cint, ()) # ignore function/arrow keys
+        elseif c == UInt8('\b') && plen > 0
+            plen -= 1 # delete last character on backspace
+        elseif !iscntrl(Char(c)) && plen < 128
+            write(s, c)
+        end
+    end
+    return seekstart(s)
+end
+else
+function _getpass(input::Base.TTY)
+    input === stdin || throw(ArgumentError("getpass only works for stdin"))
+    Base.unsafe_SecretBuffer!(ccall(:getpass, Cstring, (Cstring,), ""))
+end
+end
 
-function nonempty_line_prompt(name, msg; ins=stdin, outs=stdout, force_identifier=false)
+function nonempty_line_prompt(name, msg; ins=stdin, outs=stdout,
+                              force_identifier=false, echo=true)
     val = ""
     while true
         print(outs, msg, "\n> ")
-        val = strip(readline(ins))
+        if echo
+            val = strip(readline(ins))
+        else
+            val = strip(read(_getpass(ins), String))
+        end
         println(outs)
         if !isempty(val) && (!force_identifier || Base.isidentifier(val))
             break
