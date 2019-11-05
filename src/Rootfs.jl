@@ -301,7 +301,7 @@ function macos_sdk_already_installed()
 
     host_platform = Linux(:x86_64; libc=:musl)
     artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
-    macos_artifact_hashes = artifact_hash.(artifact_names, artifacts_toml; platform=host_platform)
+    macos_artifact_hashes = artifact_hash.(macos_artifact_names, artifacts_toml; platform=host_platform)
 
     # The Rust shards will return `nothing` above (so we filter them out here) since they
     # are TECHNICALLY `Linux(:x86_64; libc=:glibc)`-hosted.  Whatever. You need to download
