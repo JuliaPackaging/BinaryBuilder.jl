@@ -1,11 +1,5 @@
 FROM julia:1.3
 
-# We make the promise that things will work best if 1000:1000 is
-# the outside user.
-RUN groupadd -g 1000 buildworker
-RUN useradd -m -u 1000 -g 1000 -s /bin/bash buildworker
-USER buildworker
-
 # Install tools which get used by BinaryBuilder.
 RUN apt-get update && apt-get install -y xz-utils sudo
 
@@ -22,6 +16,14 @@ ENV BINARYBUILDER_STORAGE_DIR /storage
 RUN mkdir -p /storage/ccache
 RUN mkdir -p /storage/artifacts
 RUN mkdir -p /storage/downloads
+
+
+# We make the promise that things will work best if 1000:1000 is
+# the outside user.
+RUN groupadd -g 1000 buildworker
+RUN useradd -m -u 1000 -g 1000 -s /bin/bash buildworker
+RUN chown buildworker:buildworker -R /storage
+USER buildworker
 
 # Install BinaryBuilder
 RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master"))'
