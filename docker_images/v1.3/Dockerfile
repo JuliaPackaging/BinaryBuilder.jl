@@ -30,6 +30,6 @@ RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master")
 RUN julia -e 'using Pkg; Pkg.API.precompile();'
 
 # Force artifact storage into /storage/artifacts
-RUN ln -fs /storage/artifacts /root/.julia/artifacts
+RUN ln -fs /storage/artifacts /home/buildworker/.julia/artifacts
 
 # The user should mount something in /storage so that it persists from run to run
