@@ -17,19 +17,11 @@ RUN mkdir -p /storage/ccache
 RUN mkdir -p /storage/artifacts
 RUN mkdir -p /storage/downloads
 
-
-# We make the promise that things will work best if 1000:1000 is
-# the outside user.
-RUN groupadd -g 1000 buildworker
-RUN useradd -m -u 1000 -g 1000 -s /bin/bash buildworker
-RUN chown buildworker:buildworker -R /storage
-USER buildworker
-
 # Install BinaryBuilder
 RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master"))'
 RUN julia -e 'using Pkg; Pkg.API.precompile();'
 
 # Force artifact storage into /storage/artifacts
-RUN ln -fs /storage/artifacts /home/buildworker/.julia/artifacts
+RUN ln -fs /storage/artifacts /root/.julia/artifacts
 
 # The user should mount something in /storage so that it persists from run to run
