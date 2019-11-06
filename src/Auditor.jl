@@ -41,6 +41,8 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         verbose = false
     end
 
+    # Canonicalize immediately
+    prefix = Prefix(realpath(prefix.path))
     if verbose
         info(io, "Beginning audit of $(prefix.path)")
     end
@@ -194,7 +196,8 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         all_ok &= check_license(prefix, src_name; verbose=verbose, io=io, silent=silent)
     end
 
-    # Perform filesystem-related audit passes    predicate = f -> !startswith(f, joinpath(prefix, "logs"))
+    # Perform filesystem-related audit passes
+    predicate = f -> !startswith(f, joinpath(prefix, "logs"))
     all_files = collect_files(prefix, predicate)
 
     # Search for absolute paths in this prefix
@@ -264,9 +267,11 @@ function check_dynamic_linkage(oh, prefix, bin_files;
 
             # If this is a default dynamic link, then just rewrite to use rpath and call it good.
             if is_default_lib(libname, oh)
-                relink_to_rpath(prefix, platform, path(oh), libs[libname])
-                if verbose
-                    info(io, "Rpathify'ing default library $(libname)")
+                if autofix
+                    if verbose
+                        info(io, "Rpathify'ing default library $(libname)")
+                    end
+                    relink_to_rpath(prefix, platform, path(oh), libs[libname]; verbose=verbose)
                 end
                 continue
             end

@@ -1,6 +1,37 @@
 ## Tests involing building packages and whatnot
-import BinaryBuilder: exeext, dlext
-using Pkg.PlatformEngines
+build_tests_dir = joinpath(@__DIR__, "build_tests")
+libfoo_products = [
+    LibraryProduct("libfoo", :libfoo),
+    ExecutableProduct("fooifier", :fooifier),
+]
+
+libfoo_make_script = raw"""
+cd ${WORKSPACE}/srcdir/libfoo
+make install
+install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
+"""
+
+libfoo_cmake_script = raw"""
+mkdir ${WORKSPACE}/srcdir/libfoo/build && cd ${WORKSPACE}/srcdir/libfoo/build
+cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} ..
+make install
+install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
+"""
+
+libfoo_meson_script = raw"""
+mkdir ${WORKSPACE}/srcdir/libfoo/build && cd ${WORKSPACE}/srcdir/libfoo/build
+meson .. -Dprefix=${prefix} --cross-file="${MESON_TARGET_TOOLCHAIN}"
+ninja install -v
+
+# grumble grumble meson!  Why do you go to all the trouble to build it properly
+# in `build`, then screw it up when you `install` it?!  Silly willy.
+if [[ ${target} == *apple* ]]; then
+    install_name_tool ${prefix}/bin/fooifier -change ${prefix}/lib/libfoo.0.dylib @rpath/libfoo.0.dylib
+fi
+install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
+"""
+
+
 
 @testset "Building libfoo" begin
 	# Test building with both `make` and `cmake`, using directory and git repository
@@ -14,6 +45,7 @@ using Pkg.PlatformEngines
             # Copy files in, commit them.  This is the commit we will build.
             repo = LibGit2.init(git_path)
             LibGit2.commit(repo, "Initial empty commit")
+            libfoo_src_dir = joinpath(build_tests_dir, "libfoo")
             run(`cp -r $(libfoo_src_dir)/$(readdir(libfoo_src_dir)) $(git_path)/`)
             for file in readdir(git_path)
                 LibGit2.add!(repo, file)
@@ -27,7 +59,7 @@ using Pkg.PlatformEngines
             LibGit2.add!(repo, "Makefile")
             LibGit2.commit(repo, "Break Makefile")
 
-            for source in (dirname(libfoo_src_dir), git_path => bytes2hex(LibGit2.raw(LibGit2.GitHash(commit))))
+            for source in (build_tests_dir, git_path => bytes2hex(LibGit2.raw(LibGit2.GitHash(commit))))
                 build_output_meta = autobuild(
                     build_path,
                     "libfoo",
@@ -41,7 +73,11 @@ using Pkg.PlatformEngines
                     # The products we expect to be build
                     libfoo_products,
                     # No depenedencies
-                    [],
+                    [];
+                    # Don't do audit passes
+                    skip_audit=true,
+                    # Make one verbose for the coverage.  We do it all for the coverage, Morty.
+                    verbose=true,
                 )
 
                 @test haskey(build_output_meta, platform)
@@ -66,15 +102,28 @@ using Pkg.PlatformEngines
                 fooifier_path = joinpath(bindir(prefix), "fooifier$(exeext(platform))")
                 libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(dlext(platform))")))
 
-                check_foo(fooifier_path, libfoo_path)
-                rm(testdir; recursive=true, force=true)
+                # We know that foo(a, b) returns 2*a^2 - b
+                result = 2*2.2^2 - 1.1
+
+                # Test that we can invoke fooifier
+                @test !success(`$fooifier_path`)
+                @test success(`$fooifier_path 1.5 2.0`)
+                @test parse(Float64,readchomp(`$fooifier_path 2.2 1.1`)) ≈ result
+
+                # Test that we can dlopen() libfoo and invoke it directly
+                libfoo = Libdl.dlopen_e(libfoo_path)
+                @test libfoo != C_NULL
+                foo = Libdl.dlsym_e(libfoo, :foo)
+                @test foo != C_NULL
+                @test ccall(foo, Cdouble, (Cdouble, Cdouble), 2.2, 1.1) ≈ result
+                Libdl.dlclose(libfoo)
             end
         end
     end
 end
 
 shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(platform))
-if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false") ) == "true"    
+if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"    
     @info("Beginning full shard test... (this can take a while)")
     shards_to_test = supported_platforms()
 else
@@ -85,8 +134,16 @@ end
 shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
 # Perform a sanity test on each and every shard.
-@testset "Shard sanity tests" begin
+@testset "Shard testsuites" begin
     mktempdir() do build_path
+        products = Product[
+            ExecutableProduct("hello_world_c", :hello_world_c),
+            ExecutableProduct("hello_world_cxx", :hello_world_cxx),
+            ExecutableProduct("hello_world_fortran", :hello_world_fortran),
+            ExecutableProduct("hello_world_go", :hello_world_go),
+            ExecutableProduct("hello_world_rust", :hello_world_rust),
+        ]
+
         build_output_meta = autobuild(
             build_path,
             "testsuite",
@@ -102,14 +159,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             """,
             # Build for ALL the platforms
             shards_to_test,
-            # Some executable products
-            Product[
-                ExecutableProduct("hello_world_c", :hello_world_c),
-                ExecutableProduct("hello_world_cxx", :hello_world_cxx),
-                ExecutableProduct("hello_world_fortran", :hello_world_fortran),
-                ExecutableProduct("hello_world_go", :hello_world_go),
-                ExecutableProduct("hello_world_rust", :hello_world_rust),
-            ],
+            products,
             # No dependencies
             [];
             # We need to be able to build go and rust and whatnot
@@ -131,26 +181,17 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
         # Unpack it somewhere else
         @test verify(tarball_path, tarball_hash)
-        mkdir(joinpath(build_path, "testdir"))
-        unpack(tarball_path, joinpath(build_path, "testdir"))
+        testdir = joinpath(build_path, "testdir")
+        mkdir(testdir)
+        unpack(tarball_path, testdir)
 
-        # Run the hello_world executables; we add the lib of libquadmath onto
-        # the LD_LIBRARY_PATH so that `hello_world_fortran` can find its
-        # compiler support libraries, the poor thing.
-        csl_path = dirname(first(filter(x -> occursin("libgfortran", x), Libdl.dllist())))
-        LIBPATH_var, envsep = if Sys.iswindows()
-            ("PATH", ";")
-        elseif Sys.isapple()
-            ("DYLD_FALLBACK_LIBRARY_PATH", ":")
-        else
-            ("LD_LIBRARY_PATH", ":")
-        end
+        prefix = Prefix(testdir)
+        for product in products
+            hw_path = locate(product, prefix)
+            @test hw_path !== nothing && isfile(hw_path)
 
-        withenv(LIBPATH_var => string(csl_path, envsep, get(ENV, LIBPATH_var, ""))) do
-            testbin_dir = joinpath(build_path, "testdir", "bin")
-            for f in filter(f -> occursin("hello_world", f), readdir(testbin_dir))
-                f = joinpath(testbin_dir, f)
-                @test strip(String(read(`$f`))) == "Hello, World!"
+            with_libgfortran() do
+                @test strip(String(read(`$hw_path`))) == "Hello, World!"
             end
         end
     end
