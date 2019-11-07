@@ -7,18 +7,8 @@ using Random, LibGit2, Libdl, Test, ObjectFile, SHA
 # The platform we're running on
 const platform = platform_key_abi()
 
-# Helper function to try something and panic if it doesn't work
-do_try(f) = try
-    f()
-catch e
-    bt = catch_backtrace()
-    Base.display_error(stderr, e, bt)
-
-    # If a do_try fails, panic
-    Test.@test false
-end
-
-# Helper function to run fortran code
+# Helper function to run fortran code with the path to libgfortran/libquadmath
+# embedded in the appropriate environment variables (JLL packages we love you so)
 csl_path = dirname(first(filter(x -> occursin("libgfortran", x), Libdl.dllist())))
 LIBPATH_var, envsep = if Sys.iswindows()
     ("PATH", ";")
@@ -38,6 +28,3 @@ include("basic.jl")
 include("building.jl")
 include("auditing.jl")
 include("wizard.jl")
-
-# These are broken for now
-#include("package_tests.jl")
