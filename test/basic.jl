@@ -165,3 +165,10 @@ end
     @test BinaryBuilder.normalize_name("foo/libfoo-2.dll") == "libfoo"
     @test BinaryBuilder.normalize_name("libfoo") == "libfoo"
 end
+
+# Test that updating Yggdrasil works
+Core.eval(BinaryBuilder, :(yggdrasil_updated = false))
+io = IOBuffer()
+BinaryBuilder.get_yggdrasil(io=io)
+seek(io, 0)
+@test match(r"Yggdrasil", String(read(io))) != nothing
