@@ -56,6 +56,7 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
         `tar -c -C $(rootfs_path) .`,
         `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`;
     ); stdout=devnull))
+    unmount(rootfs, workspace_root)
     return
 end
 
@@ -164,10 +165,10 @@ function Base.run(dr::DockerRunner, cmd, logger::IO=stdout; verbose::Bool=false,
         println(logger, cmd)
         print(logger, merge(oc))
     finally
+        unmount_shards(dr; verbose=verbose)
+
         # Cleanup permissions, if we need to.
         chown_cleanup(dr; verbose=verbose)
-
-        unmount_shards(dr; verbose=verbose)
     end
 
     # Return whether we succeeded or not
