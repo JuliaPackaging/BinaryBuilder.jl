@@ -129,17 +129,6 @@ function show(io::IO, x::UserNSRunner)
           "UserNSRunner")
 end
 
-mount_shards(ur::UserNSRunner; verbose::Bool = false) = mount.(ur.shards, ur.workspace_root; verbose=verbose)
-function unmount_shards(ur::UserNSRunner; verbose::Bool = false)
-    unmount.(ur.shards, ur.workspace_root; verbose=verbose)
-
-    # Remove `mounts` if it's empty
-    try
-        rm(joinpath(ur.workspace_root, "mounts"))
-    catch
-    end
-end
-
 prompted_userns_run_privileged = false
 function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = false, tee_stream=stdout)
     global prompted_userns_run_privileged
@@ -175,6 +164,8 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
     end
 
     cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
+    @debug("About to run: $(cmd)")
+
     if stdin isa AnyRedirectable
         cmd = pipeline(cmd, stdin=stdin)
     end
@@ -183,10 +174,6 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
     end
     if stderr isa AnyRedirectable
         cmd = pipeline(cmd, stderr=stderr)
-    end
-
-    if verbose
-        @debug("About to run: $(cmd)")
     end
 
     try

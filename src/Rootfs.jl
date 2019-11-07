@@ -269,7 +269,7 @@ shard archive type and platform result in a no-op.
 """
 function unmount(cs::CompilerShard, build_prefix::String; verbose::Bool = false, fail_on_error::Bool = false)
     # Only try to unmount if it's mounted
-    if is_mounted(cs, build_prefix)
+    if Sys.islinux() && is_mounted(cs, build_prefix)
         mpath = mount_path(cs, build_prefix)
         if verbose
             @debug("Unmounting $(mpath)`")
@@ -588,6 +588,20 @@ function shard_mappings(shards::Vector{CompilerShard})
     reverse!(mappings)
     return mappings
 end
+
+function mount_shards(ur::Runner; verbose::Bool = false)
+    mount.(ur.shards, ur.workspace_root; verbose=verbose)
+end
+function unmount_shards(ur::Runner; verbose::Bool = false)
+    unmount.(ur.shards, ur.workspace_root; verbose=verbose)
+
+    # Remove `mounts` if it's empty
+    try
+        rm(joinpath(ur.workspace_root, "mounts"))
+    catch
+    end
+end
+
 
 
 """
