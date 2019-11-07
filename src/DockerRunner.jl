@@ -111,7 +111,7 @@ function DockerRunner(workspace_root::String;
 
     # Add in read-only mappings and read-write workspaces
     for shard in shards[2:end]
-        outside = realpath(mount(shard, workspace_root; verbose=verbose))
+        outside = mount_path(shard, workspace_root)
         inside = map_target(shard)
         docker_cmd = `$docker_cmd -v $(outside):$(inside):ro`
     end
@@ -155,15 +155,20 @@ function Base.run(dr::DockerRunner, cmd, logger::IO=stdout; verbose::Bool=false,
     docker_cmd = `$(dr.docker_cmd) $(docker_image(dr.shards[1])) $(cmd)`
     @debug("About to run: $(docker_cmd)")
 
-    oc = OutputCollector(docker_cmd; verbose=verbose, tee_stream=tee_stream)
-    did_succeed = wait(oc)
+    try
+        mount_shards(dr; verbose=verbose)
+        oc = OutputCollector(docker_cmd; verbose=verbose, tee_stream=tee_stream)
+        did_succeed = wait(oc)
 
-    # First write out the actual command, then the command output
-    println(logger, cmd)
-    print(logger, merge(oc))
+        # First write out the actual command, then the command output
+        println(logger, cmd)
+        print(logger, merge(oc))
+    finally
+        # Cleanup permissions, if we need to.
+        chown_cleanup(dr; verbose=verbose)
 
-    # Cleanup permissions, if we need to.
-    chown_cleanup(dr; verbose=verbose)
+        unmount_shards(dr; verbose=verbose)
+    end
 
     # Return whether we succeeded or not
     return did_succeed
@@ -173,9 +178,7 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
     tty_or_nothing(s) = s === nothing || typeof(s) <: Base.TTY
     run_flags = all(tty_or_nothing.((stdin, stdout, stderr))) ? "-ti" : "-i"
     docker_cmd = `$(dr.docker_cmd) $(run_flags) -i $(docker_image(dr.shards[1])) $(cmd)`
-    if verbose
-        @debug("About to run: $(docker_cmd)")
-    end
+    @debug("About to run: $(docker_cmd)")
 
     if stdin isa AnyRedirectable
         docker_cmd = pipeline(docker_cmd, stdin=stdin)
@@ -187,21 +190,26 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
         docker_cmd = pipeline(docker_cmd, stderr=stderr)
     end
 
-    if stdout isa IOBuffer
-        if !(stdin isa IOBuffer)
-            stdin = devnull
-        end
-        process = open(docker_cmd, "r", stdin)
-        @async begin
-            while !eof(process)
-                write(stdout, read(process))
+    try
+        mount_shards(dr; verbose=verbose)
+        if stdout isa IOBuffer
+            if !(stdin isa IOBuffer)
+                stdin = devnull
             end
+            process = open(docker_cmd, "r", stdin)
+            @async begin
+                while !eof(process)
+                    write(stdout, read(process))
+                end
+            end
+            wait(process)
+        else
+            run(docker_cmd)
         end
-        wait(process)
-    else
-        run(docker_cmd)
+    finally
+        # Cleanup permissions, if we need to.
+        chown_cleanup(dr; verbose=verbose)
+
+        unmount_shards(dr)
     end
-    
-    # Cleanup permissions, if we need to.
-    chown_cleanup(dr; verbose=verbose)
 end
