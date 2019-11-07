@@ -40,7 +40,7 @@ end
 
 
 function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
-                       verbose::Bool = false, autofix::Bool = false)
+                       verbose::Bool = false, autofix::Bool = false, io::IO = stdout)
     # Skip any kind of Windows platforms
     if platform isa Windows
         return true
@@ -81,19 +81,19 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     end
 
     if !retval
-        @warn("Unable to set SONAME on $(rel_path)")
+        warn(io, "Unable to set SONAME on $(rel_path)")
         return false
     end
 
     # Read the SONAME back in and ensure it's set properly
     new_soname = get_soname(path)
     if new_soname != soname
-        @warn("Set SONAME on $(rel_path) to $(soname), but read back $(string(new_soname))!")
+        warn(io, "Set SONAME on $(rel_path) to $(soname), but read back $(string(new_soname))!")
         return false
     end
 
     if verbose
-        @info("Set SOANME of $(rel_path) to \"$(soname)\"")
+        info(io, "Set SOANME of $(rel_path) to \"$(soname)\"")
     end
 
     return true
@@ -107,7 +107,8 @@ SONAME (if it exists).  While this is almost always true in practice, it
 doesn't hurt to make doubly sure.
 """
 function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
-                                                  autofix::Bool = false)
+                                                  autofix::Bool = false,
+                                                  io::IO = stdout)
     # If this library doesn't have an SONAME, then just quit out immediately
     soname = get_soname(path)
     if soname === nothing
@@ -119,12 +120,12 @@ function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
     if !isfile(soname_path)
         if autofix
             if verbose
-                @info("Library $(soname) does not exist, creating...")
+                info(io, "Library $(soname) does not exist, creating...")
             end
             symlink(path, soname_path)
         else
             if verbose
-                @info("Library $(soname) does not exist, failing out...")
+                info(io, "Library $(soname) does not exist, failing out...")
             end
             return false
         end

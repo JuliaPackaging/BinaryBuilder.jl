@@ -142,11 +142,11 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # Ensure that all libraries have at least some kind of SONAME, if we're
         # on that kind of platform
         if !(platform isa Windows)
-            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
+            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix, io=io)
         end
 
         # Ensure that this library is available at its own SONAME
-        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
+        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix, io=io)
     end
 
     if platform isa Windows

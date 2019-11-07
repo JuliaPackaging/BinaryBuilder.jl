@@ -1,16 +1,16 @@
 # Only update yggdrasil once
 yggdrasil_updated = false
-function get_yggdrasil()
+function get_yggdrasil(;io::IO = stdout)
     # TODO: Eventually, we want to use a Pkg cache to store Yggdrasil,
     # but since that doens't exist yet, we'll stick it into `deps`:
     yggdrasil_dir = abspath(joinpath(@__DIR__, "..", "..", "deps", "Yggdrasil"))
 
     if !isdir(yggdrasil_dir)
-        @info("Cloning bare Yggdrasil into deps/Yggdrasil...")
+        info(io, "Cloning bare Yggdrasil into deps/Yggdrasil...")
         LibGit2.clone("https://github.com/JuliaPackaging/Yggdrasil.git", yggdrasil_dir; isbare=true)
     else
         if !yggdrasil_updated
-            @info("Updating bare Yggdrasil clone in deps/Yggdrasil...")
+            info(io, "Updating bare Yggdrasil clone in deps/Yggdrasil...")
             LibGit2.fetch(LibGit2.GitRepo(yggdrasil_dir))
         end
     end
