@@ -1,386 +1,250 @@
 using BinaryBuilder
-using GitHub, Test, VT100, Sockets
+using GitHub, Test, VT100, Sockets, HTTP, SHA
 import Pkg
 
-if Sys.islinux()
+function with_wizard_output(f::Function, state, step_func::Function)
+    # Create fake terminal to communicate with BinaryBuilder over
+    pty = VT100.create_pty(false)
+    state.ins = Base.TTY(pty.slave)
+    state.outs = Base.TTY(pty.slave)
 
-# Create fake terminal to communicate with BinaryBuilder over
-pty = VT100.create_pty(false)
-ins, outs = Base.TTY(pty.slave; readable=true), Base.TTY(pty.slave; readable=false)
+    # Immediately start reading in off of `state.outs`
+    out_buff = PipeBuffer()
+    reader_task = @async begin
+        while isopen(pty.master)
+            z = String(readavailable(pty.master))
 
-# Helper function to create a state, assign input/output streams, assign platforms, etc...
-function BinaryBuilder.WizardState(ins::Base.TTY, outs::Base.TTY)
-    state = BinaryBuilder.WizardState()
-    state.ins = ins
-    state.outs = outs
-    state.platforms = supported_platforms()
-    return state
+            # Un-comment this to figure out what on earth is going wrong
+            #print(z)
+            write(out_buff, z)
+        end
+    end
+
+    # Start the wizard poppin' off
+    wizard_task = @async begin
+        try
+            step_func(state)
+        catch e
+            bt = catch_backtrace()
+            Base.display_error(stderr, e, bt)
+
+            # If this fails, panic
+            Test.@test false
+        end
+    end
+
+    f(pty.master, out_buff)
+
+    # Wait for the wizard to finish
+    wait(wizard_task)
+
+    # Once that's done, kill the reader task
+    close(pty.master)
+    wait(reader_task)
 end
 
 # Test the download stage
-## Tarballs
-using HTTP
-
 r = HTTP.Router()
-build_tests_dir = joinpath(dirname(dirname(pathof(BinaryBuilder))), "test", "build_tests")
-tar_libfoo() = read(`tar czf - -C $(build_tests_dir) libfoo`)
+build_tests_dir = joinpath(@__DIR__, "build_tests")
+libfoo_tarball_data = read(`tar czf - -C $(build_tests_dir) libfoo`)
+libfoo_tarball_hash = bytes2hex(sha256(libfoo_tarball_data))
 function serve_tgz(req)
-    HTTP.Response(200, tar_libfoo())
+    HTTP.Response(200, libfoo_tarball_data)
 end
-HTTP.register!(r, "/*/source.tar.gz", HTTP.HandlerFunction(serve_tgz))
-server = HTTP.Server(r)
-@async HTTP.serve(server, ip"127.0.0.1", 14444; verbose=false)
+HTTP.@register(r, "GET", "/*/source.tar.gz", serve_tgz)
+@async HTTP.serve(r, Sockets.localhost, 14444; verbose=false)
 
-# Test one tar.gz download
-let state = BinaryBuilder.WizardState(ins, outs)
+function readuntil_sift(io::IO, needle)
+    needle = codeunits(needle)
+    buffer = zeros(UInt8, length(needle))
+    while isopen(io)
+        new_c = read(io, 1)
+        if isempty(new_c)
+            # We need to wait for more data, sleep for a bit
+            sleep(0.01)
+            continue
+        end
+
+        buffer = [buffer[2:end]; new_c]
+        if !any(buffer .!= needle)
+            return true
+        end
+    end
+    return false
+end
+
+function call_response(ins, outs, question, answer; newline=true)
+    @assert readuntil_sift(outs, question)
+    # Because we occasionally are dealing with things that do strange
+    # stdin tricks like reading raw stdin buffers, we sleep here for safety.
+    sleep(0.1)
+    print(ins, answer)
+    if newline
+        println(ins)
+    end
+end
+
+# Set the state up
+@testset "Wizard - Downloading" begin
+    state = BinaryBuilder.WizardState()
     state.step = :step2
-    t = @async do_try(()->BinaryBuilder.step2(state))
-    # URL
-    write(pty.master, "http://127.0.0.1:14444/a/source.tar.gz\n")
-    # Would you like to download additional sources?
-    write(pty.master, "N\n")
-    # Do you require any (binary) dependencies ? 
-    write(pty.master, "N\n")
-    # Wait for that step to complete
-    wait(t)
-end
+    state.platforms = [Linux(:x86_64)]
+    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "N")
+        call_response(ins, outs, "Do you require any (binary) dependencies", "N")
 
-# Test two tar.gz download
-let state = BinaryBuilder.WizardState(ins, outs)
+        call_response(ins, outs, "Enter a name for this project", "libfoo")
+        call_response(ins, outs, "Enter a version number", "1.0.0")
+    end
+    # Check that the state is modified appropriately
+    @test state.source_urls == ["http://127.0.0.1:14444/a/source.tar.gz"]
+    @test state.source_hashes == [libfoo_tarball_hash]
+
+
+    # Test two tar.gz download
+    state = BinaryBuilder.WizardState()
     state.step = :step2
-    t = @async do_try(()->BinaryBuilder.step2(state))
-    # URL
-    write(pty.master, "http://127.0.0.1:14444/a/source.tar.gz\n")
-    # Would you like to download additional sources?
-    write(pty.master, "y\n")
-    write(pty.master, "http://127.0.0.1:14444/b/source.tar.gz\n")
-    # Would you like to download additional sources?
-    write(pty.master, "N\n")
-    # Do you require any (binary) dependencies ? 
-    write(pty.master, "N\n")
-    # Wait for that step to complete
-    wait(t)
+    state.platforms = [Linux(:x86_64)]
+    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "Y")
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/b/source.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "N")
+        call_response(ins, outs, "Do you require any (binary) dependencies", "N")
+
+        call_response(ins, outs, "Enter a name for this project", "libfoo")
+        call_response(ins, outs, "Enter a version number", "1.0.0")
+    end
+    # Check that the state is modified appropriately
+    @test state.source_urls == [
+        "http://127.0.0.1:14444/a/source.tar.gz",
+        "http://127.0.0.1:14444/b/source.tar.gz",
+    ]
+    @test state.source_hashes == [
+        libfoo_tarball_hash,
+        libfoo_tarball_hash,
+    ]
+
+    # Test download/install with a broken symlink that used to kill the wizard
+    # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/183
+    state = BinaryBuilder.WizardState()
+    state.step = :step2
+    state.platforms = [Linux(:x86_64)]
+    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+        call_response(ins, outs, "Please enter a URL", "https://github.com/staticfloat/small_bin/raw/d846f4a966883e7cc032a84acf4fa36695d05482/broken_symlink/broken_symlink.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "N")
+        call_response(ins, outs, "Do you require any (binary) dependencies", "N")
+
+        call_response(ins, outs, "Enter a name for this project", "broken_symlink")
+        call_response(ins, outs, "Enter a version number", "1.0.0")
+    end
 end
 
-# Package up libfoo and dump a tarball in /tmp
+
+
+# Dump the tarball to disk so that we can use it directly in the future
 tempspace = tempname()
 mkdir(tempspace)
-tar_hash = nothing
-open(joinpath(tempspace, "source.tar.gz"), "w") do f
-    data = tar_libfoo()
-    global tar_hash = sha256(data)
-    write(f, data)
-end
+libfoo_tarball_path = joinpath(tempspace, "source.tar.gz")
+open(f -> write(f, libfoo_tarball_data), libfoo_tarball_path, "w")
 
-# Test step3 success path
-let state = BinaryBuilder.WizardState(ins, outs)
-    state.step = :step3
-    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
-    state.source_files = [joinpath(tempspace, "source.tar.gz")]
-    state.source_hashes = [bytes2hex(tar_hash)]
+
+
+function step3_state()
+    state = BinaryBuilder.WizardState()
+    state.step = :step34
     state.platforms = [Linux(:x86_64)]
-    t = @async do_try(()->BinaryBuilder.step34(state))
-    write(pty.master, "cd libfoo/\n")
-    write(pty.master, "make install\n")
-    write(pty.master, "exit\n")
-    readuntil(pty.master, "Would you like to edit this script now?")
-    write(pty.master, "N\n")
-    # Step 4
-    write(pty.master, "ad")
-    write(pty.master, "libfoo\nfooifier\n")
-    wait(t)
+    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
+    state.source_files = [libfoo_tarball_path]
+    state.source_hashes = [libfoo_tarball_hash]
+    state.name = "libfoo"
+    state.version = v"1.0.0"
+
+    return state
 end
 
-# Test download with a broken symlink that used to kill the wizard
-# https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/183
-let state = BinaryBuilder.WizardState(ins, outs)
-    # download tarball with known broken symlink
-    bsym_url = "https://github.com/staticfloat/small_bin/raw/d846f4a966883e7cc032a84acf4fa36695d05482/broken_symlink/broken_symlink.tar.gz"
-    bsym_hash = "470d47f1e6719df286dade223605e0c7e78e2740e9f0ecbfa608997d52a00445"
-    bsym_path = joinpath(tempspace, "broken_symlink.tar.gz")
-    download_verify(bsym_url, bsym_hash, bsym_path)
-    
-    state.step = :step3
-    state.source_urls = [bsym_url]
-    state.source_files = [bsym_path]
-    state.source_hashes = [bsym_hash]
-    t = @async do_try(()->BinaryBuilder.step34(state))
+function step3_test(state)
+    @test length(state.files) == 2
+    @test "lib/libfoo.so" in state.files
+    @test "bin/fooifier" in state.files
 
-    # If we get this far we've already won, follow through for good measure
-    write(pty.master, "mkdir -p \$prefix/bin\n")
-    write(pty.master, "cp /bin/bash \$prefix/bin/\n")
-    write(pty.master, "exit\n")
-    # We do not want to edit the script now
-    readuntil(pty.master, "Would you like to edit this script now?")
-    write(pty.master, "N\n")
-    readuntil(pty.master, "unique variable name for each build artifact:")
-    # Name the 'binary artifact' `bash`:
-    write(pty.master, "bash\n")
-
-    # Wait for the step to complete
-    wait(t)
+    libfoo_idx = findfirst(state.files .== "lib/libfoo.so")
+    fooifier_idx = findfirst(state.files .== "bin/fooifier")
+    @test state.file_kinds[libfoo_idx] == :library
+    @test state.file_kinds[fooifier_idx] == :executable
+    @test state.file_varnames[libfoo_idx] == :libfoo
+    @test state.file_varnames[fooifier_idx] == :fooifier
 end
 
-
-# Clear anything waiting to be read on `pty.master`
-readavailable(pty.master)
-
-# These technically should wait until the terminal has been put into/come out
-# of raw mode.  We could probably detect that, but good enough for now.
-wait_for_menu(pty) = sleep(1)
-wait_for_non_menu(pty) = sleep(1)
-
-# Step 3 failure path (no binary in destdir -> return to build)
-let state = BinaryBuilder.WizardState(ins, outs)
-    state.step = :step3
-    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
-    state.source_files = [joinpath(tempspace, "source.tar.gz")]
-    state.source_hashes = [bytes2hex(tar_hash)]
-    state.platforms = [Linux(:x86_64)]
-    t = @async do_try(()->BinaryBuilder.step34(state))
-    sleep(1)
-    write(pty.master, "cd libfoo/\n")
-    write(pty.master, "make install\n")
-    write(pty.master, "rm -rf \$prefix/*\n")
-    write(pty.master, "exit\n")
-    readuntil(pty.master, "Would you like to edit this script now?")
-    write(pty.master, "N\n")
-    wait_for_menu(pty)
-    write(pty.master, "\r")
-    wait_for_non_menu(pty)
-    write(pty.master, "cd libfoo/\n")
-    write(pty.master, "mkdir -p \$prefix/{lib,bin}\n")
-    write(pty.master, "cp fooifier \$prefix/bin\n")
-    write(pty.master, "cp libfoo.so \$prefix/lib\n")
-    write(pty.master, "exit\n")
-    readuntil(pty.master, "Would you like to edit this script now?")
-    write(pty.master, "N\n")
-    # Step 4
-    write(pty.master, "ad")
-    write(pty.master, "libfoo\nfooifier\n")
-    wait(t)
-end
-
-# Step 3 failure path (no binary in destdir -> start over)
-let state = BinaryBuilder.WizardState(ins, outs)
-    state.step = :step3
-    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
-    state.source_files = [joinpath(tempspace, "source.tar.gz")]
-    state.source_hashes = [bytes2hex(tar_hash)]
-    state.platforms = [Linux(:x86_64)]
-    t = @async do_try(()->while state.step == :step3
-        BinaryBuilder.step34(state)
-    end)
-    write(pty.master, "cd libfoo/\n")
-    write(pty.master, "make install\n")
-    write(pty.master, "rm -rf \$prefix/*\n")
-    write(pty.master, "exit\n")
-    readuntil(pty.master, "Would you like to edit this script now?")
-    write(pty.master, "N\n")
-    # How would you like to proceed
-    wait_for_menu(pty)
-    write(pty.master, "\e[B")
-    sleep(1)
-    write(pty.master, "\r")
-    wait_for_non_menu(pty)
-    write(pty.master, "cd libfoo/\n")
-    write(pty.master, "make install\n")
-    write(pty.master, "exit\n")
-    readuntil(pty.master, "Would you like to edit this script now?")
-    write(pty.master, "N\n")
-    # Step 4
-    write(pty.master, "ad")
-    write(pty.master, "libfoo\nfooifier\n")
-    wait(t)
-end
-
-# Step 7 testing
-let state = BinaryBuilder.WizardState(ins, outs)
-    state.step = :step7
-    state.source_urls = ["http://julialang.org/"]
-    state.source_files = ["./julia.tar.gz"]
-    state.source_hashes = ["0"^64]
-    state.history = ""
-    state.files = ["libjulia"]
-    state.file_kinds = [:library]
-    state.file_varnames = [:libjulia]
-    state.dependencies = []
-    state.platforms = [Linux(:x86_64)]
-
-    t = @async do_try(()->BinaryBuilder.step7(state))
-    sleep(1)
-    
-    # Write first project name (ensuring it fails gracefully), then project version:
-    readuntil(pty.master, "Enter a name for this project.")
-    readuntil(pty.master, "This will be used for filenames:")
-    readuntil(pty.master, "> ")
-    write(pty.master, "\r")
-    readuntil(pty.master, "Name may not be empty!")
-    readuntil(pty.master, "This will be used for filenames:")
-    readuntil(pty.master, "> ")
-    write(pty.master, "ProjectName\r")
-
-    readuntil(pty.master, "Enter a version number for this project.")
-    readuntil(pty.master, "This will be used for filenames:")
-    readuntil(pty.master, "> ")
-    write(pty.master, "v1.2.3\r")
-    
-    # We should get a build_tarballs.jl spat out now, which ends somewhere around "build_tarballs(...)"
-    readuntil(pty.master, "build_tarballs(")
-    
-    # We should also get a .travis.yml, which ends somewhere around " - julia build_tarballs.jl"
-    readuntil(pty.master, " - julia build_tarballs.jl")
-
-    # Let's not test script deployment
-    readuntil(pty.master, "May I help you with the deployment of these scripts?")
-    wait_for_menu(pty)
-    write(pty.master, "\e[B")
-    sleep(1)
-    write(pty.master, "\e[B")
-    sleep(1)
-    write(pty.master, "\r")
-    
-    # Now wait for that task to finish itself up
-    wait(t)
-end
-
-struct GitHubSimulator <: GitHub.GitHubAPI
-end
-
-function GitHub.gh_post(g::GitHubSimulator, endpoint; auth = nothing, headers = Dict(), kwargs...)
-    if endpoint == "/authorizations"
-        @test isa(auth, GitHub.UsernamePassAuth)
-        @test auth.username == "TestUser"
-        @test auth.password == "test"
-        # Simulate 2FA enabled
-        if !haskey(headers, "X-GitHub-OTP")
-            return HTTP.Response(401, Dict("X-GitHub-OTP"=>"required"))
-        else
-            return HTTP.Response(200; body=Vector{UInt8}("""
-            {
-              "id": 1,
-              "url": "https://api.github.com/authorizations/1",
-              "scopes": [
-                "public_repo"
-              ],
-              "token": "abcdefgh12345678",
-              "token_last_eight": "12345678",
-              "hashed_token": "25f94a2a5c7fbaf499c665bc73d67c1c87e496da8985131633ee0a95819db2e8",
-              "app": {
-                "url": "http://my-github-app.com",
-                "name": "my github app",
-                "client_id": "abcde12345fghij67890"
-              },
-              "note": "optional note",
-              "note_url": "http://optional/note/url",
-              "updated_at": "2011-09-06T20:39:23Z",
-              "created_at": "2011-09-06T17:26:27Z",
-              "fingerprint": ""
-            }
-            """))
-        end
-    else
-        error()
+@testset "Wizard - Building" begin
+    # Test step3 success path
+    state = step3_state()
+    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+        cd libfoo
+        make install
+        exit
+        """)
+        call_response(ins, outs, "Would you like to edit this script now?", "N")
+        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
+        call_response(ins, outs, "lib/libfoo.so:", "libfoo")
+        call_response(ins, outs, "bin/fooifier:", "fooifier")
     end
-end
+    @test state.history == """
+    cd \$WORKSPACE/srcdir
+    cd libfoo
+    make install
+    exit
+    """
+    step3_test(state)
 
-push_counter = 0
-create_repo_counter = 0
-function BinaryBuilder.push_repo(g::GitHubSimulator, args...)
-    global push_counter += 1
-end
-function GitHub.create_repo(api::GitHubSimulator, owner, name::String, params=Dict{String,Any}(); kwargs...)
-    global create_repo_counter += 1
-    GitHub.Repo("TestUser/TestRepo")
-end
 
-function emulate_travis(req)
-    if req.target == "/travis/auth/github"
-        HTTP.Response(200; body=Vector{UInt8}("""
-        {"access_token":"some_token"}
-        """))
-    elseif req.target == "/travis/users/sync"
-        HTTP.Response(200)
-    elseif req.target == "/travis/repos/TestUser/TestRepo"
-        HTTP.Response(200; body=Vector{UInt8}("""
-        {
-          "repo": {
-            "id": 1,
-            "slug": "TestUser/TestRepo",
-            "description": "Whatever",
-            "last_build_id": 23436881,
-            "last_build_number": "792",
-            "last_build_state": "passed",
-            "last_build_duration": 2542,
-            "last_build_started_at": "2014-04-21T15:27:14Z",
-            "last_build_finished_at": "2014-04-21T15:40:04Z",
-            "active": "true"
-          }
-        }
-        """))
-    elseif req.target == "/travis/repo/1/activate"
-        HTTP.Response(200)
-    elseif req.target == "/travis/repos/TestUser/TestRepo/key"
-        HTTP.Response(200; body=Vector{UInt8}("""
-        {"key":"-----BEGIN PUBLIC KEY-----\\n"""*
-        "MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA88f8L8L5XhApAf0WC3VQ\\n"*
-        "AdA2x6ZBB6flQ7/xbhFOIHgK2zX+GT1kvr5BrrKjscD1/pNm13LMXeBD/R+PlcTo\\n"*
-        "hAJYAxbeniTD//Zkx6mocCmqkNjpp7N6i1HOmls/vWvs3c4ZrZpy9hWk70MOH1j3\\n"*
-        "VXxDuugfWkTiq6GExLrTRaVLe0qagL0goIHSTdpJbyWxOct3+W8bv8v/scwqmnQf\\n"*
-        "ecjGYRjEqAXWYQLTJ+VY2zRGcksESztykfgA9Hj/CH0Jh5wE43hUXa61CEdseQ7P\\n"*
-        "QtMX8OPzcu2QWOoSHHnv6Q0Tte7xc+TKG3h3KC2DW/x2qog5RsXMh2UJXsLG+iDv\\n"*
-        "tYidlyekxcmldbpNm7169CnjRa3Kq55vIwtRiMPTcLbrMwzi1aJWOBVPthfDTu//\\n"*
-        "6HM3ajzZIo6xmg5lddBB09jsY5uoqdu5ddKAo9Wkeqn/gYzQrHyc7jvLMDo7RPFp\\n"*
-        "ZnY8u2tWFYK/O1LonqJY3Oyf4ZS2aKDTciVoNSBIqJzAgC2LF1E8WEBMcmFy4xeB\\n"*
-        "4Ke2j6bF+szTnKbcRTHhu9AvSkDdWxN3JFolGNHYnIHD0jNlc3rlTSkQfzCFgP3U\\n"*
-        "9RQRgz6ix3lP608gL0j64GuSFuIqulmn9UiKgf8J8eV9FLybbZ1WayBe8Bbfbh3c\\n"*
-        "y7a79CxhXJ0WJxO5pQijKXkCAwEAAQ==\\n"*
-        """-----END PUBLIC KEY-----\\n",
-        "fingerprint":"e3:5c:d0:0d:d8:00:bb:6d:fb:c2:e7:9b:59:9f:91:50"}
-        """))
-    else
-        error()
+
+    # These technically should wait until the terminal has been put into/come out
+    # of raw mode.  We could probably detect that, but good enough for now.
+    #wait_for_menu(pty) = sleep(0.1)
+    #wait_for_non_menu(pty) = sleep(1)
+
+    # Step 3 failure path (no binary in destdir -> return to build)
+    state = step3_state()
+    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+        # Don't build anything
+        call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
+        call_response(ins, outs, "Would you like to edit this script now?", "N")
+
+        # Return to build environment
+        call_response(ins, outs, "Return to build environment", "\r", newline=false)
+        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+        cd libfoo
+        make install
+        exit
+        """)
+
+        call_response(ins, outs, "Would you like to edit this script now?", "N")
+        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
+        call_response(ins, outs, "lib/libfoo.so:", "libfoo")
+        call_response(ins, outs, "bin/fooifier:", "fooifier")
     end
+    @test state.history == """
+    cd \$WORKSPACE/srcdir
+    exit
+    cd \$WORKSPACE/srcdir
+    cd libfoo
+    make install
+    exit
+    """
+    step3_test(state)
+
+    # Step 3 failure path (no binary in destdir -> retry with a clean build environment)
+    state = step3_state()
+    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+        # Don't build anything
+        call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
+        call_response(ins, outs, "Would you like to edit this script now?", "N")
+
+        # Clean environment
+        call_response(ins, outs, "Return to build environment", "\e[B\r")
+    end
+    @test state.step == :step3
 end
-HTTP.register!(r, "/travis/*", HTTP.HandlerFunction(emulate_travis))
-
-# Test GitHub Deploy
-let state = BinaryBuilder.WizardState(ins, outs)
-    state.step = :step7
-    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz\n"]
-    state.source_files = [joinpath(tempspace, "source.tar.gz")]
-    state.source_hashes = [bytes2hex(tar_hash)]
-    state.github_api = GitHubSimulator()
-    state.files = String[]
-    state.file_kinds = Symbol[]
-    state.file_varnames = Symbol[]
-    state.platforms = [Linux(:x86_64)]
-    state.name = "Test"
-    state.version = v"1.2.3"
-    state.history = ""
-    state.travis_endpoint = "http://127.0.0.1:14444/travis/"
-
-    git_cfg = LibGit2.GitConfig(joinpath(tempspace, ".gitconfig"))
-    LibGit2.set!(git_cfg, "user.name", "TestUser")
-    LibGit2.set!(git_cfg, "github.user", "TestUser")
-    LibGit2.set!(git_cfg, "user.email", "test@user.email")
-
-    t = @async do_try(()->BinaryBuilder.github_deploy(state; git_cfg=git_cfg))
-    readuntil(pty.master, "Enter the desired name for the new repository: ")
-    write(pty.master, "TestRepo\n")
-    readuntil(pty.master, "Please enter the github.com password for TestUser:")
-    write(pty.master, "test\n")
-    readuntil(pty.master, "Two factor authentication in use.  Enter auth code.")
-    write(pty.master, "12345\n")
-    readuntil(pty.master, "Enter your desired license [MIT]: ")
-    write(pty.master, "\n")
-    readuntil(pty.master, "Deployment Complete")
-
-    wait(t)
-end
-
-# We're done with the server
-put!(server.in, HTTP.Servers.KILL)
-rm(tempspace; force=true, recursive=true)
-
-end #if

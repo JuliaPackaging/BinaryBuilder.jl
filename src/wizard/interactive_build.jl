@@ -46,7 +46,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
         println(state.outs, " "^7, "or because you forgot to `make install` or equivalent.")
         println(state.outs)
 
-        choice = request(terminal, "How would you like to proceed?",
+        choice = request(terminal, "How would you like to proceed? (CTRL-C to exit)",
             RadioMenu([
                 "Return to build environment",
                 "Retry with a clean build environment",
@@ -346,10 +346,8 @@ function step5_internal(state::WizardState, platform::Platform)
                     println(state.outs, msg)
                     println(state.outs)
 
-                    # N.B.: This is (slightly modified) a Star Trek reference (TNG Season 1, Episode 25,
-                    # 25:00).
                     choice = request(terminal,
-                        "Please specify how you would like to proceed.",
+                        "How would you like to proceed? (CTRL-C to exit)",
                         RadioMenu([
                             "Drop into build environment",
                             "Open a clean session for this platform",
@@ -571,7 +569,7 @@ function step6(state::WizardState)
     println(state.outs)
 
     choice = request(terminal,
-        "What would you like to do?",
+        "How would you like to proceed? (CTRL-C to exit)",
         RadioMenu([
             "Disable these platforms",
             "Revisit manually",
