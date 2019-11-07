@@ -52,7 +52,6 @@ jobs:
       after_success: skip
 
 script:
-   - julia --project -e 'using Pkg; Pkg.build("BinaryBuilder")'
    - julia --project -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryProvider", rev="master"))'
    - julia --project --color=yes --check-bounds=yes -e 'using Pkg; Pkg.test("BinaryBuilder", coverage=true)'
 
