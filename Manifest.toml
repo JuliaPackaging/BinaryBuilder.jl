@@ -254,9 +254,7 @@ version = "0.2.0"
 
 [[Registrator]]
 deps = ["AutoHashEquals", "Base64", "Dates", "Distributed", "FileWatching", "GitForge", "GitHub", "HTTP", "JSON", "LibGit2", "Logging", "MbedTLS", "Mustache", "Mux", "Pkg", "Serialization", "Sockets", "TimeToLive", "UUIDs", "ZMQ"]
-git-tree-sha1 = "0896b277763d5e7ca42927843942cbd87573708b"
-repo-rev = "master"
-repo-url = "https://github.com/JuliaComputing/Registrator.jl.git"
+git-tree-sha1 = "0dc917d3370553aebe50b80bdff9142e665a021c"
 uuid = "4418983a-e44d-11e8-3aec-9789530b3b3e"
 version = "1.0.0"
 
