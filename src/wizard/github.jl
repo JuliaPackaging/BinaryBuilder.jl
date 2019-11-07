@@ -44,7 +44,7 @@ function obtain_token(; ins=stdin, outs=stdout, github_api=GitHub.DEFAULT_API)
 
     while true
         user = nonempty_line_prompt("Username", "GitHub username:", ins=ins, outs=outs)
-        password = nonempty_line_prompt("Password", "GitHub password:"; ins=ins, outs=outs)
+        password = nonempty_line_prompt("Password", "GitHub password:"; ins=ins, outs=outs, echo=false)
 
         # Shuffle this junk off to the GH API
         headers = Dict{String, String}("User-Agent"=>"BinaryBuilder-jl")
