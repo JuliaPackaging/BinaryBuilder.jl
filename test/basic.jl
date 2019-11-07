@@ -61,7 +61,8 @@ end
     @test BinaryBuilder.exeext(Windows(:i686)) == ".exe"
 end
 
-@testset "UserNS utilities" begin
+# Are we using docker? If so, test that the docker runner works...
+@testset "Runner utilities" begin
     # Test that is_ecryptfs works for something we're certain isn't encrypted
     if isdir("/proc")
         isecfs = (false, "/proc/")
@@ -73,11 +74,8 @@ end
         @test BinaryBuilder.is_ecryptfs("/proc/"; verbose=true) == (false, "/proc/")
         @test BinaryBuilder.is_ecryptfs("/proc/not_a_file"; verbose=true) == (false, "/proc/not_a_file")
     end
-end
 
-# Is docker available?  If so, test that the docker runner works...
-if Sys.which("docker") != nothing
-    @testset "Docker Runner" begin
+    if isa(preferred_runner(), BinaryBuilder.DockerRunner)
         @testset "Docker image importing" begin
             # First, delete the docker image, in case it already existed
             BinaryBuilder.delete_docker_image()
@@ -92,20 +90,19 @@ if Sys.which("docker") != nothing
             # it exists
             @test BinaryBuilder.delete_docker_image()
         end
+    end
 
-        @testset "Docker hello world" begin
-            mktempdir() do dir
-                dr = BinaryBuilder.DockerRunner(dir; platform=Linux(:x86_64; libc=:musl))
-                iobuff = IOBuffer()
-                @test run(dr, `/bin/bash -c "echo test"`, iobuff)
-                seek(iobuff, 0)
-                # Test that we get the output we expect (e.g. the second line is `test`)
-                @test split(String(read(iobuff)), "\n")[2] == "test"
-            end
+    @testset "hello world" begin
+        mktempdir() do dir
+            ur = preferred_runner()(dir; platform=Linux(:x86_64; libc=:musl))
+            iobuff = IOBuffer()
+            @test run(ur, `/bin/bash -c "echo test"`, iobuff)
+            seek(iobuff, 0)
+            # Test that we get the output we expect (e.g. the second line is `test`)
+            @test split(String(read(iobuff)), "\n")[2] == "test"
         end
     end
 end
-
 
 @testset "environment and history saving" begin
     mktempdir() do temp_path
