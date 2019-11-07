@@ -407,25 +407,25 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
 
     if Base.have_color
         PS1 = string(
-            "\\[",
+            raw"\[",
             Base.text_colors[:light_blue],
-            "\\]",
+            raw"\]",
             "sandbox",
-            "\\[",
+            raw"\[",
             Base.text_colors[:normal],
-            "\\]",
+            raw"\]",
             ":",
-            "\\[",
+            raw"\[",
             Base.text_colors[:yellow],
-            "\\]",
-            "\${PWD//\$WORKSPACE/\\\\\$\\{WORKSPACE\\}}",
-            "\\[",
+            raw"\]",
+            raw"${PWD//$WORKSPACE/$\{WORKSPACE\}}",
+            raw"\[",
             Base.text_colors[:normal],
-            "\\]",
-            " \\\$ ",
+            raw"\]",
+            raw" \$ ",
         )
     else
-        PS1 = "sandbox:\${PWD//\$WORKSPACE/\\\\\$\\{WORKSPACE\\}} \\\$ "
+        PS1 = raw"sandbox:${PWD//$WORKSPACE/$\{WORKSPACE\}} $ "
     end
 
     # Base mappings
