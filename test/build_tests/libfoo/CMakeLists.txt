@@ -9,7 +9,7 @@ target_link_libraries(fooifier foo)
 # Enable relative RPATH
 if (APPLE)
     set_target_properties(fooifier PROPERTIES INSTALL_RPATH "@executable_path/../lib")
-elseif (LINUX)
+elseif (UNIX)
     set_target_properties(fooifier PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
 endif()
 
