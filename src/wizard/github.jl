@@ -18,8 +18,10 @@ function github_auth(;allow_anonymous::Bool=true)
         end
     end
 
-    # Also shove this into Registrator, so it uses the same token.
-    Registrator.CommentBot.CONFIG["github"] = Dict("token" => _github_auth[].token)
+    if !isa(_github_auth[], GitHub.AnonymousAuth)
+        # Also shove this into Registrator, so it uses the same token.
+        Registrator.CommentBot.CONFIG["github"] = Dict("token" => _github_auth[].token)
+    end
     return _github_auth[]
 end
 
