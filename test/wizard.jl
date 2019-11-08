@@ -248,3 +248,9 @@ end
     end
     @test state.step == :step3
 end
+
+@testset "GitHub - authentication" begin
+    withenv("GITHUB_TOKEN" => "") do
+        @test BinaryBuilder.github_auth(allow_anonymous=true) isa GitHub.AnonymousAuth
+    end
+end
