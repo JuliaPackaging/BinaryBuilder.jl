@@ -1,8 +1,13 @@
 FROM julia:1.3
 
 # Install tools which get used by BinaryBuilder.
-RUN apt-get update && apt-get install -y xz-utils sudo
+RUN apt-get update && apt-get install -y xz-utils sudo git
 
+# Set up default `git` username and email
+RUN git config --global user.name "jlbuild"
+RUN git config --global user.email "jlbuild@gmail.com"
+
+# Install `ghr`
 RUN cd /usr/local/bin && \
     curl -L 'https://github.com/tcnksm/ghr/releases/download/v0.13.0/ghr_v0.13.0_linux_amd64.tar.gz' -o- | tar -zx --strip-components=1
 
