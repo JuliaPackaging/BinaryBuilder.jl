@@ -5,6 +5,7 @@ module BinaryBuilder
 using Libdl, LibGit2, Random, Sockets, Base64, JSON
 using ObjectFile
 using GitHub
+using Tar
 import InteractiveUtils
 using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts
 using ghr_jll
