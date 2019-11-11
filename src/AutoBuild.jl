@@ -130,22 +130,26 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         gh_username = GitHub.gh_get_json(GitHub.DEFAULT_API, "/user"; auth=gh_auth)["login"]
 
         # First, ensure the GH repo exists
+        repo_exists = false
         try
             # This throws if it does not exist
             GitHub.repo(deploy_repo; auth=gh_auth)
-
-            # If it does exist, then check if it exists on disk, if not, clone it down
-            if !isdir(code_dir)
-                # If it does exist, clone it down:
-                @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
-                LibGit2.clone("git@github.com:$(deploy_repo)", code_dir)
-            end
+            repo_exists = true
         catch e
             # If it doesn't exist, create it
             owner = GitHub.Owner("JuliaBinaryWrappers", true)
             @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
             GitHub.create_repo(owner, "$(src_name)_jll.jl"; auth=gh_auth)
+        end
 
+        if repo_exists
+            # If it does exist, then check if it exists on disk, if not, clone it down
+            if !isdir(code_dir)
+                # If it does exist, clone it down:
+                @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
+                LibGit2.clone("https://github.com/$(deploy_repo).git", code_dir)
+            end
+        else
             # Initialize empty repository
             LibGit2.init(code_dir)
         end
