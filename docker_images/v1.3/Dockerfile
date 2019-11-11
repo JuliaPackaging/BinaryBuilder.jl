@@ -23,6 +23,7 @@ RUN mkdir -p /storage/artifacts
 RUN mkdir -p /storage/downloads
 
 # Install BinaryBuilder
+ADD https://api.github.com/repos/JuliaPackaging/BinaryBuilder.jl/git/refs/heads/master /usr/share/binarybuilder_version.json
 RUN julia -e 'using Pkg; Pkg.add(PackageSpec(name="BinaryBuilder", rev="master"))'
 RUN julia -e 'using Pkg; Pkg.API.precompile();'
 
