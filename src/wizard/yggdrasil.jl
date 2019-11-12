@@ -126,30 +126,8 @@ function test_yggdrasil_pr(pr_number::Integer)
                     @info("Build successful! Recipe temporarily available at $(joinpath(pwd(), "build_tarballs.jl"))")
                 end
 
-                # If we make it this far, we are in a good state; check to see if we've modified stuff;
-                # if we have, offer to push it up to a new branch.
-                if LibGit2.isdirty(yggy)
-                    what_do = request(terminal,
-                       "Changes to $(build_tarbals_path) detected:",
-                        RadioMenu([
-                            "Open a PR to the Yggdrasil PR",
-                            "Display diff and quit",
-                            "Discard",
-                        ])
-                    )
-                    println()
-
-                    if what_do == 1
-                        dummy_name = basename(dirname(build_tarballs_path))
-                        dummy_version = v"1.33.7"
-                        yggdrasil_deploy(dummy_name, dummy_version, read(build_tarballs_path))
-                    elseif what_do == 2
-                        cd(dirname(build_tarballs_path))
-                        run(`git diff`)
-                    end
-                end
-
                 # Exit the `while` loop
+                @info("Build successful!")
                 break
             catch
             end
@@ -171,6 +149,29 @@ function test_yggdrasil_pr(pr_number::Integer)
                 continue
             elseif what_do == 3
                 break
+            end
+        end
+
+        # If we make it this far, we are in a good state; check to see if we've modified stuff;
+        # if we have, offer to push it up to a new branch.
+        if LibGit2.isdirty(LibGit2.GitRepo(pwd()))
+            what_do = request(terminal,
+               "Changes to $(build_tarballs_path) detected:",
+                RadioMenu([
+                    "Open a PR to the Yggdrasil PR",
+                    "Display diff and quit",
+                    "Discard",
+                ])
+            )
+            println()
+
+            if what_do == 1
+                dummy_name = basename(dirname(build_tarballs_path))
+                dummy_version = v"1.33.7"
+                yggdrasil_deploy(dummy_name, dummy_version, read(build_tarballs_path))
+            elseif what_do == 2
+                cd(dirname(build_tarballs_path))
+                run(`git diff`)
             end
         end
     end
