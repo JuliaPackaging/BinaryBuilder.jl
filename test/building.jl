@@ -196,3 +196,27 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
         end
     end
 end
+
+@testset "Dependency Specification" begin
+    mktempdir() do build_path
+        @test_logs (:error, r"BadDependency_jll") (:error, r"WorseDependency_jll") begin
+            @test_throws ErrorException autobuild(
+                build_path,
+                "baddeps",
+                v"1.0.0",
+                # No sources
+                [],
+                "true",
+                [platform],
+                [ExecutableProduct("foo", :foo)],
+                # Three dependencies; one good, two bad
+                [
+                    "Zlib_jll",
+                    # We hope nobody will ever register something named this
+                    "BadDependency_jll",
+                    "WorseDependency_jll",
+                ]
+            )
+        end
+    end
+end
