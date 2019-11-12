@@ -257,7 +257,7 @@ function get_next_wrapper_version(src_name, src_version)
     ctx = Pkg.Types.Context()
 
     # Force-update the registry here, since we may have pushed a new version recently
-    Pkg.Registry.update(ctx, [Pkg.Types.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106")])
+    update_registry(ctx)
 
     # If it does, we need to bump the build number up to the next value
     build_number = 0
@@ -344,10 +344,23 @@ function autobuild(dir::AbstractString,
 
     # Resolve dependencies into PackageSpecs now, ensuring we have UUIDs for all deps
     ctx = Pkg.Types.Context()
+    update_registry(ctx)
     pkgspecify(name::String) = Pkg.Types.PackageSpec(;name=name)
     pkgspecify(ps::Pkg.Types.PackageSpec) = ps
     dependencies = pkgspecify.(dependencies)
     Pkg.Types.registry_resolve!(ctx.env, dependencies)
+
+    # Ensure they all resolved properly
+    all_resolved = true
+    for dep in dependencies
+        if dep.uuid === nothing
+            @error("Unable to resolve $(dep.name)")
+            all_resolved = false
+        end
+    end
+    if !all_resolved
+        error("Invalid dependency specifications!")
+    end
 
     # If we end up packaging any local directories into tarballs, we'll store them here
     mktempdir() do tempdir
