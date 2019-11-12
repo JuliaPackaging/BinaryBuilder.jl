@@ -206,7 +206,13 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
     for (root, dirs, files) in walkdir(src)
         # Create all directories
         for d in dirs
-            mkpath(joinpath(dest, relpath(root, src), d))
+            # If `d` is itself a symlink, recreate that symlink
+            d_path = joinpath(root, d)
+            if islink(d_path)
+                symlink(readlink(d_path), joinpath(dest, relpath(root, src), d))
+            else
+                mkpath(joinpath(dest, relpath(root, src), d))
+            end
         end
 
         # Symlink all files
