@@ -220,13 +220,20 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
             src_file = joinpath(root, f)
             dest_file = joinpath(dest, relpath(root, src), f)
             if isfile(dest_file)
+                # Find source artifact that this pre-existent destination file belongs to
                 dest_artifact_source = abspath(dest_file)
                 while occursin(".artifacts", dest_artifact_source) && basename(dirname(dest_artifact_source)) != ".artifacts"
                     dest_artifact_source = dirname(dest_artifact_source)
                 end
                 @warn("Symlink $(f) from artifact $(basename(src)) already exists in artifact $(basename(dest_artifact_source))")
             else
-                symlink(relpath(src_file, dirname(dest_file)), dest_file)
+                # If it's already a symlink, copy over the exact symlink target
+                if islink(src_file)
+                    symlink(readlink(src_file), dest_file)
+                else
+                    # Otherwise, point it at the proper location
+                    symlink(relpath(src_file, dirname(dest_file)), dest_file)
+                end
             end
         end
     end

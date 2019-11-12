@@ -164,8 +164,44 @@ end
 end
 
 # Test that updating Yggdrasil works
-Core.eval(BinaryBuilder, :(yggdrasil_updated = false))
-io = IOBuffer()
-BinaryBuilder.get_yggdrasil(io=io)
-seek(io, 0)
-@test match(r"Yggdrasil", String(read(io))) != nothing
+@testset "Yggdrasil" begin
+    Core.eval(BinaryBuilder, :(yggdrasil_updated = false))
+    io = IOBuffer()
+    BinaryBuilder.get_yggdrasil(io=io)
+    seek(io, 0)
+    @test match(r"Yggdrasil", String(read(io))) != nothing
+end
+
+@testset "symlink_tree" begin
+    # Make sure symlink_tree works well with symlinks
+    mktempdir() do tmpdir
+        # Create fake source directory
+        srcdir = joinpath(tmpdir, "src")
+        mkdir(srcdir)
+
+        mkdir(joinpath(srcdir, "dir"))
+        open(joinpath(srcdir, "dir", "fileA"), "w") do io
+            println(io, "fileA")
+        end
+        open(joinpath(srcdir, "dir", "fileB"), "w") do io
+            println(io, "fileB")
+        end
+        symlink(joinpath("dir", "fileA"), joinpath(srcdir, "sym_fileA"))
+        symlink("dir", joinpath(srcdir, "sym_dir"))
+
+        dstdir = joinpath(tmpdir, "dst")
+
+        # Set up a symlink tree inside of dstdir
+        BinaryBuilder.symlink_tree(srcdir, dstdir)
+
+        @test isdir(dstdir)
+        @test isdir(joinpath(dstdir, "dir"))
+        @test islink(joinpath(dstdir, "sym_dir"))
+        @test islink(joinpath(dstdir, "sym_fileA"))
+        @test islink(joinpath(dstdir, "dir", "fileA"))
+        @test islink(joinpath(dstdir, "dir", "fileB"))
+
+        @test readlink(joinpath(dstdir, "sym_dir")) == "dir"
+        @test readlink(joinpath(dstdir, "sym_fileA")) == joinpath("dir", "fileA")
+    end
+end
