@@ -256,6 +256,9 @@ end
 function get_next_wrapper_version(src_name, src_version)
     ctx = Pkg.Types.Context()
 
+    # Force-update the registry here, since we may have pushed a new version recently
+    Pkg.Registry.update(ctx, [Pkg.Types.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106")])
+
     # If it does, we need to bump the build number up to the next value
     build_number = 0
     if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx.env, jll_uuid("$(src_name)_jll")))
