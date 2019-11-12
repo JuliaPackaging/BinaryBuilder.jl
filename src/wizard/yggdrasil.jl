@@ -73,7 +73,7 @@ function with_yggdrasil_pr(f::Function, pr_number::Integer)
 
     mktempdir() do tmpdir
         # Fetch the PR contents down into a local branch
-        @info("Fetching Yggdrasil PR #$(pr_number) and checking out to $(tmpdir)...")
+        @info("Fetching Yggdrasil PR #$(pr_number) and checking out to $(tmpdir)")
         LibGit2.fetch(yggy; refspecs=["pull/$(pr_number)/head:refs/heads/$(branch_name)"])
         LibGit2.clone(LibGit2.path(yggy), tmpdir; branch=branch_name)
 
@@ -103,22 +103,75 @@ function test_yggdrasil_pr(pr_number::Integer)
         end
 
         # Use TerminalMenus to narrow down which to build
+        terminal = TTYTerminal("xterm", stdin, stdout, stderr)
         if length(changed_files) > 1
-            terminal = TTYTerminal("xterm", stdin, stdout, stderr)
             builder_idx = request(terminal,
                 "Multiple recipes modified, which to build?",
                 RadioMenu(basename.(dirname.(changed_files)))
             )
             println()
 
-            build_tarballs_path = changed_files[builder_idx]
+            build_tarballs_path = joinpath(pwd(), changed_files[builder_idx])
         else
-            build_tarballs_path = first(changed_files)
+            build_tarballs_path = joinpath(pwd(), first(changed_files))
         end
 
         # Next, run that `build_tarballs.jl`
-        cd(dirname(build_tarballs_path)) do
-            run(`$(Base.julia_cmd()) --color=yes build_tarballs.jl --verbose --debug`)
+        successful = false
+
+        while true
+            try
+                cd(dirname(build_tarballs_path)) do
+                    run(`$(Base.julia_cmd()) --color=yes build_tarballs.jl --verbose --debug`)
+                    @info("Build successful! Recipe temporarily available at $(joinpath(pwd(), "build_tarballs.jl"))")
+                end
+
+                # If we make it this far, we are in a good state; check to see if we've modified stuff;
+                # if we have, offer to push it up to a new branch.
+                if LibGit2.isdirty(yggy)
+                    what_do = request(terminal,
+                       "Changes to $(build_tarbals_path) detected:",
+                        RadioMenu([
+                            "Open a PR to the Yggdrasil PR",
+                            "Display diff and quit",
+                            "Discard",
+                        ])
+                    )
+                    println()
+
+                    if what_do == 1
+                        dummy_name = basename(dirname(build_tarballs_path))
+                        dummy_version = v"1.33.7"
+                        yggdrasil_deploy(dummy_name, dummy_version, read(build_tarballs_path))
+                    elseif what_do == 2
+                        cd(dirname(build_tarballs_path))
+                        run(`git diff`)
+                    end
+                end
+
+                # Exit the `while` loop
+                break
+            catch
+            end
+
+            what_do = request(terminal,
+                "Build unsuccessful:",
+                RadioMenu([
+                    # The definition of insanity
+                    "Try again immediately",
+                    "Edit build_tarball.jl file, then try again",
+                    "Bail out",
+                ])
+            )
+            println()
+
+            if what_do == 2
+                edit_script(build_tarballs_path, stdin, stdout, stderr)
+                @info("Building with new recipe...")
+                continue
+            elseif what_do == 3
+                break
+            end
         end
     end
 end

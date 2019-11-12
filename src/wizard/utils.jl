@@ -138,31 +138,29 @@ For consistency (and security), use the sandbox for editing a script, launching
 `vi` within an interactive session to edit a buildscript.
 """
 function edit_script(state::WizardState, script::AbstractString)
-    # Create a temporary directory to hold the script inside of
-    temp_prefix() do prefix
-        # Write the script out to a file
-        path = joinpath(prefix, "script")
-        open(path, "w") do f
-            write(f, script)
+    mktempdir() do tempdir
+        path = joinpath(tempdir, "script")
+        open(path, "w") do io
+            write(io, script)
         end
 
-        # Launch a sandboxed vim editor
-        ur = preferred_runner()(
-            prefix.path,
-            cwd = "/workspace/",
-            platform = Linux(:x86_64),
-        )
-        run_interactive(ur,
-            `/usr/bin/vim /workspace/script`;
-            stdin=state.ins,
-            stdout=state.outs,
-            stderr=state.outs,
-        )
-
-        # Once the user is finished, read the script back in
-        script = String(read(path))
+        return edit_script(path, state.ins, state.outs, state.outs)
     end
-    return script
+end
+
+function edit_script(file::AbstractString, ins, outs, errs)
+    # Launch a sandboxed vim editor
+    ur = preferred_runner()(
+        dirname(file),
+        cwd = "/workspace/",
+        platform = Linux(:x86_64),
+    )
+    run_interactive(ur,
+       `/usr/bin/vim /workspace/$(basename(file))`;
+        stdin=ins,
+        stdout=outs,
+        stderr=errs,
+    )
 end
 
 """
