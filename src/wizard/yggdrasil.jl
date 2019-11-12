@@ -59,3 +59,66 @@ function case_insensitive_file_exists(path)
     end
     return !isempty(branches)
 end
+
+function with_yggdrasil_pr(f::Function, pr_number::Integer)
+    # Get Yggdrasil, then force it to fetch our pull request refspec
+    yggy = LibGit2.GitRepo(get_yggdrasil())
+
+    # First, delete any local branch that might exist with our "pr-$(pr_number)" name:
+    branch_name = "pr-$(pr_number)"
+    branch = LibGit2.lookup_branch(yggy, branch_name)
+    if branch !== nothing
+        LibGit2.delete_branch(branch)
+    end
+
+    mktempdir() do tmpdir
+        # Fetch the PR contents down into a local branch
+        @info("Fetching Yggdrasil PR #$(pr_number) and checking out to $(tmpdir)...")
+        LibGit2.fetch(yggy; refspecs=["pull/$(pr_number)/head:refs/heads/$(branch_name)"])
+        LibGit2.clone(LibGit2.path(yggy), tmpdir; branch=branch_name)
+
+        cd(tmpdir) do
+            f()
+        end
+    end
+end
+
+function test_yggdrasil_pr(pr_number::Integer)
+    # Get list of files changed in this PR
+    with_yggdrasil_pr(pr_number) do
+        # Analyze the current repository, figure out what files have been changed
+        @info("Inspecting changed files in PR #$(pr_number)")
+        r = GitHub.Repo("JuliaPackaging/Yggdrasil")
+        changed_files = [f.filename for f in GitHub.pull_request_files(r, pr_number)]
+
+        # Discard anything that doens't end with `build_tarballs.jl`
+        filter!(f -> endswith(f, "build_tarballs.jl"), changed_files)
+
+        # Discard anything starting with 0_RootFS
+        filter!(f -> !startswith(f, "0_RootFS"), changed_files)
+
+        # If there's nothing left, fail out
+        if length(changed_files) == 0
+            error("Unable to find any valid changes!")
+        end
+
+        # Use TerminalMenus to narrow down which to build
+        if length(changed_files) > 1
+            terminal = TTYTerminal("xterm", stdin, stdout, stderr)
+            builder_idx = request(terminal,
+                "Multiple recipes modified, which to build?",
+                RadioMenu(basename.(dirname.(changed_files)))
+            )
+            println()
+
+            build_tarballs_path = changed_files[builder_idx]
+        else
+            build_tarballs_path = first(changed_files)
+        end
+
+        # Next, run that `build_tarballs.jl`
+        cd(dirname(build_tarballs_path)) do
+            run(`$(Base.julia_cmd()) --color=yes build_tarballs.jl --verbose --debug`)
+        end
+    end
+end
