@@ -71,9 +71,24 @@ end
 """
     yggdrasil_deploy(state::WizardState)
 
-Write out 
+Write out a WizardState to a `build_tarballs.jl` in an `Yggdrasil` clone, then
+open a pull request against `Yggdrasil`.
 """
 function yggdrasil_deploy(state::WizardState)
+    btb = IOBuffer()
+    print_build_tarballs(btb, state)
+    seek(btb, 0)
+    build_tarballs_content = String(read(btb))
+
+    return yggdrasil_deploy(
+        name,
+        version,
+        branch_name,
+        build_tarballs_content,
+    )
+end
+
+function yggdrasil_deploy(name, version, build_tarballs_content; branch_name=nothing)
     # First, fork Yggdrasil (this just does nothing if it already exists)
     gh_auth = github_auth(;allow_anonymous=false)
     fork = GitHub.create_fork("JuliaPackaging/Yggdrasil"; auth=gh_auth)
@@ -84,23 +99,25 @@ function yggdrasil_deploy(state::WizardState)
 
         # Check out a unique branch name
         @info("Checking temporary Yggdrasil out to $(tmp)")
-        recipe_hash = bytes2hex(sha256(state.history)[end-3:end])
-        branch_name = "wizard/$(state.name)-v$(state.version)_$(recipe_hash)"
+        if branch_name === nothing
+            recipe_hash = bytes2hex(sha256(build_tarballs_content)[end-3:end])
+            branch_name = "wizard/$(name)-v$(version)_$(recipe_hash)"
+        end
         LibGit2.branch!(repo, branch_name)
         
         # Spit out the buildscript to the appropriate file:
-        rel_bt_path = yggdrasil_build_tarballs_path(state.name)
+        rel_bt_path = yggdrasil_build_tarballs_path(name)
         @info("Generating $(rel_bt_path)")
         output_path = joinpath(tmp, rel_bt_path)
         mkpath(dirname(output_path))
         open(output_path, "w") do io
-            print_build_tarballs(io, state)
+            write(io, build_tarballs_content)
         end
 
         # Commit it and push it up to our fork
         @info("Committing and pushing to $(fork.full_name)#$(branch_name)...")
         LibGit2.add!(repo, rel_bt_path)
-        LibGit2.commit(repo, "New Recipe: $(state.name) v$(state.version)")
+        LibGit2.commit(repo, "New Recipe: $(name) v$(version)")
         creds = LibGit2.UserPasswordCredential(
             dirname(fork.full_name),
             deepcopy(gh_auth.token)
@@ -125,12 +142,12 @@ function yggdrasil_deploy(state::WizardState)
             "base" => "master",
             "head" => "$(dirname(fork.full_name)):$(branch_name)",
             "maintainer_can_modify" => true,
-            "title" => "Wizard recipe: $(state.name)-v$(state.version)",
+            "title" => "Wizard recipe: $(name)-v$(version)",
             "body" => """
             This pull request contains a new build recipe I built using the BinaryBuilder.jl wizard:
 
-            * Package name: $(state.name)
-            * Version: v$(state.version)
+            * Package name: $(name)
+            * Version: v$(version)
 
             @staticfloat please review and merge.
             """
