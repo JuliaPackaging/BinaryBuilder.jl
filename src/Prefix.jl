@@ -241,7 +241,15 @@ end
 
 function unsymlink_tree(src::AbstractString, dest::AbstractString)
     for (root, dirs, files) in walkdir(src)
-        # Unsymlink all files, directories will be culled in audit
+        # Unsymlink all symlinked directories, non-symlink directories will be culled in audit.
+        for d in dirs
+            dest_dir = joinpath(dest, relpath(root, src), d)
+            if islink(dest_dir)
+                rm(dest_dir)
+            end
+        end
+
+        # Unsymlink all symlinked files
         for f in files
             dest_file = joinpath(dest, relpath(root, src), f)
             if islink(dest_file)
