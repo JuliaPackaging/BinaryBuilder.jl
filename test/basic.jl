@@ -172,7 +172,7 @@ end
     @test match(r"Yggdrasil", String(read(io))) != nothing
 end
 
-@testset "symlink_tree" begin
+@testset "Tree symlinking" begin
     # Make sure symlink_tree works well with symlinks
     mktempdir() do tmpdir
         # Create fake source directory
@@ -203,5 +203,36 @@ end
 
         @test readlink(joinpath(dstdir, "sym_dir")) == "dir"
         @test readlink(joinpath(dstdir, "sym_fileA")) == joinpath("dir", "fileA")
+
+        @test String(read(joinpath(dstdir, "dir", "fileA"))) == "fileA\n"
+        @test String(read(joinpath(dstdir, "dir", "fileB"))) == "fileB\n"
+        @test String(read(joinpath(dstdir, "sym_fileA"))) == "fileA\n"
+        @test String(read(joinpath(dstdir, "sym_dir", "fileB"))) == "fileB\n"
+
+        # Create some files in `dstdir`, then unsymlink and see what happens:
+        open(joinpath(dstdir, "dir", "fileC"), "w") do io
+            println(io, "fileC")
+        end
+        symlink(joinpath("dir", "fileB"), joinpath(dstdir, "sym_fileB"))
+        symlink(joinpath("dir", "fileC"), joinpath(dstdir, "sym_fileC"))
+        symlink("dir", joinpath(dstdir, "sym_dir2"))
+
+        BinaryBuilder.unsymlink_tree(srcdir, dstdir)
+        run(`ls -la $(dstdir)`)
+
+        @test isdir(dstdir)
+        @test isdir(joinpath(dstdir, "dir"))
+        @test !islink(joinpath(dstdir, "sym_dir"))
+        @test !islink(joinpath(dstdir, "sym_fileA"))
+        @test !isfile(joinpath(dstdir, "dir", "fileA"))
+        @test !isfile(joinpath(dstdir, "dir", "fileB"))
+        @test isfile(joinpath(dstdir, "dir", "fileC"))
+        @test islink(joinpath(dstdir, "sym_dir2"))
+        @test islink(joinpath(dstdir, "sym_fileB"))
+        @test islink(joinpath(dstdir, "sym_fileC"))
+
+        @test String(read(joinpath(dstdir, "dir", "fileC"))) == "fileC\n"
+        @test String(read(joinpath(dstdir, "sym_fileC"))) == "fileC\n"
+        @test_throws Base.IOError realpath(joinpath(dstdir, "sym_fileB"))
     end
 end
