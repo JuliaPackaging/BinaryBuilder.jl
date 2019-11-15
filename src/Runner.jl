@@ -555,6 +555,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
     # If we're on macOS, we give a hint to things like `configure` that they should use this as the linker
     if isa(platform, MacOS)
         mapping["LD"] = "/opt/$(target)/bin/ld64.macos"
+        mapping["MACOSX_DEPLOYMENT_TARGET"] = "10.8"
     end
 
     # There is no broad agreement on what host compilers should be called,
