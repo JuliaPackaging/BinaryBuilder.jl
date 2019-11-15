@@ -5,7 +5,7 @@ RUN apt-get update && apt-get install -y xz-utils bzip2 sudo git
 
 # Set up default `git` username and email
 RUN git config --global user.name "jlbuild"
-RUN git config --global user.email "jlbuild@gmail.com"
+RUN git config --global user.email "juliabuildbot@gmail.com"
 
 # Install `ghr`
 RUN cd /usr/local/bin && \
