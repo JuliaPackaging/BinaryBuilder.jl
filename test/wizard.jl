@@ -295,5 +295,8 @@ end
 @testset "GitHub - authentication" begin
     withenv("GITHUB_TOKEN" => "") do
         @test BinaryBuilder.github_auth(allow_anonymous=true) isa GitHub.AnonymousAuth
+        input_stream = IOBuffer()
+        close(input_stream)
+        @test_throws ErrorException BinaryBuilder.obtain_token(ins=input_stream)
     end
 end
