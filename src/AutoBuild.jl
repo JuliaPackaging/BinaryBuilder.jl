@@ -218,7 +218,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             # Open pull request against JuliaRegistries/General
             params = Dict(
                 "base" => "master",
-                "head" => reg_branch.branch,
+                "head" => "$(gh_username):$(reg_branch.branch)",
                 "maintainer_can_modify" => true,
                 "title" => "JLL Registration: $(deploy_repo)-v$(build_version)",
                 "body" => """
