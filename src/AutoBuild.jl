@@ -194,10 +194,13 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             @info("Registering new wrapper code version $(build_version)...")
         end
 
-        # Register into our `General` fork
         if register
+            # Create fork (if it does not already exist)
+            fork = GitHub.create_fork("JuliaRegistries/General"; auth=gh_auth)
+
+            # Use Registrator to push up a new `General` branch with this JLL package registered within it
             cache = Registrator.RegEdit.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
-            registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
+            registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/$(gh_username)/General"
             cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
             project = Pkg.Types.Project(build_project_dict(src_name, build_version, dependencies))
             reg_branch = Registrator.RegEdit.register(
@@ -212,7 +215,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                 @error(reg_branch.metadata["error"])
             end
 
-            # Open pull request against General
+            # Open pull request against JuliaRegistries/General
             params = Dict(
                 "base" => "master",
                 "head" => reg_branch.branch,
