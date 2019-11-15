@@ -1,7 +1,7 @@
 FROM julia:1.3
 
 # Install tools which get used by BinaryBuilder.
-RUN apt-get update && apt-get install -y xz-utils bzip2 sudo git
+RUN apt-get update && apt-get install -y xz-utils bzip2 sudo git unzip
 
 # Set up default `git` username and email
 RUN git config --global user.name "jlbuild"
