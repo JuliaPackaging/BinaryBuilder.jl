@@ -53,6 +53,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                                 requires deployment, so using `--register`
                                 without `--deploy` is an error.
 
+            --meta-json         Output a JSON representation of the given build
+                                instead of actually building.  Note that this can
+                                (and often does) output multiple JSON objects for
+                                multiple platforms, multi-stage builds, etc...
+
             --help              Print out this message.
 
         Examples:
@@ -65,6 +70,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         """))
         return nothing
     end
+
+    # Do not clobber caller's ARGS
+    ARGS = deepcopy(ARGS)
 
     function check_flag(flag)
         flag_present = flag in ARGS
@@ -94,6 +102,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # This sets whether we drop into a debug shell on failure or not
     debug = check_flag("--debug")
 
+    # Are we skipping building and just outputting JSON?
+    meta_json, meta_json_file = extract_flag("--meta-json")
+
     # This sets whether we are going to deploy our binaries to GitHub releases
     deploy, deploy_repo = extract_flag("--deploy", "JuliaBinaryWrappers/$(src_name)_jll.jl")
 
@@ -107,6 +118,27 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         # Shove them into `kwargs` so that we are conditionally passing them along
         kwargs = (; kwargs..., code_dir = code_dir)
+    end
+
+    # If --meta-json was passed, error out if any confusing options were passed
+    meta_json_stream = nothing
+    if meta_json
+        if deploy
+            error("Cannot specify --deploy with --meta-json!")
+        end
+        if register
+            error("Cannot specify --register with --meta-json!")
+        end
+        if debug
+            error("Cannot specify --debug with --meta-json!")
+        end
+
+        # Otherwise, check to see if we're spitting it out to stdout or a file:
+        if meta_json_file === nothing
+            meta_json_stream = stdout
+        else
+            meta_json_stream = open(meta_json_file, "a")
+        end
     end
 
     # If the user passed in a platform (or a few, comma-separated) on the
@@ -156,9 +188,37 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     # Build the given platforms using the given sources
-    @info("Building for $(join(triplet.(platforms), ", "))")
-    build_output_meta = autobuild(pwd(), src_name, src_version, sources, script, platforms,
-                                  products, dependencies; verbose=verbose, debug=debug, kwargs...)
+    build_output_meta = autobuild(
+        # Controls output product placement, mount directory placement, etc...
+        pwd(),
+
+        # Source information
+        src_name,
+        src_version,
+        sources,
+
+        # Build script
+        script,
+
+        # Platforms to build for
+        platforms,
+
+        # Products we're expecting
+        products,
+
+        # Dependencies that must be downloaded
+        dependencies;
+
+        # Flags
+        verbose=verbose,
+        debug=debug,
+        meta_json_stream=meta_json_stream,
+        kwargs...,
+    )
+
+    if meta_json_stream !== nothing && meta_json_stream !== stdout
+        close(meta_json_stream)
+    end
 
     if deploy
         if verbose
@@ -285,6 +345,88 @@ function get_next_wrapper_version(src_name, src_version)
                          src_version.patch, src_version.prerelease, (build_number,))
 end
 
+"""
+    download_sources(sources::Vector; verbose::Bool = false)
+
+Download all `sources` as given by the input vector.  All downloads are cached within the
+BinaryBuilder `downloads` storage directory.
+"""
+function download_sources(sources::Vector; verbose::Bool = false)
+    output_sources = Pair{String,String}[]
+    for idx in 1:length(sources)
+        # If the given source is a local path that is a directory, package it up and insert it into our sources
+        if typeof(sources[idx]) <: AbstractString
+            if !isdir(sources[idx])
+                error("Sources must either be a pair (url => hash) or a local directory")
+            end
+
+            # Package up this directory and calculate its hash
+            mktempdir() do tempdir
+                tarball_path = joinpath(tempdir, basename(sources[idx]) * ".tar.gz")
+                package(sources[idx], tarball_path)
+                tarball_hash = open(tarball_path, "r") do f
+                    bytes2hex(sha256(f))
+                end
+                
+                # Move it to a filename that has the hash as a part of it (to avoid name collisions)
+                tarball_pathv = storage_dir("downloads", string(tarball_hash, "-", basename(sources[idx]), ".tar.gz"))
+                mv(tarball_path, tarball_pathv; force=true)
+
+                # Now that it's packaged, store this into output_sources
+                push!(output_sources, (tarball_pathv => tarball_hash))
+            end
+        elseif typeof(sources[idx]) <: Pair
+            src_url, src_hash = sources[idx]
+
+            # If it's a .git url, clone it
+            if endswith(src_url, ".git")
+                src_path = storage_dir("downloads", basename(src_url))
+
+                # If this git repository already exists, ensure that its origin remote actually matches
+                if isdir(src_path)
+                    origin_url = LibGit2.with(LibGit2.GitRepo(src_path)) do repo
+                        LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
+                    end
+
+                    # If the origin url doesn't match, wipe out this git repo.  We'd rather have a
+                    # thrashed cache than an incorrect cache.
+                    if origin_url != src_url
+                        rm(src_path; recursive=true, force=true)
+                    end
+                end
+
+                if isdir(src_path)
+                    # If we didn't just mercilessly obliterate the cached git repo, use it!
+                    LibGit2.with(LibGit2.GitRepo(src_path)) do repo
+                        LibGit2.fetch(repo)
+                    end
+                else
+                    # If there is no src_path yet, clone it down.
+                    repo = LibGit2.clone(src_url, src_path; isbare=true)
+                end
+            else
+                if isfile(src_url)
+                    # Immediately abspath() a src_url so we don't lose track of
+                    # sources given to us with a relative path
+                    src_path = abspath(src_url)
+
+                    # And if this is a locally-sourced tarball, just verify
+                    verify(src_path, src_hash; verbose=verbose)
+                else
+                    # Otherwise, download and verify
+                    src_path = storage_dir("downloads", string(src_hash, "-", basename(src_url)))
+                    download_verify(src_url, src_hash, src_path; verbose=verbose)
+                end
+            end
+
+            # Now that it's downloaded, store this into output_sources
+            push!(output_sources, (src_path => src_hash))
+        else
+            error("Sources must be either a `URL => hash` pair, or a path to a local directory")
+        end
+    end
+    return output_sources
+end
 
 """
     autobuild(dir::AbstractString, src_name::AbstractString,
@@ -294,24 +436,51 @@ end
               verbose = false, debug = false,
               skip_audit = false, ignore_audit_errors = true,
               autofix = true, code_dir = nothing,
-              require_license = true, kwargs...)
+              meta_json_file = nothing, require_license = true, kwargs...)
 
 Runs the boiler plate code to download, build, and package a source package
-for a list of platforms.  `src_name` represents the name of the source package
-being built (and will set the name of the built tarballs), `src_version` is the
-version of the source package. `platforms` is a list of platforms to build for,
-`sources` is a list of tuples giving `(url, hash)` of all sources to download
-and unpack before building begins, `script` is a string representing a shell
-script to run to build the desired products, which are listed as `Product`
-objects. `dependencies` gives a list of JLL dependency packages as strings or
-`PackageSpec`s that should be installed before building begins. Setting `debug`
-to `true` will cause a failed build to drop into an interactive shell so that
-the build can be inspected easily. `skip_audit` will disable the typical audit
-that occurs at the end of a build, while `ignore_audit_errors` by default will
-not kill a build even if a problem is found.  `autofix` gives BinaryBuilder
-permission to automatically fix issues it finds.  `code_dir` determines where
-autogenerated JLL packages will be put, and `require_license` enables a special
-audit pass that requires licenses to be installed by all packages.
+for a list of platforms.  This method takes a veritable truckload of arguments,
+here are the relevant actors, broken down in brief:
+
+* `dir`: the root of the build; products will be placed within `dir`/products,
+   and mountpoints will be placed within `dir`/build/.
+
+* `src_name`: the name of the source package being built and will set the name
+   of the built tarballs.
+
+* `src_version`: the version of the source package.
+
+* `platforms`: a list of platforms to build for.
+
+* `sources`: a list of tuples giving `(url, hash)` of all sources to download
+   and unpack before building begins.
+
+* `script`: a string representing a shell script to run as the build.
+
+* `products`: the list of `Product`s which shall be built.
+
+* `dependencies`: a list of JLL dependency packages as strings or `Pkg`
+  `PackageSpec`s that should be installed before building begins.
+
+* `verbose`: Enable verbose mode.  What did you expect?
+
+* `debug`: cause a failed build to drop into an interactive shell so that
+   the build can be inspected easily.
+   
+* `skip_audit`: disable the typical audit that occurs at the end of a build.
+
+* `ignore_audit_errors`: do not kill a build even if a problem is found.
+
+* `autofix`: give `BinaryBuilder` permission to automatically fix issues it
+   finds during audit passes.  Highly recommended.
+
+* `code_dir`: sets where autogenerated JLL packages will be put.
+
+* `require_license` enables a special audit pass that requires licenses to be
+   installed by all packages.
+   
+* `meta_json_stream`: If this is set to an IOStream, do not actually build, just
+   output a JSON representation of all the metadata about this build to the stream.
 """
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
@@ -328,7 +497,25 @@ function autobuild(dir::AbstractString,
                    autofix::Bool = true,
                    code_dir::Union{String,Nothing} = nothing,
                    require_license::Bool = true,
+                   meta_json_stream = nothing,
                    kwargs...)
+    # If they've asked for the JSON metadata, by all means, give it to them!
+    if meta_json_stream !== nothing
+        dep_name(x::String) = x
+        dep_name(x::Pkg.Types.PackageSpec) = x.name
+
+        println(meta_json_stream, JSON.json(Dict(
+            "name" => src_name,
+            "version" => "v$(src_version)",
+            "sources" => sources,
+            "script" => script,
+            "platforms" => triplet.(platforms),
+            "products" => variable_name.(products),
+            "dependencies" => dep_name.(dependencies),
+        )))
+        return Dict()
+    end
+
     # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds
     if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
         run_travis_busytask = true
@@ -343,6 +530,7 @@ function autobuild(dir::AbstractString,
     end
 
     # This is what we'll eventually return
+    @info("Building for $(join(triplet.(platforms), ", "))")
     build_output_meta = Dict()
 
     # Resolve dependencies into PackageSpecs now, ensuring we have UUIDs for all deps
@@ -365,257 +553,184 @@ function autobuild(dir::AbstractString,
         error("Invalid dependency specifications!")
     end
 
-    # If we end up packaging any local directories into tarballs, we'll store them here
-    mktempdir() do tempdir
-        # We must prepare our sources.  Download them, hash them, etc...
-        sources = Any[s for s in sources]
-        for idx in 1:length(sources)
-            # If the given source is a local path that is a directory, package it up and insert it into our sources
-            if typeof(sources[idx]) <: AbstractString
-                if !isdir(sources[idx])
-                    error("Sources must either be a pair (url => hash) or a local directory")
-                end
+    # We must prepare our sources.  Download them, hash them, etc...
+    sources = download_sources(sources; verbose=verbose)
 
-                # Package up this directory and calculate its hash
-                tarball_path = joinpath(tempdir, basename(sources[idx]) * ".tar.gz")
-                package(sources[idx], tarball_path)
-                tarball_hash = open(tarball_path, "r") do f
-                    bytes2hex(sha256(f))
-                end
+    # Our build products will go into ./products
+    out_path = joinpath(dir, "products")
+    try mkpath(out_path) catch; end
 
-                # Move it to a filename that has the hash as a part of it (to avoid name collisions)
-                tarball_pathv = joinpath(tempdir, string(tarball_hash, "-", basename(sources[idx]), ".tar.gz"))
-                mv(tarball_path, tarball_pathv)
+    # Convert from tuples to arrays, if need be
+    if isempty(sources)
+        src_paths, src_hashes = (String[], String[])
+    else
+        src_paths, src_hashes = collect.(collect(zip(sources...)))
+    end
 
-                # Now that it's packaged, store this into sources[idx]
-                sources[idx] = (tarball_pathv => tarball_hash)
-            elseif typeof(sources[idx]) <: Pair
-                src_url, src_hash = sources[idx]
+    for platform in platforms
+        # We build in a platform-specific directory
+        build_path = joinpath(dir, "build", triplet(platform))
+        mkpath(build_path)
 
-                # If it's a .git url, clone it
-                if endswith(src_url, ".git")
-                    src_path = storage_dir("downloads", basename(src_url))
+        prefix = setup_workspace(
+            build_path,
+            src_paths,
+            src_hashes;
+            verbose=verbose,
+        )
+        artifact_paths = setup_dependencies(prefix, dependencies, platform)
 
-                    # If this git repository already exists, ensure that its origin remote actually matches
-                    if isdir(src_path)
-                        origin_url = LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-                            LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
-                        end
+        # Create a runner to work inside this workspace with the nonce built-in
+        ur = preferred_runner()(
+            prefix.path;
+            cwd = "/workspace/srcdir",
+            platform = platform,
+            verbose = verbose,
+            workspaces = [
+                joinpath(prefix, "metadir") => "/meta",
+            ],
+            compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
+            src_name = src_name,
+            extract_kwargs(kwargs, (:preferred_gcc_version,:compilers))...,
+        )
 
-                        # If the origin url doesn't match, wipe out this git repo.  We'd rather have a
-                        # thrashed cache than an incorrect cache.
-                        if origin_url != src_url
-                            rm(src_path; recursive=true, force=true)
-                        end
-                    end
+        # Set up some bash traps
+        trapper_wrapper = """
+        # Stop if we hit any errors.
+        set -e
 
-                    if isdir(src_path)
-                        # If we didn't just mercilessly obliterate the cached git repo, use it!
-                        LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-                            LibGit2.fetch(repo)
-                        end
-                    else
-                        # If there is no src_path yet, clone it down.
-                        repo = LibGit2.clone(src_url, src_path; isbare=true)
-                    end
-                else
-                    if isfile(src_url)
-                        # Immediately abspath() a src_url so we don't lose track of
-                        # sources given to us with a relative path
-                        src_path = abspath(src_url)
+        # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
+        if [ \$(basename \$0) = "bash" ]; then
+            trap "trap - DEBUG INT TERM ERR EXIT; \\
+                  set +e +x; \\
+                  auto_install_license; \\
+                  save_env" \\
+                EXIT
 
-                        # And if this is a locally-sourced tarball, just verify
-                        verify(src_path, src_hash; verbose=verbose)
-                    else
-                        # Otherwise, download and verify
-                        src_path = storage_dir("downloads", string(src_hash, "-", basename(src_url)))
-                        download_verify(src_url, src_hash, src_path; verbose=verbose)
-                    end
-                end
+            trap "RET=\\\$?; \\
+                  trap - DEBUG INT TERM ERR EXIT; \\
+                  set +e +x; \\
+                  echo Previous command \\\$! exited with \\\$RET >&2; \\
+                  save_srcdir; \\
+                  save_env; \\
+                  exit \\\$RET" \\
+                INT TERM ERR
 
-                # Now that it's downloaded, store this into sources[idx]
-                sources[idx] = (src_path => src_hash)
-            else
-                error("Sources must be either a `URL => hash` pair, or a path to a local directory")
-            end
-        end
+            # Swap out srcdir from underneath our feet if we've got our `ERR`
+            # traps set; if we don't have this, we get very confused.  :P
+            tmpify_srcdir
 
-        # Our build products will go into ./products
-        out_path = joinpath(dir, "products")
-        try mkpath(out_path) catch; end
-
-        # Convert from tuples to arrays, if need be
-        if isempty(sources)
-            src_paths, src_hashes = (String[], String[])
+            # Start saving everything into our history
+            trap save_history DEBUG
         else
-            src_paths, src_hashes = collect.(collect(zip(sources...)))
+            # If we're running in `sh` or something like that, we need a
+            # slightly slimmer set of traps. :(
+            trap "RET=\\\$?; \\
+                  echo Previous command exited with \\\$RET >&2; \\
+                  set +e +x; \\
+                  save_env; \\
+                  exit \\\$RET" \\
+                EXIT INT TERM
+        fi
+
+        $(script)
+        """
+
+        dest_prefix = Prefix(joinpath(prefix.path, "destdir"))
+        did_succeed = with_logfile(dest_prefix, "$(src_name).log") do io
+            run(ur, `/bin/bash -l -c $(trapper_wrapper)`, io; verbose=verbose)
+        end
+        if !did_succeed
+            if debug
+                @warn("Build failed, launching debug shell")
+                run_interactive(ur, `/bin/bash -l -i`)
+            end
+            msg = "Build for $(src_name) on $(triplet(platform)) did not complete successfully\n"
+            error(msg)
         end
 
-        for platform in platforms
-            # We build in a platform-specific directory
-            build_path = joinpath(dir, "build", triplet(platform))
-            mkpath(build_path)
-
-            prefix = setup_workspace(
-                build_path,
-                src_paths,
-                src_hashes;
-                verbose=verbose,
-            )
-            artifact_paths = setup_dependencies(prefix, dependencies, platform)
-
-            # Create a runner to work inside this workspace with the nonce built-in
-            ur = preferred_runner()(
-                prefix.path;
-                cwd = "/workspace/srcdir",
-                platform = platform,
-                verbose = verbose,
-                workspaces = [
-                    joinpath(prefix, "metadir") => "/meta",
-                ],
-                compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
-                src_name = src_name,
-                extract_kwargs(kwargs, (:preferred_gcc_version,:compilers))...,
-            )
-
-            # Set up some bash traps
-            trapper_wrapper = """
-            # Stop if we hit any errors.
-            set -e
-
-            # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
-            if [ \$(basename \$0) = "bash" ]; then
-                trap "trap - DEBUG INT TERM ERR EXIT; \\
-                      set +e +x; \\
-                      auto_install_license; \\
-                      save_env" \\
-                    EXIT
-
-                trap "RET=\\\$?; \\
-                      trap - DEBUG INT TERM ERR EXIT; \\
-                      set +e +x; \\
-                      echo Previous command \\\$! exited with \\\$RET >&2; \\
-                      save_srcdir; \\
-                      save_env; \\
-                      exit \\\$RET" \\
-                    INT TERM ERR
-
-                # Swap out srcdir from underneath our feet if we've got our `ERR`
-                # traps set; if we don't have this, we get very confused.  :P
-                tmpify_srcdir
-
-                # Start saving everything into our history
-                trap save_history DEBUG
-            else
-                # If we're running in `sh` or something like that, we need a
-                # slightly slimmer set of traps. :(
-                trap "RET=\\\$?; \\
-                      echo Previous command exited with \\\$RET >&2; \\
-                      set +e +x; \\
-                      save_env; \\
-                      exit \\\$RET" \\
-                    EXIT INT TERM
-            fi
-
-            $(script)
-            """
-
-            dest_prefix = Prefix(joinpath(prefix.path, "destdir"))
-            did_succeed = with_logfile(dest_prefix, "$(src_name).log") do io
-                run(ur, `/bin/bash -l -c $(trapper_wrapper)`, io; verbose=verbose)
+        # Run an audit of the prefix to ensure it is properly relocatable
+        if !skip_audit
+            audit_result = audit(dest_prefix, src_name;
+                                 platform=platform, verbose=verbose,
+                                 autofix=autofix, require_license=require_license)
+            if !audit_result && !ignore_audit_errors
+                msg = replace("""
+                Audit failed for $(dest_prefix.path).
+                Address the errors above to ensure relocatability.
+                To override this check, set `ignore_audit_errors = true`.
+                """, '\n' => ' ')
+                error(strip(msg))
             end
-            if !did_succeed
-                if debug
-                    @warn("Build failed, launching debug shell")
-                    run_interactive(ur, `/bin/bash -l -i`)
+        end
+
+        # Finally, error out if something isn't satisfied
+        unsatisfied_so_die = false
+        for p in products
+            if !satisfied(p, dest_prefix; verbose=verbose, platform=platform)
+                if !verbose
+                    # If we never got a chance to see the verbose output, give it here:
+                    locate(p, dest_prefix; verbose=true, platform=platform)
                 end
-                msg = "Build for $(src_name) on $(triplet(platform)) did not complete successfully\n"
-                error(msg)
+                @error("Built $(src_name) but $(variable_name(p)) still unsatisfied:")
+                unsatisfied_so_die = true
             end
+        end
+        if unsatisfied_so_die
+            error("Cannot continue with unsatisfied build products!")
+        end
 
-            # Run an audit of the prefix to ensure it is properly relocatable
-            if !skip_audit
-                audit_result = audit(dest_prefix, src_name;
-                                     platform=platform, verbose=verbose,
-                                     autofix=autofix, require_license=require_license)
-                if !audit_result && !ignore_audit_errors
-                    msg = replace("""
-                    Audit failed for $(dest_prefix.path).
-                    Address the errors above to ensure relocatability.
-                    To override this check, set `ignore_audit_errors = true`.
-                    """, '\n' => ' ')
-                    error(strip(msg))
+        # We also need to capture some info about each product
+        products_info = Dict()
+        for p in products
+            product_path = locate(p, dest_prefix; platform=platform)
+            products_info[p] = Dict("path" => relpath(product_path, dest_prefix.path))
+            if p isa LibraryProduct
+                products_info[p]["soname"] = something(
+                    get_soname(product_path),
+                    basename(product_path),
+                )
+            end
+        end
+
+        # Unsymlink all the deps from the dest_prefix
+        cleanup_dependencies(prefix, artifact_paths)
+
+        # Cull empty directories, for neatness' sake, unless auditing is disabled
+        if !skip_audit
+            for (root, dirs, files) = walkdir(dest_prefix.path; topdown=false)
+                # We do readdir() here because `walkdir()` does not do a true in-order traversal
+                if isempty(readdir(root))
+                    rm(root)
                 end
             end
+        end
 
-            # Finally, error out if something isn't satisfied
-            unsatisfied_so_die = false
-            for p in products
-                if !satisfied(p, dest_prefix; verbose=verbose, platform=platform)
-                    if !verbose
-                        # If we never got a chance to see the verbose output, give it here:
-                        locate(p, dest_prefix; verbose=true, platform=platform)
-                    end
-                    @error("Built $(src_name) but $(variable_name(p)) still unsatisfied:")
-                    unsatisfied_so_die = true
-                end
-            end
-            if unsatisfied_so_die
-                error("Cannot continue with unsatisfied build products!")
-            end
+        # Once we're built up, go ahead and package this dest_prefix out
+        tarball_path, tarball_hash, git_hash = package(
+            dest_prefix,
+            joinpath(out_path, src_name),
+            src_version;
+            platform=platform,
+            verbose=verbose,
+            force=true,
+        )
 
-            # We also need to capture some info about each product
-            products_info = Dict()
-            for p in products
-                product_path = locate(p, dest_prefix; platform=platform)
-                products_info[p] = Dict("path" => relpath(product_path, dest_prefix.path))
-                if p isa LibraryProduct
-                    products_info[p]["soname"] = something(
-                        get_soname(product_path),
-                        basename(product_path),
-                    )
-                end
-            end
+        build_output_meta[platform] = (
+            tarball_path,
+            tarball_hash,
+            git_hash,
+            products_info,
+        )
 
-            # Unsymlink all the deps from the dest_prefix
-            cleanup_dependencies(prefix, artifact_paths)
+        # Destroy the workspace
+        rm(prefix.path; recursive=true)
 
-            # Cull empty directories, for neatness' sake, unless auditing is disabled
-            if !skip_audit
-                for (root, dirs, files) = walkdir(dest_prefix.path; topdown=false)
-                    # We do readdir() here because `walkdir()` does not do a true in-order traversal
-                    if isempty(readdir(root))
-                        rm(root)
-                    end
-                end
-            end
-
-            # Once we're built up, go ahead and package this dest_prefix out
-            tarball_path, tarball_hash, git_hash = package(
-                dest_prefix,
-                joinpath(out_path, src_name),
-                src_version;
-                platform=platform,
-                verbose=verbose,
-                force=true,
-            )
-
-            build_output_meta[platform] = (
-                tarball_path,
-                tarball_hash,
-                git_hash,
-                products_info,
-            )
-
-            # Destroy the workspace
-            rm(prefix.path; recursive=true)
-
-            # If the whole build_path is empty, then remove it too.  If it's not, it's probably
-            # because some other build is doing something simultaneously with this target, and we
-            # don't want to mess with their stuff.
-            if isempty(readdir(build_path))
-                rm(build_path; recursive=true)
-            end
+        # If the whole build_path is empty, then remove it too.  If it's not, it's probably
+        # because some other build is doing something simultaneously with this target, and we
+        # don't want to mess with their stuff.
+        if isempty(readdir(build_path))
+            rm(build_path; recursive=true)
         end
     end
 
