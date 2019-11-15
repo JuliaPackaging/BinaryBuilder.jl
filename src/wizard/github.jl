@@ -45,6 +45,12 @@ function obtain_token(; ins=stdin, outs=stdout, github_api=GitHub.DEFAULT_API)
     )
 
     while true
+        if !isopen(ins) || (!Sys.iswindows() && !isopen(stdin))
+            # We have to check also `stdin` because `_getpass` ignores `ins` and
+            # always uses `stdin` on Unices.
+            error("Cannot read from input stream")
+        end
+
         user = nonempty_line_prompt("Username", "GitHub username:", ins=ins, outs=outs)
         password = nonempty_line_prompt("Password", "GitHub password:"; ins=ins, outs=outs, echo=false)
 
