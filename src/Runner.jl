@@ -260,7 +260,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # Default these tools to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
-                 :ranlib, :readelf, :strip, :install_name_tool, :windres, :winmc, :lipo)
+                 :ranlib, :readelf, :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
         @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(p), "/bin/", triplet(p), "-", $(string(tool))); allow_ccache=false)
     end
  
@@ -315,8 +315,6 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(ranlib, p, "$(t)-ranlib")
         write_wrapper(readelf, p, "$(t)-readelf")
         write_wrapper(strip, p, "$(t)-strip")
-        write_wrapper(windres, p, "$(t)-windres")
-        write_wrapper(winmc, p, "$(t)-winmc")
 
         # Special mac stuff
         if isa(p, MacOS)
@@ -324,6 +322,13 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             write_wrapper(lipo, p, "$(t)-lipo")
             write_wrapper(dsymutil, p, "$(t)-dsymutil")
             write_wrapper(otool, p, "$(t)-otool")
+        end
+
+        # Special Windows stuff
+        if isa(p, Windows)
+            write_wrapper(dlltool, p, "$(t)-dlltool")
+            write_wrapper(windres, p, "$(t)-windres")
+            write_wrapper(winmc, p, "$(t)-winmc")
         end
 
         # Generate go stuff
@@ -356,7 +361,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     if platform isa MacOS
         append!(default_tools, ("dsymutil", "lipo", "otool", "install_name_tool"))
     elseif platform isa Windows
-        append!(default_tools, ("windres", "winmc"))
+        append!(default_tools, ("dlltool", "windres", "winmc"))
     end
 
     if :c in compilers
