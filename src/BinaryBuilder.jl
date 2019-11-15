@@ -27,7 +27,7 @@ include("UserNSRunner.jl")
 include("DockerRunner.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
-
+include("Declarative.jl")
 
 # This is the location that all binary builder-related files are stored under.
 # downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
