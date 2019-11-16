@@ -179,11 +179,15 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if !isdir(code_dir)
             # If it does exist, clone it down:
             @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
-            creds = LibGit2.UserPasswordCredential(
-                deepcopy(gh_username),
-                deepcopy(gh_auth.token),
-            )
-            LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+            try
+                creds = LibGit2.UserPasswordCredential(
+                    deepcopy(gh_username),
+                    deepcopy(gh_auth.token),
+                )
+                LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+            finally
+                Base.shred!(creds)
+            end
         end
     end
 
