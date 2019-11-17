@@ -398,7 +398,7 @@ function download_sources(sources::Vector; verbose::Bool = false)
 end
 
 function register_jll(name, build_version, dependencies;
-                      deploy_repo="JuliaBinaryWrappers/$(src_name)_jll.jl",
+                      deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
                       code_dir=joinpath(Pkg.depots1(), "dev", "$(name)_jll"),
                       gh_auth=github_auth(;allow_anonymous=false))
     # Create fork (if it does not already exist)
