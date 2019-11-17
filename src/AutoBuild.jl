@@ -409,6 +409,7 @@ function register_jll(name, build_version, dependencies;
     wrapper_tree_hash = bytes2hex(Pkg.GitTools.tree_hash(code_dir))
 
     # Use Registrator to push up a new `General` branch with this JLL package registered within it
+    # TODO: Update our fork periodically from upstream `General`.
     cache = Registrator.RegEdit.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/$(gh_username)/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
