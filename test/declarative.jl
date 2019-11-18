@@ -11,7 +11,7 @@ using JSON, BinaryBuilder, Test
             [("https://julialang.org" => "123123"), "./bundled"],
             "exit 1",
             [Linux(:x86_64)],
-            Product[ExecutableProduct("libfoo", :libfoo)],
+            Product[LibraryProduct("libfoo", :libfoo)],
             ["Zlib_jll"];
             meta_json_stream=meta_json_buff,
         )
@@ -57,7 +57,7 @@ using JSON, BinaryBuilder, Test
                   "./bundled",
               ), Ref(meta["sources"])))
         @test length(meta["products"]) == 2
-        @test all(in.(("libfoo", "julia"), Ref(meta["products"])))
+        @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia)), Ref(meta["products"])))
         @test length(meta["script"]) == 2
         @test all(in.(("exit 0", "exit 1"), Ref(meta["script"])))
     end
