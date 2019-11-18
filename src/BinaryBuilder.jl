@@ -2,7 +2,7 @@
 # __precompile__()
 
 module BinaryBuilder
-using Libdl, LibGit2, Random, Sockets, Base64
+using Libdl, LibGit2, Random, Sockets, Base64, JSON
 using ObjectFile
 using GitHub
 import InteractiveUtils

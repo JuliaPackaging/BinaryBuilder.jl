@@ -159,7 +159,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         # Get our github authentication, and determine the username from that
         gh_auth = github_auth(;allow_anonymous=false)
-        gh_username = GitHub.gh_get_json(GitHub.DEFAULT_API, "/user"; auth=gh_auth)["login"]
+        gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"]
 
         # First, ensure the GH repo exists at all
         try
@@ -173,21 +173,6 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
             # Initialize empty repository
             LibGit2.init(code_dir)
-        end
-        
-        # Check if it exists on disk, if not, clone it down
-        if !isdir(code_dir)
-            # If it does exist, clone it down:
-            @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
-            try
-                creds = LibGit2.UserPasswordCredential(
-                    deepcopy(gh_username),
-                    deepcopy(gh_auth.token),
-                )
-                LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
-            finally
-                Base.shred!(creds)
-            end
         end
     end
 
@@ -225,40 +210,46 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     if deploy
-        if verbose
-            @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
-        end
-
-        # The location the binaries will be available from
-        bin_path = "https://github.com/$(deploy_repo)/releases/download/$(tag)"
-        build_jll_package(src_name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose)
-
-        # Next, push up the wrapper code repository
-        wrapper_repo = LibGit2.GitRepo(code_dir)
-        LibGit2.add!(wrapper_repo, ".")
-        LibGit2.commit(wrapper_repo, "$(src_name)_jll build $(build_version)")
-        creds = LibGit2.UserPasswordCredential(
-            deepcopy(gh_username),
-            deepcopy(gh_auth.token),
-        )
-        try
-            LibGit2.push(
-                wrapper_repo;
-                refspecs=["refs/heads/master"],
-                remoteurl="https://github.com/$(deploy_repo).git",
-                credentials=creds,
-            )
-        finally
-            Base.shred!(creds)
-        end
-
         if register
+            if verbose
+                @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
+            end
+
+            # Check if it exists on disk, if not, clone it down
+            if !isdir(code_dir)
+                # If it does exist, clone it down:
+                @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
+                creds = LibGit2.UserPasswordCredential(
+                    deepcopy(gh_username),
+                    deepcopy(gh_auth.token),
+                )
+                try
+                    LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+                finally
+                    Base.shred!(creds)
+                end
+            else
+                # Otherwise, hard-reset to latest master:
+                repo = LibGit2.GitRepo(code_dir)
+                LibGit2.head!(repo, LibGit2.lookup_branch(repo, "origin/master", true))
+                LibGit2.branch!(repo, "master")
+                LibGit2.reset!(repo, LibGit2.head_oid(repo), LibGit2.Consts.RESET_HARD)
+            end
+
+            # The location the binaries will be available from
+            bin_path = "https://github.com/$(deploy_repo)/releases/download/$(tag)"
+            build_jll_package(src_name, build_version, code_dir, build_output_meta,
+                              dependencies, bin_path; verbose=verbose)
+            push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_repo,
+                             gh_auth=gh_auth, gh_username=gh_username)
+
             if verbose
                 @info("Registering new wrapper code version $(build_version)...")
             end
 
             register_jll(src_name, build_version, dependencies;
-                         deploy_repo=deploy_repo, code_dir=code_dir, gh_auth=gh_auth)
+                            deploy_repo=deploy_repo, code_dir=code_dir,
+                            gh_auth=gh_auth, gh_username=gh_username)
         end
 
         # Upload the binaries
@@ -400,9 +391,9 @@ end
 function register_jll(name, build_version, dependencies;
                       deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
                       code_dir=joinpath(Pkg.depots1(), "dev", "$(name)_jll"),
-                      gh_auth=github_auth(;allow_anonymous=false))
+                      gh_auth=github_auth(;allow_anonymous=false),
+                      gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     # Create fork (if it does not already exist)
-    gh_username = GitHub.gh_get_json(GitHub.DEFAULT_API, "/user"; auth=gh_auth)["login"]
     fork = GitHub.create_fork("JuliaRegistries/General"; auth=gh_auth)
     
     # Calculate tree hash of wrapper code
@@ -526,7 +517,7 @@ function autobuild(dir::AbstractString,
             "sources" => sources,
             "script" => script,
             "platforms" => triplet.(platforms),
-            "products" => variable_name.(products),
+            "products" => products,
             "dependencies" => dep_name.(dependencies),
         )))
         return Dict()
@@ -758,6 +749,102 @@ function autobuild(dir::AbstractString,
 
     # Return our product hashes
     return build_output_meta
+end
+
+
+function download_github_release(download_dir, repo, tag; gh_auth=github_auth(), verbose::Bool=false)
+    release = gh_get_json(DEFAULT_API, "/repos/$(repo)/releases/tags/$(tag)", auth=gh_auth)
+    assets = [a for a in release["assets"] if endswith(a["name"], ".tar.gz")]
+
+    for asset in assets
+        if verbose
+            @info("Downloading $(asset["name"])")
+        end
+        download(asset["browser_download_url"], joinpath(download_dir, asset["name"]))
+    end
+    return assets
+end
+
+function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool = false)
+    if build_version === nothing
+        build_version = BinaryBuilder.get_next_wrapper_version(obj["name"], obj["version"])
+    end
+    return rebuild_jll_packages(
+        obj["name"],
+        build_version,
+        obj["platforms"],
+        obj["products"],
+        obj["dependencies"],
+        verbose=verbose,
+    )
+end
+
+function rebuild_jll_packages(name::String, build_version::VersionNumber,
+                              platforms::Vector, products::Vector, dependencies::Vector;
+                              gh_org::String = "JuliaBinaryWrappers",
+                              code_dir::String = joinpath(Pkg.depots1(), "dev", "$(name)_jll"),
+                              verbose::Bool = false)
+    repo = "$(gh_org)/$(name)_jll.jl"
+    tag = "$(name)-v$(build_version)"
+    bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
+
+    mktempdir() do download_dir
+        # First, download all the github releases
+        assets = download_github_release(download_dir, repo, tag; verbose=verbose)
+
+        # We're going to recreate "build_output_meta"
+        build_output_meta = Dict()
+
+        # Then generate a JLL package for each platform
+        for platform in platforms
+            # Find the corresponding asset:
+            asset_idx = findfirst([occursin(".$(triplet(platform)).", a["name"]) for a in assets])
+            if asset_idx === nothing
+                error("Incomplete JLL release!  Could not find key for $(triplet(platform))")
+            end
+            asset = assets[asset_idx]
+
+            # Begin reconstructing all the information we need
+            tarball_hash = open(joinpath(download_dir, asset["name"]), "r") do io
+                bytes2hex(sha256(io))
+            end
+            tarball_path = joinpath(bin_path, asset["name"])
+
+            # Unpack the tarball into a new location, calculate the git hash and locate() each product;
+            mktempdir() do dest_prefix
+                unpack(joinpath(download_dir, asset["name"]), dest_prefix; verbose=verbose)
+
+                git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
+                if verbose
+                    @info("Calculated git tree hash $(bytes2hex(git_hash.bytes)) for $(asset["name"])")
+                end
+
+                # Determine locations of each product
+                products_info = Dict()
+                for p in products
+                    product_path = locate(p, Prefix(dest_prefix); platform=platform)
+                    products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
+                    if p isa LibraryProduct
+                        products_info[p]["soname"] = something(
+                            get_soname(product_path),
+                            basename(product_path),
+                        )
+                    end
+                end
+
+                # Store all this information within build_output_meta:
+                build_output_meta[platform] = (
+                    tarball_path,
+                    tarball_hash,
+                    git_hash,
+                    products_info,
+                )
+            end
+        end
+
+        # Finally, generate the full JLL package
+        build_jll_package(name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose)
+    end
 end
 
 function build_jll_package(src_name::String, build_version::VersionNumber, code_dir::String,
@@ -1016,6 +1103,31 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
     project = build_project_dict(src_name, build_version, dependencies)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         Pkg.TOML.print(io, project)
+    end
+end
+
+function push_jll_package(name, build_version;
+                          code_dir = joinpath(Pkg.depots1(), "dev", "$(name)_jll"),
+                          deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
+                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+    # Next, push up the wrapper code repository
+    wrapper_repo = LibGit2.GitRepo(code_dir)
+    LibGit2.add!(wrapper_repo, ".")
+    LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
+    creds = LibGit2.UserPasswordCredential(
+        deepcopy(gh_username),
+        deepcopy(gh_auth.token),
+    )
+    try
+        LibGit2.push(
+            wrapper_repo;
+            refspecs=["refs/heads/master"],
+            remoteurl="https://github.com/$(deploy_repo).git",
+            credentials=creds,
+        )
+    finally
+        Base.shred!(creds)
     end
 end
 

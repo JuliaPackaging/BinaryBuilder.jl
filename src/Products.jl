@@ -103,6 +103,13 @@ struct LibraryProduct <: Product
         # If some other kind of AbstractString is passed in, convert it
         return new([string(l) for l in libnames], varname, string.(dir_paths), dont_dlopen)
     end
+
+    LibraryProduct(meta_obj::Dict) = LibraryProduct(
+        String.(meta_obj["libnames"]),
+        Symbol(meta_obj["variable_name"]),
+        String.(meta_obj["dir_paths"]),
+        meta_obj["dont_dlopen"],
+    )
 end
 
 function repr(p::LibraryProduct)
@@ -221,6 +228,12 @@ struct ExecutableProduct <: Product
         return new(binnames, varname, dir_path)
     end
     ExecutableProduct(binname::AbstractString, varname::Symbol, args...) = ExecutableProduct([string(binname)], varname, args...)
+
+    ExecutableProduct(meta_obj::Dict) = ExecutableProduct(
+        String.(meta_obj["binnames"]),
+        Symbol(meta_obj["variable_name"]),
+        meta_obj["dir_path"],
+    )
 end
 
 function repr(p::ExecutableProduct)
@@ -302,6 +315,7 @@ struct FileProduct <: Product
 end
 
 FileProduct(path::AbstractString, variable_name::Symbol) = FileProduct([path], variable_name)
+FileProduct(meta_obj::Dict) = FileProduct(String.(meta_obj["paths"]), Symbol(meta_obj["variable_name"]))
 
 repr(p::FileProduct) = "FileProduct($(repr(p.paths)), $(repr(p.variable_name)))"
 
@@ -336,3 +350,9 @@ function locate(fp::FileProduct, prefix::Prefix;
     end
     return nothing
 end
+
+# Add JSON serialization to products
+extract_fields(x) = Dict(String(name) => getfield(x, name) for name in fieldnames(typeof(x)))
+JSON.lower(ep::ExecutableProduct) = Dict("type" => "exe", extract_fields(ep)...)
+JSON.lower(lp::LibraryProduct) = Dict("type" => "lib", extract_fields(lp)...)
+JSON.lower(fp::FileProduct) = Dict("type" => "file", extract_fields(fp)...)
