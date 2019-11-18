@@ -31,7 +31,4 @@ RUN julia -e 'using Pkg; Pkg.API.precompile();'
 # Force artifact storage into /storage/artifacts
 RUN ln -fs /storage/artifacts /root/.julia/artifacts
 
-# Force sharing of dev'ed packages (for JLL package generation)
-RUN ln -fs /storage/dev_packages /root/.julia/dev
-
 # The user should mount something in /storage so that it persists from run to run
