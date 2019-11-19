@@ -771,7 +771,9 @@ function init_jll_package(name;
         LibGit2.fetch(repo; remoteurl="https://github.com/$(deploy_repo)")
         origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
         LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
-        LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
+        if string(LibGit2.head_oid(repo)) != string(origin_master_oid)
+            LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
+        end
     end
 end
 
