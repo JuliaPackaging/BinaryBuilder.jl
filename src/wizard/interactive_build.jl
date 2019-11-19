@@ -289,6 +289,14 @@ function step34(state::WizardState)
         state.source_hashes;
         verbose=false,
     )
+    ctx = Pkg.Types.Context()
+    update_registry(ctx)
+    pkgspecify(name::String) = Pkg.Types.PackageSpec(;name=name)
+    pkgspecify(ps::Pkg.Types.PackageSpec) = ps
+    dependencies = pkgspecify.(deepcopy(state.dependencies))
+    Pkg.Types.registry_resolve!(ctx.env, dependencies)
+
+    setup_dependencies(prefix, dependencies, platform)
     provide_hints(state, joinpath(prefix.path, "srcdir"))
 
     ur = preferred_runner()(
