@@ -750,10 +750,7 @@ function init_jll_package(name;
         # If it doesn't exist, create it
         owner = GitHub.Owner(dirname(deploy_repo), true)
         @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
-        GitHub.create_repo(owner, basename(deploy_repo); auth=gh_auth)
-
-        # Initialize empty repository
-        LibGit2.init(code_dir)
+        GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit"); auth=gh_auth)
     end
 
     if !isdir(code_dir)
@@ -771,7 +768,7 @@ function init_jll_package(name;
     else
         # Otherwise, hard-reset to latest master:
         repo = LibGit2.GitRepo(code_dir)
-        LibGit2.fetch(repo)
+        LibGit2.fetch(repo; remoteurl="https://github.com/$(deploy_repo)")
         origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
         LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
         LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
