@@ -104,7 +104,7 @@ struct LibraryProduct <: Product
         return new([string(l) for l in libnames], varname, string.(dir_paths), dont_dlopen)
     end
 
-    LibraryProduct(meta_obj::Dict) = LibraryProduct(
+    LibraryProduct(meta_obj::Dict) = new(
         String.(meta_obj["libnames"]),
         Symbol(meta_obj["variable_name"]),
         String.(meta_obj["dir_paths"]),
@@ -229,7 +229,7 @@ struct ExecutableProduct <: Product
     end
     ExecutableProduct(binname::AbstractString, varname::Symbol, args...) = ExecutableProduct([string(binname)], varname, args...)
 
-    ExecutableProduct(meta_obj::Dict) = ExecutableProduct(
+    ExecutableProduct(meta_obj::Dict) = new(
         String.(meta_obj["binnames"]),
         Symbol(meta_obj["variable_name"]),
         meta_obj["dir_path"],
