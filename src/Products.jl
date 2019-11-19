@@ -112,6 +112,11 @@ struct LibraryProduct <: Product
     )
 end
 
+function Base.:(==)(a::LibraryProduct, b::LibraryProduct)
+    return a.libnames == b.libnames && a.variable_name == b.variable_name &&
+           a.dir_paths == b.dir_paths && a.dont_dlopen == b.dont_dlopen
+end
+
 function repr(p::LibraryProduct)
     libnames = repr(p.libnames)
     varname = repr(p.variable_name)
@@ -235,6 +240,10 @@ struct ExecutableProduct <: Product
         meta_obj["dir_path"],
     )
 end
+function Base.:(==)(a::ExecutableProduct, b::ExecutableProduct)
+    return a.binnames == b.binnames && a.variable_name == b.variable_name &&
+           a.dir_path == b.dir_path
+end
 
 function repr(p::ExecutableProduct)
     varname = repr(p.variable_name)
@@ -316,6 +325,7 @@ end
 
 FileProduct(path::AbstractString, variable_name::Symbol) = FileProduct([path], variable_name)
 FileProduct(meta_obj::Dict) = FileProduct(String.(meta_obj["paths"]), Symbol(meta_obj["variable_name"]))
+Base.:(==)(a::FileProduct, b::FileProduct) = a.paths == b.paths && a.variable_name == b.variable_name
 
 repr(p::FileProduct) = "FileProduct($(repr(p.paths)), $(repr(p.variable_name)))"
 
