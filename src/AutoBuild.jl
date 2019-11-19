@@ -160,20 +160,6 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Get our github authentication, and determine the username from that
         gh_auth = github_auth(;allow_anonymous=false)
         gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"]
-
-        # First, ensure the GH repo exists at all
-        try
-            # This throws if it does not exist
-            GitHub.repo(deploy_repo; auth=gh_auth)
-        catch e
-            # If it doesn't exist, create it
-            owner = GitHub.Owner("JuliaBinaryWrappers", true)
-            @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
-            GitHub.create_repo(owner, "$(src_name)_jll.jl"; auth=gh_auth)
-
-            # Initialize empty repository
-            LibGit2.init(code_dir)
-        end
     end
 
     # Build the given platforms using the given sources
@@ -216,25 +202,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             end
 
             # Check if it exists on disk, if not, clone it down
-            if !isdir(code_dir)
-                # If it does exist, clone it down:
-                @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
-                creds = LibGit2.UserPasswordCredential(
-                    deepcopy(gh_username),
-                    deepcopy(gh_auth.token),
-                )
-                try
-                    LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
-                finally
-                    Base.shred!(creds)
-                end
-            else
-                # Otherwise, hard-reset to latest master:
-                repo = LibGit2.GitRepo(code_dir)
-                LibGit2.head!(repo, LibGit2.lookup_branch(repo, "origin/master", true))
-                LibGit2.branch!(repo, "master")
-                LibGit2.reset!(repo, LibGit2.head_oid(repo), LibGit2.Consts.RESET_HARD)
-            end
+            init_jll_package(src_name; gh_org=dirname(deploy_repo), code_dir=code_dir, gh_auth=gh_auth, gh_username=gh_username)
 
             # The location the binaries will be available from
             bin_path = "https://github.com/$(deploy_repo)/releases/download/$(tag)"
@@ -763,6 +731,49 @@ function download_github_release(download_dir, repo, tag; gh_auth=github_auth(),
         download(asset["browser_download_url"], joinpath(download_dir, asset["name"]))
     end
     return assets
+end
+
+
+function init_jll_package(name;
+                          code_dir = joinpath(Pkg.depots1(), "dev", "$(name)_jll"),
+                          gh_org = "JuliaBinaryWrappers",
+                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+    # First, ensure the GH repo exists at all
+    deploy_repo = "$(gh_org)/$(name)_jll.jl"
+    try
+        # This throws if it does not exist
+        GitHub.repo(deploy_repo; auth=gh_auth)
+    catch e
+        # If it doesn't exist, create it
+        owner = GitHub.Owner(dirname(deploy_repo), true)
+        @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
+        GitHub.create_repo(owner, basename(deploy_repo); auth=gh_auth)
+
+        # Initialize empty repository
+        LibGit2.init(code_dir)
+    end
+
+    if !isdir(code_dir)
+        # If it does exist, clone it down:
+        @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
+        creds = LibGit2.UserPasswordCredential(
+            deepcopy(gh_username),
+            deepcopy(gh_auth.token),
+        )
+        try
+            LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+        finally
+            Base.shred!(creds)
+        end
+    else
+        # Otherwise, hard-reset to latest master:
+        repo = LibGit2.GitRepo(code_dir)
+        LibGit2.fetch(repo)
+        origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
+        LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
+        LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
+    end
 end
 
 function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool = false)
