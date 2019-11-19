@@ -750,7 +750,17 @@ function init_jll_package(name;
         # If it doesn't exist, create it
         owner = GitHub.Owner(dirname(deploy_repo), true)
         @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
-        GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit"); auth=gh_auth)
+        try
+            GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit"); auth=gh_auth)
+        catch create_e
+            # If creation failed, it could be because the repo was created in the meantime.
+            # Check for that; if it still doesn't exist, then freak out.  Otherwise, continue on.
+            try
+                GitHub.repo(deploy_repo; auth=gh_auth)
+            catch
+                rethrow(create_e)
+            end
+        end
     end
 
     if !isdir(code_dir)
