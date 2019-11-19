@@ -160,6 +160,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Get our github authentication, and determine the username from that
         gh_auth = github_auth(;allow_anonymous=false)
         gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"]
+
+        # We need to make sure that the JLL repo at least exists, so that we can deploy binaries to it
+        # even if we're not planning to register things to it today.
+        init_jll_package(src_name; gh_org=dirname(deploy_repo), code_dir=code_dir,
+                                   gh_auth=gh_auth, gh_username=gh_username)
     end
 
     # Build the given platforms using the given sources
@@ -200,9 +205,6 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             if verbose
                 @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
             end
-
-            # Check if it exists on disk, if not, clone it down
-            init_jll_package(src_name; gh_org=dirname(deploy_repo), code_dir=code_dir, gh_auth=gh_auth, gh_username=gh_username)
 
             # The location the binaries will be available from
             bin_path = "https://github.com/$(deploy_repo)/releases/download/$(tag)"
