@@ -200,13 +200,6 @@ end
     """
     step3_test(state)
 
-
-
-    # These technically should wait until the terminal has been put into/come out
-    # of raw mode.  We could probably detect that, but good enough for now.
-    #wait_for_menu(pty) = sleep(0.1)
-    #wait_for_non_menu(pty) = sleep(1)
-
     # Step 3 failure path (no binary in destdir -> return to build)
     state = step3_state()
     with_wizard_output(state, BinaryBuilder.step34) do ins, outs
