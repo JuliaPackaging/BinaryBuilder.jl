@@ -160,6 +160,7 @@ function step3_state()
     state.source_hashes = [libfoo_tarball_hash]
     state.name = "libfoo"
     state.version = v"1.0.0"
+    state.dependencies = String[]
 
     return state
 end
@@ -247,6 +248,26 @@ end
         call_response(ins, outs, "Return to build environment", "\e[B\r")
     end
     @test state.step == :step3
+
+
+    # Step 3 dependency download
+    state = step3_state()
+    state.dependencies = ["Zlib_jll"]
+    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+        if [[ ! -f \${libdir}/libz.\${dlext} ]]; then
+            echo "ERROR: Could not find libz.\${dlext}" >&2
+            exit 1
+        fi
+        cd libfoo
+        make install
+        exit
+        """)
+        call_response(ins, outs, "Would you like to edit this script now?", "N")
+        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
+        call_response(ins, outs, "lib/libfoo.so:", "libfoo")
+        call_response(ins, outs, "bin/fooifier:", "fooifier")
+    end
 end
 
 @testset "GitHub - authentication" begin
