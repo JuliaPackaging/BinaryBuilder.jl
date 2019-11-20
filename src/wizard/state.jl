@@ -60,11 +60,6 @@ end
 function serializeable_fields(::WizardState)
     # We can't serialize TTY's, in general.
     bad_fields = [:ins, :outs, :github_api]
-
-    # JLD2 is angry at Pkg's BinaryPlatforms for some reason
-    # https://github.com/JuliaIO/JLD2.jl/issues/154
-    # Work around by serilializing `platforms` as triplets
-    append!(bad_fields, [:platforms, :failed_platforms, :visited_platforms, :validated_platforms])
     return [f for f in fieldnames(WizardState) if !(f in bad_fields)]
 end
 
@@ -76,10 +71,6 @@ function serialize(io, x::WizardState)
 
     # For unnecessarily complicated fields (such as `x.github_api`) store the internal data raw:
     io["github_api"] = string(x.github_api.endpoint)
-    io["platforms"] = triplet.(x.platforms)
-    io["failed_platforms"] = triplet.(x.failed_platforms)
-    io["visited_platforms"] = triplet.(x.visited_platforms)
-    io["validated_platforms"] = triplet.(x.validated_platforms)
 
     # For non-serializable fields (such as `x.ins` and `x.outs`) we just recreate them in unserialize().
 end
