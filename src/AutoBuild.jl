@@ -513,21 +513,7 @@ function autobuild(dir::AbstractString,
     build_output_meta = Dict()
 
     # Resolve dependencies into PackageSpecs now, ensuring we have UUIDs for all deps
-    ctx = Pkg.Types.Context()
-    update_registry(ctx)
-    pkgspecify(name::String) = Pkg.Types.PackageSpec(;name=name)
-    pkgspecify(ps::Pkg.Types.PackageSpec) = ps
-    dependencies = pkgspecify.(dependencies)
-    Pkg.Types.registry_resolve!(ctx.env, dependencies)
-
-    # Ensure they all resolved properly
-    all_resolved = true
-    for dep in dependencies
-        if dep.uuid === nothing
-            @error("Unable to resolve $(dep.name)")
-            all_resolved = false
-        end
-    end
+    all_resolved, dependencies = resolve_jlls(dependencies)
     if !all_resolved
         error("Invalid dependency specifications!")
     end

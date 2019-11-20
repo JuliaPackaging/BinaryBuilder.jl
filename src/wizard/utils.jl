@@ -265,3 +265,32 @@ function prepare_for_deletion(prefix::String)
         end
     end
 end
+
+function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdout)
+    if isempty(dependencies)
+        return true, Pkg.Types.PackageSpec[]
+    end
+
+    # Don't clobber caller
+    dependencies = deepcopy(dependencies)
+
+    update_registry(ctx)
+    pkgspecify(name::AbstractString) = Pkg.Types.PackageSpec(;name=name)
+    pkgspecify(ps::Pkg.Types.PackageSpec) = ps
+
+    # Convert all dependencies to `PackageSpec`s
+    dependencies = pkgspecify.(dependencies)
+
+    # Resolve, returning the newly-resolved dependencies
+    dependencies = Pkg.Types.registry_resolve!(ctx.env, dependencies)
+
+    # But first, check to see if anythiny failed to resolve, and warn about it:
+    all_resolved = true
+    for dep in dependencies
+        if dep.uuid === nothing
+            warn(outs, "Unable to resolve $(dep.name)")
+            all_resolved = false
+        end
+    end
+    return all_resolved, dependencies
+end
