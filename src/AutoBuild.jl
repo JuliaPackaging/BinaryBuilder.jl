@@ -850,7 +850,7 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
                 for p in products
                     product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose)
                     if product_path === nothing
-                        error("Unable to locate $(p) within $(dest_prefix)")
+                        error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
                     end
                     products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
                     if p isa LibraryProduct
