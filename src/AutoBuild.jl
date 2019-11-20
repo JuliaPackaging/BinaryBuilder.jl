@@ -235,7 +235,9 @@ end
 function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
-            run(`ghr -replace -u $(dirname(repo)) -r $(basename(repo)) $(tag) $(path)`)
+            ghr() do ghr_path
+                run(`$ghr_path -replace -u $(dirname(repo)) -r $(basename(repo)) $(tag) $(path)`)
+            end
             return
         catch
             if verbose
