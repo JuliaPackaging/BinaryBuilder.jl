@@ -85,16 +85,25 @@ function call_response(ins, outs, question, answer; newline=true)
 end
 
 # Set the state up
-@testset "Wizard - Downloading" begin
+function step2_state()
     state = BinaryBuilder.WizardState()
     state.step = :step2
     state.platforms = [Linux(:x86_64)]
+
+    return state
+end
+
+@testset "Wizard - Downloading" begin
+    state = step2_state()
     with_wizard_output(state, BinaryBuilder.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "N")
 
         call_response(ins, outs, "Enter a name for this project", "libfoo")
+
+        # Test bad version number detection
+        call_response(ins, outs, "Enter a version number", "parse me, I dare you")
         call_response(ins, outs, "Enter a version number", "1.0.0")
     end
     # Check that the state is modified appropriately
@@ -103,9 +112,7 @@ end
 
 
     # Test two tar.gz download
-    state = BinaryBuilder.WizardState()
-    state.step = :step2
-    state.platforms = [Linux(:x86_64)]
+    state = step2_state()
     with_wizard_output(state, BinaryBuilder.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "Y")
@@ -128,9 +135,7 @@ end
 
     # Test download/install with a broken symlink that used to kill the wizard
     # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/183
-    state = BinaryBuilder.WizardState()
-    state.step = :step2
-    state.platforms = [Linux(:x86_64)]
+    state = step2_state()
     with_wizard_output(state, BinaryBuilder.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "https://github.com/staticfloat/small_bin/raw/d846f4a966883e7cc032a84acf4fa36695d05482/broken_symlink/broken_symlink.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
@@ -139,6 +144,30 @@ end
         call_response(ins, outs, "Enter a name for this project", "broken_symlink")
         call_response(ins, outs, "Enter a version number", "1.0.0")
     end
+
+    # Test failure to resolve a dependency
+    state = step2_state()
+    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "N")
+        call_response(ins, outs, "Do you require any (binary) dependencies", "Y")
+
+        call_response(ins, outs, "Enter JLL package name:", "ghr_jll")
+        call_response(ins, outs, "Would you like to provide additional dependencies?", "Y")
+        # Test auto-JLL suffixing
+        call_response(ins, outs, "Enter JLL package name:", "Zlib")
+        call_response(ins, outs, "Would you like to provide additional dependencies?", "Y")
+
+        # Test typo detection
+        call_response(ins, outs, "Enter JLL package name:", "iso_codez_jll")
+        call_response(ins, outs, "Unable to resolve", "N")
+
+        call_response(ins, outs, "Enter a name for this project", "check_deps")
+        call_response(ins, outs, "Enter a version number", "1.0.0")
+    end
+    @test length(state.dependencies) == 2
+    @test any([d.name == "ghr_jll" for d in state.dependencies])
+    @test any([d.name == "Zlib_jll" for d in state.dependencies])
 end
 
 
