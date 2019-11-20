@@ -700,7 +700,9 @@ function autobuild(dir::AbstractString,
             products_info,
         )
 
-        # Destroy the workspace
+        # Destroy the workspace, taking care to make sure that we don't run into any
+        # permissions errors while we do so.
+        prepare_for_deletion(prefix.path)
         rm(prefix.path; recursive=true)
 
         # If the whole build_path is empty, then remove it too.  If it's not, it's probably

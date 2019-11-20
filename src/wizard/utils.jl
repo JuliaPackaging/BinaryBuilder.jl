@@ -255,3 +255,13 @@ function with_logfile(f::Function, logfile::String)
         f(io)
     end
 end
+
+function prepare_for_deletion(prefix::String)
+    for (root, dirs, files) in walkdir(prefix)
+        for d in dirs
+            # Ensure that each directory is writable by by the owning user (should be us)
+            path = joinpath(root, d)
+            chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
+        end
+    end
+end
