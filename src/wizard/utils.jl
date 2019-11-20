@@ -284,11 +284,11 @@ function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdo
     # Resolve, returning the newly-resolved dependencies
     dependencies = Pkg.Types.registry_resolve!(ctx.env, dependencies)
 
-    # But first, check to see if anythiny failed to resolve, and warn about it:
+    # But first, check to see if anything failed to resolve, and warn about it:
     all_resolved = true
     for dep in dependencies
         if dep.uuid === nothing
-            warn(outs, "Unable to resolve $(dep.name)")
+            @warn("Unable to resolve $(dep.name)")
             all_resolved = false
         end
     end

@@ -165,7 +165,9 @@ end
         end
 
         # Test that `audit()` warns about an absolute path within the prefix
-        @test_warn "share/foo.conf" BinaryBuilder.audit(Prefix(build_path); verbose=true)
+        @test_logs (:warn, r"share/foo.conf contains an absolute path") match_mode=:any begin
+            BinaryBuilder.audit(Prefix(build_path); verbose=true)
+        end
     end
 end
 
@@ -237,7 +239,9 @@ end
 
             # If we audit the testdir, pretending that we're trying to build an ABI-agnostic
             # tarball, make sure it warns us about it.
-            @test_warn "links to libgfortran!" BinaryBuilder.audit(Prefix(testdir); platform=BinaryBuilder.abi_agnostic(platform), autofix=false)
+            @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
+                BinaryBuilder.audit(Prefix(testdir); platform=BinaryBuilder.abi_agnostic(platform), autofix=false)
+            end
         end
     end
 end

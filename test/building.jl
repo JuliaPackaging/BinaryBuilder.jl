@@ -199,7 +199,7 @@ end
 
 @testset "Dependency Specification" begin
     mktempdir() do build_path
-        @test_logs (:warning, r"BadDependency_jll") (:warning, r"WorseDependency_jll") match_mode=:any begin
+        @test_logs (:warn, r"BadDependency_jll") (:warn, r"WorseDependency_jll") match_mode=:any begin
             @test_throws ErrorException autobuild(
                 build_path,
                 "baddeps",

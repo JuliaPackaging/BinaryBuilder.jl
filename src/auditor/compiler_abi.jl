@@ -20,7 +20,7 @@ function detect_libgfortran_version(oh::ObjectHandle, platform::Platform)
     return detect_libgfortran_version(first(fortran_libs), platform)
 end
 
-function check_libgfortran_version(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
+function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
     libgfortran_version = nothing
     try
         libgfortran_version = detect_libgfortran_version(oh, platform)
@@ -28,13 +28,13 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; io::IO 
         if isa(e, InterruptException)
             rethrow(e)
         end
-        warn(io, "$(path(oh)) could not be scanned for libgfortran dependency!")
-        warn(io, e)
+        @warn("$(path(oh)) could not be scanned for libgfortran dependency!")
+        @warn(e)
         return true
     end
 
     if verbose && libgfortran_version != nothing
-        info(io, "$(path(oh)) locks us to libgfortran v$(libgfortran_version)")
+        @info("$(path(oh)) locks us to libgfortran v$(libgfortran_version)")
     end
 
     if compiler_abi(platform).libgfortran_version === nothing && libgfortran_version != nothing
@@ -45,7 +45,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; io::IO 
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    platforms = expand_gfortran_versions(platforms)"
-        warn(io, msg)
+        @warn(msg)
         return false
     end
     return true
@@ -79,7 +79,7 @@ function detect_libstdcxx_version(oh::ObjectHandle, platform::Platform)
     return maximum([VersionNumber(split(v, "_")[2]) for v in version_symbols])
 end
 
-function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
+function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
     libstdcxx_version = nothing
 
     try
@@ -88,13 +88,13 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; io::IO = 
         if isa(e, InterruptException)
             rethrow(e)
         end
-        warn(io, "$(path(oh)) could not be scanned for libstdcxx dependency!")
-        warn(io, e)
+        @warn("$(path(oh)) could not be scanned for libstdcxx dependency!")
+        @warn(e)
         return true
     end
 
     if verbose && libstdcxx_version != nothing
-        info(io, "$(path(oh)) locks us to libstdc++ v$(libstdcxx_version)+")
+        @info("$(path(oh)) locks us to libstdc++ v$(libstdcxx_version)+")
     end
 
     # This actually isn't critical, so we don't complain.  Yet.
@@ -135,7 +135,7 @@ std::string ABI it's using.  We do this by scanning the list of exported
 symbols, triggering off of instances of `St7__cxx11` or `_ZNSs` to give
 evidence toward a constraint on `cxx11`, `cxx03` or neither.
 """
-function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdout)
+function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
     try
         # First, if this object doesn't link against `libstdc++`, it's a `:cxxany`
         if !any(occursin("libstdc++", l) for l in ObjectFile.path.(DynamicLinks(oh)))
@@ -158,8 +158,8 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = std
         if isa(e, InterruptException)
             rethrow(e)
         end
-        warn(io, "$(path(oh)) could not be scanned for cxx11 ABI!")
-        Base.display_error(io, e, [])
+        @warn("$(path(oh)) could not be scanned for cxx11 ABI!")
+        @warn(e)
     end
     return nothing
 end
@@ -168,7 +168,7 @@ end
 function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
     # First, check the stdlibc++ string ABI to see if it is a superset of `platform`.  If it's
     # not, then we have a problem!
-    cxx_abi = detect_cxxstring_abi(oh, platform; io=io)
+    cxx_abi = detect_cxxstring_abi(oh, platform)
 
     # If no std::string symbols found, just exit out immediately
     if cxx_abi == nothing
@@ -187,7 +187,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    products = expand_cxx_versions(products)"
-        warn(io, msg)
+        @warn(msg)
         return false
     end
 
@@ -198,7 +198,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         indicates that the build system is somehow ignoring our choice of compiler, as we manually
         insert the correct compiler flags for this ABI choice!
         """, '\n' => ' '))
-        warn(io, msg)
+        @warn(msg)
         return false
     end
     return true
