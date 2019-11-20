@@ -218,7 +218,6 @@ end
         symlink("dir", joinpath(dstdir, "sym_dir2"))
 
         BinaryBuilder.unsymlink_tree(srcdir, dstdir)
-        run(`ls -la $(dstdir)`)
 
         @test isdir(dstdir)
         @test isdir(joinpath(dstdir, "dir"))
