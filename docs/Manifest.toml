@@ -15,7 +15,7 @@ version = "0.2.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilder]]
-deps = ["Base64", "GitHub", "HTTP", "InteractiveUtils", "JLD2", "JSON", "LibGit2", "Libdl", "MbedTLS", "ObjectFile", "Pkg", "PkgLicenses", "ProgressMeter", "REPL", "Random", "Registrator", "SHA", "Sockets", "Test", "VT100"]
+deps = ["Base64", "GitHub", "HTTP", "InteractiveUtils", "JLD2", "JSON", "LibGit2", "Libdl", "MbedTLS", "ObjectFile", "Pkg", "PkgLicenses", "ProgressMeter", "REPL", "Random", "Registrator", "SHA", "Sockets", "Test", "VT100", "ghr_jll"]
 path = ".."
 uuid = "12aac903-9f7c-5d81-afc2-d9565ea332ae"
 version = "0.2.0"
@@ -46,9 +46,9 @@ version = "0.8.0"
 
 [[Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "ed2c4abadf84c53d9e58510b5fc48912c2336fbb"
+git-tree-sha1 = "0caaa696071d6e7872ddf30e58ed6ec0b49954c4"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "2.2.0"
+version = "3.0.0"
 
 [[DataAPI]]
 git-tree-sha1 = "674b67f344687a88310213ddfa8a2b3c76cc4252"
@@ -119,9 +119,9 @@ version = "5.1.3"
 
 [[HTTP]]
 deps = ["Base64", "Dates", "IniFile", "MbedTLS", "Sockets"]
-git-tree-sha1 = "f1e1b417a34cf73a70cbed919915bf8f8bad1806"
+git-tree-sha1 = "5c49dab19938b119fe204fd7d7e8e174f4e9c68b"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "0.8.6"
+version = "0.8.8"
 
 [[Hiccup]]
 deps = ["MacroTools", "Test"]
@@ -145,10 +145,10 @@ uuid = "82899510-4779-5014-852e-03e436cf321d"
 version = "1.0.0"
 
 [[JLD2]]
-deps = ["CodecZlib", "DataStructures", "FileIO", "Mmap", "Printf"]
-git-tree-sha1 = "343d1ec8ae7d57a608d79ef12e9a853cbb9acd96"
+deps = ["CodecZlib", "DataStructures", "FileIO", "Mmap", "Pkg", "Printf", "UUIDs"]
+git-tree-sha1 = "034eef3b23d75c67259bfd7ec2fa6ef786dd24a7"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
-version = "0.1.3"
+version = "0.1.6"
 
 [[JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -226,9 +226,9 @@ version = "1.1.0"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "c56ecb484f286639f161e712b8311f5ab77e8d32"
+git-tree-sha1 = "a23968e107c0544aca91bfab6f7dd34de1206a54"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "0.3.8"
+version = "0.3.9"
 
 [[Pidfile]]
 deps = ["FileWatching", "Test"]
@@ -252,9 +252,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "fab12b19f198dd148ca467ac4e4f12ecd0241819"
+git-tree-sha1 = "ea1f4fa0ff5e8b771bf130d87af5b7ef400760bd"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.1.0"
+version = "1.2.0"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]
@@ -360,3 +360,9 @@ deps = ["BinaryProvider", "FileWatching", "Libdl", "Sockets", "Test"]
 git-tree-sha1 = "34e7ac2d1d59d19d0e86bde99f1f02262bfa1613"
 uuid = "c2297ded-f4af-51ae-bb23-16f91089e4e1"
 version = "1.0.0"
+
+[[ghr_jll]]
+deps = ["Libdl", "Pkg"]
+git-tree-sha1 = "a842af97ca0010aedcfd765a4dfcfe403732a929"
+uuid = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
+version = "0.13.0+0"
