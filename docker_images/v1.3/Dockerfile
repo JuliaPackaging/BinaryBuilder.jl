@@ -7,10 +7,6 @@ RUN apt-get update && apt-get install -y xz-utils bzip2 sudo git unzip
 RUN git config --global user.name "jlbuild"
 RUN git config --global user.email "juliabuildbot@gmail.com"
 
-# Install `ghr`
-RUN cd /usr/local/bin && \
-    curl -L 'https://github.com/tcnksm/ghr/releases/download/v0.13.0/ghr_v0.13.0_linux_amd64.tar.gz' -o- | tar -zx --strip-components=1
-
 # Set useful envvars
 ENV BINARYBUILDER_USE_SQUASHFS true
 ENV BINARYBUILDER_AUTOMATIC_APPLE true
