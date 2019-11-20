@@ -44,7 +44,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     # Canonicalize immediately
     prefix = Prefix(realpath(prefix.path))
     if verbose
-        info(io, "Beginning audit of $(prefix.path)")
+        @info("Beginning audit of $(prefix.path)")
     end
 
     # If this is false then it's bedtime for bonzo boy
@@ -67,20 +67,20 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
             readmeta(f) do oh
                 if !is_for_platform(oh, platform)
                     if verbose
-                        warn(io, "Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                        @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
                     end
                 else
                     # Check that the ISA isn't too high
-                    all_ok &= check_isa(oh, platform, prefix; io=io, verbose=verbose, silent=silent)
+                    all_ok &= check_isa(oh, platform, prefix; verbose=verbose, silent=silent)
                     # Check that the libgfortran version matches
-                    all_ok &= check_libgfortran_version(oh, platform; io=io, verbose=verbose)
+                    all_ok &= check_libgfortran_version(oh, platform; verbose=verbose)
                     # Check that the libstdcxx string ABI matches
-                    all_ok &= check_cxxstring_abi(oh, platform; io=io, verbose=verbose)
+                    all_ok &= check_cxxstring_abi(oh, platform; verbose=verbose)
                     # Check that this binary file's dynamic linkage works properly.  Note to always
                     # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
                     # checks to freak out a little bit.
                     all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
-                                                    io=io, platform=platform, silent=silent,
+                                                    platform=platform, silent=silent,
                                                     verbose=verbose, autofix=autofix)
                 end
             end
@@ -91,7 +91,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
             # If this isn't an actual binary file, skip it
             if verbose
-                info(io, "Skipping binary analysis of $(relpath(f, prefix.path))")
+                @info("Skipping binary analysis of $(relpath(f, prefix.path))")
             end
         end
     end
@@ -104,7 +104,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # running native, don't try to load library files from other platforms)
         if Pkg.BinaryPlatforms.platforms_match(platform, platform_key_abi())
             if verbose
-                info(io, "Checking shared library $(relpath(f, prefix.path))")
+                @info("Checking shared library $(relpath(f, prefix.path))")
             end
 
             # dlopen() this library in a separate Julia process so that if we
@@ -133,7 +133,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
                 if !silent
-                    warn(io, "$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                    @warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 end
                 all_ok = false
             end
@@ -142,11 +142,11 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # Ensure that all libraries have at least some kind of SONAME, if we're
         # on that kind of platform
         if !(platform isa Windows)
-            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix, io=io)
+            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
         end
 
         # Ensure that this library is available at its own SONAME
-        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix, io=io)
+        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
     end
 
     if platform isa Windows
@@ -170,7 +170,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         lib_dll_files =  filter(f -> valid_dl_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
         for f in lib_dll_files
             if !silent
-                warn(io, "$(relpath(f, prefix.path)) should be in `bin`!")
+                @warn("$(relpath(f, prefix.path)) should be in `bin`!")
             end
         end
 
@@ -181,7 +181,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         outside_dll_files = [f for f in shlib_files if !(f in lib_dll_files)]
         if autofix && !isempty(lib_dll_files) && isempty(outside_dll_files)
             if !silent
-                warn(io, "Simple buildsystem detected; Moving all `.dll` files to `bin`!")
+                @warn("Simple buildsystem detected; Moving all `.dll` files to `bin`!")
             end
 
             mkpath(joinpath(prefix, "bin"))
@@ -193,7 +193,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
     # Check that we're providing a license file
     if require_license
-        all_ok &= check_license(prefix, src_name; verbose=verbose, io=io, silent=silent)
+        all_ok &= check_license(prefix, src_name; verbose=verbose, silent=silent)
     end
 
     # Perform filesystem-related audit passes
@@ -201,27 +201,26 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     all_files = collect_files(prefix, predicate)
 
     # Search for absolute paths in this prefix
-    all_ok &= check_absolute_paths(prefix, all_files; io=io, silent=silent)
+    all_ok &= check_absolute_paths(prefix, all_files; silent=silent)
 
     # Search for case-sensitive ambiguities
-    all_ok &= check_case_sensitivity(prefix; io=io)
+    all_ok &= check_case_sensitivity(prefix)
     return all_ok
 end
 
 function check_isa(oh, platform, prefix;
-                   io::IO = stderr,
                    verbose::Bool = false,
                    silent::Bool = false)
     # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
     if arch(platform_for_object(oh)) in [:x86_64, :i686]
-        instruction_set = analyze_instruction_set(oh, platform; verbose=verbose, io=io)
+        instruction_set = analyze_instruction_set(oh, platform; verbose=verbose)
         if is64bit(oh) && instruction_set != :core2
             if !silent
                 msg = replace("""
                 Minimum instruction set for $(relpath(path(oh), prefix.path)) is
                 $(instruction_set), not core2 as desired.
                 """, '\n' => ' ')
-                warn(io, strip(msg))
+                @warn(strip(msg))
             end
             return false
         elseif !is64bit(oh) && instruction_set != :pentium4
@@ -230,7 +229,7 @@ function check_isa(oh, platform, prefix;
                 Minimum instruction set for $(relpath(path(oh), prefix.path)) is
                 $(instruction_set), not pentium4 as desired.
                 """, '\n' => ' ')
-                warn(io, strip(msg))
+                @warn(strip(msg))
             end
             return false
         end
@@ -239,7 +238,6 @@ function check_isa(oh, platform, prefix;
 end
 
 function check_dynamic_linkage(oh, prefix, bin_files;
-                               io::IO = stderr,
                                platform::Platform = platform_key_abi(),
                                verbose::Bool = false,
                                silent::Bool = false,
@@ -250,10 +248,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         rp = RPath(oh)
 
         if verbose
-            msg = strip("""
-            Checking $(relpath(path(oh), prefix.path)) with RPath list $(rpaths(rp))
-            """)
-            info(io, msg)
+            @info("Checking $(relpath(path(oh), prefix.path)) with RPath list $(rpaths(rp))")
         end
             
         # Look at every dynamic link, and see if we should do anything about that link...
@@ -269,7 +264,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
             if is_default_lib(libname, oh)
                 if autofix
                     if verbose
-                        info(io, "Rpathify'ing default library $(libname)")
+                        @info("Rpathify'ing default library $(libname)")
                     end
                     relink_to_rpath(prefix, platform, path(oh), libs[libname]; verbose=verbose)
                 end
@@ -288,46 +283,30 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                         new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
 
                         if verbose && new_link !== nothing
-                            msg = replace("""
-                            Linked library $(libname) has been auto-mapped to
-                            $(new_link)
-                            """, '\n' => ' ')
-                            info(io, strip(msg))
+                            @info("Linked library $(libname) has been auto-mapped to $(new_link)")
                         end
                     else
-                        msg = replace("""
-                        Linked library $(libname) could not be resolved and
-                        could not be auto-mapped
-                        """, '\n' => ' ')
                         if !silent
-                            warn(io, strip(msg))
+                            @warn("Linked library $(libname) could not be resolved and could not be auto-mapped")
                         end
                         all_ok = false
                     end
                 else
-                    msg = replace("""
-                    Linked library $(libname) could not be resolved within
-                    the given prefix
-                    """, '\n' => ' ')
                     if !silent
-                        warn(io, strip(msg))
+                        @warn("Linked library $(libname) could not be resolved within the given prefix")
                     end
                     all_ok = false
                 end
             elseif !startswith(libs[libname], prefix.path)
-                msg = replace("""
-                Linked library $(libname) (resolved path $(libs[libname]))
-                is not within the given prefix
-                """, '\n' => ' ')
                 if !silent
-                    warn(io, strip(msg))
+                    @warn("Linked library $(libname) (resolved path $(libs[libname])) is not within the given prefix")
                 end
                 all_ok = false
             end
         end
 
         if verbose && !isempty(ignored_libraries)
-            info(io, "Ignored system libraries $(join(ignored_libraries, ", "))")
+            @info("Ignored system libraries $(join(ignored_libraries, ", "))")
         end
         
         # If there is an identity mismatch (which only happens on macOS) fix it
@@ -402,25 +381,24 @@ function collapse_symlinks(files::Vector{String})
 end
 
 """
-    check_license(prefix, src_name; io::IO = stderr,
-                  verbose::Bool = false,, silent::Bool = false)
+    check_license(prefix, src_name; verbose::Bool = false,, silent::Bool = false)
 
 Check that there are license files for the project called `src_name` in the `prefix`.
 """
 function check_license(prefix::Prefix, src_name::AbstractString = "";
-                       io::IO = stderr, verbose::Bool = false, silent::Bool = false)
+                       verbose::Bool = false, silent::Bool = false)
     if verbose
-        info(io, "Checking license file")
+        @info("Checking license file")
     end
     license_dir = joinpath(prefix.path, "share", "licenses", src_name)
     if isdir(license_dir) && length(readdir(license_dir)) >= 1
         if verbose
-            info(io, "Found license file(s): " * join(readdir(license_dir), ", "))
+            @info("Found license file(s): " * join(readdir(license_dir), ", "))
         end
         return true
     else
         if !silent
-            warn(io, "Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
+            @warn("Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
         end
         # This is pretty serious; don't let us get through without a license
         return false

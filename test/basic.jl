@@ -166,10 +166,7 @@ end
 # Test that updating Yggdrasil works
 @testset "Yggdrasil" begin
     Core.eval(BinaryBuilder, :(yggdrasil_updated = false))
-    io = IOBuffer()
-    BinaryBuilder.get_yggdrasil(io=io)
-    seek(io, 0)
-    @test match(r"Yggdrasil", String(read(io))) != nothing
+    @test_logs (:info, r"Yggdrasil") BinaryBuilder.get_yggdrasil()
 end
 
 @testset "Tree symlinking" begin

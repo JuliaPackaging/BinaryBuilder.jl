@@ -1205,7 +1205,7 @@ if `verbose` is set to `true`.
 Note that this function only really makes sense for x86/x64 binaries.  Don't
 run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
 """
-function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::Bool = false, io::IO = stdout)
+function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
     # Get list of mnemonics
     mnemonics, counts = instruction_mnemonics(path(oh), platform)
 
@@ -1223,7 +1223,7 @@ function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::
             the proper instruction set internally.  Would have chosen
             $(min_isa), instead choosing $(new_min_isa).
             """, '\n' => ' ')
-            warn(io, strip(msg))
+            @warn(strip(msg))
         end
         return new_min_isa
     end
