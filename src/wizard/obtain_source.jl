@@ -339,7 +339,17 @@ function get_name_and_version(state::WizardState)
     end
 
     msg = "Enter a version number for this project:"
-    state.version = VersionNumber(nonempty_line_prompt("Version", msg; ins=state.ins, outs=state.outs))
+    while state.version === nothing
+        try
+            state.version = VersionNumber(nonempty_line_prompt("Version", msg; ins=state.ins, outs=state.outs))
+        catch e
+            if isa(e, ArgumentError)
+                println(state.outs, e.msg)
+                continue
+            end
+            rethrow(e)
+        end
+    end
 end
 
 """
