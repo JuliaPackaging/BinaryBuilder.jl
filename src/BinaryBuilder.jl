@@ -7,6 +7,7 @@ using ObjectFile
 using GitHub
 import InteractiveUtils
 using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts
+using ghr_jll
 
 # Re-export useful stuff from Pkg:
 export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi,
