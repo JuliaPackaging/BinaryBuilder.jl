@@ -28,8 +28,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn("$(path(oh)) could not be scanned for libgfortran dependency!")
-        @warn(e)
+        @warn "$(path(oh)) could not be scanned for libgfortran dependency!" exception=(e, catch_backtrace())
         return true
     end
 
@@ -88,8 +87,7 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; verbose::
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn("$(path(oh)) could not be scanned for libstdcxx dependency!")
-        @warn(e)
+        @warn "$(path(oh)) could not be scanned for libstdcxx dependency!" exception=(e, catch_backtrace())
         return true
     end
 
@@ -158,8 +156,7 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn("$(path(oh)) could not be scanned for cxx11 ABI!")
-        @warn(e)
+        @warn "$(path(oh)) could not be scanned for cxx11 ABI!" exception=(e, catch_backtrace())
     end
     return nothing
 end
