@@ -645,6 +645,8 @@ function autobuild(dir::AbstractString,
 
         dest_prefix = Prefix(joinpath(prefix.path, "destdir"))
         did_succeed = with_logfile(dest_prefix, "$(src_name).log") do io
+            # Let's start the presentations with BinaryBuilder.jl
+            write(io, "BinaryBuilder.jl version: $(get_bb_version())\n\n")
             # Get the list of compilers...
             compilers = extract_kwargs(kwargs, (:compilers,))
             # ...because we want to log all their versions.  However, we don't
