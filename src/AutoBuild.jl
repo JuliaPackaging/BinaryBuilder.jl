@@ -232,6 +232,48 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     return build_output_meta
 end
 
+"""
+    get_compilers_versions(; compilers = [:c])
+
+Return the script string that is used to print the versions of the given `compilers`.
+"""
+function get_compilers_versions(; compilers = [:c])
+    output =
+        """
+        set -x
+        """
+    if :c in compilers
+        output *=
+            """
+            cc --version
+            c++ --version
+            gcc --version
+            g++ --version
+            clang --version
+            clang++ --version
+            objc --version
+            f77 --version
+            gfortran --version
+            ld -v
+            """
+    end
+    if :go in compilers
+        output *=
+            """
+            go version
+            """
+    end
+    if :rust in compilers
+        output *=
+            """
+            rustc --version
+            rustup --version
+            cargo --version
+            """
+    end
+    return output
+end
+
 function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
@@ -603,6 +645,14 @@ function autobuild(dir::AbstractString,
 
         dest_prefix = Prefix(joinpath(prefix.path, "destdir"))
         did_succeed = with_logfile(dest_prefix, "$(src_name).log") do io
+            # Get the list of compilers...
+            compilers = extract_kwargs(kwargs, (:compilers,))
+            # ...because we want to log all their versions.  However, we don't
+            # want this to be shown in the console, so we first run this without
+            # teeing to stdout
+            run(ur, `/bin/bash -l -c $(get_compilers_versions(; compilers...))`, io;
+                verbose = verbose, tee_stream = devnull)
+            # Run the build script
             run(ur, `/bin/bash -l -c $(trapper_wrapper)`, io; verbose=verbose)
         end
         if !did_succeed
