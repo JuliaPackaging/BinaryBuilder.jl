@@ -49,9 +49,8 @@ a file exists that matches all criteria setup for that `Product`.  If `isolate`
 is set to `true`, will isolate all checks from the main Julia process in the
 event that `dlopen()`'ing a library might cause issues.
 """
-function satisfied(p::Product, prefix::Prefix; platform::Platform = platform_key_abi(),
-                               verbose::Bool = false, isolate::Bool = false)
-    return locate(p, prefix; platform=platform, verbose=verbose, isolate=isolate) != nothing
+function satisfied(p::Product, prefix::Prefix; kwargs...)
+    return locate(p, prefix; kwargs...) != nothing
 end
 
 
@@ -138,8 +137,8 @@ that the `dlopen()` test is only run if the current platform matches the given
 `platform` keyword argument, as cross-compiled libraries cannot be `dlopen()`ed
 on foreign platforms.
 """
-function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
-                platform::Platform = platform_key_abi(), isolate::Bool = true)
+function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = platform_key_abi(),
+                verbose::Bool = false, isolate::Bool = true, skip_dlopen::Bool=false, kwargs...)
     dir_paths = joinpath.(prefix.path, template.(lp.dir_paths, Ref(platform)))
     append!(dir_paths, libdirs(prefix, platform))
 
@@ -173,7 +172,7 @@ function locate(lp::LibraryProduct, prefix::Prefix; verbose::Bool = false,
                     end
 
                     # If it does, try to `dlopen()` it if the current platform is good
-                    if platforms_match(platform, platform_key_abi()) && !lp.dont_dlopen
+                    if (!lp.dont_dlopen && !skip_dlopen) && platforms_match(platform, platform_key_abi())
                         if isolate
                             # Isolated dlopen is a lot slower, but safer
                             if success(`$(Base.julia_cmd()) -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)
@@ -268,10 +267,8 @@ non-Windows platforms, it will check for the executable bit being set.  On
 Windows platforms, it will check that the file ends with ".exe", (adding it on
 automatically, if it is not already present).
 """
-function locate(ep::ExecutableProduct, prefix::Prefix;
-                platform::Platform = platform_key_abi(),
-                verbose::Bool = false,
-                isolate::Bool = false)
+function locate(ep::ExecutableProduct, prefix::Prefix; platform::Platform = platform_key_abi(),
+                verbose::Bool = false, isolate::Bool = false, kwargs...)
     for binname in ep.binnames
         # On windows, we always slap an .exe onto the end if it doesn't already
         # exist, as Windows won't execute files that don't have a .exe at the end.
@@ -341,10 +338,8 @@ we support a limited number of custom variable expansions such as `\${target}`,
 and `\${nbits}`, so that the detection of files within target-specific folders
 named things like `/lib32/i686-linux-musl` is simpler.
 """
-function locate(fp::FileProduct, prefix::Prefix;
-                 platform::Platform = platform_key_abi(),
-                 verbose::Bool = false,
-                 isolate::Bool = false)
+function locate(fp::FileProduct, prefix::Prefix; platform::Platform = platform_key_abi(),
+                verbose::Bool = false, isolate::Bool = false, kwargs...)
     for path in fp.paths
         expanded = joinpath(prefix, template(path, platform))
 

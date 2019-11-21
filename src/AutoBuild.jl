@@ -834,7 +834,7 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
                 # Determine locations of each product
                 products_info = Dict()
                 for p in products
-                    product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose)
+                    product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose, skip_dlopen=true)
                     if product_path === nothing
                         error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
                     end
