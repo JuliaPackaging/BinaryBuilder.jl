@@ -113,6 +113,18 @@ function __init__()
     end
 end
 
+function get_bb_version()
+    # Get BinaryBuilder.jl's version and git sha
+    version = Pkg.TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))["version"]
+    try
+        repo = LibGit2.GitRepo(dirname(@__DIR__))
+        gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
+        return "$(version)-$(gitsha)"
+    catch
+        return "$(version) (gitsha unavailable)"
+    end
+end
+
 """
     versioninfo()
 
@@ -122,16 +134,7 @@ function versioninfo()
     @info("Julia versioninfo(): ")
     InteractiveUtils.versioninfo()
 
-    # Get BinaryBuilder.jl's version and git sha
-    version = Pkg.TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))["version"]
-
-    try
-        repo = LibGit2.GitRepo(dirname(@__DIR__))
-        gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
-        @info("BinaryBuilder.jl version: $(version)-$(gitsha)")
-    catch
-        @info("BinaryBuilder.jl version: $(version) (gitsha unavailable)")
-    end
+    @info("BinaryBuilder.jl version: $(get_bb_version())")
 
     @static if Sys.isunix()
         @info("Kernel version: $(readchomp(`uname -r`))")
