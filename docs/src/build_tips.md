@@ -109,31 +109,35 @@ You can include local files like patches very easily by placing them within a `b
 
 ## Automatic environment variables
 
-The following environment variables are automatically set in the build environment and should be used to build the project.  Occasionally, you may need to tweak them (e.g., if you need to use GCC on macOS or FreeBSD, see the below.
+The following environment variables are automatically set in the build environment and should be used to build the project.  Occasionally, you may need to tweak them (e.g., when [using GCC on macOS and FreeBSD](@ref)).
 
 * `CC`: the C cross compiler
 * `CXX`: the C++ cross compiler
 * `FC`: the Fortran cross compiler
 * `OBJC`: the Objective-C cross compiler
-* `AR`: the archiver
-* `AS`: the assembler
-* `LD`: the linker
-* `NM`: the utility to list symbols from object files
-* `OBJDUMP`: the utility to display information from object files
-* `RANLIB`: the utility to generate index to archives
+
+The above variables point to utilities for the target environment.  To reference the utilities for the host environment either prepend `HOST` or append `_HOST`.  For example, `HOSTCC` and `CC_HOST` point to the native C compiler.
+
+These are other environment variables that you may occasionally need to set during a build
+
 * `CFLAGS`: options for the C compiler
 * `CXXFLAGS`: options for the C++ compiler
+* `CPPFLAGS`: options for the C pre-processor
 * `LDFLAGS`: options for the linker
 * `PKG_CONFIG_PATH`: a colon-separated list of directories to search for `.pc` files
 * `PKG_CONFIG_SYSROOT_DIR`: modifies `-I` and `-L` to use the directories located in target sysroot
 
 The following variables are useful to control the build script over different target systems, but are not intended to be modified by the users:
 
+* `prefix`: the path to the top-directory of where all the products should be installed.  This will be the top-directory of the generated tarball
+* `libdir`: the path to the directory where the shared libraries should be installed.  This is `${prefix}/bin` when building for Windows, `${prefix}/lib` for all other platforms
+* `bindir`: the path to the directory where the executables should be installed.  This is equivalent to `${prefix}/bin`
 * `target`: the target platform
 * `nproc`: the number of processors of the host machine, useful for parallel building (e.g., `make -j${nproc}`)
 * `nbits`: number of bits of the target architecture (usually it is either 32 or 64)
 * `proc_family`: target processor family (e.g., "intel", "power", or "arm")
-* `dlext`: extension of the shared library on the target system.  It is "dll" for Windows, "dylib" for macOS, and "so" for the other Unix systems.
+* `dlext`: extension of the shared library on the target system.  It is "dll" for Windows, "dylib" for macOS, and "so" for the other Unix systems
+* `SRC_NAME`: name of the project being built
 
 ## Using GCC on macOS and FreeBSD
 
@@ -148,3 +152,27 @@ if [[ "${target}" == *-freebsd* ]] || [[ "${target}" == *-apple-* ]]; then
     CXX=g++
 fi
 ```
+
+## Installing the license file
+
+Generated tarballs should come with the license of the library that you want to install.  If at the end of a successful build there is only one directory inside `${WORKSPACE}/srcdir`, BinaryBuilder will look into it for files with typical names for license (like `LICENSE`, `COPYRIGHT`, etc... with some combinations of extensions) and automatically install them to `${prefix}/share/licenses/${SRC_NAME}/`.  If in the final tarball there are no files in this directory a warning will be issued, to remind you to provide a license file.
+
+If the license file is not automatically installed (for example because there is more than one directory in `${WORKSPACE}/srcdir` or because the file name doesn't match the expected pattern) you have to manually install the file.  In the build script you can use the `install_license` command.  See the [Utilities in the build environment](@ref) section below.
+
+## Utilities in the build environment
+
+In addition to the standard Unix tools, in the build environment there are some extra commands provided by BinaryBuilder.  Here is a list of some of these commands:
+
+* `atomic_patch`: utility to apply patches.  It is similar to the standard `patch`, but it fails gracefully when a patch cannot be applied:
+  ```sh
+  atomic_patch -p1 /path/to/file.patch
+  ```
+* `install_license`: utility to install a file to `${prefix}/share/licenses/${SRC_NAME}`:
+  ```sh
+  install_license ${WORKSPACE}/srcdir/THIS_IS_THE_LICENSE.md
+  ```
+* `update_configure_scripts`: utility to update autoconfigure scripts.  Sometimes libraries come with out-of-date autoconfigure scripts (e.g., old `configure.guess` can't recognise `aarch64` platforms of systems using Musl C library).  Just run
+  ```sh
+  update_configure_scripts
+  ```
+  to get a newer version

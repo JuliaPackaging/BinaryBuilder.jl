@@ -2,7 +2,7 @@
 
 ### I'm having trouble compiling `<project name here>`
 
-First, make sure that you can compile that project natively on whatever platform you're attempting to compile it on.  Once you are assured of that, search around the internet to see if anyone else has run into issues cross-compiling that project for that platform.  In particular, most smaller projects should be just fine, but larger projects (and especially anything that does any kind of bootstrapping) may need some extra smarts smacked into their build system to support cross-compiling.  Finally, if you're still stuck, try reaching out for help on the `#bindeps2` channel in the JuliaLang slack.
+First, make sure that you can compile that project natively on whatever platform you're attempting to compile it on.  Once you are assured of that, search around the internet to see if anyone else has run into issues cross-compiling that project for that platform.  In particular, most smaller projects should be just fine, but larger projects (and especially anything that does any kind of bootstrapping) may need some extra smarts smacked into their build system to support cross-compiling.  Finally, if you're still stuck, try reaching out for help on the [`#binarybuilder` channel](https://julialang.slack.com/archives/C674ELDNX) in the JuliaLang slack.
 
 ### How do I use this to compile my Julia code?
 
@@ -30,8 +30,8 @@ Some linux distributions have a bug in their `overlayfs` implementation that pre
 
 ### I have to build a very small project without a Makefile, what do I have to do?
 
-What BinaryBuilder needs is to find the relevant file (shared libraries, or executables, etc...) organised under the `$prefix` directory: libraries should go to `$prefix/lib` (`$prefix/bin` on Windows), executables to `$prefix/bin`.  You may need to create those directory.  You are free to choose whether to create a simple Makefile to build the project or to do everything within the `build_tarballs.jl` script.
-When the script completes, BinaryBuilder expects to find at least one artifact _built for the expected architecture_ in either `$prefix/lib` or `$prefix/bin`.
+What BinaryBuilder needs is to find the relevant file (shared libraries, or executables, etc...) organised under the `$prefix` directory: libraries should go to `${libdir}`, executables to `${bindir}`.  You may need to create those directories.  You are free to choose whether to create a simple Makefile to build the project or to do everything within the `build_tarballs.jl` script.
+When the script completes, BinaryBuilder expects to find at least one artifact _built for the expected architecture_ in either `${libdir}` or `${bindir}`.
 Remember also that you should use the standard environment variables like `CC`, `CXX`, `CFLAGS`, `LDFLAGS` as appropriate in order to cross compile.  See the list of variables in the [Tips for Building Packages](build_tips.md) section.
 
 ### I love the wizard, but now I want to break free: can I build the tarballs without it?
