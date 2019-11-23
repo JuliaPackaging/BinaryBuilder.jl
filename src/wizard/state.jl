@@ -87,12 +87,6 @@ function unserialize(io)
     x.outs = stdout
     x.github_api = GitHub.GitHubWebAPI(HTTP.URI(io["github_api"]))
 
-    # Work around JLD2 problem with Platform objectrs
-    x.platforms = Platform[platform_key_abi(p) for p in io["platforms"]]
-    x.failed_platforms = Set(Platform[platform_key_abi(p) for p in io["failed_platforms"]])
-    x.visited_platforms = Set(Platform[platform_key_abi(p) for p in io["visited_platforms"]])
-    x.validated_platforms = Set(Platform[platform_key_abi(p) for p in io["validated_platforms"]])
-
     return x
 end
 
