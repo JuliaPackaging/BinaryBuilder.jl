@@ -144,7 +144,8 @@ function edit_script(state::WizardState, script::AbstractString)
             write(io, script)
         end
 
-        return edit_script(path, state.ins, state.outs, state.outs)
+        edit_script(path, state.ins, state.outs, state.outs)
+        return String(read(path))
     end
 end
 
