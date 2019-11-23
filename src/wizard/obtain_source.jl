@@ -258,8 +258,8 @@ function obtain_binary_deps(state::WizardState)
     printstyled(state.outs, msg, bold=true)
 
     q = "Do you require any (binary) dependencies? "
+    state.dependencies = Any[]
     if yn_prompt(state, q, :n) == :y
-        state.dependencies = Any[]
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         while true
             jll_name = nonempty_line_prompt("package name", "Enter JLL package name:"; ins=state.ins, outs=state.outs)
