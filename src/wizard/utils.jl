@@ -262,7 +262,10 @@ function prepare_for_deletion(prefix::String)
         for d in dirs
             # Ensure that each directory is writable by by the owning user (should be us)
             path = joinpath(root, d)
-            chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
+            try
+                chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
+            catch
+            end
         end
     end
 end
