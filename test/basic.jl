@@ -1,4 +1,7 @@
 ## Basic tests for simple utilities within BB
+using BinaryBuilder, Test, Pkg
+using BinaryBuilder: preferred_runner
+
 
 @testset "File Collection" begin
     temp_prefix() do prefix
@@ -161,6 +164,27 @@ end
     @test BinaryBuilder.normalize_name("foo/libfoo.tar.gz") == "libfoo"
     @test BinaryBuilder.normalize_name("foo/libfoo-2.dll") == "libfoo"
     @test BinaryBuilder.normalize_name("libfoo") == "libfoo"
+end
+
+@testset "State serialization" begin
+    state = BinaryBuilder.WizardState()
+    state.step = :step34
+    state.platforms = [Linux(:x86_64)]
+    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
+    state.source_files = ["/tmp/source.tar.gz"]
+    state.source_hashes = [bytes2hex(sha256("a"))]
+    state.name = "libfoo"
+    state.version = v"1.0.0"
+    state.dependencies = Any["Zlib_jll", Pkg.Types.PackageSpec(;name="CompilerSupportLibraries_jll")]
+    state.history = "exit 1"
+
+    io = Dict()
+    BinaryBuilder.serialize(io, state)
+    new_state = BinaryBuilder.unserialize(io)
+
+    for field in fieldnames(BinaryBuilder.WizardState)
+        @test getfield(state, field) == getfield(new_state, field)
+    end
 end
 
 # Test that updating Yggdrasil works
