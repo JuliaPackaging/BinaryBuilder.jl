@@ -3,6 +3,7 @@ import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256
 using Pkg.TOML
 import Registrator
+using RegistryTools
 
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
@@ -415,11 +416,11 @@ function register_jll(name, build_version, dependencies;
 
     # Use Registrator to push up a new `General` branch with this JLL package registered within it
     # TODO: Update our fork periodically from upstream `General`.
-    cache = Registrator.RegEdit.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
+    cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/$(gh_username)/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies))
-    reg_branch = Registrator.RegEdit.register(
+    reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
         project,
         wrapper_tree_hash;
