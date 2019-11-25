@@ -10,15 +10,42 @@ using BinaryBuilder: preferred_runner
         f_link = joinpath(prefix, "foo_link")
         touch(f)
         symlink(f, f_link)
-
+        d = joinpath(prefix, "bar")
+        d_link = joinpath(prefix, "bar_link")
+        mkpath(d)
+        symlink(d, d_link)
+        
         files = collect_files(prefix)
         @test length(files) == 2
         @test realpath(f) in files
         @test realpath(f_link) in files
+        @test !(realpath(d) in files)
+        @test !(realpath(d_link) in files)
 
         collapsed_files = collapse_symlinks(files)
         @test length(collapsed_files) == 1
         @test realpath(f) in collapsed_files
+
+        files = collect_files(prefix, exclude_dirs = false)
+        @test length(files) == 4
+        @test realpath(f) in files
+        @test realpath(f_link) in files
+        @test realpath(d) in files
+        @test realpath(d_link) in files
+
+        files = collect_files(prefix, islink)
+        @test length(files) == 1
+        @test !(realpath(f) in files)
+        @test f_link in files
+        @test !(realpath(d) in files)
+        @test !(d_link in files)
+
+        files = collect_files(prefix, islink, exclude_dirs = false)
+        @test length(files) == 2
+        @test !(realpath(f) in files)
+        @test f_link in files
+        @test !(realpath(d) in files)
+        @test d_link in files
     end
 end
 
