@@ -2,8 +2,7 @@ export build_tarballs, autobuild, print_artifacts_toml, build
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256
 using Pkg.TOML
-import Registrator
-using RegistryTools
+using RegistryTools, Registrator
 
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
@@ -414,7 +413,7 @@ function register_jll(name, build_version, dependencies;
     # Calculate tree hash of wrapper code
     wrapper_tree_hash = bytes2hex(Pkg.GitTools.tree_hash(code_dir))
 
-    # Use Registrator to push up a new `General` branch with this JLL package registered within it
+    # Use RegistryTools to push up a new `General` branch with this JLL package registered within it
     # TODO: Update our fork periodically from upstream `General`.
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/$(gh_username)/General"

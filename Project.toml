@@ -29,5 +29,6 @@ ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
 [compat]
 JLD2 = ">= 0.1.6"
+Registrator = "1"
 RegistryTools = "1"
 julia = "1.3"
