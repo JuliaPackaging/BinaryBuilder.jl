@@ -152,18 +152,18 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     if platform isa Windows
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
-        symlinks = collect_files(prefix, islink)
+        symlinks = collect_files(prefix, islink, exclude_dirs = false)
         for f in symlinks
             try
                 src_path = realpath(f)
                 if isfile(src_path) || isdir(src_path)
                     rm(f; force=true)
-                    cp(src_path, f)
+                    cp(src_path, f, follow_symlinks = true)
                 end
             catch
             end
         end
-        
+
         # If we're targeting a windows platform, check to make sure no .dll
         # files are sitting in `$prefix/lib`, as that's a no-no.  This is
         # not a fatal offense, but we'll yell about it.
@@ -250,7 +250,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         if verbose
             @info("Checking $(relpath(path(oh), prefix.path)) with RPath list $(rpaths(rp))")
         end
-            
+
         # Look at every dynamic link, and see if we should do anything about that link...
         libs = find_libraries(oh)
         ignored_libraries = String[]
@@ -308,7 +308,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         if verbose && !isempty(ignored_libraries)
             @info("Ignored system libraries $(join(ignored_libraries, ", "))")
         end
-        
+
         # If there is an identity mismatch (which only happens on macOS) fix it
         if autofix
             fix_identity_mismatch(prefix, platform, path(oh), oh; verbose=verbose)
@@ -325,7 +325,7 @@ Find all files that satisfy `predicate()` when the full path to that file is
 passed in, returning the list of file paths.
 """
 function collect_files(path::AbstractString, predicate::Function = f -> true;
-                       exclude_externalities::Bool = true)
+                       exclude_externalities::Bool = true, exclude_dirs::Bool = true)
     # Sometimes `path` doesn't actually live where we think it does, so canonicalize it immediately
     path = Pkg.Types.safe_realpath(path)
 
@@ -340,7 +340,12 @@ function collect_files(path::AbstractString, predicate::Function = f -> true;
     end
     collected = String[]
     for (root, dirs, files) in walkdir(path)
-        for f in files
+        if exclude_dirs
+            list = files
+        else
+            list = append!(files, dirs)
+        end
+        for f in list
             f_path = joinpath(root, f)
 
             if predicate(f_path)
