@@ -52,14 +52,12 @@ function import_docker_image(rootfs::CompilerShard, workspace_root::String; verb
     if verbose
         @info("Importing docker base image from $(rootfs_path) to $(docker_image(rootfs))")
     end
-    cd(rootfs_path) do
-        io = IOBuffer()
-        Tar.create(".", io)
-        run(pipeline(
-            `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`;
-            stdin=io, stdout=devnull))
-        close(io)
-    end
+    io = IOBuffer()
+    Tar.create(rootfs_path, io)
+    run(pipeline(
+        `docker import - -c $(dockerfile_cmds) $(docker_image(rootfs))`;
+        stdin=io, stdout=devnull))
+    close(io)
     unmount(rootfs, workspace_root)
     return
 end
