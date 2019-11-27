@@ -1036,7 +1036,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
             Open all libraries
             \"\"\"
             function __init__()
-                global prefix = abspath(joinpath(@__DIR__, ".."))
+                global artifact_dir = abspath(artifact"$(src_name)")
 
                 # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
@@ -1056,7 +1056,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
 
                 # Initialize $(vp)_path
                 println(io, """
-                    global $(vp)_path = abspath(joinpath(artifact"$(src_name)", $(vp)_splitpath...))
+                    global $(vp)_path = normpath(joinpath(artifact_dir, $(vp)_splitpath...))
                 """)
 
                 # If `p` is a `LibraryProduct`, dlopen() it right now!
