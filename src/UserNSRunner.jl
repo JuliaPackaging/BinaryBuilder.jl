@@ -288,29 +288,80 @@ function kernel_version_check(;verbose::Bool = false)
 end
 
 function probe_unprivileged_containers(;verbose::Bool=false)
-    # Choose and prepare our shards
-    root_shard = first(choose_shards(Linux(:x86_64; libc=:musl)))
-
     # Ensure we're not about to make fools of ourselves by trying to mount an
     # encrypted directory, which triggers kernel bugs.  :(
     check_encryption(tempdir())
 
-    return mktempdir() do tmpdir
-        try
-            # Construct an extremely simple sandbox command
-            mpath = mount(root_shard, tmpdir; verbose=verbose)
-            sandbox_cmd = `$(mpath)/sandbox --rootfs $(mpath)`
-            cmd = `$(sandbox_cmd) -- /bin/sh -c "echo hello julia"`
+    function test_sandbox(; verbose=verbose, workspace_tmpdir=false, map_shard=false)
+        # Choose and prepare our shards
+        shards = choose_shards(Linux(:x86_64; libc=:musl))
+        root_shard = first(shards)
+        other_shard = last(shards)
 
-            if verbose
-                @info("Probing for unprivileged container capability...")
+        mktempdir() do tmpdir
+            mpath = mount(root_shard, tmpdir; verbose=verbose)
+
+            workspace_flag = []
+            if workspace_tmpdir
+                mkdir(joinpath(tmpdir, "workspace"))
+                touch(joinpath(tmpdir, "workspace", "foo"))
+                workspace_flag = `--workspace $(tmpdir)/workspace:/workspace`
             end
-            oc = OutputCollector(cmd; verbose=verbose, tail_error=false)
-            return wait(oc) && merge(oc) == "hello julia\n"
-        finally
-            unmount(root_shard, tmpdir)
+
+            map_flag = []
+            if map_shard
+                shard_mpath = mount(other_shard, tmpdir; verbose=verbose)
+                map_flag = `--map $(shard_mpath):$(map_target(other_shard))`
+            end
+            try
+                cmd = `$(mpath)/sandbox --rootfs $(mpath) $(workspace_flag) $(map_flag) -- /bin/sh -c "echo hello julia"`
+                oc = OutputCollector(cmd; tail_error=false)
+                return wait(oc) && merge(oc) == "hello julia\n"
+            finally
+                unmount(root_shard, tmpdir)
+            end
         end
     end
+
+    if verbose
+        @info("Probing for unprivileged container capability...")
+    end
+
+    flags = []
+    if !test_sandbox(;verbose=verbose)
+        if verbose
+            @warn("Unable to run simple unprivileged container test")
+        end
+        return false
+    else
+        if verbose
+            @info(" * Bare-bones test passed")
+        end
+    end
+
+    if !test_sandbox(;verbose=verbose, workspace_tmpdir=true)
+        if verbose
+            @warn("Unable to mount workspaces!")
+        end
+        return false
+    else
+        if verbose
+            @info(" * Workspacing test passed")
+        end
+    end
+
+    if !test_sandbox(;verbose=verbose, map_shard=true)
+        if verbose
+            @warn("Unable to map in a compiler shard!")
+        end
+        return false
+    else
+        if verbose
+            @info(" * Shard mapping test passed")
+        end
+    end
+
+    return true
 end
 
 """
