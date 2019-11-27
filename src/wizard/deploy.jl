@@ -81,9 +81,8 @@ function yggdrasil_deploy(state::WizardState)
     build_tarballs_content = String(read(btb))
 
     return yggdrasil_deploy(
-        name,
-        version,
-        branch_name,
+        state.name,
+        state.version,
         build_tarballs_content,
     )
 end
