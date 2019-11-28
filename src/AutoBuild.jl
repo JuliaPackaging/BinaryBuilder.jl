@@ -1041,7 +1041,8 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
                 # We first need to add to LIBPATH_list the libraries provided by Julia
-                LIBPATH_list = [joinpath(Sys.BINDIR, Base.LIBDIR, "julia"), joinpath(Sys.BINDIR, Base.LIBDIR)]
+                append!.(Ref(LIBPATH_list), ([joinpath(Sys.BINDIR, Base.LIBDIR, "julia")], 
+                                             [joinpath(Sys.BINDIR, Base.LIBDIR)]))
             """)
 
             if !isempty(dependencies)
