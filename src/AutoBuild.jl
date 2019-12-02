@@ -196,16 +196,16 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     if deploy
-        if register
-            if verbose
-                @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
-            end
+        if verbose
+            @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
+        end
 
-            # The location the binaries will be available from
-            bin_path = "https://github.com/$(deploy_repo)/releases/download/$(tag)"
-            build_jll_package(src_name, build_version, code_dir, build_output_meta,
-                              dependencies, bin_path; verbose=verbose)
-            push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_repo)
+        # The location the binaries will be available from
+        bin_path = "https://github.com/$(deploy_repo)/releases/download/$(tag)"
+        build_jll_package(src_name, build_version, code_dir, build_output_meta,
+                          dependencies, bin_path; verbose=verbose)
+        push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_repo)
+        if register
 
             if verbose
                 @info("Registering new wrapper code version $(build_version)...")
