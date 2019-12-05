@@ -34,7 +34,9 @@ include("Declarative.jl")
 # downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
 function storage_dir(args::AbstractString...)
     global storage_cache
-    return joinpath(storage_cache, args...)
+    dir = joinpath(storage_cache, args...)
+    mkpath(dirname(dir))
+    return dir
 end
 ccache_dir() = storage_dir("ccache")
 
