@@ -1023,6 +1023,14 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 """)
             end
 
+            # Libraries shipped by Julia can be found in different directories,
+            # depending on the operating system and whether Julia has been built
+            # from source or it's a pre-built binary. For all OSes libraries can
+            # be found in Base.LIBDIR or Base.LIBDIR/julia, on Windows they are
+            # in Sys.BINDIR, we just add everything.
+            init_libpath = (platform isa Windows ? "Sys.BINDIR, " : "") *
+                "joinpath(Sys.BINDIR, Base.LIBDIR, \"julia\"), joinpath(Sys.BINDIR, Base.LIBDIR)"
+
             print(io, """
             \"\"\"
             Open all libraries
@@ -1033,7 +1041,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
                 # We first need to add to LIBPATH_list the libraries provided by Julia
-                append!(LIBPATH_list, [joinpath(Sys.BINDIR, Base.LIBDIR, "julia"), joinpath(Sys.BINDIR, Base.LIBDIR)])
+                append!(LIBPATH_list, [$(init_libpath)])
             """)
 
             if !isempty(dependencies)
