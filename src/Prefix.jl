@@ -46,9 +46,9 @@ function temp_prefix(func::Function)
             # Docker, on OSX at least, can only mount from certain locations by
             # default, so we ensure all our temporary directories live within
             # those locations so that they are accessible by Docker.
-            return "/tmp"
+            return realpath("/tmp")
         else
-            return tempdir()
+            return realpath(tempdir())
         end
     end
 
