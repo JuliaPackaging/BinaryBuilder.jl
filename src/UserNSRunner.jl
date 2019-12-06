@@ -318,6 +318,9 @@ function probe_unprivileged_containers(;verbose::Bool=false)
                 oc = OutputCollector(cmd; tail_error=false)
                 return wait(oc) && merge(oc) == "hello julia\n"
             finally
+                if map_shard
+                    unmount(other_shard, tmpdir)
+                end
                 unmount(root_shard, tmpdir)
             end
         end
