@@ -114,7 +114,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             if [ \${USE_CCACHE} == "true" ]; then
                 vrun ccache $(prog) "\${PRE_FLAGS[@]}" "\$@" "\${POST_FLAGS[@]}"
             else
-                vrun $(prog) \${PRE_FLAGS[@]} "\$@" "\${POST_FLAGS[@]}"
+                vrun $(prog) "\${PRE_FLAGS[@]}" "\$@" "\${POST_FLAGS[@]}"
             fi
             """)
         else
