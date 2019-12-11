@@ -91,7 +91,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
     function extract_flag(flag, val = nothing)
         for f in ARGS
-            if startswith(f, flag)
+            if f == flag || startswith(f, string(flag, "="))
                 # Check if it's just `--flag` or if it's `--flag=foo`
                 if f != flag
                     val = split(f, '=')[2]
