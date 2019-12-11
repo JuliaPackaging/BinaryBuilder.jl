@@ -58,8 +58,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
             --register=<depot>  Register into the given depot.  If no path is
                                 given, defaults to `~/.julia`.  Registration
-                                requires deployment, so using `--register`
-                                without `--deploy` is an error.
+                                requires deployment of the JLL wrapper code, so
+                                so using `--register` without `--deploy` or the
+                                more specific `--deploy-jll` is an error.
 
             --meta-json         Output a JSON representation of the given build
                                 instead of actually building.  Note that this can
