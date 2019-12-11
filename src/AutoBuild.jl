@@ -143,13 +143,14 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # If --meta-json was passed, error out if any confusing options were passed
     meta_json_stream = nothing
     if meta_json
-        for name in (:deploy, :deploy_bin, :deploy_jll, :register, :debug)
-            dash_name = replace(string(name), "_" => "-")
-            @eval begin
-                if $name
-                    error(string("Cannot specify --", dash_name, " with meta-json!"))
-                end
-            end
+        if deploy || deploy_bin || deploy_jll
+            error("Cannot specify --deploy* with --meta-json!")
+        end
+        if register
+            error("Cannot specify --register with --meta-json!")
+        end
+        if debug
+            error("Cannot specify --debug with --meta-json!")
         end
 
         # Otherwise, check to see if we're spitting it out to stdout or a file:
