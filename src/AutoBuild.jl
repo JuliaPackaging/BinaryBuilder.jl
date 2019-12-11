@@ -133,7 +133,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         error("Cannot register without deploying!")
     end
 
-    if deploy_jll
+    if deploy_bin || deploy_jll
         code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
 
         # Shove them into `kwargs` so that we are conditionally passing them along
