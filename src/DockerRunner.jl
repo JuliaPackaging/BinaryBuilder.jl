@@ -98,7 +98,7 @@ function DockerRunner(workspace_root::String;
     end
 
     # Choose the shards we're going to mount
-    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:bootstrap_list,:compilers))...)
+    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
 
     # Import docker image
     import_docker_image(shards[1], workspace_root; verbose=verbose)
