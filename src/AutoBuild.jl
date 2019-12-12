@@ -612,7 +612,7 @@ function autobuild(dir::AbstractString,
             ],
             compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
             src_name = src_name,
-            extract_kwargs(kwargs, (:preferred_gcc_version,:compilers))...,
+            extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers))...,
         )
 
         # Set up some bash traps

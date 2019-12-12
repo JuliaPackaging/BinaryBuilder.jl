@@ -56,7 +56,7 @@ function UserNSRunner(workspace_root::String;
     end
 
     # Choose the shards we're going to mount
-    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:bootstrap_list,:compilers))...)
+    shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
 	
     # Construct sandbox command to look at the location it'll be mounted under
     mpath = mount_path(shards[1], workspace_root)

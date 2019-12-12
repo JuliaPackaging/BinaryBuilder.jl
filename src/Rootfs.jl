@@ -312,6 +312,13 @@ function macos_sdk_already_installed()
     return any(artifact_exists.(macos_artifact_hashes))
 end
 
+function select_closest_version(preferred::VersionNumber, versions::Vector{VersionNumber})
+    ver_to_tuple(v) = (Int(v.major), Int(v.minor), Int(v.patch))
+    preferred = ver_to_tuple(preferred)
+    closest_idx = findmin([abs.(preferred .- ver_to_tuple(v)) for v in versions])[2]
+    return versions[closest_idx]
+end
+
 function select_gcc_version(p::Platform,
              GCC_builds::Vector{VersionNumber} = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
              preferred_gcc_version::VersionNumber = GCC_builds[1],
@@ -324,10 +331,7 @@ function select_gcc_version(p::Platform,
     end
 
     # Otherwise, choose the version that is closest to our preferred version
-    ver_to_tuple(v) = (Int(v.major), Int(v.minor), Int(v.patch))
-    pgv = ver_to_tuple(preferred_gcc_version)
-    closest_idx = findmin([abs.(pgv .- ver_to_tuple(x)) for x in GCC_builds])[2]
-    return GCC_builds[closest_idx]
+    return select_closest_version(preferred_gcc_version, GCC_builds)
 end
 
 
@@ -344,16 +348,18 @@ function choose_shards(p::Platform;
             rootfs_build::VersionNumber=v"2019.11.22",
             ps_build::VersionNumber=v"2019.11.11",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
-            LLVM_build::VersionNumber=v"8.0.0",
+            LLVM_builds::Vector{VersionNumber}=[v"6.0.1", v"7.1.0", v"8.0.1"],
             Rust_build::VersionNumber=v"1.18.3",
             Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # We prefer the oldest GCC version by default
             preferred_gcc_version::VersionNumber = GCC_builds[1],
+            preferred_llvm_version::VersionNumber = LLVM_builds[end],
         )
 
     GCC_build = select_gcc_version(p, GCC_builds, preferred_gcc_version)
+    LLVM_build = select_closest_version(preferred_llvm_version, LLVM_builds)
     # Our host platform is x86_64-linux-musl
     host_platform = Linux(:x86_64; libc=:musl)
 
