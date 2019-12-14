@@ -37,6 +37,16 @@ function print_build_tarballs(io::IO, state::WizardState)
     psrepr(ps) = "\n    PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\")"
     dependencies_string = join(map(psrepr, state.dependencies))
 
+    # Keyword arguments to `build_tarballs()`
+    kwargs_vec = String[]
+    if state.compilers != [:c] && length(state.compilers) >= 1
+        push!(kwargs_vec, "compilers = [$(join(map(x -> ":$(x)", state.compilers), ","))]")
+    end
+    kwargs = ""
+    if length(kwargs_vec) >= 1
+        kwargs = "; " * join(kwargs_vec, ",")
+    end
+
     print(io, """
     # Note that this script can accept some limited command-line arguments, run
     # `julia build_tarballs.jl --help` to see a usage message.
@@ -69,7 +79,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     ]
 
     # Build the tarballs, and possibly a `build.jl` as well.
-    build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies)
+    build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies$(kwargs))
     """)
 end
 
