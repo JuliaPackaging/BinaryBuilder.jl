@@ -1516,291 +1516,291 @@ os = "linux"
     sha256 = "76c39204a89fba3809fd61df4e0e33140b41bf66c97a878337ab80462d82755d"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v8.0.1+0/LLVMBootstrap.v8.0.1.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-aarch64-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-aarch64-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "87b4f088870a794c0debbc40d4eb1bb188fc39cc"
+git-tree-sha1 = "f0fed0569b9c1769f3bb39e923be772133c30684"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-aarch64-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "4a8c9e273f3f749303736e7b1df07fdf62d84260b9d78b300d3191b9ded438b8"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-aarch64-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-aarch64-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "728daff74f9805ef5317855959137111274c9aac8424fd354c7d6abe508d04af"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-aarch64-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-aarch64-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-aarch64-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "edfc65ffdcd06cd64bac86f2dd4473478dff68ab"
+git-tree-sha1 = "6f1075bd2ce4f386cd5b2d849ceb4f1fb7fbdbc6"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-aarch64-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "1a98151a222c32f19af4cf2896ad14a95d4087d149ab2067762139599cf1678c"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-aarch64-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-aarch64-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "753d5b85c2db0f6e8ab3dc82f6933e901db6b36b2087b50b0980481d8c0515ca"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-aarch64-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-aarch64-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-aarch64-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "ca445f2460a1f026ac9bf4e972745d989091e886"
+git-tree-sha1 = "ffb1bbd37b7b0f26dda6cf0e4fbde36b1e8be32b"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-aarch64-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "ccae9a175c161dd6f5bb752cee06c0c6d9592b6a6f01d43f1cb5800122eed2cc"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-aarch64-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-aarch64-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "8547b97cee1421cfdde4bc4d03b6b4cc815ee62fc4ce5b92300ea9b21881b79c"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-aarch64-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-aarch64-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-aarch64-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "7d38ba990804e25d794647d81a8aefdec91d523c"
+git-tree-sha1 = "4cc40d73420529e9b2e69ebfaeead5c725d5a7fd"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-aarch64-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "22c4acb0784e6d1d94b4314c1cff3afb83dc5a20d11c8bcbb04c0535cc5116dd"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-aarch64-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-aarch64-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "670321d00b93adfb955cee97f088971bd1310ff30459b3f8cb80acc8815bc2cd"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-aarch64-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-arm-linux-gnueabihf.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-arm-linux-gnueabihf.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "8228c08124970ee5ee8e08b43d6938adebf54b10"
+git-tree-sha1 = "c8bc57556d22a7ab2a3460d144f1098fc065081d"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-arm-linux-gnueabihf.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "685131aaeeb78d16763c21b3e2b1f3f663143e310c535a976a8405d70b82446d"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-arm-linux-gnueabihf.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-arm-linux-gnueabihf.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "02381e353a95c2987273d5fe2095b7159d512dfa0603831c3236609c8dccdd12"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-arm-linux-gnueabihf.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-arm-linux-gnueabihf.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-arm-linux-gnueabihf.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "9c8e8841e051bc84955485a108ae3ee4e047e2af"
+git-tree-sha1 = "f47560251e8d21977de5d95e10a6b1fe8e2b8318"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-arm-linux-gnueabihf.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "81cb799e46d8352667983277a8ae0dbf622460d659e9a0318d593a349311a846"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-arm-linux-gnueabihf.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-arm-linux-gnueabihf.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "8f6405ff4ad105eb3484064cb18f4df76a4980fb7d3a8430dbbbf7bfce7c0b41"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-arm-linux-gnueabihf.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-arm-linux-musleabihf.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-arm-linux-musleabihf.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "ce01bc8be67a984735133f2aacf51f48e05d9b7d"
+git-tree-sha1 = "3d5cbe470b3d3ab870962f7f853b9e9f95d0debd"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-arm-linux-musleabihf.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "65ad5f713705e29fcd17df1116f3cee600ca039573773e715291b59de329b8ed"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-arm-linux-musleabihf.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-arm-linux-musleabihf.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "48d0f91bd34d5540d9fb694d9ac88852d7d60d23bfd525119bf0b8473082ea1d"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-arm-linux-musleabihf.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-arm-linux-musleabihf.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-arm-linux-musleabihf.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "370bd010fccceec693b5db0c5b47f6a88ae8075f"
+git-tree-sha1 = "ef8bff7d941f234c9e298a16dfbb3a716ff263a2"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-arm-linux-musleabihf.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "7c481ce24b16d94e8a98b30db4c5992541e7571ebaad4821bc31facb79ffd7f5"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-arm-linux-musleabihf.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-arm-linux-musleabihf.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c1f485fdfb7c0b975380d79a939bbaa7a94378714c43a435e2dcb9ec2cf84d99"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-arm-linux-musleabihf.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-i686-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-i686-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "436aa504b312e4c91ae1a99b7e190975b3da95d6"
+git-tree-sha1 = "4c9d17ddd0828a7110bef801281b73fc6039e12f"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "b909fd4557ec40ebf888d171212ba895a21adbb489c2fe3cdfd62f579dc245fc"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-i686-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-i686-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "4e2e1ee863046c990adfa9c44764cb7000630d13faed1bd7d0d99778f2dc833e"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-i686-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-i686-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-i686-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "af6b61b668630f9874ab28368d171d88f67514f1"
+git-tree-sha1 = "de0be647ebff8c7d5e27f83c1c1d476f159db1cc"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "cd9aed00c76a65e824b4c33dd3311679d6c4f0537fae238ea43bd9800df3d68e"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-i686-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-i686-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "bd3e3e6b99d3e586a527d47796d3b04c49b073e69fd16b2d9b548116cce79e47"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-i686-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-i686-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-i686-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "d363eb5e83fd9e08619d4048673bb37af6737b82"
+git-tree-sha1 = "5a9cd8ea083336d60ab1ccf8bdcad25de4453c7c"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "d5fd92a4d8dcf96924b508f85d71006a0932e0ace5d93c1bc9b963ed402bcb28"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-i686-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-i686-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "47cfcc41c0a90de7eedd68379b82165a3252b8a52d724ec8007f5d6a91ff8f9a"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-i686-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-i686-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-i686-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "ad2aeedbb7414a1b2d497740106447adbb6a7f69"
+git-tree-sha1 = "a292633a8ff370a6019bac725b18d402f312f52e"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "0f6a896416d91644b2d27398e2e97d0f5b9e7848dbc39fb703f920c41d0787f4"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-i686-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-i686-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "d06396f6bda6fd149e537530a70737457adc60fbf17a1e2d7395f2cec94d9fde"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-i686-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-i686-w64-mingw32.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-i686-w64-mingw32.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "1276117a98b7de10d4b9b9259ee22a01070d0913"
+git-tree-sha1 = "008e88b690f6c5d8b02cd3fd3a67bb07df2fbb55"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-w64-mingw32.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "f9bdd32f3a37d0b3c7ee49cf2d8c35ab3b06e52c92ff86cf97538b1d55d3e4e1"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-i686-w64-mingw32.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-i686-w64-mingw32.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "da02c57a7e2d474a7257a5e6a1ccbeec8310d32b25413c3c69578f1184f171d1"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-i686-w64-mingw32.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-i686-w64-mingw32.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-i686-w64-mingw32.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "43f5c7c08e6ee853f72f3d71501a094415c69b94"
+git-tree-sha1 = "9cd5fa8f9215cb1be5556191ac816c4f94c3e89c"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-i686-w64-mingw32.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "3189eefbdfb2c8123172c0e93767d076acc94a4fb4f0ad6aac726846540680f1"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-i686-w64-mingw32.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-i686-w64-mingw32.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c94c12b7e349300978288b7481473827dfc33d97d3e4d496f55d3a460313e19b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-i686-w64-mingw32.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-powerpc64le-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-powerpc64le-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "879fb6dbbe8f4a9d56dda7bf8e743a6dbde13210"
+git-tree-sha1 = "628c313599d40790cda3c4f3cd4064467c819ceb"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-powerpc64le-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "563f3f74a9d6436f593c926644a8a3fe2d122a829e2ae15f429b90b1d20ccd8f"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-powerpc64le-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-powerpc64le-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "a41b87d374b5476ab21e5e60a9fd58888f1aec7c42157ff35a1875897b1f4608"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-powerpc64le-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-powerpc64le-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-powerpc64le-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "a41a80b4dab73b975f0d43a86137b564aff9d010"
+git-tree-sha1 = "704563542f33dbdeb4ffdaabc74b867a53435af0"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-powerpc64le-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "f1de69273a027df3cf84be891c7e7794b9ad819da167e504f33540b37c61c7c7"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-powerpc64le-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-powerpc64le-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c5f7fcb15ba4117d65e60480acda029d6b6242fe90a4c651a80ecb2579c557c6"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-powerpc64le-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-x86_64-apple-darwin14.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-x86_64-apple-darwin14.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "cdcf6c38efc0f64faf6c21c744cedfe92958209b"
+git-tree-sha1 = "3a786c248818e8470b0fcb6830fd6305102dbe2f"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-apple-darwin14.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "e8466ceefcc670c33ea09222f47122ac2053a378f6cb23f362bd429eb05ec245"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-apple-darwin14.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-x86_64-apple-darwin14.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "aacd8fb806dfafa3f4e0cfc357341343c5f6b8817a20f4abd7f1c094a39971ed"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-apple-darwin14.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-x86_64-apple-darwin14.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-x86_64-apple-darwin14.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "7fe3b83ea046ca7ddadcfe8cd3691515b06621b1"
+git-tree-sha1 = "7cbdda4c22cc61edbac766047e8d3e7cfa7e1dd9"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-apple-darwin14.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "391099c2489fa4affda200d5417f075fab54dc6d781a62c3b5d7d37c4dd42cad"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-apple-darwin14.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-x86_64-apple-darwin14.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "f651145b54a85a551483b370e614f18504eddbccb5f7ab6e9c5995ce22f1bde0"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-apple-darwin14.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-x86_64-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-x86_64-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "970e3836856b4d79d7dbde8e30448d8205e186eb"
+git-tree-sha1 = "c183fc08ceed984c0c81ceb6db8c892b852b9418"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "7257fb88417447bc0ee15bec8582616a396eb8d9405f7ef9e108447017795cc0"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-linux-gnu.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-x86_64-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "0f51320d4efc22c72e0b51337be1982699b21ab1b110ed928d64b5d0114f29c1"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-linux-gnu.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-x86_64-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-x86_64-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "5880b437d037f940210708d848003d8a96ab37b6"
+git-tree-sha1 = "6f7bd1bb60f569a25152f7086a8d3b6ef8faf57d"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "7379f63d56c6bc02835f727edbafd5d70a7a0a47f570b6b615b9d22bbfa0168e"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-linux-gnu.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-x86_64-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "ef7f2fb27b83d69faf2908b2ed72fbb9f57e068f1905161d8e04de21eeb1ac20"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-linux-gnu.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-x86_64-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-x86_64-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "11cea1264381cd7378d802a719e4ec0cc14a561d"
+git-tree-sha1 = "65a210858a43ba47262008c705e1bbb651b00340"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "391166ce01da3541f4be98de9e0a0b1477e531bde1968165489d45721664f91b"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-linux-musl.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-x86_64-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "7696511c99d41ca17daa56fd1a0af2c629535c85cedbeb9e68b7904dc97b993f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-linux-musl.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-x86_64-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-x86_64-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "1671292e86c31ca56ac8a9a37b1fb034ce9ff7f6"
+git-tree-sha1 = "f8f399e73e82803a18921de8fcb98fbd31abd99c"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "15978b56c60c0f4569fd030e405a04c2591a02baac333642f9020686705fe0f6"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-linux-musl.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-x86_64-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "c29cbdcfe5dfa0111fdfb6a3ea9138e1c1ced0d049b93e01a3ed8aeb66f90ecb"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-linux-musl.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "992dda86d99ebda17e69e5e34591e19fdcc30c9b"
+git-tree-sha1 = "6fff77cfb6a1742e230b7b57e31959bee7226304"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "2ea090db5048c773008a40b8db760a3f88929fa3a6916bb88ffbaaf253048ac1"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-unknown-freebsd11.1.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "78f04110fa33d3b0ddc3b6c4435cd319d2b8bab6ad59fb409a3f062b1d39822b"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-unknown-freebsd11.1.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "51cd394d47304c2dafe6ca64a4e2bae3e83db7a9"
+git-tree-sha1 = "ee620a20206c58470549fd32a841d7de7fa0c82b"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "3f0f77cc2078374a48e823b325e351547408b8c56b0014274d0b382082576e28"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-unknown-freebsd11.1.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-x86_64-unknown-freebsd11.1.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "f94a0bdf45242881b698b1825707ddc0c5b4df67a02e53ce142ab427652b0f6f"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-unknown-freebsd11.1.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
-[["PlatformSupport-x86_64-w64-mingw32.v2019.11.11.x86_64-linux-musl.squashfs"]]
+[["PlatformSupport-x86_64-w64-mingw32.v2019.12.16.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "b5df917e32028ac7367fe23b436420b724653ad9"
+git-tree-sha1 = "029aab2a85f33450385bbffc8cdb4819e4483b36"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-w64-mingw32.v2019.11.11.x86_64-linux-musl.squashfs".download]]
-    sha256 = "84c8057508f19ccff01f51dadd6486ad4602ae7d0a52ba40495f7e5b494e5a01"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-w64-mingw32.v2019.11.11.x86_64-linux-musl.squashfs.tar.gz"
+    [["PlatformSupport-x86_64-w64-mingw32.v2019.12.16.x86_64-linux-musl.squashfs".download]]
+    sha256 = "4d3acae2abac3fc1471f7ccf7c391a97bdf1407b36eba1289ebcd74488440d25"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-w64-mingw32.v2019.12.16.x86_64-linux-musl.squashfs.tar.gz"
 
-[["PlatformSupport-x86_64-w64-mingw32.v2019.11.11.x86_64-linux-musl.unpacked"]]
+[["PlatformSupport-x86_64-w64-mingw32.v2019.12.16.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "47a682536e8b76c4fcf46fb254f943c0a8ef01c4"
+git-tree-sha1 = "d7bfd05b984958c92a0bd9162709dc85adc998f5"
 lazy = true
 libc = "musl"
 os = "linux"
 
-    [["PlatformSupport-x86_64-w64-mingw32.v2019.11.11.x86_64-linux-musl.unpacked".download]]
-    sha256 = "e5b80d454dd20b8590fce92d6886b2fea684be34c1c54bedd1966d834118fa41"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.11.11+0/PlatformSupport-x86_64-w64-mingw32.v2019.11.11.x86_64-linux-musl.unpacked.tar.gz"
+    [["PlatformSupport-x86_64-w64-mingw32.v2019.12.16.x86_64-linux-musl.unpacked".download]]
+    sha256 = "08ce2cfd17cf347f2307a62abd98d7aeb974304a40eba9846697aff3e51ea6d4"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.16+0/PlatformSupport-x86_64-w64-mingw32.v2019.12.16.x86_64-linux-musl.unpacked.tar.gz"
 
 [["Rootfs.v2019.11.22.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
