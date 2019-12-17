@@ -8,7 +8,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
     products_string = join(map(stuff) do x
         file, kind, varname = x
-        
+
         if kind == :executable
             # It's very common that executable products are in `bin`,
             # so we special-case these to just print the basename:
@@ -26,13 +26,13 @@ function print_build_tarballs(io::IO, state::WizardState)
         end
     end,",\n    ")
 
-    deps = something(state.dependencies, String[])
-    dependencies_string = join(string.("\"", deps, "\",\n"), "\n    ")
+    psrepr(ps) = "PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\")"
+    dependencies_string = join(map(psrepr, state.dependencies), "\n    ")
 
     println(io, """
     # Note that this script can accept some limited command-line arguments, run
     # `julia build_tarballs.jl --help` to see a usage message.
-    using BinaryBuilder
+    using BinaryBuilder, Pkg
 
     name = $(repr(state.name))
     version = $(repr(state.version))
@@ -103,7 +103,7 @@ function yggdrasil_deploy(name, version, build_tarballs_content; branch_name=not
             branch_name = "wizard/$(name)-v$(version)_$(recipe_hash)"
         end
         LibGit2.branch!(repo, branch_name)
-        
+
         # Spit out the buildscript to the appropriate file:
         rel_bt_path = yggdrasil_build_tarballs_path(name)
         @info("Generating $(rel_bt_path)")
@@ -134,7 +134,7 @@ function yggdrasil_deploy(name, version, build_tarballs_content; branch_name=not
         finally
             Base.shred!(creds)
         end
-        
+
         # Open a pull request against Yggdrasil
         @info("Opening a pull request against JuliaPackaging/Yggdrasil...")
         params = Dict(
