@@ -189,7 +189,7 @@ function step3_state()
     state.source_hashes = [libfoo_tarball_hash]
     state.name = "libfoo"
     state.version = v"1.0.0"
-    state.dependencies = String[]
+    state.dependencies = typeof(Pkg.PackageSpec(name="dummy"))[]
 
     return state
 end
@@ -274,7 +274,7 @@ end
 
     # Step 3 dependency download
     state = step3_state()
-    state.dependencies = ["Zlib_jll"]
+    state.dependencies = [Pkg.PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a")]
     with_wizard_output(state, BinaryBuilder.step34) do ins, outs
         call_response(ins, outs, "\${WORKSPACE}/srcdir", """
         if [[ ! -f \${libdir}/libz.\${dlext} ]]; then

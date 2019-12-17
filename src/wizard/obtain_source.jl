@@ -258,9 +258,12 @@ function obtain_binary_deps(state::WizardState)
     printstyled(state.outs, msg, bold=true)
 
     q = "Do you require any (binary) dependencies? "
-    state.dependencies = Any[]
+    # Pkg.PackageSpec return different types in different Julia versions so...
+    state.dependencies = typeof(Pkg.PackageSpec(name="dummy"))[]
     if yn_prompt(state, q, :n) == :y
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
+        local resolved_deps
+        jll_names = []
         while true
             jll_name = nonempty_line_prompt("package name", "Enter JLL package name:"; ins=state.ins, outs=state.outs)
             if !endswith(jll_name, "_jll")
@@ -268,24 +271,26 @@ function obtain_binary_deps(state::WizardState)
             end
 
             # Check to see if this JLL package name can be resolved:
-            push!(state.dependencies, jll_name)
-            all_resolved, resolved_deps = resolve_jlls(state.dependencies, outs=state.outs)
-            state.dependencies = Any[d for d in resolved_deps]
+            push!(jll_names, jll_name)
+            all_resolved, resolved_deps = resolve_jlls(jll_names, outs=state.outs)
 
             if !all_resolved
-                pop!(state.dependencies)
+                pop!(jll_names)
                 if yn_prompt(state, "Unable to resolve \"$(jll_name)\"; enter a new one?", :y) != :y
                     break
                 else
                     continue
                 end
             end
-            
+
             q = "Would you like to provide additional dependencies? "
             if yn_prompt(state, q, :n) != :y
                 break
             end
         end
+        # jll_names contains the valid names, resolved_deps potentially contains
+        # unresolved deps so we filter them out here.
+        state.dependencies = filter(x -> x.name ∈ jll_names, resolved_deps)
     end
     println(state.outs)
 end
