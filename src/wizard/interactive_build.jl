@@ -209,6 +209,7 @@ function step3_retry(state::WizardState)
     build_path = tempname()
     mkpath(build_path)
     prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=false)
+    setup_dependencies(prefix, state.dependencies, platform)
 
     ur = preferred_runner()(
         prefix.path;
@@ -289,17 +290,7 @@ function step34(state::WizardState)
         state.source_hashes;
         verbose=false,
     )
-
-    if !isempty(state.dependencies)
-        ctx = Pkg.Types.Context()
-        update_registry(ctx)
-        pkgspecify(name::String) = Pkg.Types.PackageSpec(;name=name)
-        pkgspecify(ps::Pkg.Types.PackageSpec) = ps
-        dependencies = pkgspecify.(deepcopy(state.dependencies))
-        Pkg.Types.registry_resolve!(ctx.env, dependencies)
-
-        setup_dependencies(prefix, dependencies, platform)
-    end
+    setup_dependencies(prefix, state.dependencies, platform)
 
     provide_hints(state, joinpath(prefix.path, "srcdir"))
 
@@ -333,6 +324,7 @@ function step5_internal(state::WizardState, platform::Platform)
     while !ok
         cd(build_path) do
             prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=true)
+            setup_dependencies(prefix, state.dependencies, platform)
             ur = preferred_runner()(
                 prefix.path;
                 cwd="/workspace/srcdir",
@@ -393,6 +385,7 @@ function step5_internal(state::WizardState, platform::Platform)
                             state.source_hashes;
                             verbose=true,
                         )
+                        setup_dependencies(prefix, state.dependencies, platform)
                         ur = preferred_runner()(
                             prefix.path;
                             cwd="/workspace/srcdir",
@@ -514,6 +507,7 @@ function step5c(state::WizardState)
             state.source_hashes;
             verbose=false,
         )
+        setup_dependencies(prefix, state.dependencies, platform)
         ur = preferred_runner()(
             prefix.path;
             cwd="/workspace/srcdir",
