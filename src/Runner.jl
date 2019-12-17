@@ -441,7 +441,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         "target" => target,
         "rust_target" => map_rust_target(platform),
         "rust_host" => map_rust_target(rust_host), # use glibc since musl is broken. :( https://github.com/rust-lang/rust/issues/59302
-        "nproc" => "$(Sys.CPU_THREADS)",
+        "nproc" => "$(get(ENV, "BINARYBUILDER_NPROC", Sys.CPU_THREADS))",
         "nbits" => string(nbits(platform)),
         "proc_family" => string(proc_family(platform)),
         "dlext" => dlext(platform),
