@@ -109,7 +109,7 @@ You can include local files like patches very easily by placing them within a `b
 
 ## Automatic environment variables
 
-The following environment variables are automatically set in the build environment and should be used to build the project.  Occasionally, you may need to tweak them (e.g., when [using GCC on macOS and FreeBSD](@ref)).
+The following environment variables are automatically set in the build environment and should be used to build the project.  Occasionally, you may need to tweak them (e.g., when [Using GCC on macOS and FreeBSD](@ref)).
 
 * `CC`: the C cross compiler
 * `CXX`: the C++ cross compiler
