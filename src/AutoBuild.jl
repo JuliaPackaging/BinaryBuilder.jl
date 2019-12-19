@@ -802,7 +802,7 @@ function init_jll_package(name, code_dir, deploy_repo;
         # If it doesn't exist, create it.
         # check whether gh_org might be a user, not an organization.
         gh_org = dirname(deploy_repo)
-        isorg = GitHub.owner(gh_org).typ == "Organization"
+        isorg = GitHub.owner(gh_org; auth=gh_auth).typ == "Organization"
         owner = GitHub.Owner(gh_org, isorg)
         @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
         try
