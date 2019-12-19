@@ -305,6 +305,10 @@ function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::
 end
 
 function get_next_wrapper_version(src_name, src_version)
+    # If src_version already has a build_number, just return it immediately
+    if src_version.build != ()
+        return src_version
+    end
     ctx = Pkg.Types.Context()
 
     # Force-update the registry here, since we may have pushed a new version recently
