@@ -88,10 +88,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             """)
         end
 
-        # If we're given link-only flags, include them only if `-c` is not provided.
+        # If we're given link-only flags, include them only if `-c` or other link-disablers are not provided.
         if !isempty(link_only_flags)
             println(io)
-            println(io, "if [[ \" \$@ \" != *' -c '* ]] && [[ \" \$@ \" != *' -E '* ]] && [[ \" \$@ \" != *' -M '* ]]; then")
+            println(io, "if [[ \" \$@ \" != *' -c '* ]] && [[ \" \$@ \" != *' -E '* ]] && [[ \" \$@ \" != *' -M '* ]] && [[ \" \$@ \" != *' -fsyntax-only '* ]]; then")
             for lf in link_only_flags
                 println(io, "    POST_FLAGS+=( '$lf' )")
             end
@@ -178,7 +178,19 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
     # We do that within `clang_linker_flags()`, so that we don't get "unused argument" warnings all over the place.
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
-    clang_flags(p::MacOS) = clang_targeting_laser(p) #"$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p))"
+    function clang_flags(p::MacOS)
+        FLAGS = ""
+
+        # First, we target our platform, as usual
+        FLAGS *= " $(clang_targeting_laser(p))"
+        
+        # Next, on MacOS, we need to override the typical C++ include search paths, because it always includes
+        # the toolchain C++ headers first.  Valentin tracked this down to:
+        # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
+        FLAGS *= " -nostdinc++ -isystem /opt/$(target)/$(target)/sys-root/usr/include/c++/v1"
+        return FLAGS
+    end
+
     clang_flags(p::FreeBSD) = clang_targeting_laser(p)
     # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken)
     clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc"
