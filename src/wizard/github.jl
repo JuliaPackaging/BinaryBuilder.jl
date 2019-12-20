@@ -39,7 +39,7 @@ function obtain_token(; ins=stdin, outs=stdout, github_api=GitHub.DEFAULT_API)
         "scopes" => [
             "public_repo",
         ],
-        "note" => "BinaryBuilder.jl generated token",
+        "note" => "BinaryBuilder.jl generated token at $(now())",
         "note_url" => "https://github.com/JuliaPackaging/BinaryBuilder.jl",
         "fingerpint" => randstring(40)
     )

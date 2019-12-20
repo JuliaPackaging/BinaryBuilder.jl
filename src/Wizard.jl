@@ -7,6 +7,7 @@ import PkgLicenses
 using MbedTLS
 using JLD2
 using Pkg.BinaryPlatforms
+using Dates
 
 # It's Magic (TM)!
 export run_wizard
@@ -36,7 +37,7 @@ function load_last_wizard_state()
         return WizardState()
     end
 
-    try 
+    try
         state = jldopen(joinpath(wizard_state_dir, "wizard.state"), "r") do f
             return unserialize(f)
         end
@@ -64,7 +65,7 @@ function load_last_wizard_state()
         end
         @error(e)
     end
-    
+
     # Either something went wrong, or there was nothing interesting stored.
     # Either way, just return a blank slate.
     return WizardState()
