@@ -55,7 +55,9 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
         println(state.outs)
 
         if choice == 1
-            return step3_interactive(state, prefix, platform, ur, build_path)
+            # Link dependencies into the prefix again
+            artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
+            return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
         elseif choice == 2
             state.step = :step3
             return
@@ -183,13 +185,16 @@ script or proceed to step 4.
 """
 function step3_interactive(state::WizardState, prefix::Prefix,
                            platform::Platform,
-                           ur::Runner, build_path::AbstractString)
+                           ur::Runner, build_path::AbstractString, artifact_paths::Vector{String})
 
     if interactive_build(state, prefix, ur, build_path)
+        # Unsymlink all the deps from the dest_prefix before moving to the next step
+        cleanup_dependencies(prefix, artifact_paths)
         state.step = :step3_retry
     else
         step3_audit(state, platform, joinpath(prefix, "destdir"))
-
+        # Unsymlink all the deps from the dest_prefix before moving to the next step
+        cleanup_dependencies(prefix, artifact_paths)
         return step4(state, ur, platform, build_path, prefix)
     end
 end
@@ -209,7 +214,7 @@ function step3_retry(state::WizardState)
     build_path = tempname()
     mkpath(build_path)
     prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=false)
-    setup_dependencies(prefix, state.dependencies, platform)
+    artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
 
     ur = preferred_runner()(
         prefix.path;
@@ -221,6 +226,8 @@ function step3_retry(state::WizardState)
         run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
     end
     step3_audit(state, platform, joinpath(prefix, "destdir"))
+    # Unsymlink all the deps from the dest_prefix before moving to the next step
+    cleanup_dependencies(prefix, artifact_paths)
 
     return step4(state, ur, platform, build_path, prefix)
 end
@@ -290,7 +297,7 @@ function step34(state::WizardState)
         state.source_hashes;
         verbose=false,
     )
-    setup_dependencies(prefix, state.dependencies, platform)
+    artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
 
     provide_hints(state, joinpath(prefix.path, "srcdir"))
 
@@ -303,7 +310,7 @@ function step34(state::WizardState)
         platform=platform,
         src_name=state.name,
     )
-    return step3_interactive(state, prefix, platform, ur, build_path)
+    return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
 end
 
 function step5_internal(state::WizardState, platform::Platform)
@@ -321,10 +328,19 @@ function step5_internal(state::WizardState, platform::Platform)
     build_path = tempname()
     mkpath(build_path)
     local ok = false
+    # The code path in this function is rather complex (and unpredictable)
+    # due to the fact that the user makes the choices. Therefore we keep
+    # track of all the linked artifacts in a dictionary, and make sure to
+    # unlink them before setting up a new build prefix
+    prefix_artifacts = Dict{Prefix,Vector{String}}()
     while !ok
         cd(build_path) do
             prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=true)
-            setup_dependencies(prefix, state.dependencies, platform)
+            # Clean up artifacts in case there are some
+            cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
+            artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
+            # Record newly added artifacts for this prefix
+            prefix_artifacts[prefix] = artifact_paths
             ur = preferred_runner()(
                 prefix.path;
                 cwd="/workspace/srcdir",
@@ -385,7 +401,12 @@ function step5_internal(state::WizardState, platform::Platform)
                             state.source_hashes;
                             verbose=true,
                         )
-                        setup_dependencies(prefix, state.dependencies, platform)
+                        # Clean up artifacts in case there are some
+                        cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
+                        artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
+                        # Record newly added artifacts for this prefix
+                        prefix_artifacts[prefix] = artifact_paths
+
                         ur = preferred_runner()(
                             prefix.path;
                             cwd="/workspace/srcdir",
@@ -431,6 +452,10 @@ function step5_internal(state::WizardState, platform::Platform)
 
             println(state.outs)
         end
+    end
+    # Unsymlink all the deps from the prefixes before moving to the next step
+    for (prefix, paths) in prefix_artifacts
+        cleanup_dependencies(prefix, paths)
     end
     return ok
 end
@@ -507,7 +532,7 @@ function step5c(state::WizardState)
             state.source_hashes;
             verbose=false,
         )
-        setup_dependencies(prefix, state.dependencies, platform)
+        artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
         ur = preferred_runner()(
             prefix.path;
             cwd="/workspace/srcdir",
@@ -534,6 +559,9 @@ function step5c(state::WizardState)
             state.files;
             silent = true
         ))
+
+        # Unsymlink all the deps from the prefix before moving to the next platform
+        cleanup_dependencies(prefix, artifact_paths)
 
         print(state.outs, "[")
         if ok
