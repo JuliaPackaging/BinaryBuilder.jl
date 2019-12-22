@@ -246,7 +246,7 @@ end
 
 with_logfile(f::Function, prefix::Prefix, name::String) = with_logfile(f, joinpath(logdir(prefix), name))
 function with_logfile(f::Function, logfile::String)
-    mkpath(dirname(logfile))    
+    mkpath(dirname(logfile))
 
     # If it's already a file, remove it, as it is probably an incorrect symlink
     if isfile(logfile)
@@ -278,14 +278,19 @@ function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdo
     # Don't clobber caller
     dependencies = deepcopy(dependencies)
 
-    update_registry(ctx)
     pkgspecify(name::AbstractString) = Pkg.Types.PackageSpec(;name=name)
     pkgspecify(ps::Pkg.Types.PackageSpec) = ps
 
     # Convert all dependencies to `PackageSpec`s
     dependencies = pkgspecify.(dependencies)
 
+    # If all dependencies already have a UUID, return early
+    if all(x->x.uuid !== nothing, dependencies)
+        return true, dependencies
+    end
+
     # Resolve, returning the newly-resolved dependencies
+    update_registry(ctx)
     dependencies = Pkg.Types.registry_resolve!(ctx.env, dependencies)
 
     # But first, check to see if anything failed to resolve, and warn about it:

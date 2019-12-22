@@ -1,6 +1,6 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg
-using BinaryBuilder: preferred_runner
+using BinaryBuilder: preferred_runner, resolve_jlls
 
 
 @testset "File Collection" begin
@@ -14,7 +14,7 @@ using BinaryBuilder: preferred_runner
         d_link = joinpath(prefix, "bar_link")
         mkpath(d)
         symlink(d, d_link)
-        
+
         files = collect_files(prefix)
         @test length(files) == 2
         @test realpath(f) in files
@@ -282,4 +282,31 @@ end
         @test String(read(joinpath(dstdir, "sym_fileC"))) == "fileC\n"
         @test_throws Base.IOError realpath(joinpath(dstdir, "sym_fileB"))
     end
+end
+
+@testset "resolve_jlls" begin
+    # Deps given by name::String
+    dependencies = ["OpenSSL_jll",]
+    truefalse, resolved_deps = resolve_jlls(dependencies)
+    @test truefalse
+    @test all(x->x.uuid !== nothing, resolved_deps)
+    # Deps given by name::PackageSpec
+    dependencies = [PackageSpec(name="OpenSSL_jll"),]
+    truefalse, resolved_deps = resolve_jlls(dependencies)
+    @test truefalse
+    @test all(x->x.uuid !== nothing, resolved_deps)
+    # Deps given by (name,uuid)::PackageSpec
+    dependencies = [PackageSpec(name="OpenSSL_jll", uuid="458c3c95-2e84-50aa-8efc-19380b2a3a95"),]
+    truefalse, resolved_deps = resolve_jlls(dependencies)
+    @test truefalse
+    @test all(x->x.uuid !== nothing, resolved_deps)
+    # Deps given by combination of name::String, name::PackageSpec and (name,uuid)::PackageSpec
+    dependencies = [
+        "Zlib_jll",
+        PackageSpec(name="Bzip2_jll"),
+        PackageSpec(name="OpenSSL_jll", uuid="458c3c95-2e84-50aa-8efc-19380b2a3a95"),
+    ]
+    truefalse, resolved_deps = resolve_jlls(dependencies)
+    @test truefalse
+    @test all(x->x.uuid !== nothing, resolved_deps)
 end
