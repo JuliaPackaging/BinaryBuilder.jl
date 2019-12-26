@@ -3,7 +3,15 @@ function print_build_tarballs(io::IO, state::WizardState)
     sources_string = join(map(urlhashes) do x
         string(repr(x[1])," =>\n    ", repr(x[2]), ",\n")
     end,"\n    ")
-    platforms_string = join(state.platforms,",\n    ")
+    if Set(state.platforms) == Set(supported_platforms())
+        platforms_string = "supported_platforms()"
+    else
+        platforms_string = """
+        [
+            $(join(state.platforms,",\n    "))
+        ]
+        """
+    end
 
     stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
     products_string = join(map(stuff) do x
@@ -49,9 +57,7 @@ function print_build_tarballs(io::IO, state::WizardState)
 
     # These are the platforms we will build for by default, unless further
     # platforms are passed in on the command line
-    platforms = [
-        $(platforms_string)
-    ]
+    platforms = $(platforms_string)
 
     # The products that we will ensure are always built
     products = [
