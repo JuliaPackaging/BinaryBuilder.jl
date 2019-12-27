@@ -348,7 +348,7 @@ function choose_shards(p::Platform;
             rootfs_build::VersionNumber=v"2019.11.22",
             ps_build::VersionNumber=v"2019.12.20",
             GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
-            LLVM_builds::Vector{VersionNumber}=[v"6.0.1", v"7.1.0", v"8.0.1"],
+            LLVM_builds::Vector{VersionNumber}=[v"6.0.1", v"7.1.0", v"8.0.1", v"9.0.1"],
             Rust_build::VersionNumber=v"1.18.3",
             Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
