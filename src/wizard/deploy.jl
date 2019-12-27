@@ -1,8 +1,8 @@
 function print_build_tarballs(io::IO, state::WizardState)
     urlhashes = zip(state.source_urls, state.source_hashes)
-    sources_string = join(map(urlhashes) do x
+    sources_string = strip(join(map(urlhashes) do x
         string(repr(x[1])," =>\n    ", repr(x[2]), ",\n")
-    end,"\n    ")
+    end,"\n    "))
     platforms_string = join(state.platforms,",\n    ")
 
     stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
@@ -44,7 +44,7 @@ function print_build_tarballs(io::IO, state::WizardState)
 
     # Bash recipe for building across all platforms
     script = raw\"\"\"
-    $(state.history)
+    $(strip(state.history))
     \"\"\"
 
     # These are the platforms we will build for by default, unless further
