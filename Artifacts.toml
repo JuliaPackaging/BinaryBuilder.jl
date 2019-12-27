@@ -1516,6 +1516,28 @@ os = "linux"
     sha256 = "f577f2d4e1adcbe0871d7f56ea7285dc9bcfee7de04aadb25a8c0255b43048e9"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v8.0.1+0/LLVMBootstrap.v8.0.1.x86_64-linux-musl.unpacked.tar.gz"
 
+[["LLVMBootstrap.v9.0.1.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "ebfe91185b5c0c78355f3c72dfa81b5f4a071366"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["LLVMBootstrap.v9.0.1.x86_64-linux-musl.squashfs".download]]
+    sha256 = "93a77e38698c4745c13c7069ed68bf2f2efd082436991dae7031b0e09e85e5cb"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v9.0.1+0/LLVMBootstrap.v9.0.1.x86_64-linux-musl.squashfs.tar.gz"
+
+[["LLVMBootstrap.v9.0.1.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "d6143763e96215a9e4b4e3da94e2273dd61efdc3"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["LLVMBootstrap.v9.0.1.x86_64-linux-musl.unpacked".download]]
+    sha256 = "1fe08128e8aede8ff3f04aa07c516f49076a0dd3f08b624dabbe90fea7493f7d"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/LLVMBootstrap-v9.0.1+0/LLVMBootstrap.v9.0.1.x86_64-linux-musl.unpacked.tar.gz"
+
 [["PlatformSupport-aarch64-linux-gnu.v2019.12.20.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "2ac862018830801080f6999344ed454c6684d923"
