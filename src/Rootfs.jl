@@ -276,7 +276,7 @@ function unmount(cs::CompilerShard, build_prefix::String; verbose::Bool = false,
         end
         try
             cmd = `$(sudo_cmd()) umount $(mpath)`
-            run(cmd, (devnull, devnull, devnull))
+            run(cmd, verbose ? (devnull, stdout, stderr) : (devnull, devnull, devnull))
 
             # Remove mountpoint directory
             rm(mpath; force=true, recursive=false)
