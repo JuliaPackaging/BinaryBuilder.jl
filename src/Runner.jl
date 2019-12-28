@@ -155,7 +155,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if select_gcc_version(p).major == 4
-            FLAGS *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
+            FLAGS *= " -Wl,-syslibroot,/opt/$(triplet(p))/$(triplet(p))/sys-root"
         end
         return FLAGS
     end
@@ -169,7 +169,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if select_gcc_version(p).major == 4
-            FLAGS *= " -Wl,-syslibroot,/opt/$(target)/$(target)/sys-root"
+            FLAGS *= " -Wl,-syslibroot,/opt/$(triplet(p))/$(triplet(p))/sys-root"
         end
         return FLAGS
     end
@@ -187,25 +187,27 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # Next, on MacOS, we need to override the typical C++ include search paths, because it always includes
         # the toolchain C++ headers first.  Valentin tracked this down to:
         # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
-        FLAGS *= " -nostdinc++ -isystem /opt/$(target)/$(target)/sys-root/usr/include/c++/v1"
+        FLAGS *= " -nostdinc++ -isystem /opt/$(triplet(p))/$(triplet(p))/sys-root/usr/include/c++/v1"
         return FLAGS
     end
 
+    # On FreeBSD, our clang flags are simple
     clang_flags(p::FreeBSD) = clang_targeting_laser(p)
-    # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken)
-    clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc"
+
+    # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken,
+    # and we also need to provide `-stdlib=libstdc++` to match Julia on these platforms.)
+    clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc -stdlib=libstdc++"
 
 
     # On macos, we want to use a particular linker with clang.  But we want to avoid warnings about unused
     # flags when just compiling, so we put it into "linker-only flags".
-    clang_link_flags(p::Platform) = String[]
-    clang_link_flags(p::FreeBSD) = ["-L/opt/$(target)/$(target)/lib"]
-    clang_link_flags(p::MacOS) = ["-L/opt/$(target)/$(target)/lib", "-fuse-ld=macos"]
+    clang_link_flags(p::Platform) = String["-fuse-ld=$(triplet(p))"]
+    clang_link_flags(p::Union{FreeBSD,MacOS}) = ["-L/opt/$(triplet(p))/$(triplet(p))/lib", "-fuse-ld=$(triplet(p))"]
 
     gcc_link_flags(p::Platform) = String[]
     function gcc_link_flags(p::Linux)
         if arch(p) == :powerpc64le && select_gcc_version(p).major == 4
-            return ["-L/opt/$(target)/$(target)/sys-root/lib64", "-Wl,-rpath-link,/opt/$(target)/$(target)/sys-root/lib64"]
+            return ["-L/opt/$(triplet(p))/$(triplet(p))/sys-root/lib64", "-Wl,-rpath-link,/opt/$(triplet(p))/$(triplet(p))/sys-root/lib64"]
         end
         return String[]
     end
@@ -320,6 +322,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         write_wrapper(cpp, p, "$(t)-cpp")
         write_wrapper(cxxfilt, p, "$(t)-c++filt")
         write_wrapper(ld, p, "$(t)-ld")
+        # ld wrappers for clang's `-fuse-ld=$(target)`
+        if isa(p, MacOS)
+            write_wrapper(ld, p, "ld64.$(t)")
+        else
+            write_wrapper(ld, p, "ld.$(t)")
+        end
         write_wrapper(nm, p, "$(t)-nm")
         write_wrapper(libtool, p, "$(t)-libtool")
         write_wrapper(objcopy, p, "$(t)-objcopy")
