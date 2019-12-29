@@ -262,7 +262,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             "AR"     => "$(host_target)-ar",
             "CC"     => "$(host_target)-cc",
             "CXX"    => "$(host_target)-c++",
-            "FC"     => "$(host_target)-f77",
+            "FC"     => "$(host_target)-fc",
             "LD"     => "$(host_target)-ld",
             "NM"     => "$(host_target)-nm",
             "OBJC"   => "$(host_target)-objc",
@@ -302,6 +302,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         if :c in compilers
             write_wrapper(cc, p, "$(t)-cc")
             write_wrapper(cxx, p, "$(t)-c++")
+            write_wrapper(fc, p, "$(t)-fc")
 
             # Generate `gcc`, `g++`, `clang` and `clang++`
             write_wrapper(gcc, p, "$(t)-gcc")
@@ -385,7 +386,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     if :c in compilers
-        append!(default_tools, ("cc", "c++", "cpp", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc"))
+        append!(default_tools, ("cc", "c++", "cpp", "fc", "f77", "gfortran", "gcc", "clang", "g++", "clang++", "objc"))
     end
     if :rust in compilers
         append!(default_tools, ("rustc","rustup","cargo"))
@@ -532,7 +533,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         "CC" => "cc",
         "CXX" => "c++",
         "OBJC" => "objc",
-        "FC" => "gfortran",
+        "FC" => "fc",
         "GO" => "go",
         "RUSTC" => "rustc",
         "CARGO" => "cargo",
@@ -592,7 +593,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
             "CC" => "$(host_target)-gcc",
             "CXX" => "$(host_target)-g++",
             "DSYMUTIL" => "llvm-dsymutil",
-            "FC" => "$(host_target)-gfortran"
+            "FC" => "$(host_target)-fc"
            )
             mapping[host_map(env_name)] = tool
         end
