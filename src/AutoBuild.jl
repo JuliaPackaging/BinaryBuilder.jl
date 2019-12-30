@@ -350,7 +350,8 @@ function download_sources(sources::Vector; verbose::Bool = false)
         # If the given source is a local path that is a directory, package it up and insert it into our sources
         if typeof(sources[idx]) <: AbstractString
             if !isdir(sources[idx])
-                error("Sources must either be a pair (url => hash) or a local directory")
+                error("""Could not get source \"$(sources[idx])\".
+                      Sources must either be a pair (url => hash) or an existing local directory""")
             end
 
             # Package up this directory and calculate its hash
