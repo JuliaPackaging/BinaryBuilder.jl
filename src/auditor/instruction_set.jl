@@ -1138,7 +1138,7 @@ function instruction_mnemonics(path::AbstractString, platform::Platform)
 
     for line in eachline(output)
         # First, ensure that this line of output is 3 fields long at least
-        fields = split(line, '\t')
+        fields = filter(x -> isempty(strip(x)), split(line, '\t'))
         if length(fields) < 3
             continue
         end
