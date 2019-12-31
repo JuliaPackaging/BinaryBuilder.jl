@@ -37,7 +37,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     psrepr(ps) = "PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\")"
     dependencies_string = join(map(psrepr, state.dependencies), "\n    ")
 
-    println(io, """
+    print(io, """
     # Note that this script can accept some limited command-line arguments, run
     # `julia build_tarballs.jl --help` to see a usage message.
     using BinaryBuilder, Pkg
