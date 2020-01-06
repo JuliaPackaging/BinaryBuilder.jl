@@ -92,7 +92,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     end
 
     if verbose
-        @info("Set SOANME of $(rel_path) to \"$(soname)\"")
+        @info("Set SONAME of $(rel_path) to \"$(soname)\"")
     end
 
     return true
