@@ -320,7 +320,7 @@ function select_closest_version(preferred::VersionNumber, versions::Vector{Versi
 end
 
 function select_gcc_version(p::Platform,
-             GCC_builds::Vector{VersionNumber} = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
+             GCC_builds::Vector{VersionNumber} = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0"],
              preferred_gcc_version::VersionNumber = GCC_builds[1],
          )
     # Determine which GCC build we're going to match with this CompilerABI:
@@ -347,7 +347,7 @@ function choose_shards(p::Platform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2019.11.22",
             ps_build::VersionNumber=v"2019.12.20",
-            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0"],
+            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0"],
             LLVM_builds::Vector{VersionNumber}=[v"6.0.1", v"7.1.0", v"8.0.1", v"9.0.1"],
             Rust_build::VersionNumber=v"1.18.3",
             Go_build::VersionNumber=v"1.13",
