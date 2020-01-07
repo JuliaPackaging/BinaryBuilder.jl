@@ -1826,47 +1826,25 @@ os = "linux"
 
 [["Rootfs.v2020.1.6.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
-git-tree-sha1 = "a28523791434853832edd65b4a5015660ba54896"
+git-tree-sha1 = "248c264217c8e2d66175ae62a8aeb6e26a22eef1"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["Rootfs.v2020.1.6.x86_64-linux-musl.squashfs".download]]
-    sha256 = "16b78ca3a9bd2beee6e4e19a52a0a319e17cea431e1dfbf9f352c893bf6272fd"
+    sha256 = "df18c64a6d396d014c453cc0f3ab31ead0a696dc55dff0cc38bf101b7e6cae61"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.1.6+0/Rootfs.v2020.1.6.x86_64-linux-musl.squashfs.tar.gz"
 
 [["Rootfs.v2020.1.6.x86_64-linux-musl.unpacked"]]
 arch = "x86_64"
-git-tree-sha1 = "71b95ad3fcc9b3de82d3a1d7de2763b9d9ca87b0"
+git-tree-sha1 = "283f066e68b0148b2ab0329ea68e67cad0a77e51"
 lazy = true
 libc = "musl"
 os = "linux"
 
     [["Rootfs.v2020.1.6.x86_64-linux-musl.unpacked".download]]
-    sha256 = "9499209b4816064add5e27ee020cb5b4727aeb1eb40094b970b99ce3b7c87842"
+    sha256 = "b05be1e0130621bca70904869f633f4722ccaed3834e6cf2d8ba3dde2a572289"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.1.6+0/Rootfs.v2020.1.6.x86_64-linux-musl.unpacked.tar.gz"
-
-[["Rootfs.v2020.1.7.x86_64-linux-musl.squashfs"]]
-arch = "x86_64"
-git-tree-sha1 = "d090d25fc86f495a396f4bd7af7bbca54f0b5c10"
-lazy = true
-libc = "musl"
-os = "linux"
-
-    [["Rootfs.v2020.1.7.x86_64-linux-musl.squashfs".download]]
-    sha256 = "f4332791e4d552693c9a0a5f7c6692cf2ded8d69139c5b0078c1e38256221197"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.1.7+0/Rootfs.v2020.1.7.x86_64-linux-musl.squashfs.tar.gz"
-
-[["Rootfs.v2020.1.7.x86_64-linux-musl.unpacked"]]
-arch = "x86_64"
-git-tree-sha1 = "2e646abe9b45ce5da2884aee574025a8675d7e01"
-lazy = true
-libc = "musl"
-os = "linux"
-
-    [["Rootfs.v2020.1.7.x86_64-linux-musl.unpacked".download]]
-    sha256 = "db1e7ebc581c878d3e013e7f2fc71f460ce589039d69d2789fbd63b2e37d83ce"
-    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.1.7+0/Rootfs.v2020.1.7.x86_64-linux-musl.unpacked.tar.gz"
 
 [["RustBase.v1.18.3.x86_64-linux-gnu.squashfs"]]
 arch = "x86_64"
