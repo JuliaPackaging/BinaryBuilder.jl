@@ -40,11 +40,19 @@ function print_build_tarballs(io::IO, state::WizardState)
     # Keyword arguments to `build_tarballs()`
     kwargs_vec = String[]
     if state.compilers != [:c] && length(state.compilers) >= 1
-        push!(kwargs_vec, "compilers = [$(join(map(x -> ":$(x)", state.compilers), ","))]")
+        push!(kwargs_vec, "compilers = [$(join(map(x -> ":$(x)", state.compilers), ", "))]")
+    end
+    # Default GCC version is the oldest one
+    if state.preferred_gcc_version != available_gcc_builds[1]
+        push!(kwargs_vec, "preferred_gcc_version = v\"$(state.preferred_gcc_version)\"")
+    end
+    # Default LLVM version is the latest one
+    if state.preferred_llvm_version != available_llvm_builds[end]
+        push!(kwargs_vec, "preferred_llvm_version = v\"$(state.preferred_llvm_version)\"")
     end
     kwargs = ""
     if length(kwargs_vec) >= 1
-        kwargs = "; " * join(kwargs_vec, ",")
+        kwargs = "; " * join(kwargs_vec, ", ")
     end
 
     print(io, """

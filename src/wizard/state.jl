@@ -36,6 +36,8 @@ necessary.  It also holds all necessary metadata such as input/output streams.
     source_hashes::Union{Nothing, Vector{String}} = nothing
     dependencies::Union{Nothing, Vector} = nothing
     compilers::Union{Nothing, Vector{Symbol}} = nothing
+    preferred_gcc_version::Union{Nothing, VersionNumber} = nothing
+    preferred_llvm_version::Union{Nothing, VersionNumber} = nothing
 
     # Filled in by step 3
     history::Union{Nothing, String} = nothing

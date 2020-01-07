@@ -222,6 +222,8 @@ function step3_retry(state::WizardState)
         platform=platform,
         src_name=state.name,
         compilers=state.compilers,
+        preferred_gcc_version=state.preferred_gcc_version,
+        preferred_llvm_version=state.preferred_llvm_version,
     )
     with_logfile(joinpath(build_path, "out.log")) do io
         run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
@@ -311,6 +313,8 @@ function step34(state::WizardState)
         platform=platform,
         src_name=state.name,
         compilers=state.compilers,
+        preferred_gcc_version=state.preferred_gcc_version,
+        preferred_llvm_version=state.preferred_llvm_version,
     )
     return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
 end
@@ -349,6 +353,8 @@ function step5_internal(state::WizardState, platform::Platform)
                 platform=platform,
                 src_name=state.name,
                 compilers=state.compilers,
+                preferred_gcc_version=state.preferred_gcc_version,
+                preferred_llvm_version=state.preferred_llvm_version,
             )
             with_logfile(joinpath(build_path, "out.log")) do io
                 run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
@@ -416,6 +422,8 @@ function step5_internal(state::WizardState, platform::Platform)
                             platform=platform,
                             src_name=state.name,
                             compilers=state.compilers,
+                            preferred_gcc_version=state.preferred_gcc_version,
+                            preferred_llvm_version=state.preferred_llvm_version,
                         )
 
                         if interactive_build(state, prefix, ur, build_path;
@@ -543,6 +551,8 @@ function step5c(state::WizardState)
             platform=platform,
             src_name=state.name,
             compilers=state.compilers,
+            preferred_gcc_version=state.preferred_gcc_version,
+            preferred_llvm_version=state.preferred_llvm_version,
         )
         with_logfile(joinpath(build_path, "out.log")) do io
             run(ur, `/bin/bash -c $(state.history)`, io; verbose=false, tee_stream=state.outs)

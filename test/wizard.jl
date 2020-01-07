@@ -108,12 +108,16 @@ end
 
         # Compiler
         call_response(ins, outs, "Do you want to customize the set of compilers?", "Y")
-        call_response(ins, outs, "Select compilers for the project", "d")
+        call_response(ins, outs, "Select compilers for the project", "ad")
+        call_response(ins, outs, "Select the preferred GCC version", "\r")
+        call_response(ins, outs, "Select the preferred LLVM version", "\e[B\e[B\e[B\r")
     end
     # Check that the state is modified appropriately
     @test state.source_urls == ["http://127.0.0.1:14444/a/source.tar.gz"]
     @test state.source_hashes == [libfoo_tarball_hash]
-
+    @test Set(state.compilers) == Set([:c, :rust, :go])
+    @test state.preferred_gcc_version == BinaryBuilder.available_gcc_builds[1]
+    @test state.preferred_llvm_version == BinaryBuilder.available_llvm_builds[4]
 
     # Test two tar.gz download
     state = step2_state()
@@ -201,6 +205,8 @@ function step3_state()
     state.version = v"1.0.0"
     state.dependencies = typeof(Pkg.PackageSpec(name="dummy"))[]
     state.compilers = [:c]
+    state.preferred_gcc_version = BinaryBuilder.available_gcc_builds[1]
+    state.preferred_llvm_version = BinaryBuilder.available_llvm_builds[end]
 
     return state
 end
