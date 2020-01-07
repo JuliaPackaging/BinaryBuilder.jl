@@ -1824,6 +1824,28 @@ os = "linux"
     sha256 = "12cf3b9a673517c3bf21b6061391db1b358ab167ee4d435cd37d32175c72e5f7"
     url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/PlatformSupport-v2019.12.20+0/PlatformSupport-x86_64-w64-mingw32.v2019.12.20.x86_64-linux-musl.unpacked.tar.gz"
 
+[["Rootfs.v2020.1.6.x86_64-linux-musl.squashfs"]]
+arch = "x86_64"
+git-tree-sha1 = "a28523791434853832edd65b4a5015660ba54896"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["Rootfs.v2020.1.6.x86_64-linux-musl.squashfs".download]]
+    sha256 = "16b78ca3a9bd2beee6e4e19a52a0a319e17cea431e1dfbf9f352c893bf6272fd"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.1.6+0/Rootfs.v2020.1.6.x86_64-linux-musl.squashfs.tar.gz"
+
+[["Rootfs.v2020.1.6.x86_64-linux-musl.unpacked"]]
+arch = "x86_64"
+git-tree-sha1 = "71b95ad3fcc9b3de82d3a1d7de2763b9d9ca87b0"
+lazy = true
+libc = "musl"
+os = "linux"
+
+    [["Rootfs.v2020.1.6.x86_64-linux-musl.unpacked".download]]
+    sha256 = "9499209b4816064add5e27ee020cb5b4727aeb1eb40094b970b99ce3b7c87842"
+    url = "https://github.com/JuliaPackaging/Yggdrasil/releases/download/Rootfs-v2020.1.6+0/Rootfs.v2020.1.6.x86_64-linux-musl.unpacked.tar.gz"
+
 [["Rootfs.v2020.1.7.x86_64-linux-musl.squashfs"]]
 arch = "x86_64"
 git-tree-sha1 = "d090d25fc86f495a396f4bd7af7bbca54f0b5c10"
