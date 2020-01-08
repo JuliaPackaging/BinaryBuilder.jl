@@ -13,8 +13,8 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     # Collect all executable/library files, explicitly exclude everything that is
     # a symlink to the artifacts directory, as usual.
     destdir = joinpath(prefix, "destdir")
-    files = filter(f -> startswith(f, destdir), collapse_symlinks(collect_files(destdir)))
-    files = filter_object_files(files)
+    allfiles = filter(f -> startswith(f, destdir), collapse_symlinks(collect_files(destdir)))
+    files = filter_object_files(allfiles)
 
     # Check if we can load them as an object file
     files = filter(files) do f
@@ -23,16 +23,23 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
         end
     end
 
-    # Strip out the prefix from filenames
-    state.files = map(file->replace(file, "$(destdir)/" => ""), files)
-    state.file_kinds = map(files) do f
-        readmeta(f) do oh
-            if isexecutable(oh)
-                return :executable
-            elseif islibrary(oh)
-                return :library
-            else
-                return :other
+    if length(files) == 0
+        # Check if there are other executables
+        files = filter(f->Bool(uperm(f) & 0x1), allfiles)
+        state.files = map(file->replace(file, "$(destdir)/" => ""), files)
+        state.file_kinds = map(f->:other, files)
+    else
+        # Strip out the prefix from filenames
+        state.files = map(file->replace(file, "$(destdir)/" => ""), files)
+        state.file_kinds = map(files) do f
+            readmeta(f) do oh
+                if isexecutable(oh)
+                    return :executable
+                elseif islibrary(oh)
+                    return :library
+                else
+                    return :other
+                end
             end
         end
     end

@@ -105,8 +105,8 @@ all names were properly matched.
 function match_files(state::WizardState, prefix::Prefix,
                      platform::Platform, files::Vector; silent::Bool = false)
     # Collect all executable/library files
-    prefix_files = collapse_symlinks(collect_files(prefix))
-    prefix_files = filter_object_files(prefix_files)
+    allprefix_files = collapse_symlinks(collect_files(prefix))
+    prefix_files = filter_object_files(allprefix_files)
     # Check if we can load them as an object file
     prefix_files = filter(prefix_files) do f
         readmeta(f) do oh
@@ -118,6 +118,11 @@ function match_files(state::WizardState, prefix::Prefix,
             end
             return true
         end
+    end
+
+    # Check if there are other executables
+    if length(prefix_files) == 0
+        prefix_files = filter(f->Bool(uperm(f) & 0x1), allprefix_files)
     end
 
     norm_prefix_files = Set(map(normalize_name, prefix_files))
@@ -209,10 +214,10 @@ function print_wizard_logo(outs)
           ||\\     `" / ''--       00000004: 00000010  .
           `/_\\,-|    |            00000005: 00000001  .
               \\/     L
-               \\ ,'   \             
+               \\ ,'   \
              _/ L'   `  \          Join us in the #binarybuilder channel on the
             /  /    /   /          community slack: https://julialang.slack.com
-           /  /    |    \            
+           /  /    |    \
           "_''--_-''---__=;        https://github.com/JuliaPackaging/BinaryBuilder.jl
     """
 
