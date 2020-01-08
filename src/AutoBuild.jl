@@ -662,14 +662,9 @@ function autobuild(dir::AbstractString,
                   trap - DEBUG INT TERM ERR EXIT; \\
                   set +e +x; \\
                   echo Previous command \\\$! exited with \\\$RET >&2; \\
-                  save_srcdir; \\
                   save_env; \\
                   exit \\\$RET" \\
                 INT TERM ERR
-
-            # Swap out srcdir from underneath our feet if we've got our `ERR`
-            # traps set; if we don't have this, we get very confused.  :P
-            tmpify_srcdir
 
             # Start saving everything into our history
             trap save_history DEBUG
