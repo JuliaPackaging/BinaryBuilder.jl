@@ -629,6 +629,8 @@ function autobuild(dir::AbstractString,
         build_path = joinpath(dir, "build", triplet(platform))
         mkpath(build_path)
 
+        shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
+
         prefix = setup_workspace(
             build_path,
             src_paths,
@@ -648,6 +650,7 @@ function autobuild(dir::AbstractString,
             ],
             compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
             src_name = src_name,
+            shards = shards,
             extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers,:allow_unsafe_flags))...,
         )
 
