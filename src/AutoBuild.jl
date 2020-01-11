@@ -630,6 +630,19 @@ function autobuild(dir::AbstractString,
         mkpath(build_path)
 
         shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
+        # We want to get dependencies that have exactly the same GCC ABI as the
+        # choosen compiler, otherwise we risk, e.g., to build in an environment
+        # with libgfortran3 a dependency built with libgfortran5.
+        # `concrete_platform` is needed only to setup the dependencies and the
+        # runner.  We _don't_ want the platform passed to `audit()` or
+        # `package()` to be more specific than it is.
+        concrete_platform = platform
+        gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" && x.target.arch == platform.arch && x.target.libc == platform.libc, shards)
+        if !isnothing(gccboostrap_shard_idx)
+            libgfortran_version = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
+            cxxstring_abi = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
+            concrete_platform = replace_cxxstring_abi(replace_libgfortran_version(platform, libgfortran_version), cxxstring_abi)
+        end
 
         prefix = setup_workspace(
             build_path,
@@ -637,13 +650,13 @@ function autobuild(dir::AbstractString,
             src_hashes;
             verbose=verbose,
         )
-        artifact_paths = setup_dependencies(prefix, dependencies, platform)
+        artifact_paths = setup_dependencies(prefix, dependencies, concrete_platform)
 
         # Create a runner to work inside this workspace with the nonce built-in
         ur = preferred_runner()(
             prefix.path;
             cwd = "/workspace/srcdir",
-            platform = platform,
+            platform = concrete_platform,
             verbose = verbose,
             workspaces = [
                 joinpath(prefix, "metadir") => "/meta",
