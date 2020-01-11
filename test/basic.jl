@@ -1,6 +1,6 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg
-using BinaryBuilder: preferred_runner, resolve_jlls
+using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi
 
 
 @testset "File Collection" begin
@@ -309,4 +309,31 @@ end
     truefalse, resolved_deps = resolve_jlls(dependencies)
     @test truefalse
     @test all(x->x.uuid !== nothing, resolved_deps)
+end
+
+@testset "Rootfs" begin
+    @test_throws ErrorException CompilerShard("GCCBootstrap", v"4", Linux(:x86_64), :invalid_archive_type)
+
+    # Preferred libgfortran version and C++ string ABI
+    platform = FreeBSD(:x86_64)
+    shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+    @test preferred_libgfortran_version(platform, shard) == v"3"
+    @test preferred_cxxstring_abi(platform, shard) == :cxx03
+    shard = CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+    @test preferred_libgfortran_version(platform, shard) == v"3"
+    @test preferred_cxxstring_abi(platform, shard) == :cxx11
+    shard = CompilerShard("GCCBootstrap", v"7.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+    @test preferred_libgfortran_version(platform, shard) == v"4"
+    @test preferred_cxxstring_abi(platform, shard) == :cxx11
+    shard = CompilerShard("GCCBootstrap", v"9.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+    @test preferred_libgfortran_version(platform, shard) == v"5"
+    @test preferred_cxxstring_abi(platform, shard) == :cxx11
+    shard = CompilerShard("LLVMBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs)
+    @test_throws ErrorException preferred_libgfortran_version(platform, shard)
+    @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
+    platform = Linux(:x86_64, libc=:musl)
+    shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = MacOS(:x86_64))
+    @test_throws ErrorException preferred_libgfortran_version(platform, shard)
+    shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = Linux(:x86_64, libc=:glibc))
+    @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
 end

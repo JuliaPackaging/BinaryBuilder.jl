@@ -532,6 +532,59 @@ function expand_cxxstring_abis(ps::Vector{<:Platform})
 end
 
 """
+    preferred_libgfortran_version(platform::Platform, shard::CompilerShard)
+
+Return the libgfortran version preferred by the given platform or GCCBootstrap shard.
+"""
+function preferred_libgfortran_version(platform::Platform, shard::CompilerShard)
+    # Some input validation
+    if shard.name != "GCCBootstrap"
+        error("Shard must be `GCCBootstrap`")
+    end
+    if shard.target.arch != platform.arch || shard.target.libc != platform.libc
+        error("Incompatible platform and shard target")
+    end
+
+    if compiler_abi(platform).libgfortran_version != nothing
+        # Here we can't use `shard.target` because the shard always has the
+        # target as ABI-agnostic, thus we have also to ask for the platform.
+        return compiler_abi(platform).libgfortran_version
+    elseif shard.version < v"7"
+        return v"3"
+    elseif v"7" <= shard.version < v"8"
+        return v"4"
+    else
+        return v"5"
+    end
+end
+
+"""
+    preferred_cxxstring_abi(platform::Platform, shard::CompilerShard)
+
+Return the C++ string ABI preferred by the given platform or GCCBootstrap shard.
+"""
+function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard)
+    # Some input validation
+    if shard.name != "GCCBootstrap"
+        error("Shard must be `GCCBootstrap`")
+    end
+    if shard.target.arch != platform.arch || shard.target.libc != platform.libc
+        error("Incompatible platform and shard target")
+    end
+
+    if compiler_abi(platform).cxxstring_abi != nothing
+        # Here we can't use `shard.target` because the shard always has the
+        # target as ABI-agnostic, thus we have also to ask for the platform.
+        return compiler_abi(platform).cxxstring_abi
+    elseif shard.version < v"5"
+        return :cxx03
+    else
+        return :cxx11
+    end
+end
+
+
+"""
     download_all_shards(; verbose::Bool=false)
 
 Helper function to download all shards/helper binaries so that no matter what
