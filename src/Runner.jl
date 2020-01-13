@@ -46,7 +46,9 @@ and even simple programs will not compile without them.
 function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
                                      host_platform::Platform = Linux(:x86_64; libc=:musl),
                                      rust_platform::Platform = Linux(:x86_64; libc=:glibc),
-                                     compilers::Vector{Symbol} = [:c])
+                                     compilers::Vector{Symbol} = [:c],
+                                     allow_unsafe_flags::Bool = false,
+                                     )
     global use_ccache
 
     # Wipe that directory out, in case it already had compiler wrappers
@@ -66,7 +68,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                      hash_args::Bool = false,
                      extra_cmds::String = "",
                      link_only_flags::Vector = String[],
-                     env::Dict{String,String} = Dict{String,String}())
+                     env::Dict{String,String} = Dict{String,String}(),
+                     unsafe_flags = String[])
         write(io, """
         #!/bin/bash
         # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
@@ -107,6 +110,16 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         for (name, val) in env
             write(io, "export $(name)=\"$(val)\"\n")
+        end
+
+        if length(unsafe_flags) >= 1
+            write(io, """
+            if [[ \"\$@\" =~ \"$(join(unsafe_flags, "\"|\""))\" ]]; then
+                echo -e \"You used one or more of the unsafe flags: $(join(unsafe_flags, ", "))\\nPlease repent.\" >&2
+                exit 1
+            fi
+            """)
+            println(io)
         end
 
         if allow_ccache
@@ -213,9 +226,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # C/C++/Fortran
-    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p))
-    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p))
-    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false)
+    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
     clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
     clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
     objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
