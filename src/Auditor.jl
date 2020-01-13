@@ -124,8 +124,8 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 end
             """
             try
-                p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
-                wait(p)
+                p = run(`$(Base.julia_cmd()) -e $dlopen_cmd`,
+                        verbose ? (devnull, stdout, stderr) : (devnull, devnull, devnull))
                 if p.exitcode != 0
                     throw("Invalid exit code!")
                 end
