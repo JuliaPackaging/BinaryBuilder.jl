@@ -6,6 +6,7 @@ include("auditor/symlink_translator.jl")
 include("auditor/compiler_abi.jl")
 include("auditor/soname_matching.jl")
 include("auditor/filesystems.jl")
+include("auditor/extra_checks.jl")
 
 # AUDITOR TODO LIST:
 #
@@ -82,6 +83,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
                                                     platform=platform, silent=silent,
                                                     verbose=verbose, autofix=autofix)
+                    all_ok &= check_os_abi(oh, platform, verbose = verbose)
                 end
             end
         catch e
