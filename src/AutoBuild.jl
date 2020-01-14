@@ -224,7 +224,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
         build_jll_package(src_name, build_version, code_dir, build_output_meta,
-                          dependencies, bin_path; verbose=verbose)
+                          dependencies, bin_path; verbose=verbose,
+                          extract_kwargs(kwargs, (:lazy_artifacts,))...,
+                          )
         push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_repo)
         if register
             if verbose
@@ -544,6 +546,8 @@ here are the relevant actors, broken down in brief:
 * `require_license` enables a special audit pass that requires licenses to be
    installed by all packages.
 
+* `lazy_artifacts` sets whether the artifacts should be lazy.
+
 * `meta_json_stream`: If this is set to an IOStream, do not actually build, just
    output a JSON representation of all the metadata about this build to the stream.
 """
@@ -562,6 +566,7 @@ function autobuild(dir::AbstractString,
                    autofix::Bool = true,
                    code_dir::Union{String,Nothing} = nothing,
                    require_license::Bool = true,
+                   lazy_artifacts::Bool = false,
                    meta_json_stream = nothing,
                    kwargs...)
     # If they've asked for the JSON metadata, by all means, give it to them!
@@ -577,6 +582,7 @@ function autobuild(dir::AbstractString,
             "platforms" => triplet.(platforms),
             "products" => products,
             "dependencies" => dep_name.(dependencies),
+            "lazy_artifacts" => lazy_artifacts,
         )))
         return Dict()
     end
@@ -867,7 +873,7 @@ function init_jll_package(name, code_dir, deploy_repo;
     end
 end
 
-function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool = false)
+function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool = false, lazy_artifacts::Bool = false)
     if build_version === nothing
         build_version = BinaryBuilder.get_next_wrapper_version(obj["name"], obj["version"])
     end
@@ -878,6 +884,7 @@ function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool 
         obj["products"],
         obj["dependencies"],
         verbose=verbose,
+        lazy_artifacts = lazy_artifacts,
     )
 end
 
@@ -885,7 +892,7 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
                               platforms::Vector, products::Vector, dependencies::Vector;
                               gh_org::String = "JuliaBinaryWrappers",
                               code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
-                              verbose::Bool = false)
+                              verbose::Bool = false, lazy_artifacts::Bool = false)
     repo = "$(gh_org)/$(name)_jll.jl"
     tag = "$(name)-v$(build_version)"
     bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
@@ -948,13 +955,13 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
         end
 
         # Finally, generate the full JLL package
-        build_jll_package(name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose)
+        build_jll_package(name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose, lazy_artifacts=lazy_artifacts)
     end
 end
 
 function build_jll_package(src_name::String, build_version::VersionNumber, code_dir::String,
                            build_output_meta::Dict, dependencies::Vector, bin_path::String;
-                           verbose::Bool = false)
+                           verbose::Bool = false, lazy_artifacts::Bool = false)
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
@@ -973,7 +980,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         download_info = Tuple[
             (joinpath(bin_path, basename(tarball_name)), tarball_hash),
         ]
-        bind_artifact!(artifacts_toml, src_name, git_hash; platform=platform, download_info=download_info, force=true)
+        bind_artifact!(artifacts_toml, src_name, git_hash; platform=platform, download_info=download_info, force=true, lazy=lazy_artifacts)
 
         # Generate the platform-specific wrapper code
         open(joinpath(code_dir, "src", "wrappers", "$(triplet(platform)).jl"), "w") do io
