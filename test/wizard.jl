@@ -105,11 +105,19 @@ end
         # Test bad version number detection
         call_response(ins, outs, "Enter a version number", "parse me, I dare you")
         call_response(ins, outs, "Enter a version number", "1.0.0")
+
+        # Compiler
+        call_response(ins, outs, "Do you want to customize the set of compilers?", "Y")
+        call_response(ins, outs, "Select compilers for the project", "ad")
+        call_response(ins, outs, "Select the preferred GCC version", "\r")
+        call_response(ins, outs, "Select the preferred LLVM version", "\e[B\e[B\e[B\r")
     end
     # Check that the state is modified appropriately
     @test state.source_urls == ["http://127.0.0.1:14444/a/source.tar.gz"]
     @test state.source_hashes == [libfoo_tarball_hash]
-
+    @test Set(state.compilers) == Set([:c, :rust, :go])
+    @test state.preferred_gcc_version == BinaryBuilder.available_gcc_builds[1]
+    @test state.preferred_llvm_version == BinaryBuilder.available_llvm_builds[4]
 
     # Test two tar.gz download
     state = step2_state()
@@ -122,6 +130,8 @@ end
 
         call_response(ins, outs, "Enter a name for this project", "libfoo")
         call_response(ins, outs, "Enter a version number", "1.0.0")
+
+        call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
     end
     # Check that the state is modified appropriately
     @test state.source_urls == [
@@ -143,6 +153,8 @@ end
 
         call_response(ins, outs, "Enter a name for this project", "broken_symlink")
         call_response(ins, outs, "Enter a version number", "1.0.0")
+
+        call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
     end
 
     # Test failure to resolve a dependency
@@ -164,6 +176,8 @@ end
 
         call_response(ins, outs, "Enter a name for this project", "check_deps")
         call_response(ins, outs, "Enter a version number", "1.0.0")
+
+        call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
     end
     @test length(state.dependencies) == 2
     @test any([d.name == "ghr_jll" for d in state.dependencies])
@@ -190,6 +204,9 @@ function step3_state()
     state.name = "libfoo"
     state.version = v"1.0.0"
     state.dependencies = typeof(Pkg.PackageSpec(name="dummy"))[]
+    state.compilers = [:c]
+    state.preferred_gcc_version = BinaryBuilder.available_gcc_builds[1]
+    state.preferred_llvm_version = BinaryBuilder.available_llvm_builds[end]
 
     return state
 end

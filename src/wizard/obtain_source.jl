@@ -357,6 +357,42 @@ function get_name_and_version(state::WizardState)
     end
 end
 
+@enum Compilers C=1 Go Rust
+function get_compilers(state::WizardState)
+    while state.compilers === nothing
+        compiler_descriptions = Dict(C => "C/C++/Fortran", Go => "Go", Rust => "Rust")
+        compiler_symbols = Dict(Int(C) => :c, Int(Go) => :go, Int(Rust) => :rust)
+        terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
+        result = nothing
+        while true
+            select_menu = MultiSelectMenu([compiler_descriptions[i] for i in instances(Compilers)])
+            select_menu.selected = Set([Int(C)])
+            result = request(terminal,
+                             "Select compilers for the project",
+                             select_menu
+                             )
+            if isempty(result)
+                println("Must select at least one platform")
+            else
+                break
+            end
+        end
+        state.compilers = map(c -> compiler_symbols[c], collect(result))
+    end
+end
+
+function get_preferred_version(state::WizardState, compiler::AbstractString,
+                               available_versions=Vector{Integer})
+    terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
+    version_selected = request(terminal, "Select the preferred $(compiler) version",
+                               RadioMenu(string.(available_versions)))
+    if compiler == "GCC"
+        state.preferred_gcc_version = available_versions[version_selected]
+    elseif compiler == "LLVM"
+        state.preferred_llvm_version = available_versions[version_selected]
+    end
+end
+
 """
     step2(state::WizardState)
 
@@ -366,4 +402,15 @@ function step2(state::WizardState)
     obtain_source(state)
     obtain_binary_deps(state)
     get_name_and_version(state)
+    if yn_prompt(state, "Do you want to customize the set of compilers?", :n) == :y
+        get_compilers(state)
+        get_preferred_version(state, "GCC", available_gcc_builds)
+        get_preferred_version(state, "LLVM", available_llvm_builds)
+    else
+        state.compilers = [:c]
+        # Default GCC version is the oldest one
+        state.preferred_gcc_version = available_gcc_builds[1]
+        # Default LLVM version is the latest one
+        state.preferred_llvm_version = available_llvm_builds[end]
+    end
 end

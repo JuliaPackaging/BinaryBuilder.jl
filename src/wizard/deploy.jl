@@ -37,6 +37,24 @@ function print_build_tarballs(io::IO, state::WizardState)
     psrepr(ps) = "\n    PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\")"
     dependencies_string = join(map(psrepr, state.dependencies))
 
+    # Keyword arguments to `build_tarballs()`
+    kwargs_vec = String[]
+    if state.compilers != [:c] && length(state.compilers) >= 1
+        push!(kwargs_vec, "compilers = [$(join(map(x -> ":$(x)", state.compilers), ", "))]")
+    end
+    # Default GCC version is the oldest one
+    if state.preferred_gcc_version != available_gcc_builds[1]
+        push!(kwargs_vec, "preferred_gcc_version = v\"$(state.preferred_gcc_version)\"")
+    end
+    # Default LLVM version is the latest one
+    if state.preferred_llvm_version != available_llvm_builds[end]
+        push!(kwargs_vec, "preferred_llvm_version = v\"$(state.preferred_llvm_version)\"")
+    end
+    kwargs = ""
+    if length(kwargs_vec) >= 1
+        kwargs = "; " * join(kwargs_vec, ", ")
+    end
+
     print(io, """
     # Note that this script can accept some limited command-line arguments, run
     # `julia build_tarballs.jl --help` to see a usage message.
@@ -69,7 +87,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     ]
 
     # Build the tarballs, and possibly a `build.jl` as well.
-    build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies)
+    build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies$(kwargs))
     """)
 end
 

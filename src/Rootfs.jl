@@ -319,8 +319,11 @@ function select_closest_version(preferred::VersionNumber, versions::Vector{Versi
     return versions[closest_idx]
 end
 
+const available_gcc_builds = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0"]
+const available_llvm_builds = [v"6.0.1", v"7.1.0", v"8.0.1", v"9.0.1"]
+
 function select_gcc_version(p::Platform,
-             GCC_builds::Vector{VersionNumber} = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0"],
+             GCC_builds::Vector{VersionNumber} = available_gcc_builds,
              preferred_gcc_version::VersionNumber = GCC_builds[1],
          )
     # Determine which GCC build we're going to match with this CompilerABI:
@@ -347,8 +350,8 @@ function choose_shards(p::Platform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2020.01.07",
             ps_build::VersionNumber=v"2020.01.15",
-            GCC_builds::Vector{VersionNumber}=[v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0"],
-            LLVM_builds::Vector{VersionNumber}=[v"6.0.1", v"7.1.0", v"8.0.1", v"9.0.1"],
+            GCC_builds::Vector{VersionNumber}=available_gcc_builds,
+            LLVM_builds::Vector{VersionNumber}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.18.3",
             Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
