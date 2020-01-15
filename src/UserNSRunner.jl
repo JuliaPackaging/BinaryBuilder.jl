@@ -41,7 +41,7 @@ function UserNSRunner(workspace_root::String;
     envs = merge(platform_envs(platform, src_name; verbose=verbose), extra_env)
 
     # JIT out some compiler wrappers, add it to our mounts
-    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,))...)
+    generate_compiler_wrappers!(platform; bin_path=compiler_wrapper_path, extract_kwargs(kwargs, (:compilers,:allow_unsafe_flags))...)
     push!(workspaces, compiler_wrapper_path => "/opt/bin")
 
     # the workspace_root is always a workspace, and we always mount it first
