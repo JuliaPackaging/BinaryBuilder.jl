@@ -400,3 +400,20 @@ function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString
 
     return new_libpath
 end
+
+
+"""
+    is_troublesome_library_link(libname::AbstractString, platform::Platform)
+
+Return `true` if depending on `libname` is known to cause problems at runtime, `false` otherwise.
+"""
+is_troublesome_library_link(libname::AbstractString, platform::Platform) = false
+
+# In https://github.com/JuliaGtk/GtkSourceWidget.jl/pull/9 we found that
+# depending on this libraries is an indication that system copies of libxml and
+# libiconv has been picked up during compilation.  At runtime, the system copies
+# will be loaded, which are very likely to be incompatible with those provided
+# by JLL packages.  The solution is to make sure that JLL copies of these
+# libraries are used.
+is_troublesome_library_link(libname::AbstractString, ::MacOS) =
+    libname in ("/usr/lib/libxml2.2.dylib", "/usr/lib/libiconv.2.dylib")

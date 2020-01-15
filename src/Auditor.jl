@@ -290,6 +290,9 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                     else
                         if !silent
                             @warn("Linked library $(libname) could not be resolved and could not be auto-mapped")
+                            if is_troublesome_library_link(libname, platform)
+                                @warn("Depending on $(libname) is known to cause problems at runtime, make sure to link against the JLL library instead")
+                            end
                         end
                         all_ok = false
                     end
