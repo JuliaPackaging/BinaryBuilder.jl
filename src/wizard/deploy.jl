@@ -34,8 +34,8 @@ function print_build_tarballs(io::IO, state::WizardState)
         end
     end,",\n    ")
 
-    psrepr(ps) = "PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\")"
-    dependencies_string = join(map(psrepr, state.dependencies), "\n    ")
+    psrepr(ps) = "\n    PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\")"
+    dependencies_string = join(map(psrepr, state.dependencies))
 
     print(io, """
     # Note that this script can accept some limited command-line arguments, run
@@ -65,8 +65,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     ]
 
     # Dependencies that must be installed before this package can be built
-    dependencies = [
-        $(dependencies_string)
+    dependencies = [$(dependencies_string)
     ]
 
     # Build the tarballs, and possibly a `build.jl` as well.
