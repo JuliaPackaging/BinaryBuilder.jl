@@ -155,7 +155,7 @@ function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = fa
     return did_succeed
 end
 
-const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
+const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream, IOBuffer}
 function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
     global prompted_userns_run_privileged
     if runner_override == "privileged" && !prompted_userns_run_privileged

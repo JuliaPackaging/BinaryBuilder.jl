@@ -56,9 +56,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     mkpath(bin_path)
 
     # Convert platform to a triplet, but strip out the ABI parts
-    target = triplet(abi_agnostic(platform))
-    host_target = triplet(abi_agnostic(host_platform))
-    rust_target = triplet(abi_agnostic(rust_platform))
+    aatriplet(p) = triplet(abi_agnostic(p))
+    target = aatriplet(platform)
+    host_target = aatriplet(host_platform)
+    rust_target = aatriplet(rust_platform)
 
     # If we should use ccache, prepend this to every compiler invocation
     ccache = use_ccache ? "ccache" : ""
@@ -156,7 +157,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     gcc_flags(p::Platform) = base_gcc_flags(p)
-    clang_targeting_laser(p::Platform) = "-target $(triplet(p)) --sysroot=/opt/$(triplet(p))/$(triplet(p))/sys-root"
+    clang_targeting_laser(p::Platform) = "-target $(aatriplet(p)) --sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
     fortran_flags(p::Platform) = ""
 
     function gcc_flags(p::MacOS)
@@ -168,7 +169,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if select_gcc_version(p).major == 4
-            FLAGS *= " -Wl,-syslibroot,/opt/$(triplet(p))/$(triplet(p))/sys-root"
+            FLAGS *= " -Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
         end
         return FLAGS
     end
@@ -182,7 +183,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
         if select_gcc_version(p).major == 4
-            FLAGS *= " -Wl,-syslibroot,/opt/$(triplet(p))/$(triplet(p))/sys-root"
+            FLAGS *= " -Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
         end
         return FLAGS
     end
@@ -200,7 +201,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         # Next, on MacOS, we need to override the typical C++ include search paths, because it always includes
         # the toolchain C++ headers first.  Valentin tracked this down to:
         # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
-        FLAGS *= " -nostdinc++ -isystem /opt/$(triplet(p))/$(triplet(p))/sys-root/usr/include/c++/v1"
+        FLAGS *= " -nostdinc++ -isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1"
         return FLAGS
     end
 
@@ -209,26 +210,26 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken,
     # and we also need to provide `-stdlib=libstdc++` to match Julia on these platforms.)
-    clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(triplet(p)) -rtlib=libgcc -stdlib=libstdc++"
+    clang_flags(p::Platform) = "$(clang_targeting_laser(p)) --gcc-toolchain=/opt/$(aatriplet(p)) -rtlib=libgcc -stdlib=libstdc++"
 
 
     # On macos, we want to use a particular linker with clang.  But we want to avoid warnings about unused
     # flags when just compiling, so we put it into "linker-only flags".
-    clang_link_flags(p::Platform) = String["-fuse-ld=$(triplet(p))"]
-    clang_link_flags(p::Union{FreeBSD,MacOS}) = ["-L/opt/$(triplet(p))/$(triplet(p))/lib", "-fuse-ld=$(triplet(p))"]
+    clang_link_flags(p::Platform) = String["-fuse-ld=$(aatriplet(p))"]
+    clang_link_flags(p::Union{FreeBSD,MacOS}) = ["-L/opt/$(aatriplet(p))/$(aatriplet(p))/lib", "-fuse-ld=$(aatriplet(p))"]
 
     gcc_link_flags(p::Platform) = String[]
     function gcc_link_flags(p::Linux)
         if arch(p) == :powerpc64le && select_gcc_version(p).major == 4
-            return ["-L/opt/$(triplet(p))/$(triplet(p))/sys-root/lib64", "-Wl,-rpath-link,/opt/$(triplet(p))/$(triplet(p))/sys-root/lib64"]
+            return ["-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64", "-Wl,-rpath-link,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64"]
         end
         return String[]
     end
 
     # C/C++/Fortran
-    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gcc $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
-    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-g++ $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
-    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gcc $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-g++ $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
     clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
     clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
     objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
@@ -264,7 +265,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # Rust stuff
-    rust_flags(p::Platform) = "--target=$(map_rust_target(p)) -C linker=$(triplet(p))-gcc"
+    rust_flags(p::Platform) = "--target=$(map_rust_target(p)) -C linker=$(aatriplet(p))-gcc"
     rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustc $(rust_flags(p))"; allow_ccache=false)
     rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false)
     cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false)
@@ -288,16 +289,16 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # Default these tools to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :ranlib, :readelf, :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
-        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(p), "/bin/", triplet(p), "-", $(string(tool))); allow_ccache=false)
+        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(abi_agnostic($p)), "/bin/", triplet(abi_agnostic($p)), "-", $(string(tool))); allow_ccache=false)
     end
  
     # c++filt is hard to write in symbols
-    cxxfilt(io::IO, p::Platform) = wrapper(io, "/opt/$(triplet(p))/bin/$(triplet(p))-c++filt"; allow_ccache=false)
-    cxxfilt(io::IO, p::MacOS) = wrapper(io, string("/opt/", triplet(p), "/bin/llvm-cxxfilt"); allow_ccache=false)
+    cxxfilt(io::IO, p::Platform) = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-c++filt"; allow_ccache=false)
+    cxxfilt(io::IO, p::MacOS) = wrapper(io, string("/opt/", aatriplet(p), "/bin/llvm-cxxfilt"); allow_ccache=false)
 
     # Overrides for macOS binutils because Apple is always so "special"
     for tool in (:ar, :ranlib, :dsymutil)
-        @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", triplet(p), "/bin/llvm-", $tool))
+        @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/llvm-", $tool))
     end
     # macOS doesn't have a readelf; default to using the host version
     @eval readelf(io::IO, p::MacOS) = readelf(io, $(host_platform))
@@ -308,8 +309,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     ## Generate compiler wrappers for both our target and our host
-    for p in unique(abi_agnostic.((platform, host_platform)))
-        t = triplet(p)
+    for p in unique((platform, host_platform))
+        t = aatriplet(p)
 
         # Generate `:c` compilers
         if :c in compilers
@@ -375,8 +376,8 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # `x86_64-linux-gnu`, while other build systems might say `x86_64-linux-musl` with no less accuracy.  So for
     # safety, we just ship all three all the time.
     if :rust in compilers
-        for p in unique(abi_agnostic.((platform, host_platform, rust_platform)))
-            t = triplet(p)
+        for p in unique((platform, host_platform, rust_platform))
+            t = aatriplet(p)
             write_wrapper(rustc, p, "$(t)-rustc")
             write_wrapper(rustup, p, "$(t)-rustup")
             write_wrapper(cargo, p, "$(t)-cargo")

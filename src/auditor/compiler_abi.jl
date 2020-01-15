@@ -115,6 +115,7 @@ function cppfilt(symbol_names::Vector, platform::Platform)
     for name in symbol_names
         println(input, name)
     end
+    seek(input, 0)
 
     output = IOBuffer()
     mktemp() do t, io
@@ -122,7 +123,7 @@ function cppfilt(symbol_names::Vector, platform::Platform)
         run_interactive(ur, `/opt/bin/c++filt`; stdin=input, stdout=output)
     end
 
-    return split(String(take!(output)), "\n")
+    return filter!(s -> !isempty(s), split(String(take!(output)), "\n"))
 end
 
 """
@@ -144,12 +145,13 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
         # Shove the symbol names through c++filt (since we don't want to have to
         # reimplement the parsing logic in Julia).  If anything has `cxx11` tags,
         # then mark it as such.
-        if any(occursin("[abi:cxx11]", c) for c in symbol_names)
+        if any(occursin("[abi:cxx11]", c) || occursin("std::__cxx11", c) for c in symbol_names)
             return :cxx11
         end
-        # Otherwise, if we still have `std::string`'s in there, it's implicitly a
-        # `cxx03` binary.  Mark it as such.
-        if any(occursin("std::string", c) for c in symbol_names)
+        # Otherwise, if we still have `std::string`'s or `std::list`'s in there, it's implicitly a
+        # `cxx03` binary, even though we don't have a __cxx03 namespace or something.  Mark it.
+        if any(occursin("std::string", c) || occursin("std::basic_string", c) ||
+               occursin("std::list", c) for c in symbol_names)
             return :cxx03
         end
     catch e
