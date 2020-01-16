@@ -471,6 +471,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
     mapping = Dict(
         # Platform information (we save a `bb_target` because sometimes `target` gets
         # overwritten in `./configure`, and we want tools like `uname` to still see it)
+        "bb_platform" => triplet(platform),
         "bb_target" => target,
         "target" => target,
         "rust_target" => map_rust_target(platform),
