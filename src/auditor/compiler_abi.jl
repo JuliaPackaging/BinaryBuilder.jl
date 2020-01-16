@@ -100,10 +100,10 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; verbose::
     #     msg = strip(replace("""
     #     $(path(oh)) links to libstdc++!  This causes incompatibilities across
     #     major versions of GCC.  To remedy this, you must build a tarball for
-    #     each major version of GCC.  To do this, immediately after your `products`
+    #     each major version of GCC.  To do this, immediately after your `platforms`
     #     definition in your `build_tarballs.jl` file, add the line:
     #     """, '\n' => ' '))
-    #     msg *= "\n\n    products = expand_cxx_versions(products)"
+    #     msg *= "\n\n    platforms = expand_cxxstring_abis(platforms)"
     #     warn(io, msg)
     #     return false
     # end
@@ -182,10 +182,10 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         msg = strip(replace("""
         $(path(oh)) contains std::string values!  This causes incompatibilities across
         the GCC 4/5 version boundary.  To remedy this, you must build a tarball for
-        both GCC 4 and GCC 5.  To do this, immediately after your `products`
+        both GCC 4 and GCC 5.  To do this, immediately after your `platforms`
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
-        msg *= "\n\n    products = expand_cxx_versions(products)"
+        msg *= "\n\n    platforms = expand_cxxstring_abis(platforms)"
         @warn(msg)
         return false
     end
