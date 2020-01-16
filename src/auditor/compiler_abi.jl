@@ -175,7 +175,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
     end
 
     if verbose && cxx_abi != nothing
-        info(io, "$(path(oh)) locks us to $(cxx_abi)")
+        @info("$(path(oh)) locks us to $(cxx_abi)")
     end
 
     if compiler_abi(platform).cxxstring_abi == nothing && cxx_abi != nothing
