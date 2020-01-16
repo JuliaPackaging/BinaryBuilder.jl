@@ -298,7 +298,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # Overrides for macOS binutils because Apple is always so "special"
     for tool in (:ar, :ranlib, :dsymutil)
-        @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/llvm-", $tool))
+        @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", triplet(abi_agnostic(p)), "/bin/llvm-", $tool))
     end
     # macOS doesn't have a readelf; default to using the host version
     @eval readelf(io::IO, p::MacOS) = readelf(io, $(host_platform))
