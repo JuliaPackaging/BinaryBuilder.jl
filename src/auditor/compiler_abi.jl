@@ -115,7 +115,7 @@ function cppfilt(symbol_names::Vector, platform::Platform)
     for name in symbol_names
         println(input, name)
     end
-    seek(input, 0)
+    seekstart(input)
 
     output = IOBuffer()
     mktemp() do t, io
