@@ -1,5 +1,22 @@
 # Tests for our auditing infrastructure
 
+@testset "Auditor - cppfilt" begin
+    # We take some known x86_64-linux-gnu symbols and pass them through c++filt
+    mangled_symbol_names = [
+        "_ZNKSt7__cxx1110_List_baseIiSaIiEE13_M_node_countEv",
+        "_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6lengthEv@@GLIBCXX_3.4.21",
+        "_Z10my_listlenNSt7__cxx114listIiSaIiEEE",
+        "_ZNKSt7__cxx114listIiSaIiEE4sizeEv",
+    ]
+    unmangled_symbol_names = BinaryBuilder.cppfilt(mangled_symbol_names, Linux(:x86_64))
+    @test all(unmangled_symbol_names .== [
+        "std::__cxx11::_List_base<int, std::allocator<int> >::_M_node_count() const",
+        "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::length() const@@GLIBCXX_3.4.21",
+        "my_listlen(std::__cxx11::list<int, std::allocator<int> >)",
+        "std::__cxx11::list<int, std::allocator<int> >::size() const",
+    ])
+end
+
 @testset "Auditor - ISA tests" begin
     mktempdir() do build_path
         products = Product[
@@ -50,6 +67,58 @@
         end
     end
 end
+
+@testset "Auditor - cxxabi selection" begin
+    for platform in (Linux(:x86_64; compiler_abi=CompilerABI(;cxxstring_abi=:cxx03)),
+                     Linux(:x86_64; compiler_abi=CompilerABI(;cxxstring_abi=:cxx11)))
+        # Look across multiple gcc versions; there can be tricksy interactions here
+        for gcc_version in (v"4", v"6", v"9")
+            # Do each build within a separate temporary directory
+            mktempdir() do build_path
+                libcxxstringabi_test = LibraryProduct("libcxxstringabi_test", :libcxxstringabi_test)
+                build_output_meta = autobuild(
+                    build_path,
+                    "libcxxstringabi_test",
+                    v"1.0.0",
+                    # Copy in the libfoo sources
+                    [build_tests_dir],
+                    # Easy build script
+                    raw"""
+                    cd ${WORKSPACE}/srcdir/cxxstringabi_tests
+                    make install
+                    install_license /usr/share/licenses/libuv/LICENSE
+                    """,
+                    # Build for this platform
+                    [platform],
+                    # The products we expect to be build
+                    [libcxxstringabi_test],
+                    # No depenedencies
+                    [];
+                    preferred_gcc_version=gcc_version
+                )
+
+                # Extract our platform's build
+                @test haskey(build_output_meta, platform)
+                tarball_path, tarball_hash = build_output_meta[platform][1:2]
+                @test isfile(tarball_path)
+
+                # Unpack it somewhere else
+                @test verify(tarball_path, tarball_hash)
+                testdir = joinpath(build_path, "testdir")
+                mkdir(testdir)
+                unpack(tarball_path, testdir)
+                prefix = Prefix(testdir)
+
+                # Ensure that the library detects as the correct cxxstring_abi:
+                readmeta(locate(libcxxstringabi_test, prefix)) do oh
+                    detected_cxxstring_abi = BinaryBuilder.detect_cxxstring_abi(oh, platform)
+                    @test detected_cxxstring_abi == cxxstring_abi(platform)
+                end
+            end
+        end
+    end
+end
+
 
 @testset "Auditor - .dll moving" begin
     for platform in [Linux(:x86_64), Windows(:x86_64)]
