@@ -270,6 +270,11 @@ function prepare_for_deletion(prefix::String)
     end
 end
 
+# compatibility for Julia 1.3-
+if VERSION < v"1.4"
+    Pkg.Types.registry_resolve!(ctx::Pkg.Types.Context, deps) = Pkg.Types.registry_resolve!(ctx.env, deps)
+end
+
 function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdout)
     if isempty(dependencies)
         return true, Pkg.Types.PackageSpec[]
@@ -291,7 +296,7 @@ function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdo
 
     # Resolve, returning the newly-resolved dependencies
     update_registry(ctx)
-    dependencies = Pkg.Types.registry_resolve!(ctx.env, dependencies)
+    dependencies = Pkg.Types.registry_resolve!(ctx, dependencies)
 
     # But first, check to see if anything failed to resolve, and warn about it:
     all_resolved = true
