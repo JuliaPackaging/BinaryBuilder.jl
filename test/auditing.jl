@@ -1,5 +1,22 @@
 # Tests for our auditing infrastructure
 
+@testset "Auditor - cppfilt" begin
+    # We take some known x86_64-linux-gnu symbols and pass them through c++filt
+    mangled_symbol_names = [
+        "_ZNKSt7__cxx1110_List_baseIiSaIiEE13_M_node_countEv",
+        "_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6lengthEv@@GLIBCXX_3.4.21",
+        "_Z10my_listlenNSt7__cxx114listIiSaIiEEE",
+        "_ZNKSt7__cxx114listIiSaIiEE4sizeEv",
+    ]
+    unmangled_symbol_names = BinaryBuilder.cppfilt(mangled_symbol_names, Linux(:x86_64))
+    @test all(unmangled_symbol_names .== [
+        "std::__cxx11::_List_base<int, std::allocator<int> >::_M_node_count() const",
+        "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::length() const@@GLIBCXX_3.4.21",
+        "my_listlen(std::__cxx11::list<int, std::allocator<int> >)",
+        "std::__cxx11::list<int, std::allocator<int> >::size() const",
+    ])
+end
+
 @testset "Auditor - ISA tests" begin
     mktempdir() do build_path
         products = Product[
