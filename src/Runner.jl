@@ -289,7 +289,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # Default these tools to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :ranlib, :readelf, :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
-        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(abi_agnostic($p)), "/bin/", triplet(abi_agnostic($p)), "-", $(string(tool))); allow_ccache=false)
+        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(abi_agnostic(p)), "/bin/", triplet(abi_agnostic(p)), "-", $(string(tool))); allow_ccache=false)
     end
  
     # c++filt is hard to write in symbols
