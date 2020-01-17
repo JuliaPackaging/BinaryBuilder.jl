@@ -319,8 +319,34 @@ function select_closest_version(preferred::VersionNumber, versions::Vector{Versi
     return versions[closest_idx]
 end
 
-const available_gcc_builds = [v"4.8.5", v"5.2.0", v"6.1.0", v"7.1.0", v"8.1.0", v"9.1.0"]
-const available_llvm_builds = [v"6.0.1", v"7.1.0", v"8.0.1", v"9.0.1"]
+abstract type CompilerBuild end
+
+struct GCCBuild <: CompilerBuild
+    version::VersionNumber
+    abi::CompilerABI
+end
+GCCBuild(v::VersionNumber) = GCCBuild(v, CompilerABI())
+
+struct LLVMBuild <: CompilerBuild
+    version::VersionNumber
+    abi::CompilerABI
+end
+LLVMBuild(v::VersionNumber) = LLVMBuild(v, CompilerABI())
+
+getversion(c::CompilerBuild) = c.version
+getabi(c::CompilerBuild) = c.abi
+
+const available_gcc_builds = [GCCBuild(v"4.8.5", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = :cxx03)),
+                              GCCBuild(v"5.2.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = :cxx11)),
+                              GCCBuild(v"6.1.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.22", cxxstring_abi = :cxx11)),
+                              GCCBuild(v"7.1.0", CompilerABI(libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = :cxx11)),
+                              GCCBuild(v"8.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = :cxx11)),
+                              GCCBuild(v"9.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = :cxx11))]
+const available_llvm_builds = [LLVMBuild(v"6.0.1"),
+                               LLVMBuild(v"7.1.0"),
+                               LLVMBuild(v"8.0.1"),
+                               LLVMBuild(v"9.0.1")]
+
 
 function select_gcc_version(p::Platform,
              GCC_builds::Vector{VersionNumber} = available_gcc_builds,
