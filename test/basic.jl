@@ -1,7 +1,6 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg
-using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi
-
+using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version
 
 @testset "File Collection" begin
     temp_prefix() do prefix
@@ -314,26 +313,59 @@ end
 @testset "Rootfs" begin
     @test_throws ErrorException CompilerShard("GCCBootstrap", v"4", Linux(:x86_64), :invalid_archive_type)
 
-    # Preferred libgfortran version and C++ string ABI
-    platform = FreeBSD(:x86_64)
-    shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
-    @test preferred_libgfortran_version(platform, shard) == v"3"
-    @test preferred_cxxstring_abi(platform, shard) == :cxx03
-    shard = CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
-    @test preferred_libgfortran_version(platform, shard) == v"3"
-    @test preferred_cxxstring_abi(platform, shard) == :cxx11
-    shard = CompilerShard("GCCBootstrap", v"7.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
-    @test preferred_libgfortran_version(platform, shard) == v"4"
-    @test preferred_cxxstring_abi(platform, shard) == :cxx11
-    shard = CompilerShard("GCCBootstrap", v"9.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
-    @test preferred_libgfortran_version(platform, shard) == v"5"
-    @test preferred_cxxstring_abi(platform, shard) == :cxx11
-    shard = CompilerShard("LLVMBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs)
-    @test_throws ErrorException preferred_libgfortran_version(platform, shard)
-    @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
-    platform = Linux(:x86_64, libc=:musl)
-    shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = MacOS(:x86_64))
-    @test_throws ErrorException preferred_libgfortran_version(platform, shard)
-    shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = Linux(:x86_64, libc=:glibc))
-    @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
+    @testset "GCC ABI matching" begin
+        # Preferred libgfortran version and C++ string ABI
+        platform = FreeBSD(:x86_64)
+        shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+        @test preferred_libgfortran_version(platform, shard) == v"3"
+        @test preferred_cxxstring_abi(platform, shard) == :cxx03
+        shard = CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+        @test preferred_libgfortran_version(platform, shard) == v"3"
+        @test preferred_cxxstring_abi(platform, shard) == :cxx11
+        shard = CompilerShard("GCCBootstrap", v"7.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+        @test preferred_libgfortran_version(platform, shard) == v"4"
+        @test preferred_cxxstring_abi(platform, shard) == :cxx11
+        shard = CompilerShard("GCCBootstrap", v"9.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+        @test preferred_libgfortran_version(platform, shard) == v"5"
+        @test preferred_cxxstring_abi(platform, shard) == :cxx11
+        shard = CompilerShard("LLVMBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs)
+        @test_throws ErrorException preferred_libgfortran_version(platform, shard)
+        @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
+        platform = Linux(:x86_64, libc=:musl)
+        shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = MacOS(:x86_64))
+        @test_throws ErrorException preferred_libgfortran_version(platform, shard)
+        shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = Linux(:x86_64, libc=:glibc))
+        @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
+
+        # Explicitly test our `gcc_version()` helper function
+        GCC_versions = [
+            v"4.8.5",
+            v"5.4.0",
+            v"6.3.0",
+            v"7.1.0",
+            v"7.2.0",
+            v"8.0.0",
+        ]
+
+        # With no constraints, we should get them all back
+        @test gcc_version(CompilerABI(), GCC_versions) == GCC_versions
+
+        # libgfortran v3 and libstdcxx 20 restrict us to only v4 and v5
+        cabi = CompilerABI(;libgfortran_version=v"3", libstdcxx_version=v"3.4.22")
+        @test gcc_version(cabi, GCC_versions) == [v"4.8.5", v"5.4.0"]
+
+        # Adding `:cxx11` eliminates `v"4.X"`:
+        cabi = CompilerABI(cabi; cxxstring_abi=:cxx11)
+        @test gcc_version(cabi, GCC_versions) == [v"5.4.0"]
+
+        # Just libgfortran v3 allows GCC 6 as well though
+        cabi = CompilerABI(;libgfortran_version=v"3")
+        @test gcc_version(cabi, GCC_versions) == [v"4.8.5", v"5.4.0", v"6.3.0"]
+
+        # Test libgfortran version v4, then splitting on libstdcxx_version:
+        cabi = CompilerABI(;libgfortran_version=v"4")
+        @test gcc_version(cabi, GCC_versions) == [v"7.1.0", v"7.2.0"]
+        cabi = CompilerABI(cabi; libstdcxx_version=v"3.4.23")
+        @test gcc_version(cabi, GCC_versions) == [v"7.1.0"]
+    end
 end
