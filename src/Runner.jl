@@ -33,7 +33,11 @@ exeext(p::Union{Linux,FreeBSD,MacOS}) = ""
 exeext(p::Platform) = error("Unknown exeext for platform $(p)")
 
 """
-    generate_compiler_wrappers(p::Platform, bin_path::AbstractString)
+    generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
+                                host_platform::Platform = Linux(:x86_64; libc=:musl),
+                                rust_platform::Platform = Linux(:x86_64; libc=:glibc),
+                                compilers::Vector{Symbol} = [:c],
+                                allow_unsafe_flags::Bool = false)
 
 We generate a set of compiler wrapper scripts within our build environment to force all
 build systems to honor the necessary sets of compiler flags to build for our systems.
@@ -61,6 +65,32 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     host_target = aatriplet(host_platform)
     rust_target = aatriplet(rust_platform)
 
+
+    # If the ABI-agnostic triplets of the target and the host platform are the
+    # same, then we have to be very careful: we can't have distinct wrappers, so
+    # we have to be sure that their ABIs are consistent, in particular that
+    # we're correctly writing the wrappers for the target platform.  In
+    # particular, what we care about with regard to the wrappers is the C++
+    # string ABI.  We have the following situations:
+    #   * they are equal: this is fine
+    #   * they're different and the host has a prefernce for the C++ string ABI:
+    #     we can't deal with this situation as the host wrappers will be always
+    #     overwritten, then error out
+    #   * in all other cases we don't do anything here but later below we'll let
+    #     the host wrappers to be overwritten by the wrappers for the target
+    if target == host_target
+        target_cxxabi = compiler_abi(platform).cxxstring_abi
+        host_cxxabi   = compiler_abi(host_platform).cxxstring_abi
+        if target_cxxabi !== host_cxxabi
+            if host_cxxabi !== nothing
+                # This is a very unlikely situation as ideally the host
+                # shouldn't have particular preferences for the ABI, thus in
+                # practice we shouldn't never reach this.
+                error("Incompatible C++ string ABIs between the host and target platforms")
+            end
+        end
+    end
+
     # If we should use ccache, prepend this to every compiler invocation
     ccache = use_ccache ? "ccache" : ""
 
@@ -73,7 +103,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                      unsafe_flags = String[])
         write(io, """
         #!/bin/bash
-        # This compiler wrapper script brought into existence by `generate_compiler_wrappers()`
+        # This compiler wrapper script brought into existence by `generate_compiler_wrappers!()`
 
         if [ "x\${SUPER_VERBOSE}" = "x" ]; then
             vrun() { "\$@"; }
@@ -308,8 +338,11 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         chmod(joinpath(bin_path, fname), 0o775)
     end
 
-    ## Generate compiler wrappers for both our target and our host
-    for p in unique((platform, host_platform))
+    ## Generate compiler wrappers for both our host and our target.  In
+    ## particular, we write the wrapper for the target after those for the host,
+    ## to override host-specific ABI in case this is incompatible with that of
+    ## the target
+    for p in unique((host_platform, platform))
         t = aatriplet(p)
 
         # Generate `:c` compilers

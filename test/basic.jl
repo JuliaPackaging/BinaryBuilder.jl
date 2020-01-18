@@ -1,6 +1,6 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg
-using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion
+using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!
 
 @testset "File Collection" begin
     temp_prefix() do prefix
@@ -357,5 +357,55 @@ end
         @test gcc_version(cabi, available_gcc_builds) == [v"7.1.0"]
         cabi = CompilerABI(cabi; libstdcxx_version=v"3.4.23")
         @test gcc_version(cabi, available_gcc_builds) == [v"7.1.0"]
+    end
+
+    @testset "Compiler wrappers" begin
+        platform = Linux(:x86_64, libc=:musl)
+        mktempdir() do bin_path
+            generate_compiler_wrappers!(platform; bin_path = bin_path)
+            # Make sure the C++ string ABI is not set
+            @test !occursin("-D_GLIBCXX_USE_CXX11_ABI", read(joinpath(bin_path, "gcc"), String))
+            # Make sure gfortran doesn't uses ccache when BinaryBuilder.use_ccache is true
+            BinaryBuilder.use_ccache && @test !occursin("ccache", read(joinpath(bin_path, "gfortran"), String))
+        end
+        platform = Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx03))
+        mktempdir() do bin_path
+            generate_compiler_wrappers!(platform; bin_path = bin_path)
+            gcc = read(joinpath(bin_path, "gcc"), String)
+            # Make sure the C++ string ABI is set as expected
+            @test occursin("-D_GLIBCXX_USE_CXX11_ABI=0", gcc)
+            # Make sure the unsafe flags check is there
+            @test occursin("You used one or more of the unsafe flags", gcc)
+        end
+        platform = Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx11))
+        mktempdir() do bin_path
+            generate_compiler_wrappers!(platform; bin_path = bin_path, allow_unsafe_flags = true)
+            gcc = read(joinpath(bin_path, "gcc"), String)
+            # Make sure the C++ string ABI is set as expected
+            @test occursin("-D_GLIBCXX_USE_CXX11_ABI=1", gcc)
+            # Make sure the unsafe flags check is not there in this case
+            @test !occursin("You used one or more of the unsafe flags", gcc)
+        end
+        platform = FreeBSD(:x86_64)
+        mktempdir() do bin_path
+            generate_compiler_wrappers!(platform; bin_path = bin_path, compilers = [:c, :rust, :go])
+            clang = read(joinpath(bin_path, "clang"), String)
+            # Check link flags
+            @test occursin("-L/opt/$(triplet(platform))/$(triplet(platform))/lib", clang)
+            @test occursin("fuse-ld=$(triplet(platform))", clang)
+            # Other compilers
+            @test occursin("GOOS=\"freebsd\"", read(joinpath(bin_path, "go"), String))
+            @test occursin("--target=x86_64-unknown-freebsd", read(joinpath(bin_path, "rustc"), String))
+        end
+        platform      = Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx03))
+        host_platform = Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx11))
+        mktempdir() do bin_path
+            @test_throws ErrorException generate_compiler_wrappers!(platform; bin_path = bin_path, host_platform = host_platform)
+        end
+        platform      = Linux(:x86_64, libc=:musl)
+        host_platform = Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx03))
+        mktempdir() do bin_path
+            @test_throws ErrorException generate_compiler_wrappers!(platform; bin_path = bin_path, host_platform = host_platform)
+        end
     end
 end
