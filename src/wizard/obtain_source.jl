@@ -404,13 +404,13 @@ function step2(state::WizardState)
     get_name_and_version(state)
     if yn_prompt(state, "Do you want to customize the set of compilers?", :n) == :y
         get_compilers(state)
-        get_preferred_version(state, "GCC", available_gcc_builds)
-        get_preferred_version(state, "LLVM", available_llvm_builds)
+        get_preferred_version(state, "GCC", getversion.(available_gcc_builds))
+        get_preferred_version(state, "LLVM", getversion.(available_llvm_builds))
     else
         state.compilers = [:c]
         # Default GCC version is the oldest one
-        state.preferred_gcc_version = available_gcc_builds[1]
+        state.preferred_gcc_version = getversion(available_gcc_builds[1])
         # Default LLVM version is the latest one
-        state.preferred_llvm_version = available_llvm_builds[end]
+        state.preferred_llvm_version = getversion(available_llvm_builds[end])
     end
 end

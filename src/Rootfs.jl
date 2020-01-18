@@ -347,10 +347,46 @@ const available_llvm_builds = [LLVMBuild(v"6.0.1"),
                                LLVMBuild(v"8.0.1"),
                                LLVMBuild(v"9.0.1")]
 
+"""
+    gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
+Returns the closest matching GCC version number for the given CompilerABI
+representing a particular platofrm, from the given set of options.  If no match
+is found, returns an empty list.  This method assumes that `cabi` represents a
+platform that binaries will be run on, and thus versions are always rounded
+down; e.g. if the platform supports a `libstdc++` version that corresponds to
+`GCC 5.1.0`, but the only GCC versions available to be picked from are `4.8.5`
+and `5.2.0`, it will return `4.8.5`, as binaries compiled with that version
+will run on this platform, whereas binaries compiled with `5.2.0` may not.
+"""
+function gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
+    # First, filter by libgfortran version.
+    if cabi.libgfortran_version !== nothing
+        GCC_builds = filter(b -> getabi(b).libgfortran_version == cabi.libgfortran_version, GCC_builds)
+    end
+
+    # Next, filter by libstdc++ GLIBCXX symbol version.  Note that this
+    # mapping is conservative; it is often the case that we return a
+    # version that is slightly lower than what is actually installed on
+    # a system.  See https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
+    # for the whole list, as well as many other interesting factoids.
+    if cabi.libstdcxx_version !== nothing
+        GCC_builds = filter(b -> getabi(b).libstdcxx_version <= cabi.libstdcxx_version, GCC_builds)
+    end
+
+    # Finally, enforce cxxstring_abi guidelines.  It is possible to build
+    # :cxx03 binaries on GCC 5+, (although increasingly rare) so the only
+    # filtering we do is that if the platform is explicitly :cxx11, we
+    # disallow running on < GCC 5.
+    if cabi.cxxstring_abi !== nothing && cabi.cxxstring_abi === :cxx11
+        GCC_builds = filter(b -> getversion(b) >= v"5", GCC_builds)
+    end
+
+    return getversion.(GCC_builds)
+end
 
 function select_gcc_version(p::Platform,
-             GCC_builds::Vector{VersionNumber} = available_gcc_builds,
-             preferred_gcc_version::VersionNumber = GCC_builds[1],
+             GCC_builds::Vector{GCCBuild} = available_gcc_builds,
+             preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
          )
     # Determine which GCC build we're going to match with this CompilerABI:
     GCC_builds = gcc_version(compiler_abi(p), GCC_builds)
@@ -376,19 +412,19 @@ function choose_shards(p::Platform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2020.01.07",
             ps_build::VersionNumber=v"2020.01.15",
-            GCC_builds::Vector{VersionNumber}=available_gcc_builds,
-            LLVM_builds::Vector{VersionNumber}=available_llvm_builds,
+            GCC_builds::Vector{GCCBuild}=available_gcc_builds,
+            LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.18.3",
             Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # We prefer the oldest GCC version by default
-            preferred_gcc_version::VersionNumber = GCC_builds[1],
-            preferred_llvm_version::VersionNumber = LLVM_builds[end],
+            preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
+            preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
 
     GCC_build = select_gcc_version(p, GCC_builds, preferred_gcc_version)
-    LLVM_build = select_closest_version(preferred_llvm_version, LLVM_builds)
+    LLVM_build = select_closest_version(preferred_llvm_version, getversion.(LLVM_builds))
     # Our host platform is x86_64-linux-musl
     host_platform = Linux(:x86_64; libc=:musl)
 
@@ -607,77 +643,6 @@ function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard)
     else
         return :cxx11
     end
-end
-
-"""
-    gcc_version(cabi::CompilerABI, GCC_versions::Vector{VersionNumber};
-                                   rounding_mode=:platform)
-Returns the closest matching GCC version number for the given CompilerABI
-representing a particular platofrm, from the given set of options.  If no match
-is found, returns an empty list.  This method assumes that `cabi` represents a
-platform that binaries will be run on, and thus versions are always rounded
-down; e.g. if the platform supports a `libstdc++` version that corresponds to
-`GCC 5.1.0`, but the only GCC versions available to be picked from are `4.8.5`
-and `5.2.0`, it will return `4.8.5`, as binaries compiled with that version
-will run on this platform, whereas binaries compiled with `5.2.0` may not.
-"""
-function gcc_version(cabi::CompilerABI, GCC_versions::Vector{VersionNumber})
-    filt_gcc_majver(versions...) = filter(v -> v.major in versions, GCC_versions)
-
-    # First, filter by libgfortran version.
-    #  libgfortran3 -> GCC 4.X, 5.X, 6.X
-    #  libgfortran4 -> GCC 7.x
-    #  libgfortran5 -> GCC 8.X, 9.X
-    if cabi.libgfortran_version !== nothing
-        if cabi.libgfortran_version.major == 3
-            GCC_versions = filt_gcc_majver(4,5,6)
-        elseif cabi.libgfortran_version.major == 4
-            GCC_versions = filt_gcc_majver(7)
-        elseif cabi.libgfortran_version.major == 5
-            GCC_versions = filt_gcc_majver(8, 9)
-        end
-    end
-
-    # Next, filter by libstdc++ GLIBCXX symbol version.  Note that this
-    # mapping is conservative; it is often the case that we return a
-    # version that is slightly lower than what is actually installed on
-    # a system.
-    if cabi.libstdcxx_version !== nothing
-        cxxvp = cabi.libstdcxx_version.patch
-        # Is this platform so old that nothing is supported?
-        if cxxvp < 19
-            return VersionNumber[]
-
-        # Is this platform in a nominal range?
-        elseif cxxvp < 27
-            # See https://gcc.gnu.org/onlinedocs/libstdc++/manual/abi.html
-            # for the whole list, as well as many other interesting factoids.
-            mapping = Dict(
-                19 => v"4.8.5",
-                20 => v"4.9.0",
-                21 => v"5.1.0",
-                22 => v"6.1.0",
-                23 => v"7.1.0",
-                24 => v"7.2.0",
-                25 => v"8.0.0",
-                26 => v"9.0.0",
-            )
-            GCC_versions = filter(v -> v <= mapping[cxxvp], GCC_versions)
-
-        # The implicit `else` here is that no filtering occurs; this platform
-        # has such broad support that any C++ code compiled will run on it.
-        end
-    end
-
-    # Finally, enforce cxxstring_abi guidelines.  It is possible to build
-    # :cxx03 binaries on GCC 5+, (although increasingly rare) so the only
-    # filtering we do is that if the platform is explicitly :cxx11, we
-    # disallow running on < GCC 5.
-    if cabi.cxxstring_abi !== nothing && cabi.cxxstring_abi === :cxx11
-        GCC_versions = filter(v -> v >= v"5", GCC_versions)
-    end
-
-    return GCC_versions
 end
 
 """

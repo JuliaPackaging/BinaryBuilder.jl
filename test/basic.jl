@@ -1,6 +1,6 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg
-using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version
+using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion
 
 @testset "File Collection" begin
     temp_prefix() do prefix
@@ -337,35 +337,25 @@ end
         shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = Linux(:x86_64, libc=:glibc))
         @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
 
-        # Explicitly test our `gcc_version()` helper function
-        GCC_versions = [
-            v"4.8.5",
-            v"5.4.0",
-            v"6.3.0",
-            v"7.1.0",
-            v"7.2.0",
-            v"8.0.0",
-        ]
-
         # With no constraints, we should get them all back
-        @test gcc_version(CompilerABI(), GCC_versions) == GCC_versions
+        @test gcc_version(CompilerABI(), available_gcc_builds) == getversion.(available_gcc_builds)
 
-        # libgfortran v3 and libstdcxx 20 restrict us to only v4 and v5
+        # libgfortran v3 and libstdcxx 22 restrict us to only v4.8, v5.2 and v6.1
         cabi = CompilerABI(;libgfortran_version=v"3", libstdcxx_version=v"3.4.22")
-        @test gcc_version(cabi, GCC_versions) == [v"4.8.5", v"5.4.0"]
+        @test gcc_version(cabi, available_gcc_builds) == [v"4.8.5", v"5.2.0", v"6.1.0"]
 
         # Adding `:cxx11` eliminates `v"4.X"`:
         cabi = CompilerABI(cabi; cxxstring_abi=:cxx11)
-        @test gcc_version(cabi, GCC_versions) == [v"5.4.0"]
+        @test gcc_version(cabi, available_gcc_builds) == [v"5.2.0", v"6.1.0"]
 
         # Just libgfortran v3 allows GCC 6 as well though
         cabi = CompilerABI(;libgfortran_version=v"3")
-        @test gcc_version(cabi, GCC_versions) == [v"4.8.5", v"5.4.0", v"6.3.0"]
+        @test gcc_version(cabi, available_gcc_builds) == [v"4.8.5", v"5.2.0", v"6.1.0"]
 
         # Test libgfortran version v4, then splitting on libstdcxx_version:
         cabi = CompilerABI(;libgfortran_version=v"4")
-        @test gcc_version(cabi, GCC_versions) == [v"7.1.0", v"7.2.0"]
+        @test gcc_version(cabi, available_gcc_builds) == [v"7.1.0"]
         cabi = CompilerABI(cabi; libstdcxx_version=v"3.4.23")
-        @test gcc_version(cabi, GCC_versions) == [v"7.1.0"]
+        @test gcc_version(cabi, available_gcc_builds) == [v"7.1.0"]
     end
 end

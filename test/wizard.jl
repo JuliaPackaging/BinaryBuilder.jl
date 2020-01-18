@@ -2,6 +2,8 @@ using BinaryBuilder
 using GitHub, Test, VT100, Sockets, HTTP, SHA
 import Pkg
 
+import BinaryBuilder: available_gcc_builds, available_llvm_builds, getversion
+
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
     pty = VT100.create_pty(false)
@@ -116,8 +118,8 @@ end
     @test state.source_urls == ["http://127.0.0.1:14444/a/source.tar.gz"]
     @test state.source_hashes == [libfoo_tarball_hash]
     @test Set(state.compilers) == Set([:c, :rust, :go])
-    @test state.preferred_gcc_version == BinaryBuilder.available_gcc_builds[1]
-    @test state.preferred_llvm_version == BinaryBuilder.available_llvm_builds[4]
+    @test state.preferred_gcc_version == getversion(available_gcc_builds[1])
+    @test state.preferred_llvm_version == getversion(BinaryBuilder.available_llvm_builds[4])
 
     # Test two tar.gz download
     state = step2_state()
@@ -205,8 +207,8 @@ function step3_state()
     state.version = v"1.0.0"
     state.dependencies = typeof(Pkg.PackageSpec(name="dummy"))[]
     state.compilers = [:c]
-    state.preferred_gcc_version = BinaryBuilder.available_gcc_builds[1]
-    state.preferred_llvm_version = BinaryBuilder.available_llvm_builds[end]
+    state.preferred_gcc_version = getversion(available_gcc_builds[1])
+    state.preferred_llvm_version = getversion(available_llvm_builds[end])
 
     return state
 end
