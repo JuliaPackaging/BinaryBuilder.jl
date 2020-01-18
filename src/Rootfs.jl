@@ -349,6 +349,7 @@ const available_llvm_builds = [LLVMBuild(v"6.0.1"),
 
 """
     gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
+
 Returns the closest matching GCC version number for the given CompilerABI
 representing a particular platofrm, from the given set of options.  If no match
 is found, returns an empty list.  This method assumes that `cabi` represents a
@@ -418,8 +419,11 @@ function choose_shards(p::Platform;
             Go_build::VersionNumber=v"1.13",
             archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
-            # We prefer the oldest GCC version by default
+            # Because GCC has lots of compatibility issues, we always default to
+            # the earliest version possible.
             preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
+            # Because LLVM doesn't have compatibilty issues, we always default
+            # to the newest version possible.
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
 

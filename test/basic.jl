@@ -310,7 +310,7 @@ end
     @test all(x->x.uuid !== nothing, resolved_deps)
 end
 
-@testset "Rootfs" begin
+@testset "Compiler Shards" begin
     @test_throws ErrorException CompilerShard("GCCBootstrap", v"4", Linux(:x86_64), :invalid_archive_type)
 
     @testset "GCC ABI matching" begin

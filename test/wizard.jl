@@ -119,7 +119,7 @@ end
     @test state.source_hashes == [libfoo_tarball_hash]
     @test Set(state.compilers) == Set([:c, :rust, :go])
     @test state.preferred_gcc_version == getversion(available_gcc_builds[1])
-    @test state.preferred_llvm_version == getversion(BinaryBuilder.available_llvm_builds[4])
+    @test state.preferred_llvm_version == getversion(BinaryBuilder.available_llvm_builds[end])
 
     # Test two tar.gz download
     state = step2_state()
