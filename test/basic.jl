@@ -322,10 +322,10 @@ end
         shard = CompilerShard("GCCBootstrap", v"5.2.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
         @test preferred_libgfortran_version(platform, shard) == v"3"
         @test preferred_cxxstring_abi(platform, shard) == :cxx11
-        shard = CompilerShard("GCCBootstrap", v"7.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+        shard = CompilerShard("GCCBootstrap", v"7.1.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
         @test preferred_libgfortran_version(platform, shard) == v"4"
         @test preferred_cxxstring_abi(platform, shard) == :cxx11
-        shard = CompilerShard("GCCBootstrap", v"9.10.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
+        shard = CompilerShard("GCCBootstrap", v"9.1.0", Linux(:x86_64, libc=:musl), :squashfs, target = platform)
         @test preferred_libgfortran_version(platform, shard) == v"5"
         @test preferred_cxxstring_abi(platform, shard) == :cxx11
         shard = CompilerShard("LLVMBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs)
@@ -336,6 +336,9 @@ end
         @test_throws ErrorException preferred_libgfortran_version(platform, shard)
         shard = CompilerShard("GCCBootstrap", v"4.8.5", Linux(:x86_64, libc=:musl), :squashfs, target = Linux(:x86_64, libc=:glibc))
         @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
+        shard = CompilerShard("GCCBootstrap", v"1.2.3", Linux(:x86_64, libc=:musl), :squashfs, target = Windows(:x86_64))
+        @test_throws ErrorException preferred_cxxstring_abi(platform, shard)
+        @test_throws ErrorException preferred_libgfortran_version(platform, shard)
 
         # With no constraints, we should get them all back
         @test gcc_version(CompilerABI(), available_gcc_builds) == getversion.(available_gcc_builds)

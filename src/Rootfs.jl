@@ -336,16 +336,20 @@ LLVMBuild(v::VersionNumber) = LLVMBuild(v, CompilerABI())
 getversion(c::CompilerBuild) = c.version
 getabi(c::CompilerBuild) = c.abi
 
-const available_gcc_builds = [GCCBuild(v"4.8.5", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = :cxx03)),
-                              GCCBuild(v"5.2.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = :cxx11)),
-                              GCCBuild(v"6.1.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.22", cxxstring_abi = :cxx11)),
-                              GCCBuild(v"7.1.0", CompilerABI(libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = :cxx11)),
-                              GCCBuild(v"8.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = :cxx11)),
-                              GCCBuild(v"9.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = :cxx11))]
-const available_llvm_builds = [LLVMBuild(v"6.0.1"),
-                               LLVMBuild(v"7.1.0"),
-                               LLVMBuild(v"8.0.1"),
-                               LLVMBuild(v"9.0.1")]
+const available_gcc_builds = [
+    GCCBuild(v"4.8.5", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.19", cxxstring_abi = :cxx03)),
+    GCCBuild(v"5.2.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.21", cxxstring_abi = :cxx11)),
+    GCCBuild(v"6.1.0", CompilerABI(libgfortran_version = v"3", libstdcxx_version = v"3.4.22", cxxstring_abi = :cxx11)),
+    GCCBuild(v"7.1.0", CompilerABI(libgfortran_version = v"4", libstdcxx_version = v"3.4.23", cxxstring_abi = :cxx11)),
+    GCCBuild(v"8.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.25", cxxstring_abi = :cxx11)),
+    GCCBuild(v"9.1.0", CompilerABI(libgfortran_version = v"5", libstdcxx_version = v"3.4.26", cxxstring_abi = :cxx11)),
+]
+const available_llvm_builds = [
+    LLVMBuild(v"6.0.1"),
+    LLVMBuild(v"7.1.0"),
+    LLVMBuild(v"8.0.1"),
+    LLVMBuild(v"9.0.1"),
+]
 
 """
     gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
@@ -598,11 +602,13 @@ function expand_cxxstring_abis(ps::Vector{<:Platform})
 end
 
 """
-    preferred_libgfortran_version(platform::Platform, shard::CompilerShard)
+    preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
+                                  gcc_builds::Vector{GCCBuild} = available_gcc_builds)
 
 Return the libgfortran version preferred by the given platform or GCCBootstrap shard.
 """
-function preferred_libgfortran_version(platform::Platform, shard::CompilerShard)
+function preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
+                                       gcc_builds::Vector{GCCBuild} = available_gcc_builds)
     # Some input validation
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
@@ -615,21 +621,24 @@ function preferred_libgfortran_version(platform::Platform, shard::CompilerShard)
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
         return compiler_abi(platform).libgfortran_version
-    elseif shard.version < v"7"
-        return v"3"
-    elseif v"7" <= shard.version < v"8"
-        return v"4"
     else
-        return v"5"
+        idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
+        if isnothing(idx)
+            error("The shard doesn't match any version of the avaiable GCC builds")
+        else
+            return getabi(gcc_builds[idx]).libgfortran_version
+        end
     end
 end
 
 """
-    preferred_cxxstring_abi(platform::Platform, shard::CompilerShard)
+    preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
+                            gcc_builds::Vector{GCCBuild} = available_gcc_builds)
 
 Return the C++ string ABI preferred by the given platform or GCCBootstrap shard.
 """
-function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard)
+function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
+                                 gcc_builds::Vector{GCCBuild} = available_gcc_builds)
     # Some input validation
     if shard.name != "GCCBootstrap"
         error("Shard must be `GCCBootstrap`")
@@ -642,10 +651,13 @@ function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard)
         # Here we can't use `shard.target` because the shard always has the
         # target as ABI-agnostic, thus we have also to ask for the platform.
         return compiler_abi(platform).cxxstring_abi
-    elseif shard.version < v"5"
-        return :cxx03
     else
-        return :cxx11
+        idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
+        if isnothing(idx)
+            error("The shard doesn't match any version of the avaiable GCC builds")
+        else
+            return getabi(gcc_builds[idx]).cxxstring_abi
+        end
     end
 end
 
