@@ -1223,7 +1223,8 @@ function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::
             the proper instruction set internally.  Would have chosen
             $(min_isa), instead choosing $(new_min_isa).
             """, '\n' => ' ')
-            @warn(strip(msg))
+            audit_warn("Refusing to analyze for minum instruction set", strip(msg),
+                       @__FILE__, @__LINE__)
         end
         return new_min_isa
     end

@@ -8,7 +8,8 @@ function check_os_abi(oh::ELFHandle, ::FreeBSD, rest...; verbose::Bool = false, 
         # The dynamic loader should not have problems in this case, but the
         # linker may not appreciate.  Let the user know about this.
         if verbose
-            @warn "OS/ABI is not set to FreeBSD (0x09) in the file header, this may be an issue at linking time"
+            audit_warn("OS/ABI is not set to FreeBSD (0x09) in the file header, this may be an issue at linking time",
+                       @__FILE__, @__LINE__)
         end
         return false
     end

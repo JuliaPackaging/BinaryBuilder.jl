@@ -28,6 +28,8 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
         if isa(e, InterruptException)
             rethrow(e)
         end
+        audit_warn("$(path(oh)) could not be scanned for libgfortran dependency!",
+                   @__FILE__, @__LINE__; show_long = false)
         @warn "$(path(oh)) could not be scanned for libgfortran dependency!" exception=(e, catch_backtrace())
         return true
     end
@@ -44,7 +46,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    platforms = expand_gfortran_versions(platforms)"
-        @warn(msg)
+        audit_warn(msg, @__FILE__, @__LINE__)
         return false
     end
     return true
@@ -87,6 +89,8 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; verbose::
         if isa(e, InterruptException)
             rethrow(e)
         end
+        audit_warn("$(path(oh)) could not be scanned for libstdcxx dependency!",
+                   @__FILE__, @__LINE__; show_long = false)
         @warn "$(path(oh)) could not be scanned for libstdcxx dependency!" exception=(e, catch_backtrace())
         return true
     end
@@ -158,6 +162,8 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
         if isa(e, InterruptException)
             rethrow(e)
         end
+        audit_warn("$(path(oh)) could not be scanned for cxx11 ABI!",
+                   @__FILE__, @__LINE__; show_long = false)
         @warn "$(path(oh)) could not be scanned for cxx11 ABI!" exception=(e, catch_backtrace())
     end
     return nothing
@@ -186,7 +192,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    platforms = expand_cxxstring_abis(platforms)"
-        @warn(msg)
+        audit_warn("Need to expand C++ string ABIs", msg, @__FILE__, @__LINE__)
         return false
     end
 
@@ -197,7 +203,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         indicates that the build system is somehow ignoring our choice of compiler, as we manually
         insert the correct compiler flags for this ABI choice!
         """, '\n' => ' '))
-        @warn(msg)
+        audit_warn("Requested C++ string ABI has been ignored", msg, @__FILE__, @__LINE__)
         return false
     end
     return true

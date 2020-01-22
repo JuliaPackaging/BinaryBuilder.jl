@@ -1,5 +1,19 @@
 export audit, collect_files, collapse_symlinks
 
+# Logging functions.  TODO: improve them using Julia logging functionalities, or
+# third-party packages like `LoggingExtras`.
+function audit_warn(short::AbstractString, long::AbstractString, filename::AbstractString, line_number::Int; show_long::Bool = true)
+    if haskey(ENV, "BUILD_BUILDNUMBER")
+        # This is printed only if we're on Azure Pipelines
+        println("##vso[task.logissue type=warning;sourcepath=$(filename);linenumber=$(line_number);]$(short)")
+    end
+    if show_long
+        @warn long
+    end
+end
+audit_warn(long::AbstractString, filename::AbstractString, line_number::Int; kwargs...) =
+    audit_warn(long, long, filename, line_number; kwargs...)
+
 include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")
 include("auditor/symlink_translator.jl")
@@ -68,7 +82,8 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
             readmeta(f) do oh
                 if !is_for_platform(oh, platform)
                     if verbose
-                        @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                        audit_warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)",
+                                   @__FILE__, @__LINE__)
                     end
                 else
                     # Check that the ISA isn't too high
@@ -120,6 +135,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     return 0
                 catch e
                     if $(repr(verbose))
+                        println("##vso[task.logissue type=warning;;]Could not dlopen $(repr(f))")
                         Base.display_error(e)
                     end
                     return 1
@@ -135,7 +151,8 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
                 if !silent
-                    @warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                    audit_warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed",
+                               @__FILE__, @__LINE__)
                 end
                 all_ok = false
             end
@@ -172,7 +189,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         lib_dll_files =  filter(f -> valid_dl_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
         for f in lib_dll_files
             if !silent
-                @warn("$(relpath(f, prefix.path)) should be in `bin`!")
+                audit_warn("$(relpath(f, prefix.path)) should be in `bin`!", @__FILE__, @__LINE__)
             end
         end
 
@@ -183,7 +200,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         outside_dll_files = [f for f in shlib_files if !(f in lib_dll_files)]
         if autofix && !isempty(lib_dll_files) && isempty(outside_dll_files)
             if !silent
-                @warn("Simple buildsystem detected; Moving all `.dll` files to `bin`!")
+                audit_warn("Simple buildsystem detected; Moving all `.dll` files to `bin`!", @__FILE__, @__LINE__)
             end
 
             mkpath(joinpath(prefix, "bin"))
@@ -222,7 +239,7 @@ function check_isa(oh, platform, prefix;
                 Minimum instruction set for $(relpath(path(oh), prefix.path)) is
                 $(instruction_set), not core2 as desired.
                 """, '\n' => ' ')
-                @warn(strip(msg))
+                audit_warn(strip(msg), @__FILE__, @__LINE__)
             end
             return false
         elseif !is64bit(oh) && instruction_set != :pentium4
@@ -231,7 +248,7 @@ function check_isa(oh, platform, prefix;
                 Minimum instruction set for $(relpath(path(oh), prefix.path)) is
                 $(instruction_set), not pentium4 as desired.
                 """, '\n' => ' ')
-                @warn(strip(msg))
+                audit_warn(strip(msg), @__FILE__, @__LINE__)
             end
             return false
         end
@@ -289,22 +306,23 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                         end
                     else
                         if !silent
-                            @warn("Linked library $(libname) could not be resolved and could not be auto-mapped")
+                            audit_warn("Linked library $(libname) could not be resolved and could not be auto-mapped", @__FILE__, @__LINE__)
                             if is_troublesome_library_link(libname, platform)
-                                @warn("Depending on $(libname) is known to cause problems at runtime, make sure to link against the JLL library instead")
+                                audit_warn("Depending on $(libname) is known to cause problems at runtime, make sure to link against the JLL library instead",
+                                           @__FILE__, @__LINE__)
                             end
                         end
                         all_ok = false
                     end
                 else
                     if !silent
-                        @warn("Linked library $(libname) could not be resolved within the given prefix")
+                        audit_warn("Linked library $(libname) could not be resolved within the given prefix", @__FILE__, @__LINE__)
                     end
                     all_ok = false
                 end
             elseif !startswith(libs[libname], prefix.path)
                 if !silent
-                    @warn("Linked library $(libname) (resolved path $(libs[libname])) is not within the given prefix")
+                    audit_warn("Linked library $(libname) (resolved path $(libs[libname])) is not within the given prefix", @__FILE__, @__LINE__)
                 end
                 all_ok = false
             end
@@ -408,7 +426,8 @@ function check_license(prefix::Prefix, src_name::AbstractString = "";
         return true
     else
         if !silent
-            @warn("Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
+            audit_warn("Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"",
+                       @__FILE__, @__LINE__)
         end
         # This is pretty serious; don't let us get through without a license
         return false

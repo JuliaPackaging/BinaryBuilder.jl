@@ -6,6 +6,8 @@ function get_soname(path::AbstractString)
     try
         readmeta(get_soname, path)
     catch e
+        audit_warn("Could not probe $(path) for an SONAME!",
+                   @__FILE__, @__LINE__; show_long = false)
         @warn "Could not probe $(path) for an SONAME!" exception=(e, catch_backtrace())
         return nothing
     end
@@ -80,14 +82,15 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     end
 
     if !retval
-        @warn("Unable to set SONAME on $(rel_path)")
+        audit_warn("Unable to set SONAME on $(rel_path)", @__FILE__, @__LINE__)
         return false
     end
 
     # Read the SONAME back in and ensure it's set properly
     new_soname = get_soname(path)
     if new_soname != soname
-        @warn("Set SONAME on $(rel_path) to $(soname), but read back $(string(new_soname))!")
+        audit_warn("Set SONAME on $(rel_path) to $(soname), but read back $(string(new_soname))!",
+                   @__FILE__, @__LINE__)
         return false
     end
 

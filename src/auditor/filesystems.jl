@@ -6,7 +6,8 @@ function check_case_sensitivity(prefix::Prefix)
         for f in list
             lf = lowercase(f)
             if lf in lowered
-                @warn("$(relpath(joinpath(root, f), prefix.path)) causes a case-sensitivity ambiguity!")
+                audit_warn("$(relpath(joinpath(root, f), prefix.path)) causes a case-sensitivity ambiguity!",
+                           @__FILE__, @__LINE__)
                 all_ok = false
             end
             push!(lowered, lf)
@@ -31,12 +32,12 @@ function check_absolute_paths(prefix::Prefix, all_files::Vector; silent::Bool = 
             file_contents = String(read(f))
             if occursin(prefix.path, file_contents)
                 if !silent
-                    @warn("$(relpath(f, prefix.path)) contains an absolute path")
+                    audit_warn("$(relpath(f, prefix.path)) contains an absolute path", @__FILE__, @__LINE__)
                 end
             end
         catch
             if !silent
-                @warn("Skipping abspath scanning of $(f), as we can't open it")
+                audit_warn("Skipping abspath scanning of $(f), as we can't open it", @__FILE__, @__LINE__)
             end
         end
     end
