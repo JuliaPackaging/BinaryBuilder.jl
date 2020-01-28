@@ -384,8 +384,8 @@ end
 function get_preferred_version(state::WizardState, compiler::AbstractString,
                                available_versions=Vector{Integer})
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
-    version_selected = request(terminal, "Select the preferred $(compiler) version",
-                               RadioMenu(string.(available_versions)))
+    message = "Select the preferred $(compiler) version (default: $(first(available_versions)))"
+    version_selected = request(terminal, message, RadioMenu(string.(available_versions)))
     if compiler == "GCC"
         state.preferred_gcc_version = available_versions[version_selected]
     elseif compiler == "LLVM"
@@ -404,8 +404,10 @@ function step2(state::WizardState)
     get_name_and_version(state)
     if yn_prompt(state, "Do you want to customize the set of compilers?", :n) == :y
         get_compilers(state)
+        # Default GCC version is the oldest one
         get_preferred_version(state, "GCC", getversion.(available_gcc_builds))
-        get_preferred_version(state, "LLVM", getversion.(available_llvm_builds))
+        # Default LLVM version is the latest one
+        get_preferred_version(state, "LLVM", getversion.(reverse(available_llvm_builds)))
     else
         state.compilers = [:c]
         # Default GCC version is the oldest one
