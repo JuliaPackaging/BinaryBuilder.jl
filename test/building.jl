@@ -134,7 +134,7 @@ end
 shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
 # Perform a sanity test on each and every shard.
-@testset "Shard testsuites" begin
+@testset "Shard testsuites, preferred GCC: v$(gcc_version)" for gcc_version in (v"4", v"5")
     mktempdir() do build_path
         products = Product[
             ExecutableProduct("hello_world_c", :hello_world_c),
@@ -164,6 +164,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             [];
             # We need to be able to build go and rust and whatnot
             compilers=[:c, :go, :rust],
+            preferred_gcc_version = gcc_version,
         )
 
         # Test that we built everything (I'm not entirely sure how I expect
