@@ -357,7 +357,6 @@ function locate(fp::FileProduct, prefix::Prefix; platform::Platform = platform_k
 end
 
 # Add JSON serialization to products
-extract_fields(x) = Dict(String(name) => getfield(x, name) for name in fieldnames(typeof(x)))
 JSON.lower(ep::ExecutableProduct) = Dict("type" => "exe", extract_fields(ep)...)
 JSON.lower(lp::LibraryProduct) = Dict("type" => "lib", extract_fields(lp)...)
 JSON.lower(fp::FileProduct) = Dict("type" => "file", extract_fields(fp)...)

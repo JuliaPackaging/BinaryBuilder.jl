@@ -1,5 +1,7 @@
 using JSON, BinaryBuilder, Test
 
+import BinaryBuilder: sourcify
+
 @testset "Meta JSON" begin
     mktempdir() do tmpdir
         meta_json_buff = IOBuffer() 
@@ -52,10 +54,19 @@ using JSON, BinaryBuilder, Test
         @test length(meta["sources"]) == 3
         @test all(in.(
               (
-                  "https://julialang.org" => "123123",
-                  "https://github.com/JuliaLang/julia.git" => "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65",
-                  "./bundled",
+                  Dict("url" => "https://julialang.org",
+                       "hash" => "123123",
+                       "type" => "file"),
+                  Dict("url" => "https://github.com/JuliaLang/julia.git",
+                       "hash" => "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65",
+                       "type" => "git"),
+                  Dict("path" => "./bundled",
+                       "type" => "directory"),
               ), Ref(meta["sources"])))
+        @test sourcify(Dict("type" => "directory", "path" => "foo")) == DirectorySource("foo")
+        @test sourcify(Dict("type" => "git", "url" => "https://github.com/JuliaLang/julia.git", "hash" => "12345")) == GitSource("https://github.com/JuliaLang/julia.git", "12345")
+        @test sourcify(Dict("type" => "file", "url" => "https://julialang.org", "hash" => "98765")) == FileSource("https://julialang.org", "98765")
+        @test_throws ErrorException sourcify(Dict("type" => "qux"))
         @test length(meta["products"]) == 2
         @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia)), Ref(meta["products"])))
         @test length(meta["script"]) == 2
