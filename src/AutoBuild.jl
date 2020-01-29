@@ -610,6 +610,12 @@ function autobuild(dir::AbstractString,
         error("Invalid dependency specifications!")
     end
 
+    # If the user passed in a src_version with a build number, bail out
+    if src_version.build != ()
+        error("Will not build with a `src_version` that has a build number already specified!")
+    end
+    @show src_version
+
     # We must prepare our sources.  Download them, hash them, etc...
     sources = download_sources(sources; verbose=verbose)
 

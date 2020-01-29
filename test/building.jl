@@ -197,8 +197,9 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
     end
 end
 
-@testset "Dependency Specification" begin
+@testset "Invalid Arguments" begin
     mktempdir() do build_path
+        # Test that invalid JLL names both @warn and error()
         @test_logs (:warn, r"BadDependency_jll") (:warn, r"WorseDependency_jll") match_mode=:any begin
             @test_throws ErrorException autobuild(
                 build_path,
@@ -207,8 +208,8 @@ end
                 # No sources
                 [],
                 "true",
-                [platform],
-                [ExecutableProduct("foo", :foo)],
+                [platform_key_abi()],
+                Product[],
                 # Three dependencies; one good, two bad
                 [
                     "Zlib_jll",
@@ -218,5 +219,18 @@ end
                 ]
             )
         end
+        
+        # Test that manually specifying a build number in our src_version is an error()
+        @test_throws ErrorException autobuild(
+            build_path,
+            "badopenssl",
+            v"1.1.1+c",
+            [],
+            "true",
+            [platform_key_abi()],
+            Product[],
+            [],
+        )
     end
 end
+
