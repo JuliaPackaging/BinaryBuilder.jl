@@ -13,10 +13,6 @@ git:
   depth: 99999999
 sudo: required
 
-matrix:
-  allow_failures:
-    - julia: nightly
-
 env:
   global:
     - BINARYBUILDER_AUTOMATIC_APPLE=true
@@ -25,6 +21,9 @@ cache:
     - deps
 
 jobs:
+  allow_failures:
+    julia:
+      - nightly
   include:
     # Add a job that uses the privileged builder with squashfs shards
     - julia: 1.3
