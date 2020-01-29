@@ -5,6 +5,8 @@ using Pkg.TOML, Dates
 using RegistryTools, Registrator
 import LibGit2
 
+include("Sources.jl")
+
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
                    products, dependencies; kwargs...)
@@ -340,90 +342,6 @@ function get_next_wrapper_version(src_name, src_version)
                          src_version.patch, src_version.prerelease, (build_number,))
 end
 
-"""
-    download_sources(sources::Vector; verbose::Bool = false)
-
-Download all `sources` as given by the input vector.  All downloads are cached within the
-BinaryBuilder `downloads` storage directory.
-"""
-function download_sources(sources::Vector; verbose::Bool = false)
-    output_sources = Pair{String,String}[]
-    for idx in 1:length(sources)
-        # If the given source is a local path that is a directory, package it up and insert it into our sources
-        if typeof(sources[idx]) <: AbstractString
-            if !isdir(sources[idx])
-                error("""Could not get source \"$(sources[idx])\".
-                      Sources must either be a pair (url => hash) or an existing local directory""")
-            end
-
-            # Package up this directory and calculate its hash
-            mktempdir() do tempdir
-                tarball_path = joinpath(tempdir, basename(sources[idx]) * ".tar.gz")
-                package(sources[idx], tarball_path)
-                tarball_hash = open(tarball_path, "r") do f
-                    bytes2hex(sha256(f))
-                end
-
-                # Move it to a filename that has the hash as a part of it (to avoid name collisions)
-                tarball_pathv = storage_dir("downloads", string(tarball_hash, "-", basename(sources[idx]), ".tar.gz"))
-                mv(tarball_path, tarball_pathv; force=true)
-
-                # Now that it's packaged, store this into output_sources
-                push!(output_sources, (tarball_pathv => tarball_hash))
-            end
-        elseif typeof(sources[idx]) <: Pair
-            src_url, src_hash = sources[idx]
-
-            # If it's a .git url, clone it
-            if endswith(src_url, ".git")
-                src_path = storage_dir("downloads", basename(src_url))
-
-                # If this git repository already exists, ensure that its origin remote actually matches
-                if isdir(src_path)
-                    origin_url = LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-                        LibGit2.url(LibGit2.get(LibGit2.GitRemote, repo, "origin"))
-                    end
-
-                    # If the origin url doesn't match, wipe out this git repo.  We'd rather have a
-                    # thrashed cache than an incorrect cache.
-                    if origin_url != src_url
-                        rm(src_path; recursive=true, force=true)
-                    end
-                end
-
-                if isdir(src_path)
-                    # If we didn't just mercilessly obliterate the cached git repo, use it!
-                    LibGit2.with(LibGit2.GitRepo(src_path)) do repo
-                        LibGit2.fetch(repo)
-                    end
-                else
-                    # If there is no src_path yet, clone it down.
-                    repo = LibGit2.clone(src_url, src_path; isbare=true)
-                end
-            else
-                if isfile(src_url)
-                    # Immediately abspath() a src_url so we don't lose track of
-                    # sources given to us with a relative path
-                    src_path = abspath(src_url)
-
-                    # And if this is a locally-sourced tarball, just verify
-                    verify(src_path, src_hash; verbose=verbose)
-                else
-                    # Otherwise, download and verify
-                    src_path = storage_dir("downloads", string(src_hash, "-", basename(src_url)))
-                    download_verify(src_url, src_hash, src_path; verbose=verbose)
-                end
-            end
-
-            # Now that it's downloaded, store this into output_sources
-            push!(output_sources, (src_path => src_hash))
-        else
-            error("Sources must be either a `URL => hash` pair, or a path to a local directory")
-        end
-    end
-    return output_sources
-end
-
 function _registered_packages(registry_url::AbstractString)
     tmp_dir = mktempdir()
     atexit(() -> rm(tmp_dir; force = true, recursive = true))
@@ -554,7 +472,7 @@ here are the relevant actors, broken down in brief:
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
                    src_version::VersionNumber,
-                   sources::Vector,
+                   sources_::Vector,
                    script::AbstractString,
                    platforms::Vector,
                    products::Vector{<:Product},
@@ -569,6 +487,10 @@ function autobuild(dir::AbstractString,
                    lazy_artifacts::Bool = false,
                    meta_json_stream = nothing,
                    kwargs...)
+    # XXX: This is needed as long as we support old-style Pair/String sources
+    # specifications.
+    sources = coerce_source.(sources_)
+
     # If they've asked for the JSON metadata, by all means, give it to them!
     if meta_json_stream !== nothing
         dep_name(x::String) = x
@@ -616,7 +538,7 @@ function autobuild(dir::AbstractString,
     end
 
     # We must prepare our sources.  Download them, hash them, etc...
-    sources = download_sources(sources; verbose=verbose)
+    sources = download_source.(sources; verbose=verbose)
 
     # Our build products will go into ./products
     out_path = joinpath(dir, "products")
