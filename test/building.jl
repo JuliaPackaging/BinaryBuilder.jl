@@ -197,6 +197,44 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
     end
 end
 
+@testset "gfortran linking specialty flags" begin
+    # We test things like linking against libgfortran with `$FC` on a couple of troublesome platforms
+    for gcc_version in (v"4", v"5", v"6")
+        mktempdir() do build_path
+            build_output_meta = autobuild(
+                build_path,
+                "gfortran_flags",
+                v"1.0.0",
+                # No sources
+                [],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                # Build testsuite
+                make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
+                # Install fake license just to silence the warning
+                install_license /usr/share/licenses/libuv/LICENSE
+                """,
+                # Build for a few troublesome platforms
+                [
+                    Linux(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                    Linux(:powerpc64le; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                    Linux(:armv7l; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                    Linux(:aarch64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                    MacOS(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                    Windows(:i686; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                ],
+                [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
+                # No dependencies
+                [];
+                preferred_gcc_version=gcc_version,
+            )
+
+            # Just a simple test to ensure that it worked.
+            @test length(keys(build_output_meta)) == 6
+        end
+    end
+end
+
 @testset "Invalid Arguments" begin
     mktempdir() do build_path
         # Test that invalid JLL names both @warn and error()

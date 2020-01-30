@@ -198,7 +198,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
-        if select_gcc_version(p).major == 4
+        if select_gcc_version(p).major in (4, 5)
             FLAGS *= " -Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
         end
         return FLAGS
@@ -212,12 +212,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
         # On macOS, if we're on an old GCC, the default -syslibroot that gets
         # passed to the linker isn't calculated correctly, so we have to manually set it.
-        if select_gcc_version(p).major == 4
+        if select_gcc_version(p).major in (4, 5)
             FLAGS *= " -Wl,-syslibroot,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
         end
         return FLAGS
     end
-        
+
     # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
     # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
     # We do that within `clang_linker_flags()`, so that we don't get "unused argument" warnings all over the place.

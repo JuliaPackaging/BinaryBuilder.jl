@@ -148,8 +148,10 @@ end
         install_license /usr/share/licenses/libuv/LICENSE
     """
     platform = Linux(:x86_64)
-    @test_logs (:warn, r"contains std::string values") match_mode=:any begin
-        do_build(build_path, script, platform, v"6")
+    mktempdir() do build_path
+        @test_logs (:warn, r"contains std::string values") match_mode=:any begin
+            do_build(build_path, script, platform, v"6")
+        end
     end
 end
 
