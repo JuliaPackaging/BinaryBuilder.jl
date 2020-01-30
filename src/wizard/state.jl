@@ -1,14 +1,14 @@
 import Base: show
 
-abstract type AbstractDependency; end
-struct InlineBuildDependency <: AbstractDependency
+abstract type AbstractWizardDependency; end
+struct InlineBuildDependency <: AbstractWizardDependency
     script::String
 end
-struct RemoteBuildDependency <: AbstractDependency
+struct RemoteBuildDependency <: AbstractWizardDependency
     url::String
     script::Union{String, Nothing}
 end
-struct TarballDependency <: AbstractDependency
+struct TarballDependency <: AbstractWizardDependency
     url::String
     hash::String
 end
