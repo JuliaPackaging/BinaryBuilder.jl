@@ -124,7 +124,7 @@ end
 
 
 @testset "Auditor - .dll moving" begin
-    for platform in [Linux(:x86_64), Windows(:x86_64)]
+    for platform in [Windows(:x86_64)]
         mktempdir() do build_path
             build_output_meta = nothing
             @test_logs (:warn, r"lib/libfoo.dll should be in `bin`") (:warn, r"Simple buildsystem detected") match_mode=:any begin
@@ -133,7 +133,7 @@ end
                     "dll_moving",
                     v"1.0.0",
                     [],
-                    # Intsall a .dll into lib
+                    # Install a .dll into lib
                     raw"""
                     mkdir -p ${prefix}/lib
                     cc -o ${prefix}/lib/libfoo.${dlext} -shared /usr/share/testsuite/c/dyn_link/libfoo/libfoo.c
@@ -144,9 +144,7 @@ end
                     # Ensure our executable products are built
                     Product[LibraryProduct("libfoo", :libfoo)],
                     # No dependencies
-                    [];
-                    # We need to build with very recent GCC so that we can emit AVX2
-                    preferred_gcc_version=v"8",
+                    []
                 )
             end
 
@@ -156,8 +154,7 @@ end
 
             # Test that `libfoo.dll` gets moved to `bin` if it's a windows
             contents = list_tarball_files(tarball_path)
-            dir = isa(platform, Windows) ? "bin" : "lib"
-            @test "$(dir)/libfoo.$(dlext(platform))" in contents
+            @test "bin/libfoo.$(dlext(platform))" in contents
         end
     end
 end
