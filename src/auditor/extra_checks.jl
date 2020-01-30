@@ -4,11 +4,15 @@
 check_os_abi(::ObjectHandle, ::Platform, rest...; verbose::Bool = false, kwargs...) = true
 
 function check_os_abi(oh::ELFHandle, ::FreeBSD, rest...; verbose::Bool = false, kwargs...)
-    if oh.ei.osabi != 0x09
+    if oh.ei.osabi != ELF.ELFOSABI_FREEBSD
         # The dynamic loader should not have problems in this case, but the
         # linker may not appreciate.  Let the user know about this.
         if verbose
-            @warn "OS/ABI is not set to FreeBSD (0x09) in the file header, this may be an issue at linking time"
+            msg = replace("""
+            $(basename(path(oh))) has an ELF header OS/ABI value that is not set to FreeBSD
+            ($(ELF.ELFOSABI_FREEBSD)), this may be an issue at link time"
+            """, '\n' => ' ')
+            @warn(strip(msg))
         end
         return false
     end
