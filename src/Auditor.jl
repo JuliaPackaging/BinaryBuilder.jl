@@ -73,17 +73,22 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 else
                     # Check that the ISA isn't too high
                     all_ok &= check_isa(oh, platform, prefix; verbose=verbose, silent=silent)
-                    # Check that the libgfortran version matches
-                    all_ok &= check_libgfortran_version(oh, platform; verbose=verbose)
-                    # Check that the libstdcxx string ABI matches
-                    all_ok &= check_cxxstring_abi(oh, platform; verbose=verbose)
-                    # Check that this binary file's dynamic linkage works properly.  Note to always
-                    # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
-                    # checks to freak out a little bit.
-                    all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
-                                                    platform=platform, silent=silent,
-                                                    verbose=verbose, autofix=autofix)
+                    # Check that the OS ABI is set correctly (often indicates the wrong linker was used)
                     all_ok &= check_os_abi(oh, platform, verbose = verbose)
+
+                    # If this is a dynamic object, do the dynamic checks
+                    if isdynamic(oh)
+                        # Check that the libgfortran version matches
+                        all_ok &= check_libgfortran_version(oh, platform; verbose=verbose)
+                        # Check that the libstdcxx string ABI matches
+                        all_ok &= check_cxxstring_abi(oh, platform; verbose=verbose)
+                        # Check that this binary file's dynamic linkage works properly.  Note to always
+                        # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
+                        # checks to freak out a little bit.
+                        all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
+                                                        platform=platform, silent=silent,
+                                                        verbose=verbose, autofix=autofix)
+                    end
                 end
             end
         catch e
