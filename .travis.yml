@@ -19,6 +19,7 @@ env:
 cache:
   directories:
     - deps
+    - /home/travis/.julia/artifacts
 
 jobs:
   allow_failures:
