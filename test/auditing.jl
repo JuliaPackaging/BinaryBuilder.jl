@@ -72,34 +72,39 @@ end
 end
 
 @testset "Auditor - cxxabi selection" begin
+    libcxxstringabi_test = LibraryProduct("libcxxstringabi_test", :libcxxstringabi_test)
+
+    # Factor the autobuild() out
+    function do_build(build_path, script, platform, gcc_version)
+        autobuild(
+            build_path,
+            "libcxxstringabi_test",
+            v"1.0.0",
+            # Copy in the build_tests sources
+            [build_tests_dir],
+            script,
+            # Build for this platform
+            [platform],
+            # The products we expect to be build
+            [libcxxstringabi_test],
+            # No depenedencies
+            [];
+            preferred_gcc_version=gcc_version
+        )
+    end
+
     for platform in (Linux(:x86_64; compiler_abi=CompilerABI(;cxxstring_abi=:cxx03)),
                      Linux(:x86_64; compiler_abi=CompilerABI(;cxxstring_abi=:cxx11)))
         # Look across multiple gcc versions; there can be tricksy interactions here
         for gcc_version in (v"4", v"6", v"9")
             # Do each build within a separate temporary directory
             mktempdir() do build_path
-                libcxxstringabi_test = LibraryProduct("libcxxstringabi_test", :libcxxstringabi_test)
-                build_output_meta = autobuild(
-                    build_path,
-                    "libcxxstringabi_test",
-                    v"1.0.0",
-                    # Copy in the libfoo sources
-                    [build_tests_dir],
-                    # Easy build script
-                    raw"""
+                script = raw"""
                     cd ${WORKSPACE}/srcdir/cxxstringabi_tests
                     make install
                     install_license /usr/share/licenses/libuv/LICENSE
-                    """,
-                    # Build for this platform
-                    [platform],
-                    # The products we expect to be build
-                    [libcxxstringabi_test],
-                    # No depenedencies
-                    [];
-                    preferred_gcc_version=gcc_version
-                )
-
+                """
+                build_output_meta = do_build(build_path, script, platform, gcc_version)
                 # Extract our platform's build
                 @test haskey(build_output_meta, platform)
                 tarball_path, tarball_hash = build_output_meta[platform][1:2]
@@ -117,7 +122,35 @@ end
                     detected_cxxstring_abi = BinaryBuilder.detect_cxxstring_abi(oh, platform)
                     @test detected_cxxstring_abi == cxxstring_abi(platform)
                 end
+
+                # Explicitly test cxx string abi mismatches
+                if gcc_version > v"4"
+                    script = """
+                        mkdir -p \${libdir}
+                        /opt/\${target}/bin/\${target}-g++ -fPIC \\
+                            -D_GLIBCXX_USE_CXX11_ABI=$(cxxstring_abi(platform) == :cxx03 ? "1" : "0") \\
+                            -o \${libdir}/libcxxstringabi_test.\${dlext} \\
+                            -shared \${WORKSPACE}/srcdir/cxxstringabi_tests/lib.cc
+                        install_license /usr/share/licenses/libuv/LICENSE
+                    """
+                    @test_logs (:warn, r"ignoring our choice of compiler") match_mode=:any begin
+                        do_build(build_path, script, platform, gcc_version)
+                    end
+                end
             end
+        end
+    end
+
+    # Explicitly test not setting a cxx string abi at all
+    script = raw"""
+        cd ${WORKSPACE}/srcdir/cxxstringabi_tests
+        make install
+        install_license /usr/share/licenses/libuv/LICENSE
+    """
+    platform = Linux(:x86_64)
+    mktempdir() do build_path
+        @test_logs (:warn, r"contains std::string values") match_mode=:any begin
+            do_build(build_path, script, platform, v"6")
         end
     end
 end
