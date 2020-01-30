@@ -6,6 +6,7 @@ using RegistryTools, Registrator
 import LibGit2
 
 include("Sources.jl")
+include("Dependencies.jl")
 
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
@@ -82,6 +83,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         """))
         return nothing
     end
+
+    # XXX: These are needed as long as we support old-style sources and
+    # dependencies.
+    sources = coerce_source.(sources)
+    dependencies = coerce_dependency.(dependencies)
 
     # Do not clobber caller's ARGS
     ARGS = deepcopy(ARGS)
@@ -222,6 +228,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if verbose
             @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
         end
+
+        # For deploy discard build-only dependencies and transform in PackageSpec
+        filter!(dep -> !isa(dep, BuildDependency), dependencies)
+        dependencies = getpkg.(dependencies)
 
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
@@ -472,7 +482,7 @@ here are the relevant actors, broken down in brief:
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
                    src_version::VersionNumber,
-                   sources_::Vector,
+                   sources::Vector,
                    script::AbstractString,
                    platforms::Vector,
                    products::Vector{<:Product},
@@ -487,15 +497,13 @@ function autobuild(dir::AbstractString,
                    lazy_artifacts::Bool = false,
                    meta_json_stream = nothing,
                    kwargs...)
-    # XXX: This is needed as long as we support old-style Pair/String sources
-    # specifications.
-    sources = coerce_source.(sources_)
+    # XXX: These are needed as long as we support old-style sources and
+    # dependencies.
+    sources = coerce_source.(sources)
+    dependencies = coerce_dependency.(dependencies)
 
     # If they've asked for the JSON metadata, by all means, give it to them!
     if meta_json_stream !== nothing
-        dep_name(x::String) = x
-        dep_name(x::Pkg.Types.PackageSpec) = x.name
-
         println(meta_json_stream, JSON.json(Dict(
             "name" => src_name,
             "version" => "v$(src_version)",
@@ -577,7 +585,7 @@ function autobuild(dir::AbstractString,
             src_hashes;
             verbose=verbose,
         )
-        artifact_paths = setup_dependencies(prefix, dependencies, concrete_platform)
+        artifact_paths = setup_dependencies(prefix, getpkg.(dependencies), concrete_platform)
 
         # Create a runner to work inside this workspace with the nonce built-in
         ur = preferred_runner()(

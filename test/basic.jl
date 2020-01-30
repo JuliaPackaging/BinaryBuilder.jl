@@ -1,6 +1,6 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg
-using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!
+using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!, getpkg
 
 @testset "File Collection" begin
     temp_prefix() do prefix
@@ -288,17 +288,17 @@ end
     dependencies = ["OpenSSL_jll",]
     truefalse, resolved_deps = resolve_jlls(dependencies)
     @test truefalse
-    @test all(x->x.uuid !== nothing, resolved_deps)
+    @test all(x->getpkg(x).uuid !== nothing, resolved_deps)
     # Deps given by name::PackageSpec
     dependencies = [PackageSpec(name="OpenSSL_jll"),]
     truefalse, resolved_deps = resolve_jlls(dependencies)
     @test truefalse
-    @test all(x->x.uuid !== nothing, resolved_deps)
+    @test all(x->getpkg(x).uuid !== nothing, resolved_deps)
     # Deps given by (name,uuid)::PackageSpec
     dependencies = [PackageSpec(name="OpenSSL_jll", uuid="458c3c95-2e84-50aa-8efc-19380b2a3a95"),]
     truefalse, resolved_deps = resolve_jlls(dependencies)
     @test truefalse
-    @test all(x->x.uuid !== nothing, resolved_deps)
+    @test all(x->getpkg(x).uuid !== nothing, resolved_deps)
     # Deps given by combination of name::String, name::PackageSpec and (name,uuid)::PackageSpec
     dependencies = [
         "Zlib_jll",
@@ -307,7 +307,7 @@ end
     ]
     truefalse, resolved_deps = resolve_jlls(dependencies)
     @test truefalse
-    @test all(x->x.uuid !== nothing, resolved_deps)
+    @test all(x->getpkg(x).uuid !== nothing, resolved_deps)
 end
 
 @testset "Compiler Shards" begin
