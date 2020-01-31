@@ -26,7 +26,7 @@ function download_source(source::FileSource; verbose::Bool = false)
         verify(src_path, source.hash; verbose=verbose)
     else
         # Otherwise, download and verify
-        src_path = storage_dir("downloads", string(src_hash, "-", basename(source.url)))
+        src_path = storage_dir("downloads", string(source.hash, "-", basename(source.url)))
         download_verify(source.url, source.hash, src_path; verbose=verbose)
     end
     return src_path => source.hash
