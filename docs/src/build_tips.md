@@ -133,6 +133,7 @@ The following variables are useful to control the build script over different ta
 * `libdir`: the path to the directory where the shared libraries should be installed.  This is `${prefix}/bin` when building for Windows, `${prefix}/lib` for all other platforms
 * `bindir`: the path to the directory where the executables should be installed.  This is equivalent to `${prefix}/bin`
 * `target`: the target platform
+* `bb_full_target`: the full target platform, containing things like libstdc++ string ABI platform tags, and libgfortran version
 * `nproc`: the number of processors of the host machine, useful for parallel building (e.g., `make -j${nproc}`)
 * `nbits`: number of bits of the target architecture (usually it is either 32 or 64)
 * `proc_family`: target processor family (e.g., "intel", "power", or "arm")
