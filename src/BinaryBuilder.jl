@@ -121,9 +121,9 @@ function get_bb_version()
     try
         repo = LibGit2.GitRepo(dirname(@__DIR__))
         gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
-        return "$(version)-$(gitsha)"
+        return VersionNumber("$(version)-$(gitsha)")
     catch
-        return "$(version) (gitsha unavailable)"
+        return VersionNumber(version)
     end
 end
 
