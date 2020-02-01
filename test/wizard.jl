@@ -163,7 +163,7 @@ end
 
     # Test failure to resolve a dependency
     state = step2_state()
-    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+    @test_logs (:warn, r"Unable to resolve iso_codez_jll") match_mode=:any with_wizard_output(state, BinaryBuilder.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "Y")

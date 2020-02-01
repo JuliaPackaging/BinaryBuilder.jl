@@ -10,11 +10,11 @@ import BinaryBuilder: sourcify
             tmpdir,
             "libfoo",
             v"1.0.0",
-            [("https://julialang.org" => "123123"), "./bundled"],
+            [FileSource("https://julialang.org", "123123"), DirectorySource("./bundled")],
             "exit 1",
             [Linux(:x86_64)],
             Product[LibraryProduct("libfoo", :libfoo)],
-            ["Zlib_jll"];
+            [Dependency("Zlib_jll")];
             meta_json_stream=meta_json_buff,
         )
         @test build_output_meta == Dict()
@@ -23,7 +23,7 @@ import BinaryBuilder: sourcify
             tmpdir,
             "libfoo",
             v"1.0.0",
-            [("https://github.com/JuliaLang/julia.git" => "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65")],
+            [GitSource("https://github.com/JuliaLang/julia.git", "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65")],
             "exit 0",
             [Linux(:x86_64), Windows(:x86_64)],
             Product[ExecutableProduct("julia", :julia)],

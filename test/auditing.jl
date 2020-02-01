@@ -31,7 +31,7 @@ end
                 build_path,
                 "isa_tests",
                 v"1.0.0",
-                [build_tests_dir],
+                [DirectorySource(build_tests_dir)],
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
                 cd ${WORKSPACE}/srcdir/isa_tests
@@ -81,7 +81,7 @@ end
             "libcxxstringabi_test",
             v"1.0.0",
             # Copy in the build_tests sources
-            [build_tests_dir],
+            [DirectorySource(build_tests_dir)],
             script,
             # Build for this platform
             [platform],
