@@ -17,9 +17,9 @@ BuildDependency(d::AbstractString) = BuildDependency(String(d))
 
 getpkg(d::AbstractDependency) = d.pkg
 
-dep_name(x::AbstractDependency) = x
-dep_name(x::String) = Dependency(x)
-dep_name(x::PkgSpec) = Dependency(x.name)
+dep_name(x::String) = x
+dep_name(x::PkgSpec) = x.name
+dep_name(x::AbstractDependency) = dep_name(getpkg(x))
 
 # compatibility for Julia 1.3-
 if VERSION < v"1.4"

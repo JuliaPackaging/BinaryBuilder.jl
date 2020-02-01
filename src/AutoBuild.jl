@@ -508,7 +508,7 @@ function autobuild(dir::AbstractString,
             "script" => script,
             "platforms" => triplet.(platforms),
             "products" => products,
-            "dependencies" => dep_name.(dependencies),
+            "dependencies" => dependencies,
             "lazy_artifacts" => lazy_artifacts,
         )))
         return Dict()
@@ -932,7 +932,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 """)
             end
             for dep in dependencies
-                println(io, "using $(dep)")
+                println(io, "using $(dep_name(dep))")
             end
 
             # The LIBPATH is called different things on different platforms
@@ -1042,8 +1042,8 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 println(io, """
                     # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
                     # then append them to our own.
-                    foreach(p -> append!(PATH_list, p), ($(join(["$(dep).PATH_list" for dep in dependencies], ", ")),))
-                    foreach(p -> append!(LIBPATH_list, p), ($(join(["$(dep).LIBPATH_list" for dep in dependencies], ", ")),))
+                    foreach(p -> append!(PATH_list, p), ($(join(["$(dep_name(dep)).PATH_list" for dep in dependencies], ", ")),))
+                    foreach(p -> append!(LIBPATH_list, p), ($(join(["$(dep_name(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
                 """)
             end
 
