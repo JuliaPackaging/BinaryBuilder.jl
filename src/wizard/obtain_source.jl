@@ -184,7 +184,7 @@ function download_source(state::WizardState)
     end
 
     # Spit back the url, local path and source hash
-    return url, source_path, source_hash
+    return url, SetupSource(source_path, source_hash, "")
 end
 
 """
@@ -306,14 +306,12 @@ function obtain_source(state::WizardState)
     # These are the metadata we need to know about all the sources we'll be
     # building over the course of this journey we're on together.
     state.source_urls = String[]
-    state.source_files = String[]
-    state.source_hashes = String[]
+    state.source_files = SetupSource[]
 
     while true
-        url, file, hash = download_source(state)
+        url, file = download_source(state)
         push!(state.source_urls, url)
         push!(state.source_files, file)
-        push!(state.source_hashes, hash)
         println(state.outs)
 
         q = "Would you like to download additional sources? "

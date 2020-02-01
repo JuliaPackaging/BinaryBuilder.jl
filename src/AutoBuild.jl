@@ -5,9 +5,6 @@ using Pkg.TOML, Dates
 using RegistryTools, Registrator
 import LibGit2
 
-include("Sources.jl")
-include("Dependencies.jl")
-
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
                    products, dependencies; kwargs...)
@@ -546,18 +543,11 @@ function autobuild(dir::AbstractString,
     end
 
     # We must prepare our sources.  Download them, hash them, etc...
-    sources = download_source.(sources; verbose=verbose)
+    sources_files = download_source.(sources; verbose=verbose)
 
     # Our build products will go into ./products
     out_path = joinpath(dir, "products")
     try mkpath(out_path) catch; end
-
-    # Convert from tuples to arrays, if need be
-    if isempty(sources)
-        src_paths, src_hashes = (String[], String[])
-    else
-        src_paths, src_hashes = collect.(collect(zip(sources...)))
-    end
 
     for platform in platforms
         # We build in a platform-specific directory
@@ -581,8 +571,7 @@ function autobuild(dir::AbstractString,
 
         prefix = setup_workspace(
             build_path,
-            src_paths,
-            src_hashes;
+            sources_files;
             verbose=verbose,
         )
         artifact_paths = setup_dependencies(prefix, getpkg.(dependencies), concrete_platform)

@@ -18,6 +18,8 @@ export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi
 
 include("compat.jl")
 include("OutputCollector.jl")
+include("Sources.jl")
+include("Dependencies.jl")
 include("Prefix.jl")
 include("Products.jl")
 include("Auditor.jl")

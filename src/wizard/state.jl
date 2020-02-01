@@ -32,8 +32,7 @@ necessary.  It also holds all necessary metadata such as input/output streams.
     # Filled in by step 2
     workspace::Union{Nothing, String} = nothing
     source_urls::Union{Nothing, Vector{String}} = nothing
-    source_files::Union{Nothing, Vector{String}} = nothing
-    source_hashes::Union{Nothing, Vector{String}} = nothing
+    source_files::Union{Nothing, Vector{SetupSource}} = nothing
     dependencies::Union{Nothing, Vector} = nothing
     compilers::Union{Nothing, Vector{Symbol}} = nothing
     preferred_gcc_version::Union{Nothing, VersionNumber} = nothing
