@@ -1,7 +1,28 @@
 export FileSource, GitSource, DirectorySource
 
+"""
+An `AbstractSource` is something used as source to build the package.  Sources
+are installed to `\${WORKSPACE}/srcdir` in the build environment.
+
+Concrete subtypes of `AbstractSource` are:
+
+* [`FileSource`](@ref): a remote file to download from the Internet;
+* [`GitSource`](@ref): a remote Git repository to clone;
+* [`DirectorySource`](@ref): a local directory to mount.
+"""
 abstract type AbstractSource end
 
+"""
+    FileSource(url::String, hash::String; unpack_target::String = "")
+
+Specify a remote file to be downloaded from the Internet from `url`.  `hash` is
+the 64-character SHA256 checksum of the file.
+
+If the file is an archive in one of the supported archive formats (e.g., TAR or
+ZIP balls), it will be automatically unpacked to `\${WORKSPACE}/srcdir`, or in
+its subdirectory pointed to by the optional keyword `unpack_target`, if
+provided.
+"""
 struct FileSource <: AbstractSource
     url::String
     hash::String
@@ -10,6 +31,15 @@ end
 FileSource(url::String, hash::String; unpack_target::String = "") =
     FileSource(url, hash, unpack_target)
 
+"""
+    GitSource(url::String, hash::String; unpack_target::String = "")
+
+Specify a remote Git repository to clone form `url`.  `hash` is the 40-character
+SHA1 revision to checkout after cloning.
+
+The repository will be cloned in `\${WORKSPACE}/srcdir`, or in its subdirectory
+pointed to by the optional keyword `unpack_target`, if provided.
+"""
 struct GitSource <: AbstractSource
     url::String
     hash::String
@@ -18,6 +48,14 @@ end
 GitSource(url::String, hash::String; unpack_target::String = "") =
     GitSource(url, hash, unpack_target)
 
+"""
+    DirectorySource(path::String; unpack_target::String = "")
+
+Specify a local directory to mount from `path`.
+
+The content of the directory will be mounted in `\${WORKSPACE}/srcdir`, or in its
+subdirectory pointed to by the optional keyword `unpack_target`, if provided.
+"""
 struct DirectorySource <: AbstractSource
     path::String
     unpack_target::String

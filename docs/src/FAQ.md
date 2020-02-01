@@ -77,19 +77,19 @@ Yes, but it's unlikely that you'll need to.  The build environment is based on A
 
 ### What are those numbers in the list of sources?  How do I get them?
 
-The list source of sources is a vector of dictionaries, whose key is the URL of the source and whose value is its hash.  What kind of hash depends on what the source actually is:
+The list of sources is a vector of [`BinaryBuilder.AbstractSource`](@ref)s.  What the hash is depends on what the source is:
 
-* If the source is a file to be downloaded, the hash is a 64-character SHA256 checksum.  If you have a copy of that file, you can compute the hash in Julia with
+* For a [`FileSource`](@ref), the hash is a 64-character SHA256 checksum.  If you have a copy of that file, you can compute the hash in Julia with
   ```julia
   using SHA
   open(path_to_the_file, "r") do f
        bytes2hex(sha256(f))
   end
   ```
-  where `path_to_the_file` is a string with the path to the file.  Alternatively, you can use the command line utilities `curl` and `sha256sum` to compute the hash of a remote file:
+  where `path_to_the_file` is a string with the path to the file.  Alternatively, you can use the command line utilities `curl` and `shasum` to compute the hash of a remote file:
   ```
   $ curl -L http://example.org/file.tar.gz | shasum -a 256
   ```
   replacing `http://example.org/file.tar.gz` with the actual URL of the file you want to download.
 
-* If the source is a Git repository, the hash is the 40-character SHA1 hash of the revision you want to checkout.  For reproducibility you must indicate a specific revision, and not a branch or tag name, which are moving targets.
+* For a [`GitSource`](@ref), the hash is the 40-character SHA1 hash of the revision you want to checkout.  For reproducibility you must indicate a specific revision, and not a branch or tag name, which are moving targets.

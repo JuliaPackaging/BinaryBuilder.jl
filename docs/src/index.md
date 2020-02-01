@@ -24,7 +24,7 @@ using BinaryBuilder
 name = "libfoo"
 version = v"1.0.1"
 sources = [
-    ("<url to source tarball>", "sha256 hash"),
+    FileSource("<url to source tarball>", "sha256 hash"),
 ]
 
 script = raw"""
@@ -41,7 +41,7 @@ products = [
 ]
 
 dependencies = [
-    "Zlib_jll",
+    Dependency("Zlib_jll"),
 ]
 
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies)

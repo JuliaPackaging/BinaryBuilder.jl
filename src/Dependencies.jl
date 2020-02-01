@@ -3,13 +3,38 @@ export Dependency, BuildDependency
 # Pkg.PackageSpec return different types in different Julia versions so...
 const PkgSpec = typeof(Pkg.PackageSpec(name="dummy"))
 
+"""
+An `AbstractDependency` is a binary dependency of the JLL package.  Dependencies
+are installed to `\${prefix}` in the build environment.
+
+Concrete subtypes of `AbstractDependency` are
+
+* [`Dependency`](@ref): a JLL package that is necessary for to build the package
+  and to load the generated JLL package.
+* [`BuildDependency`](@ref): a JLL package that is necessary only t obuild the
+  package.  This will not be a dependency of the generated JLL package.
+"""
 abstract type AbstractDependency{T<:Union{PkgSpec,String}} end
 
+"""
+    Dependency(dep::Union{PackageSpec,String})
+
+Define a binary dependency that is necessary to build the package and load the
+generated JLL package.  The argument can be either a string with the name of the
+JLL package or a `Pkg.PackageSpec`.
+"""
 struct Dependency{T<:Union{PkgSpec,String}} <: AbstractDependency{T}
     pkg::T
 end
 Dependency(d::AbstractString) = Dependency(String(d))
 
+"""
+    BuildDependency(dep::Union{PackageSpec,String})
+
+Define a binary dependency that is necessary only to build the package.  The
+argument can be either a string with the name of the JLL package or a
+`Pkg.PackageSpec`.
+"""
 struct BuildDependency{T<:Union{PkgSpec,String}} <: AbstractDependency{T}
     pkg::T
 end
