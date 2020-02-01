@@ -258,7 +258,7 @@ function obtain_binary_deps(state::WizardState)
     printstyled(state.outs, msg, bold=true)
 
     q = "Do you require any (binary) dependencies? "
-    state.dependencies = Dependency{PkgSpec}[]
+    state.dependencies = Dependency[]
     if yn_prompt(state, q, :n) == :y
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         local resolved_deps
