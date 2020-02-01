@@ -1,7 +1,12 @@
 function print_build_tarballs(io::IO, state::WizardState)
-    urlhashes = zip(state.source_urls, state.source_hashes)
-    sources_string = strip(join(map(urlhashes) do x
-        string(repr(x[1])," =>\n    ", repr(x[2]), ",\n")
+    urlfiles = zip(state.source_urls, state.source_files)
+    sources_string = strip(join(map(urlfiles) do x
+        url_string = repr(x[1])
+        if endswith(url_string, ".git")
+            "GitSource($(url_string), $(repr(x[2].hash)))"
+        else
+            "FileSource($(url_string), $(repr(x[2].hash)))"
+        end
     end,"\n    "))
     if Set(state.platforms) == Set(supported_platforms())
         platforms_string = "supported_platforms()"
@@ -34,8 +39,8 @@ function print_build_tarballs(io::IO, state::WizardState)
         end
     end,",\n    ")
 
-    psrepr(ps) = "\n    PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\")"
-    dependencies_string = join(map(psrepr, state.dependencies))
+    psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\"))"
+    dependencies_string = join(map(psrepr, getpkg.(state.dependencies)))
 
     # Keyword arguments to `build_tarballs()`
     kwargs_vec = String[]

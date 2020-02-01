@@ -27,7 +27,7 @@ DirectorySource(path::String; unpack_target::String = "") =
 
 # This is not meant to be used as source in the `build_tarballs.jl` scripts but
 # only to set up the source in the workspace.
-struct SetupSource <: AbstractSource
+struct SetupSource
     path::String
     hash::String
     unpack_target::String
