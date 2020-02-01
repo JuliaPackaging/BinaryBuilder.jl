@@ -33,7 +33,7 @@ necessary.  It also holds all necessary metadata such as input/output streams.
     workspace::Union{Nothing, String} = nothing
     source_urls::Union{Nothing, Vector{String}} = nothing
     source_files::Union{Nothing, Vector{SetupSource}} = nothing
-    dependencies::Union{Nothing, Vector{Dependency{PkgSpec}}} = nothing
+    dependencies::Union{Nothing, Vector{Dependency}} = nothing
     compilers::Union{Nothing, Vector{Symbol}} = nothing
     preferred_gcc_version::Union{Nothing, VersionNumber} = nothing
     preferred_llvm_version::Union{Nothing, VersionNumber} = nothing

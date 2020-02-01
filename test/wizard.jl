@@ -206,7 +206,7 @@ function step3_state()
     state.source_files = [BinaryBuilder.SetupSource(libfoo_tarball_path, libfoo_tarball_hash)]
     state.name = "libfoo"
     state.version = v"1.0.0"
-    state.dependencies = Dependency{BinaryBuilder.PkgSpec}[]
+    state.dependencies = Dependency[]
     state.compilers = [:c]
     state.preferred_gcc_version = getversion(available_gcc_builds[1])
     state.preferred_llvm_version = getversion(available_llvm_builds[end])
