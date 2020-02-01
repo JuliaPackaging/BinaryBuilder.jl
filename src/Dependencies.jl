@@ -73,4 +73,7 @@ end
 # XXX: compatibility functions.  These are needed until we support old-style
 # dependencies.
 coerce_dependency(dep::AbstractDependency) = dep
-coerce_dependency(dep) = Dependency(dep)
+function coerce_dependency(dep)
+    @warn "Using PackageSpec or string as source is deprecated, use Dependency instead"
+    Dependency(dep)
+end

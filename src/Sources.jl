@@ -113,12 +113,17 @@ end
 # XXX: compatibility functions.  These are needed until we support old-style
 # Pair/String sources specifications.
 coerce_source(source::AbstractSource) = source
-coerce_source(source::AbstractString) = DirectorySource(source)
+function coerce_source(source::AbstractString)
+    @warn "Using a string as source is deprecated, use DirectorySource instead"
+    return DirectorySource(source)
+end
 function coerce_source(source::Pair)
     src_url, src_hash = source
     if endswith(src_url, ".git")
+        @warn "Using a pair as source is deprecated, use GitSource instead"
         return GitSource(src_url, src_hash)
     else
+        @warn "Using a pair as source is deprecated, use FileSource instead"
         return FileSource(src_url, src_hash)
     end
 end

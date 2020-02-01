@@ -85,7 +85,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     # XXX: These are needed as long as we support old-style sources and
-    # dependencies.
+    # dependencies.  Raise a warning for now, deprecate in BB 0.3+
     sources = coerce_source.(sources)
     dependencies = coerce_dependency.(dependencies)
 
