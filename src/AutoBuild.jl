@@ -1248,12 +1248,12 @@ function push_jll_package(name, build_version;
 end
 
 jll_uuid(name) = Pkg.Types.uuid5(Pkg.Types.uuid_package, "$(name)_jll")
-function build_project_dict(name, version, dependencies)
+function build_project_dict(name, version, dependencies::Array{PkgSpec})
     project = Dict(
         "name" => "$(name)_jll",
         "uuid" => string(jll_uuid("$(name)_jll")),
         "version" => string(version),
-        "deps" => Dict{String,Any}(dep => string(jll_uuid(dep)) for dep in dependencies),
+        "deps" => Dict{String,Any}(dep.name => string(dep.uuid) for dep in dependencies),
         # We require at least Julia 1.3+, for Pkg.Artifacts support
         "compat" => Dict{String,Any}("julia" => "1.0"),
     )
