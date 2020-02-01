@@ -5,7 +5,7 @@ import ObjectFile: rpaths, canonical_rpaths
     platform_for_object(oh::ObjectHandle)
 
 Returns the platform the given `ObjectHandle` should run on.  E.g.
-if the given `ObjectHandle` is an x86_64 Linux ELF object, this function
+if the given `ObjectHandle` is an `x86_64` Linux ELF object, this function
 will return `Linux(:x86_64)`.  This function does not yet distinguish
 between different libc's such as `:glibc` and `:musl`.
 """
@@ -64,8 +64,8 @@ Returns `true` if the given `ObjectHandle` refers to an object of the given
 `platform`; E.g. if the given `platform` is for AArch64 Linux, then `h` must
 be an `ELFHandle` with `h.header.e_machine` set to `ELF.EM_AARCH64`.
 
-In particular, this method and `platform_for_object()` both exist because
-the latter is not smart enough to deal with `:glibc` and `:musl` yet.
+In particular, this method and [`platform_for_object()`](@ref) both exist
+because the latter is not smart enough to deal with `:glibc` and `:musl` yet.
 """
 function is_for_platform(h::ObjectHandle, platform::Platform)
     if platform isa Linux || platform isa FreeBSD

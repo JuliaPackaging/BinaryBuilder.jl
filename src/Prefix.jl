@@ -142,8 +142,8 @@ Build a tarball of the `prefix`, storing the tarball at `output_base`,
 appending a version number, a platform-dependent suffix and a file extension.
 If no platform is given, defaults to current platform. Runs an `audit()` on the
 `prefix`, to ensure that libraries can be `dlopen()`'ed, that all dependencies
-are located within the prefix, etc... See the `audit()` documentation for a
-full list of the audit steps.  Returns the full path to and hash of the
+are located within the prefix, etc... See the [`audit()`](@ref) documentation
+for a full list of the audit steps.  Returns the full path to and hash of the
 generated tarball.
 """
 function package(prefix::Prefix,

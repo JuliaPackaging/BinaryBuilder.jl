@@ -5,17 +5,19 @@ import Base: repr
 """
 A `Product` is an expected result after building or installation of a package.
 
-Examples of `Product`s include `LibraryProduct`, `ExecutableProduct` and
-`FileProduct`.  All `Product` types must define the following minimum set of
-functionality:
+Examples of `Product`s include [`LibraryProduct`](@ref),
+[`ExecutableProduct`](@ref) and [`FileProduct`](@ref).  All `Product` types must
+define the following minimum set of functionality:
 
-* `locate(::Product)`: given a `Product`, locate it within the wrapped `Prefix`
-  returning its location as a string
+* [`locate(::Product)`](@ref): given a `Product`, locate it within
+  the wrapped `Prefix` returning its location as a string
 
-* `satisfied(::Product)`: given a `Product`, determine whether it has been
-  successfully satisfied (e.g. it is locateable and it passes all callbacks)
+* [`satisfied(::Product)`](@ref): given a `Product`, determine whether it has
+  been successfully satisfied (e.g. it is locateable and it passes all
+  callbacks)
 
-* `variable_name(::Product)`: return the variable name assigned to a `Product`
+* [`variable_name(::Product)`](@ref): return the variable name assigned to a
+  `Product`
 
 * `repr(::Product)`: Return a representation of this `Product`, useful for
   auto-generating source code that constructs `Products`, if that's your thing.
@@ -44,10 +46,10 @@ end
               verbose::Bool = false,
               isolate::Bool = false)
 
-Given a `Product`, return `true` if that `Product` is satisfied, e.g. whether
-a file exists that matches all criteria setup for that `Product`.  If `isolate`
-is set to `true`, will isolate all checks from the main Julia process in the
-event that `dlopen()`'ing a library might cause issues.
+Given a [`Product`](@ref), return `true` if that `Product` is satisfied,
+e.g. whether a file exists that matches all criteria setup for that `Product`.
+If `isolate` is set to `true`, will isolate all checks from the main Julia
+process in the event that `dlopen()`'ing a library might cause issues.
 """
 function satisfied(p::Product, prefix::Prefix; kwargs...)
     return locate(p, prefix; kwargs...) != nothing
@@ -57,7 +59,7 @@ end
 """
     variable_name(p::Product)
 
-Return the variable name associated with this `Product` as a string
+Return the variable name associated with this [`Product`](@ref) as a string
 """
 function variable_name(p::Product)
     return string(p.variable_name)
@@ -65,10 +67,10 @@ end
 
 
 """
-A `LibraryProduct` is a special kind of `Product` that not only needs to exist,
-but needs to be `dlopen()`'able.  You must know which directory the library
-will be installed to, and its name, e.g. to build a `LibraryProduct` that
-refers to `"/lib/libnettle.so"`, the "directory" would be "/lib", and the
+A `LibraryProduct` is a special kind of [`Product`](@ref) that not only needs to
+exist, but needs to be `dlopen()`'able.  You must know which directory the
+library will be installed to, and its name, e.g. to build a `LibraryProduct`
+that refers to `"/lib/libnettle.so"`, the "directory" would be "/lib", and the
 "libname" would be "libnettle".  Note that a `LibraryProduct` can support
 multiple libnames, as some software projects change the libname based on the
 build configuration.
@@ -82,10 +84,10 @@ struct LibraryProduct <: Product
     """
         LibraryProduct(libnames, varname::Symbol)
 
-    Declares a `LibraryProduct` that points to a library located within the
-    `libdir` of the given `Prefix`, with a name containing `libname`.  As an
-    example, given that `libdir(prefix)` is equal to `usr/lib`, and `libname`
-    is equal to `libnettle`, this would be satisfied by the following paths:
+    Declares a [`LibraryProduct`](@ref) that points to a library located within
+    the `libdir` of the given `Prefix`, with a name containing `libname`.  As an
+    example, given that `libdir(prefix)` is equal to `usr/lib`, and `libname` is
+    equal to `libnettle`, this would be satisfied by the following paths:
 
         usr/lib/libnettle.so
         usr/lib/libnettle.so.6
@@ -206,7 +208,7 @@ function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = platfor
 end
 
 """
-An `ExecutableProduct` is a `Product` that represents an executable file.
+An `ExecutableProduct` is a [`Product`](@ref) that represents an executable file.
 
 On all platforms, an ExecutableProduct checks for existence of the file.  On
 non-Windows platforms, it will check for the executable bit being set.  On
@@ -262,10 +264,10 @@ end
 
 If the given executable file exists and is executable, return its path.
 
-On all platforms, an ExecutableProduct checks for existence of the file.  On
-non-Windows platforms, it will check for the executable bit being set.  On
-Windows platforms, it will check that the file ends with ".exe", (adding it on
-automatically, if it is not already present).
+On all platforms, an [`ExecutableProduct`](@ref) checks for existence of the
+file.  On non-Windows platforms, it will check for the executable bit being set.
+On Windows platforms, it will check that the file ends with ".exe", (adding it
+on automatically, if it is not already present).
 """
 function locate(ep::ExecutableProduct, prefix::Prefix; platform::Platform = platform_key_abi(),
                 verbose::Bool = false, isolate::Bool = false, kwargs...)
@@ -312,7 +314,7 @@ end
 """
     FileProduct(path::AbstractString, varname::Symbol, dir_path = nothing)
 
-Declares a `FileProduct` that points to a file located relative to the root of
+Declares a [`FileProduct`](@ref) that points to a file located relative to the root of
 a `Prefix`, must simply exist to be satisfied.
 """
 struct FileProduct <: Product

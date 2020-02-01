@@ -237,12 +237,12 @@ end
 
 
 """
-    Pick the first platform for use to run on. We prefer Linux x86_64 because
-    that's generally the host platform, so it's usually easiest. After that we
-    go by the following preferences:
-        - OS (in order): Linux, Windows, OSX
-        - Architecture: x86_64, i686, aarch64, powerpc64le, armv7l
-        - The first remaining after this selection
+Pick the first platform for use to run on. We prefer Linux x86_64 because
+that's generally the host platform, so it's usually easiest. After that we
+go by the following preferences:
+* OS (in order): Linux, Windows, OSX
+* Architecture: x86_64, i686, aarch64, powerpc64le, armv7l
+* The first remaining after this selection
 """
 function pick_preferred_platform(platforms)
     if Linux(:x86_64) in platforms
