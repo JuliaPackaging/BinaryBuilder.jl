@@ -444,15 +444,15 @@ here are the relevant actors, broken down in brief:
 
 * `platforms`: a list of platforms to build for.
 
-* `sources`: a list of tuples giving `(url, hash)` of all sources to download
-   and unpack before building begins.
+* `sources`: a vector of all sources to download and unpack before building
+  begins, as [`AbstractSource`](@ref)s.
 
 * `script`: a string representing a shell script to run as the build.
 
 * `products`: the list of `Product`s which shall be built.
 
-* `dependencies`: a list of JLL dependency packages as strings or `Pkg`
-  `PackageSpec`s that should be installed before building begins.
+* `dependencies`: a vector of JLL dependency packages as
+  [`AbstractDependency`](@ref) that should be installed before building begins.
 
 * `verbose`: Enable verbose mode.  What did you expect?
 

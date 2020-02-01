@@ -47,7 +47,7 @@ dependencies = [
 build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies)
 ```
 
-This bare-bones snippet first identifies the sources to download and compile (there can be multiple sources listed here), then lists the `bash` commands to actually build this particular project.  Next, the `products` are defined, which are the files that must exist at the end of the build, and which are wrapped in the eventual JLL package.  Finally, we pass this information off to `build_tarballs()`, which takes it all in and runs the builds, placing output tarballs into the `./products` directory.
+This bare-bones snippet first identifies the sources to download and compile (there can be multiple sources listed here), then lists the `bash` commands to actually build this particular project.  Next, the `products` are defined, which are the files that must exist at the end of the build, and which are wrapped in the eventual JLL package.  Finally, we pass this information off to [`build_tarballs()`](@ref), which takes it all in and runs the builds, placing output tarballs into the `./products` directory.
 
 The bash commands contained within `script` will be executed for each `platform` that is passed in, so if there are platform differences that need to be addressed in the build script, using `if` statements and the `$target` environment variable can be a powerful tool.  See the [OpenBLASBuilder build script](https://github.com/JuliaPackaging/Yggdrasil/blob/685cdcec9f0f0a16f7b90a1671af88326dcf5ab1/O/OpenBLAS/build_tarballs.jl) for an example showcasing this.
 

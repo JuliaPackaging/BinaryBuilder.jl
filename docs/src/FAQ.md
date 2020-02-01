@@ -65,7 +65,7 @@ If you decide to use this workflow, however, you will need to manually open pull
 
 ### Can I open a shell in a particular build environment for doing some quick tests?
 
-Yes!  You can use `BinaryBuilder.runshell(platform)` to quickly start a shell in the current directory, without having to set up a working `build_tarballs.jl` script.  For example,
+Yes!  You can use [`BinaryBuilder.runshell(platform)`](@ref) to quickly start a shell in the current directory, without having to set up a working `build_tarballs.jl` script.  For example,
 ```
 julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Windows(:i686))'
 ```

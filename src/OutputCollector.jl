@@ -68,7 +68,7 @@ end
 """
     alive(s::LineStream)
 
-Returns `true`` if the task owned by this `LineStream` is still processing
+Returns `true` if the task owned by this `LineStream` is still processing
 output from an underlying `Pipe`.
 """
 function alive(s::LineStream)
@@ -142,10 +142,11 @@ end
 """
     wait(collector::OutputCollector)
 
-Wait for the command and all line streams within an `OutputCollector` to finish
-their respective tasks and be ready for full merging.  Return the success of
-the underlying process.  Prints out the last 10 lines of the process if it does
-not complete successfully unless the OutputCollector was created as `verbose`.
+Wait for the command and all line streams within an [`OutputCollector`](@ref) to
+finish their respective tasks and be ready for full merging.  Return the success
+of the underlying process.  Prints out the last 10 lines of the process if it
+does not complete successfully unless the OutputCollector was created as
+`verbose`.
 """
 function wait(collector::OutputCollector)
     # If we've already done this song and dance before, then don't do it again
@@ -177,10 +178,10 @@ end
 """
     merge(collector::OutputCollector; colored::Bool = false)
 
-Merge the stdout and stderr streams of the `OutputCollector` on a per-line
-basis, returning a single string containing all collected lines, interleaved by
-capture time.  If `colored` is set to true, embeds terminal color codes to
-print `stderr` in red.
+Merge the stdout and stderr streams of the [`OutputCollector`](@ref) on a
+per-line basis, returning a single string containing all collected lines,
+interleaved by capture time.  If `colored` is set to true, embeds terminal color
+codes to print `stderr` in red.
 """
 function merge(collector::OutputCollector; colored::Bool = false)
     # First, wait for things to be done.  No incomplete mergings here yet.
