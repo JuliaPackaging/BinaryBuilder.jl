@@ -200,7 +200,8 @@ end
     state.source_files = [BinaryBuilder.SetupSource("/tmp/source.tar.gz", bytes2hex(sha256("a")))]
     state.name = "libfoo"
     state.version = v"1.0.0"
-    state.dependencies = Any["Zlib_jll", Pkg.Types.PackageSpec(;name="CompilerSupportLibraries_jll")]
+    state.dependencies = [Dependency(Pkg.Types.PackageSpec(;name="Zlib_jll")),
+                          Dependency(Pkg.Types.PackageSpec(;name="CompilerSupportLibraries_jll"))]
     state.history = "exit 1"
 
     io = Dict()

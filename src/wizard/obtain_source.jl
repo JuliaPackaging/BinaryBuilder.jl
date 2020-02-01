@@ -258,11 +258,11 @@ function obtain_binary_deps(state::WizardState)
     printstyled(state.outs, msg, bold=true)
 
     q = "Do you require any (binary) dependencies? "
-    state.dependencies = PkgSpec[]
+    state.dependencies = Dependency{PkgSpec}[]
     if yn_prompt(state, q, :n) == :y
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         local resolved_deps
-        jll_names = []
+        jll_names = String[]
         while true
             jll_name = nonempty_line_prompt("package name", "Enter JLL package name:"; ins=state.ins, outs=state.outs)
             if !endswith(jll_name, "_jll")
@@ -271,7 +271,7 @@ function obtain_binary_deps(state::WizardState)
 
             # Check to see if this JLL package name can be resolved:
             push!(jll_names, jll_name)
-            all_resolved, resolved_deps = resolve_jlls(jll_names, outs=state.outs)
+            all_resolved, resolved_deps = resolve_jlls(Dependency.(jll_names), outs=state.outs)
 
             if !all_resolved
                 pop!(jll_names)
