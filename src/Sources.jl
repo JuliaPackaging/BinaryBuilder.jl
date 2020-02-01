@@ -5,16 +5,35 @@ abstract type AbstractSource end
 struct FileSource <: AbstractSource
     url::String
     hash::String
+    unpack_target::String
 end
+FileSource(url::String, hash::String; unpack_target::String = "") =
+    FileSource(url, hash, unpack_target)
 
 struct GitSource <: AbstractSource
     url::String
     hash::String
+    unpack_target::String
 end
+GitSource(url::String, hash::String; unpack_target::String = "") =
+    GitSource(url, hash, unpack_target)
 
 struct DirectorySource <: AbstractSource
     path::String
+    unpack_target::String
 end
+DirectorySource(path::String; unpack_target::String = "") =
+    DirectorySource(path, unpack_target)
+
+# This is not meant to be used as source in the `build_tarballs.jl` scripts but
+# only to set up the source in the workspace.
+struct SetupSource <: AbstractSource
+    path::String
+    hash::String
+    unpack_target::String
+end
+SetupSource(path::String, hash::String; unpack_target::String = "") =
+    SetupSource(path, hash, unpack_target)
 
 function download_source(source::FileSource; verbose::Bool = false)
     if isfile(source.url)
@@ -29,7 +48,7 @@ function download_source(source::FileSource; verbose::Bool = false)
         src_path = storage_dir("downloads", string(source.hash, "-", basename(source.url)))
         download_verify(source.url, source.hash, src_path; verbose=verbose)
     end
-    return src_path => source.hash
+    return SetupSource(src_path, source.hash, source.unpack_target)
 end
 
 function download_source(source::GitSource; verbose::Bool = false)
@@ -57,7 +76,7 @@ function download_source(source::GitSource; verbose::Bool = false)
         # If there is no src_path yet, clone it down.
         repo = LibGit2.clone(source.url, src_path; isbare=true)
     end
-    return src_path => source.hash
+    return SetupSource(src_path, source.hash, source.unpack_target)
 end
 
 function download_source(source::DirectorySource; verbose::Bool = false)
@@ -79,7 +98,7 @@ function download_source(source::DirectorySource; verbose::Bool = false)
         tarball_pathv = storage_dir("downloads", string(tarball_hash, "-", basename(source.path), ".tar.gz"))
         mv(tarball_path, tarball_pathv; force=true)
     end
-    return tarball_pathv => tarball_hash
+    return SetupSource(tarball_pathv, tarball_hash, source.unpack_target)
 end
 
 """

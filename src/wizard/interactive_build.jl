@@ -213,7 +213,7 @@ function step3_retry(state::WizardState)
 
     build_path = tempname()
     mkpath(build_path)
-    prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=false)
+    prefix = setup_workspace(build_path, state.source_files; verbose=false)
     artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
 
     ur = preferred_runner()(
@@ -296,8 +296,7 @@ function step34(state::WizardState)
     state.history = ""
     prefix = setup_workspace(
         build_path,
-        state.source_files,
-        state.source_hashes;
+        state.source_files;
         verbose=false,
     )
     artifact_paths = setup_dependencies(prefix, state.dependencies, platform)
@@ -406,8 +405,7 @@ function step5_internal(state::WizardState, platform::Platform)
                         mkpath(build_path)
                         prefix = setup_workspace(
                             build_path,
-                            state.source_files,
-                            state.source_hashes;
+                            state.source_files;
                             verbose=true,
                         )
                         # Clean up artifacts in case there are some
@@ -540,8 +538,7 @@ function step5c(state::WizardState)
 
         prefix = setup_workspace(
             build_path,
-            state.source_files,
-            state.source_hashes;
+            state.source_files;
             verbose=false,
         )
         artifact_paths = setup_dependencies(prefix, state.dependencies, platform)

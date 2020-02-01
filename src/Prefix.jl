@@ -261,8 +261,8 @@ end
 
 
 """
-    setup_workspace(build_path::String, src_paths::Vector,
-                    src_hashes::Vector; verbose::Bool = false)
+    setup_workspace(build_path::String, sources::Vector{SetupSource};
+                    verbose::Bool = false)
 
 Sets up a workspace within `build_path`, creating the directory structure
 needed by further steps, unpacking the source within `build_path`, and defining
@@ -271,26 +271,29 @@ the environment variables that will be defined within the sandbox environment.
 This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
-function setup_workspace(build_path::AbstractString, src_paths::Vector,
-                         src_hashes::Vector; verbose::Bool = false,)
+function setup_workspace(build_path::AbstractString, sources::Vector{SetupSource};
+                         verbose::Bool = false)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
-    mkdir(joinpath(build_path, nonce))
+    workspace = joinpath(build_path, nonce)
+    mkdir(workspace)
 
     # We now set up two directories, one as a source dir, one as a dest dir
-    srcdir = joinpath(build_path, nonce, "srcdir")
-    destdir = joinpath(build_path, nonce, "destdir")
-    metadir = joinpath(build_path, nonce, "metadir")
-    wrapperdir = joinpath(build_path, nonce, "compiler_wrappers")
+    srcdir = joinpath(workspace, "srcdir")
+    destdir = joinpath(workspace, "destdir")
+    metadir = joinpath(workspace, "metadir")
+    wrapperdir = joinpath(workspace, "compiler_wrappers")
     mkdir.((srcdir, destdir, metadir))
 
     # For each source path, unpack it
-    for (src_path, src_hash) in zip(src_paths, src_hashes)
-        if isdir(src_path)
-            # Chop off the `.git` at the end of the src_path
-            repo_dir = joinpath(srcdir, basename(src_path)[1:end-4])
-            LibGit2.with(LibGit2.clone(src_path, repo_dir)) do repo
-                LibGit2.checkout!(repo, src_hash)
+    for source in sources
+        targetdir = joinpath(srcdir, source.unpack_target)
+        mkpath(targetdir)
+        if isdir(source.path)
+            # Chop off the `.git` at the end of the source.path
+            repo_dir = joinpath(targetdir, basename(source.path)[1:end-4])
+            LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
+                LibGit2.checkout!(repo, source.hash)
             end
         else
             # Extract with host tools because it is _much_ faster on e.g. OSX.
@@ -298,30 +301,30 @@ function setup_workspace(build_path::AbstractString, src_paths::Vector,
             # our own `tar` and `unzip` through BP as dependencies for BB.
             tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
                               ".tar.xz", ".tar.Z", ".txz"]
-            cd(srcdir) do
-                if any(endswith(src_path, ext) for ext in tar_extensions)
+            cd(targetdir) do
+                if any(endswith(source.path, ext) for ext in tar_extensions)
                     if verbose
-                        @info "Extracting tarball $(basename(src_path))..."
+                        @info "Extracting tarball $(basename(source.path))..."
                     end
                     tar_flags = verbose ? "xvof" : "xof"
-                    run(`tar $(tar_flags) $(src_path)`)
-                elseif endswith(src_path, ".zip")
+                    run(`tar $(tar_flags) $(source.path)`)
+                elseif endswith(source.path, ".zip")
                     if verbose
-                        @info "Extracting zipball $(basename(src_path))..."
+                        @info "Extracting zipball $(basename(source.path))..."
                     end
-                    run(`unzip -q $(src_path)`)
+                    run(`unzip -q $(source.path)`)
                else
                    if verbose
-                       @info "Copying in $(basename(src_path))..."
+                       @info "Copying in $(basename(source.path))..."
                    end
-                   cp(src_path, basename(src_path))
+                   cp(source.path, joinpath(pwd(), source.unpack_target, basename(source.path)))
                 end
             end
         end
     end
 
     # Return the build prefix
-    return Prefix(realpath(joinpath(build_path, nonce)))
+    return Prefix(realpath(workspace))
 end
 
 

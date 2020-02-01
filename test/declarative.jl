@@ -56,11 +56,14 @@ import BinaryBuilder: sourcify
               (
                   Dict("url" => "https://julialang.org",
                        "hash" => "123123",
+                       "unpack_target" => "",
                        "type" => "file"),
                   Dict("url" => "https://github.com/JuliaLang/julia.git",
                        "hash" => "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65",
+                       "unpack_target" => "",
                        "type" => "git"),
                   Dict("path" => "./bundled",
+                       "unpack_target" => "",
                        "type" => "directory"),
               ), Ref(meta["sources"])))
         @test sourcify(Dict("type" => "directory", "path" => "foo")) == DirectorySource("foo")

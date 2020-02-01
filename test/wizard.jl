@@ -116,7 +116,7 @@ end
     end
     # Check that the state is modified appropriately
     @test state.source_urls == ["http://127.0.0.1:14444/a/source.tar.gz"]
-    @test state.source_hashes == [libfoo_tarball_hash]
+    @test getfield.(state.source_files, :hash) == [libfoo_tarball_hash]
     @test Set(state.compilers) == Set([:c, :rust, :go])
     @test state.preferred_gcc_version == getversion(available_gcc_builds[1])
     # The default LLVM shard is the latest one, and above we pressed three times
@@ -142,7 +142,7 @@ end
         "http://127.0.0.1:14444/a/source.tar.gz",
         "http://127.0.0.1:14444/b/source.tar.gz",
     ]
-    @test state.source_hashes == [
+    @test getfield.(state.source_files, :hash) == [
         libfoo_tarball_hash,
         libfoo_tarball_hash,
     ]
@@ -203,8 +203,7 @@ function step3_state()
     state.step = :step34
     state.platforms = [Linux(:x86_64)]
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
-    state.source_files = [libfoo_tarball_path]
-    state.source_hashes = [libfoo_tarball_hash]
+    state.source_files = [BinaryBuilder.SetupSource(libfoo_tarball_path, libfoo_tarball_hash)]
     state.name = "libfoo"
     state.version = v"1.0.0"
     state.dependencies = typeof(Pkg.PackageSpec(name="dummy"))[]
