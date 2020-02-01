@@ -258,8 +258,7 @@ function obtain_binary_deps(state::WizardState)
     printstyled(state.outs, msg, bold=true)
 
     q = "Do you require any (binary) dependencies? "
-    # Pkg.PackageSpec return different types in different Julia versions so...
-    state.dependencies = typeof(Pkg.PackageSpec(name="dummy"))[]
+    state.dependencies = PkgSpec[]
     if yn_prompt(state, q, :n) == :y
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         local resolved_deps

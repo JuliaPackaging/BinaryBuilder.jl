@@ -329,7 +329,7 @@ end
 
 
 """
-    setup_dependencies(prefix::Prefix, dependencies::Vector{String})
+    setup_dependencies(prefix::Prefix, dependencies::Vector{PackageSpec})
 
 Given a list of JLL package specifiers, install their artifacts into the build prefix.
 The artifacts are installed into the global artifact store, then copied into a temporary location,
@@ -340,7 +340,7 @@ to modify the dependent artifact files, and (c) keeping a record of what files a
 dependencies as opposed to the package being built, in the form of symlinks to a specific artifacts
 directory.
 """
-function setup_dependencies(prefix::Prefix, dependencies::Vector{Pkg.Types.PackageSpec}, platform::Platform)
+function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platform::Platform)
     artifact_paths = String[]
     if isempty(dependencies)
         return artifact_paths
