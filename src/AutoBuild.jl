@@ -543,7 +543,7 @@ function autobuild(dir::AbstractString,
     end
 
     # We must prepare our sources.  Download them, hash them, etc...
-    sources_files = download_source.(sources; verbose=verbose)
+    source_files = download_source.(sources; verbose=verbose)
 
     # Our build products will go into ./products
     out_path = joinpath(dir, "products")
@@ -571,7 +571,7 @@ function autobuild(dir::AbstractString,
 
         prefix = setup_workspace(
             build_path,
-            sources_files;
+            source_files;
             verbose=verbose,
         )
         artifact_paths = setup_dependencies(prefix, getpkg.(dependencies), concrete_platform)
@@ -932,7 +932,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 """)
             end
             for dep in dependencies
-                println(io, "using $(dep_name(dep))")
+                println(io, "using $(getname(dep))")
             end
 
             # The LIBPATH is called different things on different platforms
@@ -1042,8 +1042,8 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 println(io, """
                     # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
                     # then append them to our own.
-                    foreach(p -> append!(PATH_list, p), ($(join(["$(dep_name(dep)).PATH_list" for dep in dependencies], ", ")),))
-                    foreach(p -> append!(LIBPATH_list, p), ($(join(["$(dep_name(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
+                    foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
+                    foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
                 """)
             end
 
@@ -1253,7 +1253,7 @@ function build_project_dict(name, version, dependencies::Array{PkgSpec})
         "name" => "$(name)_jll",
         "uuid" => string(jll_uuid("$(name)_jll")),
         "version" => string(version),
-        "deps" => Dict{String,Any}(dep.name => string(dep.uuid) for dep in dependencies),
+        "deps" => Dict{String,Any}(getname(dep) => string(dep.uuid) for dep in dependencies),
         # We require at least Julia 1.3+, for Pkg.Artifacts support
         "compat" => Dict{String,Any}("julia" => "1.0"),
     )

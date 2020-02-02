@@ -39,8 +39,8 @@ function print_build_tarballs(io::IO, state::WizardState)
         end
     end,",\n    ")
 
-    psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(ps.name)\", uuid=\"$(ps.uuid)\"))"
-    dependencies_string = join(map(psrepr, getpkg.(state.dependencies)))
+    psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\", uuid=\"$(getpkg(ps).uuid)\"))"
+    dependencies_string = join(map(psrepr, state.dependencies))
 
     # Keyword arguments to `build_tarballs()`
     kwargs_vec = String[]

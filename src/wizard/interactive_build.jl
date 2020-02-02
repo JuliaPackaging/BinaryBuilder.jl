@@ -340,7 +340,7 @@ function step5_internal(state::WizardState, platform::Platform)
     prefix_artifacts = Dict{Prefix,Vector{String}}()
     while !ok
         cd(build_path) do
-            prefix = setup_workspace(build_path, state.source_files, state.source_hashes; verbose=true)
+            prefix = setup_workspace(build_path, state.source_files; verbose=true)
             # Clean up artifacts in case there are some
             cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
             artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)

@@ -2,7 +2,7 @@ using BinaryBuilder
 using GitHub, Test, VT100, Sockets, HTTP, SHA
 import Pkg
 
-import BinaryBuilder: available_gcc_builds, available_llvm_builds, getversion, getpkg
+import BinaryBuilder: available_gcc_builds, available_llvm_builds, getversion
 
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
@@ -184,8 +184,8 @@ end
         call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
     end
     @test length(state.dependencies) == 2
-    @test any([getpkg(d).name == "ghr_jll" for d in state.dependencies])
-    @test any([getpkg(d).name == "Zlib_jll" for d in state.dependencies])
+    @test any([BinaryBuilder.getname(d) == "ghr_jll" for d in state.dependencies])
+    @test any([BinaryBuilder.getname(d) == "Zlib_jll" for d in state.dependencies])
 end
 
 
