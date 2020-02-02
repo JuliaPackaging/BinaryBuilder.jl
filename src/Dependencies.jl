@@ -42,8 +42,8 @@ BuildDependency(dep::AbstractString) = BuildDependency(PackageSpec(; name = dep)
 
 getpkg(d::AbstractDependency) = d.pkg
 
-dep_name(x::PkgSpec) = x.name
-dep_name(x::AbstractDependency) = dep_name(getpkg(x))
+getname(x::PkgSpec) = x.name
+getname(x::AbstractDependency) = getname(getpkg(x))
 
 # compatibility for Julia 1.3-
 if VERSION < v"1.4"
@@ -82,7 +82,7 @@ function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdo
     all_resolved = true
     for dep in getpkg.(dependencies)
         if dep.uuid === nothing
-            @warn("Unable to resolve $(dep.name)")
+            @warn("Unable to resolve $(getname(dep))")
             all_resolved = false
         end
     end

@@ -366,12 +366,12 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
         Pkg.add(dependencies; platform=platform)
 
         # Filter out everything that doesn't end in `_jll`
-        dependencies = filter(x -> endswith(x.name, "_jll"), dependencies)
+        dependencies = filter(x -> endswith(getname(x), "_jll"), dependencies)
 
         # Load their Artifacts.toml files
         for dep in dependencies
             dep_path = Pkg.Operations.source_path(dep)
-            name = dep.name
+            name = getname(dep)
 
             # Skip dependencies that didn't get installed?
             if dep_path === nothing

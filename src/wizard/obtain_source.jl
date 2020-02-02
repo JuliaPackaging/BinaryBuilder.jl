@@ -289,7 +289,7 @@ function obtain_binary_deps(state::WizardState)
         end
         # jll_names contains the valid names, resolved_deps potentially contains
         # unresolved deps so we filter them out here.
-        state.dependencies = filter(x -> getpkg(x).name ∈ jll_names, resolved_deps)
+        state.dependencies = filter(x -> getname(x) ∈ jll_names, resolved_deps)
     end
     println(state.outs)
 end
