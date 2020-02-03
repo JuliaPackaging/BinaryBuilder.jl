@@ -39,8 +39,12 @@ function print_build_tarballs(io::IO, state::WizardState)
         end
     end,",\n    ")
 
-    psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\", uuid=\"$(getpkg(ps).uuid)\"))"
-    dependencies_string = join(map(psrepr, state.dependencies))
+    if length(state.dependencies) >= 1
+        psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\", uuid=\"$(getpkg(ps).uuid)\"))"
+        dependencies_string = "[" * join(map(psrepr, state.dependencies)) * "\n]"
+    else
+        dependencies_string = "Dependency[\n]"
+    end
 
     # Keyword arguments to `build_tarballs()`
     kwargs_vec = String[]
@@ -88,8 +92,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     ]
 
     # Dependencies that must be installed before this package can be built
-    dependencies = [$(dependencies_string)
-    ]
+    dependencies = $(dependencies_string)
 
     # Build the tarballs, and possibly a `build.jl` as well.
     build_tarballs(ARGS, name, version, sources, script, platforms, products, dependencies$(kwargs))
