@@ -27,7 +27,7 @@ import BinaryBuilder: sourcify
             "exit 0",
             [Linux(:x86_64), Windows(:x86_64)],
             Product[ExecutableProduct("julia", :julia)],
-            [];
+            Dependency[];
             meta_json_stream=meta_json_buff,
         )
         @test build_output_meta == Dict()

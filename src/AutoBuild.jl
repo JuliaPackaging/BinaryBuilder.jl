@@ -479,11 +479,11 @@ here are the relevant actors, broken down in brief:
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
                    src_version::VersionNumber,
-                   sources::Vector,
+                   sources::Vector{<:AbstractSource},
                    script::AbstractString,
                    platforms::Vector,
                    products::Vector{<:Product},
-                   dependencies::Vector;
+                   dependencies::Vector{<:AbstractDependency};
                    verbose::Bool = false,
                    debug::Bool = false,
                    skip_audit::Bool = false,
@@ -494,11 +494,6 @@ function autobuild(dir::AbstractString,
                    lazy_artifacts::Bool = false,
                    meta_json_stream = nothing,
                    kwargs...)
-    # XXX: These are needed as long as we support old-style sources and
-    # dependencies.
-    sources = coerce_source.(sources)
-    dependencies = coerce_dependency.(dependencies)
-
     # If they've asked for the JSON metadata, by all means, give it to them!
     if meta_json_stream !== nothing
         println(meta_json_stream, JSON.json(Dict(

@@ -140,7 +140,7 @@ end
             "this_will_fail",
             v"1.0.0",
             # No sources to speak of
-            [],
+            FileSource[],
             # Simple script that just sets an environment variable
             """
             MARKER=1
@@ -151,7 +151,7 @@ end
             # No products
             Product[],
             # No depenedencies
-            [],
+            Dependency[],
         )
 
         # build_path is the nonce'd build directory
@@ -200,8 +200,8 @@ end
     state.source_files = [BinaryBuilder.SetupSource("/tmp/source.tar.gz", bytes2hex(sha256("a")))]
     state.name = "libfoo"
     state.version = v"1.0.0"
-    state.dependencies = [Dependency(Pkg.Types.PackageSpec(;name="Zlib_jll")),
-                          Dependency(Pkg.Types.PackageSpec(;name="CompilerSupportLibraries_jll"))]
+    state.dependencies = [Dependency(PackageSpec(;name="Zlib_jll")),
+                          Dependency(PackageSpec(;name="CompilerSupportLibraries_jll"))]
     state.history = "exit 1"
 
     io = Dict()

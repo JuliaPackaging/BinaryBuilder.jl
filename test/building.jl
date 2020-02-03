@@ -59,7 +59,8 @@ install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
             LibGit2.add!(repo, "Makefile")
             LibGit2.commit(repo, "Break Makefile")
 
-            for source in (build_tests_dir, git_path => bytes2hex(LibGit2.raw(LibGit2.GitHash(commit))))
+            for source in (DirectorySource(build_tests_dir),
+                           GitSource(git_path, bytes2hex(LibGit2.raw(LibGit2.GitHash(commit)))))
                 build_output_meta = autobuild(
                     build_path,
                     "libfoo",
@@ -73,7 +74,7 @@ install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
                     # The products we expect to be build
                     libfoo_products,
                     # No depenedencies
-                    [];
+                    Dependency[];
                     # Don't do audit passes
                     skip_audit=true,
                     # Make one verbose for the coverage.  We do it all for the coverage, Morty.
@@ -149,7 +150,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             "testsuite",
             v"1.0.0",
             # No sources
-            [],
+            DirectorySource[],
             # Build the test suite, install the binaries into our prefix's `bin`
             raw"""
             # Build testsuite
@@ -161,7 +162,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             shards_to_test,
             products,
             # No dependencies
-            [];
+            Dependency[];
             # We need to be able to build go and rust and whatnot
             compilers=[:c, :go, :rust],
         )
@@ -206,7 +207,7 @@ end
                 "gfortran_flags",
                 v"1.0.0",
                 # No sources
-                [],
+                FileSource[],
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
                 # Build testsuite
@@ -225,7 +226,7 @@ end
                 ],
                 [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
                 # No dependencies
-                [];
+                Dependency[];
                 preferred_gcc_version=gcc_version,
             )
 
@@ -244,16 +245,16 @@ end
                 "baddeps",
                 v"1.0.0",
                 # No sources
-                [],
+                FileSource[],
                 "true",
                 [platform_key_abi()],
                 Product[],
                 # Three dependencies; one good, two bad
                 [
-                    "Zlib_jll",
+                    Dependency("Zlib_jll"),
                     # We hope nobody will ever register something named this
-                    "BadDependency_jll",
-                    "WorseDependency_jll",
+                    Dependency("BadDependency_jll"),
+                    Dependency("WorseDependency_jll"),
                 ]
             )
         end
@@ -263,11 +264,11 @@ end
             build_path,
             "badopenssl",
             v"1.1.1+c",
-            [],
+            GitSource[],
             "true",
             [platform_key_abi()],
             Product[],
-            [],
+            Dependency[],
         )
     end
 end
