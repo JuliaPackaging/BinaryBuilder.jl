@@ -317,7 +317,7 @@ function setup_workspace(build_path::AbstractString, sources::Vector{SetupSource
                    if verbose
                        @info "Copying in $(basename(source.path))..."
                    end
-                   cp(source.path, joinpath(pwd(), source.unpack_target, basename(source.path)))
+                   cp(source.path, basename(source.path))
                 end
             end
         end

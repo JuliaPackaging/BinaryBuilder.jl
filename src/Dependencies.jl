@@ -93,6 +93,6 @@ end
 # dependencies.
 coerce_dependency(dep::AbstractDependency) = dep
 function coerce_dependency(dep)
-    @warn "Using PackageSpec or string as source is deprecated, use Dependency instead"
+    @warn "Using PackageSpec or string as dependency is deprecated, use Dependency instead"
     Dependency(dep)
 end
