@@ -43,7 +43,7 @@ end
                 # Ensure our executable products are built
                 products,
                 # No dependencies
-                [];
+                Dependency[];
                 # We need to build with very recent GCC so that we can emit AVX2
                 preferred_gcc_version=v"8",
             )
@@ -88,7 +88,7 @@ end
             # The products we expect to be build
             [libcxxstringabi_test],
             # No depenedencies
-            [];
+            Dependency[];
             preferred_gcc_version=gcc_version
         )
     end
@@ -165,7 +165,7 @@ end
                     build_path,
                     "dll_moving",
                     v"1.0.0",
-                    [],
+                    GitSource[],
                     # Install a .dll into lib
                     raw"""
                     mkdir -p ${prefix}/lib
@@ -177,7 +177,7 @@ end
                     # Ensure our executable products are built
                     Product[LibraryProduct("libfoo", :libfoo)],
                     # No dependencies
-                    []
+                    Dependency[]
                 )
             end
 
@@ -204,7 +204,7 @@ end
             build_path,
             "dll_moving",
             v"1.0.0",
-            [],
+            FileSource[],
             # Intsall a .dll into lib
             raw"""
             mkdir -p ${prefix}/lib
@@ -220,7 +220,7 @@ end
             # Ensure our executable products are built
             Product[no_id, abs_id, wrong_id, right_id],
             # No dependencies
-            [],
+            Dependency[],
         )
 
         # Extract our platform's build
@@ -301,7 +301,7 @@ end
                 "hello_fortran",
                 v"1.0.0",
                 # No sources
-                [],
+                FileSource[],
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
                 # Build fortran hello world
@@ -314,7 +314,7 @@ end
                 # 
                 Product[hello_world],
                 # No dependencies
-                [];
+                Dependency[];
             )
 
             # Extract our platform's build, run the hello_world tests:
