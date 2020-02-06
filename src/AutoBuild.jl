@@ -1,7 +1,7 @@
 export build_tarballs, autobuild, print_artifacts_toml, build
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256
-using Pkg.TOML, Dates
+using Pkg.TOML, Dates, UUIDs
 using RegistryTools, Registrator
 import LibGit2
 
@@ -1242,7 +1242,8 @@ function push_jll_package(name, build_version;
     end
 end
 
-jll_uuid(name) = Pkg.Types.uuid5(Pkg.Types.uuid_package, "$(name)_jll")
+const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
+jll_uuid(name) = uuid5(uuid_package, "$(name)_jll")
 function build_project_dict(name, version, dependencies::Array{PkgSpec})
     project = Dict(
         "name" => "$(name)_jll",
