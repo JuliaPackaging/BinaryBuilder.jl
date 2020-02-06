@@ -32,6 +32,13 @@ exeext(p::Windows) = ".exe"
 exeext(p::Union{Linux,FreeBSD,MacOS}) = ""
 exeext(p::Platform) = error("Unknown exeext for platform $(p)")
 
+# Convert platform to a triplet, but strip out the ABI parts.
+# Also translate `armv7l` -> `arm` for now, since that's what most
+# compiler toolchains call it.  :(
+function aatriplet(p::Platform)
+    return replace(triplet(abi_agnostic(p)), "armv7l" => "arm")
+end
+
 """
     generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,
                                 host_platform::Platform = Linux(:x86_64; libc=:musl),
@@ -59,8 +66,6 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     rm(bin_path; recursive=true, force=true)
     mkpath(bin_path)
 
-    # Convert platform to a triplet, but strip out the ABI parts
-    aatriplet(p) = triplet(abi_agnostic(p))
     target = aatriplet(platform)
     host_target = aatriplet(host_platform)
     rust_target = aatriplet(rust_platform)
@@ -319,7 +324,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # Default these tools to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
                  :ranlib, :readelf, :strip, :install_name_tool, :dlltool, :windres, :winmc, :lipo)
-        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", triplet(abi_agnostic(p)), "/bin/", triplet(abi_agnostic(p)), "-", $(string(tool))); allow_ccache=false)
+        @eval $(tool)(io::IO, p::Platform) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/", aatriplet(p), "-", $(string(tool))); allow_ccache=false)
     end
  
     # c++filt is hard to write in symbols
@@ -328,7 +333,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     # Overrides for macOS binutils because Apple is always so "special"
     for tool in (:ar, :ranlib, :dsymutil)
-        @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", triplet(abi_agnostic(p)), "/bin/llvm-", $tool))
+        @eval $(tool)(io::IO, p::MacOS) = $(wrapper)(io, string("/opt/", aatriplet(p), "/bin/llvm-", $tool))
     end
     # macOS doesn't have a readelf; default to using the host version
     @eval readelf(io::IO, p::MacOS) = readelf(io, $(host_platform))
@@ -465,8 +470,8 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
     global use_ccache
 
     # Convert platform to a triplet, but strip out the ABI parts
-    target = triplet(abi_agnostic(platform))
-    host_target = triplet(abi_agnostic(host_platform))
+    target = aatriplet(platform)
+    host_target = aatriplet(host_platform)
     rust_host = Linux(:x86_64; libc=:glibc)
 
     # Prefix, libdir, etc...
@@ -543,11 +548,11 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
     # Helper for generating the library include path for a target.  MacOS, as usual,
     # puts things in slightly different place.
     function target_lib_dir(p::Platform)
-        t = triplet(abi_agnostic(p))
+        t = aatriplet(p)
         return "/opt/$(t)/$(t)/lib64:/opt/$(t)/$(t)/lib"
     end
     function target_lib_dir(p::MacOS)
-        t = triplet(abi_agnostic(p))
+        t = aatriplet(p)
         return "/opt/$(t)/$(t)/lib:/opt/$(t)/lib"
     end
 
@@ -593,8 +598,8 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
 
         # Rust stuff
         "CARGO_BUILD_TARGET" => map_rust_target(platform),
-        "CARGO_HOME" => "/opt/$(triplet(rust_host))",
-        "RUSTUP_HOME" => "/opt/$(triplet(rust_host))",
+        "CARGO_HOME" => "/opt/$(aatriplet(rust_host))",
+        "RUSTUP_HOME" => "/opt/$(aatriplet(rust_host))",
         "RUSTUP_TOOLCHAIN" => "stable-$(map_rust_target(rust_host))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
