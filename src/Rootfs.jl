@@ -66,6 +66,9 @@ function artifact_name(cs::CompilerShard)
     target_str = ""
     if cs.target != nothing
         target_str = "-$(triplet(cs.target))"
+
+        # Julia <1.4 calls it `arm-linux-gnu`, but we prefer `armv7l-linux-gnu`
+        target_str = replace(target_str, "-arm-linux" => "-armv7l-linux")
     end
     ext = Dict(:squashfs => "squashfs", :unpacked => "unpacked")[cs.archive_type]
     return "$(cs.name)$(target_str).v$(cs.version).$(triplet(cs.host)).$(ext)"
@@ -416,7 +419,7 @@ consists of four shards, but that may not always be the case.
 function choose_shards(p::Platform;
             compilers::Vector{Symbol} = [:c],
             rootfs_build::VersionNumber=v"2020.01.30",
-            ps_build::VersionNumber=v"2020.01.15",
+            ps_build::VersionNumber=v"2020.02.06",
             GCC_builds::Vector{GCCBuild}=available_gcc_builds,
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.18.3",
