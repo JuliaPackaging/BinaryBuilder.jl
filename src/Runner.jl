@@ -255,7 +255,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
 
     gcc_link_flags(p::Platform) = String[]
     function gcc_link_flags(p::Linux)
-        if arch(p) == :powerpc64le && select_gcc_version(p).major in (4, 5)
+        # Yes, it does seem that what we're working around here was fixed in GCC 6, broken again in GCC 7,
+        # and then finally fixed again for GCC 8 and 9
+        if arch(p) == :powerpc64le && select_gcc_version(p).major in (4, 5, 7)
             return ["-L/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64", "-Wl,-rpath-link,/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/lib64"]
         end
         return String[]
