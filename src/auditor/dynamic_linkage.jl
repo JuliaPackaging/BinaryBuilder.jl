@@ -173,6 +173,7 @@ function should_ignore_lib(lib, ::MachOHandle)
         "libsystem.b.dylib",
         "libstdc++.6.dylib",
         "libc++.1.dylib",
+        "libgomp.1.dylib",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
