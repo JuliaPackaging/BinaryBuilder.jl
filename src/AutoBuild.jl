@@ -1249,12 +1249,12 @@ end
 
 const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 jll_uuid(name) = uuid5(uuid_package, "$(name)_jll")
-function build_project_dict(name, version, dependencies::Array{PkgSpec})
+function build_project_dict(name, version, dependencies::Array)
     project = Dict(
         "name" => "$(name)_jll",
         "uuid" => string(jll_uuid("$(name)_jll")),
         "version" => string(version),
-        "deps" => Dict{String,Any}(getname(dep) => string(dep.uuid) for dep in dependencies),
+        "deps" => Dict{String,Any}(getname(dep) => string(getpkg(dep).uuid) for dep in dependencies),
         # We require at least Julia 1.3+, for Pkg.Artifacts support
         "compat" => Dict{String,Any}("julia" => "1.0"),
     )
