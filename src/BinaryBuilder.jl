@@ -1,6 +1,3 @@
-# You know it's getting real when this is uncommented
-# __precompile__()
-
 module BinaryBuilder
 using Libdl, LibGit2, Random, Sockets, Base64, JSON
 using ObjectFile
@@ -202,5 +199,10 @@ function versioninfo()
     end
     return nothing
 end
+
+
+# Precompilation ahoy!
+include("../deps/SnoopCompile/precompile/precompile_BinaryBuilder.jl")
+_precompile_()
 
 end # module
