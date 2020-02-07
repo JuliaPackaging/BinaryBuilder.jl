@@ -305,10 +305,10 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # Rust stuff
-    rust_base_flags(p::Platform) = "--target=$(map_rust_target(p)) -C linker=$(aatriplet(p))-gcc"
+    rust_base_flags(p::Platform) = "--target=$(map_rust_target(p))"
     rust_flags(p::Platform) = rust_base_flags(p)
     function rust_flags(p::Linux)
-        flags = rust_base_flags(p)
+        flags = "$(rust_base_flags(p)) -C linker=$(aatriplet(p))-gcc"
 
         # Add aarch64 workaround https://github.com/rust-lang/rust/issues/46651#issuecomment-402850885
         if arch(p) == :aarch64 && libc(p) == :musl
@@ -316,7 +316,16 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
         return flags
     end
-    rust_flags(p::FreeBSD) = "--target=$(map_rust_target(p))"
+    function rust_flags(p::Windows)
+        flags = "$(rust_base_flags(p))"
+
+        # Oh man rust on i686 mingw32 can't deal with exceptions....
+        # https://github.com/rust-lang/rust/issues/12859
+        if arch(p) == :i686
+            flags *= " -C panic=abort"
+        end
+        return flags
+    end
     rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustc $(rust_flags(p))"; allow_ccache=false)
     rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false)
     cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false)
