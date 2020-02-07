@@ -316,6 +316,11 @@ function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::
     error("Unable to upload $(path) to GitHub repo $(repo) on tag $(tag)")
 end
 
+# Julia 1.3- needs a compat shim here
+if VERSION < v"1.4"
+    Pkg.Operations.registered_paths(ctx::Pkg.Types.Context, uuid::UUID) = Pkg.Operations.registered_paths(ctx.env, uuid)
+end
+
 function get_next_wrapper_version(src_name, src_version)
     # If src_version already has a build_number, just return it immediately
     if src_version.build != ()
@@ -328,10 +333,10 @@ function get_next_wrapper_version(src_name, src_version)
 
     # If it does, we need to bump the build number up to the next value
     build_number = 0
-    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx.env, jll_uuid("$(src_name)_jll")))
+    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll")))
         # Find largest version number that matches ours in the registered paths
         versions = VersionNumber[]
-        for path in Pkg.Operations.registered_paths(ctx.env, jll_uuid("$(src_name)_jll"))
+        for path in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll"))
             append!(versions, Pkg.Compress.load_versions(joinpath(path, "Versions.toml")))
         end
         versions = filter(v -> (v.major == src_version.major) &&
