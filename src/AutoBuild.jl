@@ -1259,8 +1259,9 @@ function build_project_dict(name, version, dependencies::Array)
         "compat" => Dict{String,Any}("julia" => "1.0"),
     )
     # Always add Libdl and Pkg as dependencies
-    project["deps"]["Libdl"] = first([string(u) for (u, n) in Pkg.Types.stdlib() if n == "Libdl"])
-    project["deps"]["Pkg"] = first([string(u) for (u, n) in Pkg.Types.stdlib() if n == "Pkg"])
+    stdlibs = isdefined(Pkg.Types, :stdlib) ? Pkg.Types.stdlib : Pkg.Types.stdlibs
+    project["deps"]["Libdl"] = first([string(u) for (u, n) in stdlibs() if n == "Libdl"])
+    project["deps"]["Pkg"] = first([string(u) for (u, n) in stdlibs() if n == "Pkg"])
 
     return project
 end
