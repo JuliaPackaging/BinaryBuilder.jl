@@ -317,7 +317,7 @@ function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::
 end
 
 # Julia 1.3- needs a compat shim here
-if VERSION < v"1.4"
+if VERSION < v"1.4-"
     Pkg.Operations.registered_paths(ctx::Pkg.Types.Context, uuid::UUID) = Pkg.Operations.registered_paths(ctx.env, uuid)
 end
 
