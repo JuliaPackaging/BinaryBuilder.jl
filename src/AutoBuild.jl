@@ -1247,12 +1247,20 @@ function push_jll_package(name, build_version;
     end
 end
 
+# For historical reasons, our UUIDs are generated with some rather strange constants
+function bb_specific_uuid5(namespace::UUID, key::String)
+    data = [reinterpret(UInt8, [namespace.value]); codeunits(key)]
+    u = reinterpret(UInt128, sha1(data)[1:16])[1]
+    u &= 0xffffffffffff0fff3fffffffffffffff
+    u |= 0x00000000000050008000000000000000
+    return UUID(u)
+end
 const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
-jll_uuid(name) = uuid5(uuid_package, "$(name)_jll")
+jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll_jll")
 function build_project_dict(name, version, dependencies::Array)
     project = Dict(
         "name" => "$(name)_jll",
-        "uuid" => string(jll_uuid("$(name)_jll")),
+        "uuid" => string(jll_uuid(name)),
         "version" => string(version),
         "deps" => Dict{String,Any}(getname(dep) => string(getpkg(dep).uuid) for dep in dependencies),
         # We require at least Julia 1.3+, for Pkg.Artifacts support
