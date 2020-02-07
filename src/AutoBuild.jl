@@ -19,6 +19,7 @@ line arguments object.  This function does some rudimentary parsing of the
 """
 function build_tarballs(ARGS, src_name, src_version, sources, script,
                         platforms, products, dependencies; kwargs...)
+    @nospecialize
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
@@ -499,6 +500,7 @@ function autobuild(dir::AbstractString,
                    lazy_artifacts::Bool = false,
                    meta_json_stream = nothing,
                    kwargs...)
+    @nospecialize
     # If they've asked for the JSON metadata, by all means, give it to them!
     if meta_json_stream !== nothing
         println(meta_json_stream, JSON.json(Dict(
