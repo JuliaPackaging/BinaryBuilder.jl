@@ -103,6 +103,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
                      allow_ccache::Bool = true,
                      hash_args::Bool = false,
                      extra_cmds::String = "",
+                     compile_only_flags::Vector = String[],
                      link_only_flags::Vector = String[],
                      env::Dict{String,String} = Dict{String,String}(),
                      unsafe_flags = String[])
@@ -125,6 +126,16 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             write(io, """
             ARGS_HASH="\$(echo -n "\$*" | sha1sum | cut -c1-8)"
             """)
+        end
+
+        if !isempty(compile_only_flags)
+            println(io)
+            println(io, "if [[ \" \$@ \" != *' -x assembler '* ]]; then")
+            for cf in compile_only_flags
+                println(io, "    PRE_FLAGS+=( '$cf' )")
+            end
+            println(io, "fi")
+            println(io)
         end
 
         # If we're given link-only flags, include them only if `-c` or other link-disablers are not provided.
@@ -192,7 +203,6 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     gcc_flags(p::Platform) = base_gcc_flags(p)
-    clang_targeting_laser(p::Platform) = "-target $(aatriplet(p)) --sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
     fortran_flags(p::Platform) = ""
 
     function gcc_flags(p::MacOS)
@@ -223,25 +233,18 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         return FLAGS
     end
 
+    clang_targeting_laser(p::Platform) = "-target $(aatriplet(p)) --sysroot=/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root"
     # For MacOS and FreeBSD, we don't set `-rtlib`, and FreeBSD is special-cased within the LLVM source tree
     # to not allow for -gcc-toolchain, which means that we have to manually add the location of libgcc_s.  LE SIGH.
     # We do that within `clang_linker_flags()`, so that we don't get "unused argument" warnings all over the place.
     # https://github.com/llvm-mirror/clang/blob/f3b7928366f63b51ffc97e74f8afcff497c57e8d/lib/Driver/ToolChains/FreeBSD.cpp
-    function clang_flags(p::MacOS)
-        FLAGS = ""
+    clang_flags(p::Union{FreeBSD,MacOS}) = clang_targeting_laser(p)
 
-        # First, we target our platform, as usual
-        FLAGS *= " $(clang_targeting_laser(p))"
-        
-        # Next, on MacOS, we need to override the typical C++ include search paths, because it always includes
-        # the toolchain C++ headers first.  Valentin tracked this down to:
-        # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
-        FLAGS *= " -nostdinc++ -isystem /opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1"
-        return FLAGS
-    end
-
-    # On FreeBSD, our clang flags are simple
-    clang_flags(p::FreeBSD) = clang_targeting_laser(p)
+    clang_compile_flags(p::Platform) = String[]
+    # Next, on MacOS, we need to override the typical C++ include search paths, because it always includes
+    # the toolchain C++ headers first.  Valentin tracked this down to:
+    # https://github.com/llvm/llvm-project/blob/0378f3a90341d990236c44f297b923a32b35fab1/clang/lib/Driver/ToolChains/Darwin.cpp#L1944-L1978
+    clang_compile_flags(p::MacOS) = String["-nostdinc++", "-isystem", "/opt/$(aatriplet(p))/$(aatriplet(p))/sys-root/usr/include/c++/v1"]
 
     # For everything else, there's MasterCard (TM) (.... also, we need to provide `-rtlib=libgcc` because clang-builtins are broken,
     # and we also need to provide `-stdlib=libstdc++` to match Julia on these platforms.)
@@ -267,9 +270,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gcc $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
     gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-g++ $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
     gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
-    clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
-    clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
-    objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; link_only_flags=clang_link_flags(p))
+    clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
+    clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
+    objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
 
     # Our general `cc`  points to `gcc` for most systems, but `clang` for MacOS and FreeBSD
     cc(io::IO, p::Platform) = gcc(io, p)
@@ -302,7 +305,18 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # Rust stuff
-    rust_flags(p::Platform) = "--target=$(map_rust_target(p)) -C linker=$(aatriplet(p))-gcc"
+    rust_base_flags(p::Platform) = "--target=$(map_rust_target(p)) -C linker=$(aatriplet(p))-gcc"
+    rust_flags(p::Platform) = rust_base_flags(p)
+    function rust_flags(p::Linux)
+        flags = rust_base_flags(p)
+
+        # Add aarch64 workaround https://github.com/rust-lang/rust/issues/46651#issuecomment-402850885
+        if arch(p) == :aarch64 && libc(p) == :musl
+            flags *= " -C link-arg=-lgcc"
+        end
+        return flags
+    end
+    rust_flags(p::FreeBSD) = "--target=$(map_rust_target(p))"
     rustc(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustc $(rust_flags(p))"; allow_ccache=false)
     rustup(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/rustup"; allow_ccache=false)
     cargo(io::IO, p::Platform) = wrapper(io, "/opt/$(rust_target)/bin/cargo"; allow_ccache=false)

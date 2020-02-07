@@ -148,9 +148,9 @@ function map_target(cs::CompilerShard)
         return "/"
     elseif lowercase(cs.name) == "rusttoolchain"
         # We override RustToolchain because they all have to sit in the same location
-        return "/opt/$(triplet(cs.host))/$(cs.name)-$(cs.version)-$(triplet(cs.target)))"
+        return "/opt/$(aatriplet(cs.host))/$(cs.name)-$(cs.version)-$(aatriplet(cs.target)))"
     else
-        return joinpath("/opt", triplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
+        return joinpath("/opt", aatriplet(something(cs.target, cs.host)), "$(cs.name)-$(cs.version)")
     end
 end
 
