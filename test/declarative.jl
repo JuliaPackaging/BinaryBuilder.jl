@@ -1,6 +1,6 @@
 using JSON, BinaryBuilder, Test
 
-import BinaryBuilder: sourcify
+import BinaryBuilder: sourcify, dependencify
 
 @testset "Meta JSON" begin
     mktempdir() do tmpdir
@@ -54,22 +54,31 @@ import BinaryBuilder: sourcify
         @test length(meta["sources"]) == 3
         @test all(in.(
               (
-                  Dict("url" => "https://julialang.org",
-                       "hash" => "123123",
-                       "unpack_target" => "",
-                       "type" => "file"),
-                  Dict("url" => "https://github.com/JuliaLang/julia.git",
-                       "hash" => "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65",
-                       "unpack_target" => "",
-                       "type" => "git"),
-                  Dict("path" => "./bundled",
-                       "unpack_target" => "",
-                       "type" => "directory"),
+                  FileSource("https://julialang.org", "123123"),
+                  GitSource("https://github.com/JuliaLang/julia.git", "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65"),
+                  DirectorySource("./bundled"),
               ), Ref(meta["sources"])))
         @test sourcify(Dict("type" => "directory", "path" => "foo")) == DirectorySource("foo")
         @test sourcify(Dict("type" => "git", "url" => "https://github.com/JuliaLang/julia.git", "hash" => "12345")) == GitSource("https://github.com/JuliaLang/julia.git", "12345")
         @test sourcify(Dict("type" => "file", "url" => "https://julialang.org", "hash" => "98765")) == FileSource("https://julialang.org", "98765")
         @test_throws ErrorException sourcify(Dict("type" => "qux"))
+        # `PackageSpec(; name = "Foo") != PackageSpec(; name = "Foo")`, so we
+        # need to manually compare the fields we care about
+        d = dependencify(Dict("type" => "dependency", "name" => "Foo_jll", "uuid" => nothing,
+                              "version-major" => 0, "version-minor" => 0, "version-patch" => 0))
+        ref_d = Dependency(PackageSpec(; name = "Foo_jll"))
+        @test d.pkg.name == ref_d.pkg.name
+        @test d.pkg.uuid == ref_d.pkg.uuid
+        @test d.pkg.version.ranges[1].lower.t == ref_d.pkg.version.ranges[1].lower.t
+        @test d.pkg.version.ranges[1].lower.n == ref_d.pkg.version.ranges[1].lower.n
+        d = dependencify(Dict("type" => "builddependency", "name" => "Qux_jll", "uuid" => nothing,
+                              "version-major" => 1, "version-minor" => 2, "version-patch" => 3))
+        ref_d = Dependency(PackageSpec(; name = "Qux_jll", version = v"1.2.3"))
+        @test d.pkg.name == ref_d.pkg.name
+        @test d.pkg.uuid == ref_d.pkg.uuid
+        @test d.pkg.version.ranges[1].lower.t == ref_d.pkg.version.ranges[1].lower.t
+        @test d.pkg.version.ranges[1].lower.n == ref_d.pkg.version.ranges[1].lower.n
+        @test_throws ErrorException dependencify(Dict("type" => "bar"))
         @test length(meta["products"]) == 2
         @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia)), Ref(meta["products"])))
         @test length(meta["script"]) == 2
