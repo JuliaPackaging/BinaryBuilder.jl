@@ -90,11 +90,12 @@ function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdo
 end
 
 # Add JSON serialization of dependencies
-JSON.lower(d::Dependency) = Dict("type" => "dependency", "name" => d.pkg.name, "uuid" => string(d.pkg.uuid),
+string_or_nothing(x) = isnothing(x) ? x : string(x)
+JSON.lower(d::Dependency) = Dict("type" => "dependency", "name" => d.pkg.name, "uuid" => string_or_nothing(d.pkg.uuid),
                                  "version-major" => d.pkg.version.ranges[1].lower.t[1],
                                  "version-minor" => d.pkg.version.ranges[1].lower.t[2],
                                  "version-patch" => d.pkg.version.ranges[1].lower.t[3])
-JSON.lower(d::BuildDependency) = Dict("type" => "builddependency", "name" => d.pkg.name, "uuid" => string(d.pkg.uuid),
+JSON.lower(d::BuildDependency) = Dict("type" => "builddependency", "name" => d.pkg.name, "uuid" => string_or_nothing(d.pkg.uuid),
                                       "version-major" => d.pkg.version.ranges[1].lower.t[1],
                                       "version-minor" => d.pkg.version.ranges[1].lower.t[2],
                                       "version-patch" => d.pkg.version.ranges[1].lower.t[3])
