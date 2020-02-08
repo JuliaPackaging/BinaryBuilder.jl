@@ -1256,13 +1256,15 @@ function bb_specific_uuid5(namespace::UUID, key::String)
     return UUID(u)
 end
 const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
-jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll_jll")
-function build_project_dict(name, version, dependencies::Array)
+# For even more interesting historical reasons, we append an extra
+# "_jll" to the name of the new package before computing its UUID.
+jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
+function build_project_dict(name, version, dependencies::Array{Dependency})
     project = Dict(
         "name" => "$(name)_jll",
-        "uuid" => string(jll_uuid(name)),
+        "uuid" => string(jll_uuid("$(name)_jll")),
         "version" => string(version),
-        "deps" => Dict{String,Any}(getname(dep) => string(getpkg(dep).uuid) for dep in dependencies),
+        "deps" => Dict{String,Any}(dep => string(jll_uuid(dep)) for dep in getname.(dependencies)),
         # We require at least Julia 1.3+, for Pkg.Artifacts support
         "compat" => Dict{String,Any}("julia" => "1.0"),
     )

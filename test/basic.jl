@@ -1,6 +1,6 @@
 ## Basic tests for simple utilities within BB
-using BinaryBuilder, Test, Pkg
-using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!, getpkg
+using BinaryBuilder, Test, Pkg, UUIDs
+using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!, getpkg, build_project_dict
 
 @testset "File Collection" begin
     temp_prefix() do prefix
@@ -411,4 +411,31 @@ end
             @test_throws ErrorException generate_compiler_wrappers!(platform; bin_path = bin_path, host_platform = host_platform)
         end
     end
+end
+
+@testset "Registration utils" begin
+    name = "CGAL"
+    version = v"1"
+    dependencies = [Dependency("boost_jll"), Dependency("GMP_jll"),
+                    Dependency("MPFR_jll"), Dependency("Zlib_jll")]
+    dict = build_project_dict(name, version, dependencies)
+    @test dict["name"] == "$(name)_jll"
+    @test dict["version"] == "1.0.0"
+    @test dict["uuid"] == "8fcd9439-76b0-55f4-a525-bad0597c05d8"
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.0")
+    @test all(in.(
+        (
+            "Pkg"       => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
+            "Libdl"     => "8f399da3-3557-5675-b5ff-fb832c97cbdb",
+            "GMP_jll"   => "781609d7-10c4-51f6-84f2-b8444358ff6d",
+            "MPFR_jll"  => "3a97d323-0669-5f0c-9066-3539efd106a3",
+            "Zlib_jll"  => "83775a58-1f1d-513f-b197-d71354ab007a",
+            "boost_jll" => "28df3c45-c428-5900-9ff8-a3135698ca75",
+        ), Ref(dict["deps"])))
+    project = Pkg.Types.Project(dict)
+    @test project.name == "$(name)_jll"
+    @test project.uuid == UUID("8fcd9439-76b0-55f4-a525-bad0597c05d8")
+    # Make sure that a `BuildDependency` can't make it to the list of
+    # dependencies of the new JLL package
+    @test_throws MethodError build_project_dict(name, version, [BuildDependency("Foo_jll")])
 end
