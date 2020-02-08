@@ -89,6 +89,36 @@ function resolve_jlls(dependencies::Vector; ctx = Pkg.Types.Context(), outs=stdo
     return all_resolved, dependencies
 end
 
+# Add JSON serialization of dependencies
+JSON.lower(d::Dependency) = Dict("type" => "dependency", "name" => d.pkg.name, "uuid" => d.pkg.uuid,
+                                 "version-major" => d.pkg.version.ranges[1].lower.t[1],
+                                 "version-minor" => d.pkg.version.ranges[1].lower.t[2],
+                                 "version-patch" => d.pkg.version.ranges[1].lower.t[3])
+JSON.lower(d::BuildDependency) = Dict("type" => "builddependency", "name" => d.pkg.name, "uuid" => d.pkg.uuid,
+                                      "version-major" => d.pkg.version.ranges[1].lower.t[1],
+                                      "version-minor" => d.pkg.version.ranges[1].lower.t[2],
+                                      "version-patch" => d.pkg.version.ranges[1].lower.t[3])
+
+# When deserialiasing the JSON file, the dependencies are in the form of
+# dictionaries.  This function converts the dictionary back to the appropriate
+# AbstractDependency.
+function dependencify(d::Dict)
+    if d["type"] == "dependency"
+        uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
+        version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
+        version = version == v"0" ? nothing : version
+        return Dependency(PackageSpec(; name = d["name"], uuid = uuid, version = version))
+    elseif d["type"] == "builddependency"
+        uuid = isnothing(d["uuid"]) ? d["uuid"] : UUID(d["uuid"])
+        version = VersionNumber(d["version-major"], d["version-minor"], d["version-patch"])
+        version = version == v"0" ? nothing : version
+        return BuildDependency(PackageSpec(; name = d["name"], uuid = uuid, version = version))
+    else
+        error("Cannot convert to dependency")
+    end
+end
+
+
 # XXX: compatibility functions.  These are needed until we support old-style
 # dependencies.
 coerce_dependency(dep::AbstractDependency) = dep

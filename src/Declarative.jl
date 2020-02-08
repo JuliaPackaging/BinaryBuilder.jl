@@ -26,12 +26,11 @@ end
 
 # Fix various things that go wrong with the JSON translation
 function cleanup_merged_object!(meta::Dict)
-    # Turn `source` values back into pairs, instead of dicts
-    for idx in 1:length(meta["sources"])
-        if isa(meta["sources"][idx], Dict) && length(meta["sources"][idx]) == 1
-            meta["sources"][idx] = first(meta["sources"][idx])
-        end
-    end
+    # Turn `source` values back into AbstractSource's
+    meta["sources"] = sourcify.(meta["sources"])
+
+    # Turn `dependencies` back into AbstractDependency's
+    meta["dependencies"] = dependencify.(meta["dependencies"])
 
     # Turn `version` back into a VersionNumber (not a string)
     meta["version"] = VersionNumber(meta["version"])
