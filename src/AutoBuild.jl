@@ -337,7 +337,7 @@ function get_next_wrapper_version(src_name, src_version)
         # Find largest version number that matches ours in the registered paths
         versions = VersionNumber[]
         for path in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll"))
-            append!(versions, Pkg.Compress.load_versions(joinpath(path, "Versions.toml")))
+            append!(versions, RegistryTools.Compress.load_versions(joinpath(path, "Versions.toml")))
         end
         versions = filter(v -> (v.major == src_version.major) &&
                             (v.minor == src_version.minor) &&

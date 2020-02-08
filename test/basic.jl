@@ -438,4 +438,10 @@ end
     # Make sure that a `BuildDependency` can't make it to the list of
     # dependencies of the new JLL package
     @test_throws MethodError build_project_dict(name, version, [BuildDependency("Foo_jll")])
+
+    version = v"1.6.8"
+    next_version = BinaryBuilder.get_next_wrapper_version("Xorg_libX11", version)
+    @test next_version.major == version.major
+    @test next_version.minor == version.minor
+    @test next_version.patch == version.patch
 end
