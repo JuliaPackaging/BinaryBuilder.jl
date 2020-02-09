@@ -1192,7 +1192,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
               end
 
               # For library products, you can use the exported variable name in `ccall()` invocations directly
-              num_chars = ccall((libdataproc, :count_characters), Cint, (Cstring, Cint), data_lines[1], length(data_lines[1]))
+              num_chars = ccall((:count_characters, libdataproc), Cint, (Cstring, Cint), data_lines[1], length(data_lines[1]))
 
               # For executable products, you can use the exported variable name as a function that you can call
               mungify_exe() do mungify_exe_path
