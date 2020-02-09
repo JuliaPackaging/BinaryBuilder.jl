@@ -5,6 +5,39 @@ using Pkg.TOML, Dates, UUIDs
 using RegistryTools, Registrator
 import LibGit2
 
+default_usage_example = """
+## Usage example
+
+For example purposes, we will assume that the following products were defined in the imaginary package `Example_jll`:
+
+```julia
+products = [
+    FileProduct("src/data.txt", :data_txt),
+    LibraryProduct("libdataproc", :libdataproc),
+    ExecutableProduct("mungify", :mungify_exe)
+]
+```
+
+With such products defined, `Example_jll` would contain `data_txt`, `libdataproc` and `mungify_exe` symbols exported. For `FileProduct` variables, the exported value is a string pointing to the location of the file on-disk.  For `LibraryProduct` variables, it is a string corresponding to the `SONAME` of the desired library (it will have already been `dlopen()`'ed, so typical `ccall()` usage applies), and for `ExecutableProduct` variables, the exported value is a function that can be called to set appropriate environment variables.  Example:
+
+```julia
+using Example_jll
+
+# For file products, you can access its file location directly:
+data_lines = open(data_txt, "r") do io
+    readlines(io)
+end
+
+# For library products, you can use the exported variable name in `ccall()` invocations directly
+num_chars = ccall((libdataproc, :count_characters), Cint, (Cstring, Cint), data_lines[1], length(data_lines[1]))
+
+# For executable products, you can use the exported variable name as a function that you can call
+mungify_exe() do mungify_exe_path
+    run(`\$mungify_exe_path \$num_chars`)
+end
+```
+"""
+
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
                    products, dependencies; kwargs...)
@@ -24,7 +57,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     if "--help" in ARGS
         println(strip("""
         Usage: build_tarballs.jl [target1,target2,...] [--help]
-                                 [--verbose] [--debug] 
+                                 [--verbose] [--debug]
                                  [--deploy] [--deploy-bin] [--deploy-jll]
                                  [--register] [--meta-json]
 
@@ -124,7 +157,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     deploy, deploy_repo = extract_flag("--deploy", "JuliaBinaryWrappers/$(src_name)_jll.jl")
     deploy_bin, deploy_bin_repo = extract_flag("--deploy-bin", "JuliaBinaryWrappers/$(src_name)_jll.jl")
     deploy_jll, deploy_jll_repo = extract_flag("--deploy-jll", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    
+
     # Resolve deploy settings
     if deploy
         deploy_bin = true
@@ -235,6 +268,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         build_jll_package(src_name, build_version, code_dir, build_output_meta,
                           dependencies, bin_path; verbose=verbose,
                           extract_kwargs(kwargs, (:lazy_artifacts,))...,
+                          extract_kwargs(kwargs, (:usage_example,))...,
                           )
         push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_repo)
         if register
@@ -813,7 +847,7 @@ function init_jll_package(name, code_dir, deploy_repo;
     end
 end
 
-function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool = false, lazy_artifacts::Bool = false)
+function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool = false, lazy_artifacts::Bool = false, usage_example::String = default_usage_example)
     if build_version === nothing
         build_version = BinaryBuilder.get_next_wrapper_version(obj["name"], obj["version"])
     end
@@ -825,6 +859,7 @@ function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool 
         obj["dependencies"],
         verbose=verbose,
         lazy_artifacts = lazy_artifacts,
+        usage_example = default_usage_example,
     )
 end
 
@@ -832,7 +867,7 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
                               platforms::Vector, products::Vector, dependencies::Vector;
                               gh_org::String = "JuliaBinaryWrappers",
                               code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
-                              verbose::Bool = false, lazy_artifacts::Bool = false)
+                              verbose::Bool = false, lazy_artifacts::Bool = false, usage_example::String = default_usage_example)
     repo = "$(gh_org)/$(name)_jll.jl"
     tag = "$(name)-v$(build_version)"
     bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
@@ -895,13 +930,13 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
         end
 
         # Finally, generate the full JLL package
-        build_jll_package(name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose, lazy_artifacts=lazy_artifacts)
+        build_jll_package(name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose, lazy_artifacts=lazy_artifacts, usage_example = default_usage_example)
     end
 end
 
 function build_jll_package(src_name::String, build_version::VersionNumber, code_dir::String,
                            build_output_meta::Dict, dependencies::Vector, bin_path::String;
-                           verbose::Bool = false, lazy_artifacts::Bool = false)
+                           verbose::Bool = false, lazy_artifacts::Bool = false, usage_example::String = default_usage_example)
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
@@ -1168,38 +1203,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
               ```
 
               """,
-              """
-              ## Usage example
-
-              For example purposes, we will assume that the following products were defined in the imaginary package `Example_jll`:
-
-              ```julia
-              products = [
-                  FileProduct("src/data.txt", :data_txt),
-                  LibraryProduct("libdataproc", :libdataproc),
-                  ExecutableProduct("mungify", :mungify_exe)
-              ]
-              ```
-
-              With such products defined, `Example_jll` would contain `data_txt`, `libdataproc` and `mungify_exe` symbols exported. For `FileProduct` variables, the exported value is a string pointing to the location of the file on-disk.  For `LibraryProduct` variables, it is a string corresponding to the `SONAME` of the desired library (it will have already been `dlopen()`'ed, so typical `ccall()` usage applies), and for `ExecutableProduct` variables, the exported value is a function that can be called to set appropriate environment variables.  Example:
-
-              ```julia
-              using Example_jll
-
-              # For file products, you can access its file location directly:
-              data_lines = open(data_txt, "r") do io
-                  readlines(io)
-              end
-
-              # For library products, you can use the exported variable name in `ccall()` invocations directly
-              num_chars = ccall((libdataproc, :count_characters), Cint, (Cstring, Cint), data_lines[1], length(data_lines[1]))
-
-              # For executable products, you can use the exported variable name as a function that you can call
-              mungify_exe() do mungify_exe_path
-                  run(`\$mungify_exe_path \$num_chars`)
-              end
-              ```
-              """)
+              usage_example)
     end
 
     # Generate LICENSE.md
