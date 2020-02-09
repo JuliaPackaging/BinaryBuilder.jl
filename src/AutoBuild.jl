@@ -226,9 +226,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
         end
 
-        # For deploy discard build-only dependencies and transform in PackageSpec
+        # For deploy discard build-only dependencies
         filter!(dep -> !isa(dep, BuildDependency), dependencies)
-        dependencies = getpkg.(dependencies)
 
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
