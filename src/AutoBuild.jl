@@ -227,7 +227,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         end
 
         # For deploy discard build-only dependencies
-        filter!(dep -> !isa(dep, BuildDependency), dependencies)
+        # and make sure we get a `Vector{Dependency}`
+        dependencies = Dependency[dep for dep in dependencies if !isa(dep, BuildDependency)]
 
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
