@@ -2,10 +2,10 @@ function print_build_tarballs(io::IO, state::WizardState)
     urlfiles = zip(state.source_urls, state.source_files)
     sources_string = strip(join(map(urlfiles) do x
         url_string = repr(x[1])
-        if endswith(url_string, ".git")
-            "GitSource($(url_string), $(repr(x[2].hash)))"
+        if endswith(x[1], ".git")
+            "GitSource($(url_string), $(repr(x[2].hash))),"
         else
-            "FileSource($(url_string), $(repr(x[2].hash)))"
+            "FileSource($(url_string), $(repr(x[2].hash))),"
         end
     end,"\n    "))
     if Set(state.platforms) == Set(supported_platforms())
