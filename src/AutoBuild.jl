@@ -834,7 +834,8 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
                               platforms::Vector, products::Vector, dependencies::Vector;
                               gh_org::String = "JuliaBinaryWrappers",
                               code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
-                              verbose::Bool = false, lazy_artifacts::Bool = false)
+                              verbose::Bool = false, lazy_artifacts::Bool = false,
+                              from_scratch::Bool = true)
     repo = "$(gh_org)/$(name)_jll.jl"
     tag = "$(name)-v$(build_version)"
     bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
@@ -894,6 +895,13 @@ function rebuild_jll_packages(name::String, build_version::VersionNumber,
                     products_info,
                 )
             end
+        end
+
+        # If `from_scartch` is set (the default) we clear out any old crusty code
+        # before generating our new, pristine, JLL package within it.  :)
+        if from_scratch
+            rm(joinpath(code_dir, "src"); recursive=true, force=true)
+            rm(joinpath(code_dir, "Artifacts.toml"); force=true)
         end
 
         # Finally, generate the full JLL package
