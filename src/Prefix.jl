@@ -307,7 +307,7 @@ function setup_workspace(build_path::AbstractString, sources::Vector{SetupSource
                         @info "Extracting tarball $(basename(source.path))..."
                     end
                     tar_flags = verbose ? "xvof" : "xof"
-                    run(`tar $(tar_flags) $(source.path)`)
+                    run(`tar -$(tar_flags) $(source.path)`)
                 elseif endswith(source.path, ".zip")
                     if verbose
                         @info "Extracting zipball $(basename(source.path))..."
