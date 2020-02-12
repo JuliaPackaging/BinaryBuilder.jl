@@ -328,6 +328,11 @@ function get_name_and_version(state::WizardState)
         msg = "Enter a name for this project.  This will be used for filenames:"
         new_name = nonempty_line_prompt("Name", msg; ins=state.ins, outs=state.outs)
 
+        if !Base.isidentifier(new_name)
+            println(state.outs, "\"$(new_name)\" is an invalid identifier. Try again.")
+            continue
+        end
+
         # Check to see if this project name already exists
         if case_insensitive_file_exists(joinpath(yggdrasil_path, yggdrasil_build_tarballs_path(new_name)))
             println(state.outs, "A build recipe with that name already exists within Yggdrasil.")
