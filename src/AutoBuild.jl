@@ -380,6 +380,9 @@ function register_jll(name, build_version, dependencies;
                       code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
                       gh_auth=github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+    if !Base.isidentifier(name)
+        error("Package name \"$(name)\" is not a valid identifier")
+    end
     # Calculate tree hash of wrapper code
     wrapper_tree_hash = bytes2hex(Pkg.GitTools.tree_hash(code_dir))
 
@@ -912,6 +915,9 @@ end
 function build_jll_package(src_name::String, build_version::VersionNumber, code_dir::String,
                            build_output_meta::Dict, dependencies::Vector, bin_path::String;
                            verbose::Bool = false, lazy_artifacts::Bool = false)
+    if !Base.isidentifier(src_name)
+        error("Package name \"$(src_name)\" is not a valid identifier")
+    end
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
