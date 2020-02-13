@@ -259,6 +259,59 @@ function unsymlink_tree(src::AbstractString, dest::AbstractString)
     end
 end
 
+function setup(source::SetupSource{GitSource}, targetdir, verbose)
+    mkpath(targetdir)
+    # Chop off the `.git` at the end of the source.path
+    repo_dir = joinpath(targetdir, basename(source.path)[1:end-4])
+    if verbose
+        @info "Cloning $(basename(source.path)) to $(basename(targetdir))..."
+    end
+    LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
+        LibGit2.checkout!(repo, source.hash)
+    end
+end
+
+function setup(source::SetupSource{ArchiveSource}, targetdir, verbose)
+    mkpath(targetdir)
+    # Extract with host tools because it is _much_ faster on e.g. OSX.
+    # If this becomes a compatibility problem, we'll just have to install
+    # our own `tar` and `unzip` through BP as dependencies for BB.
+    cd(targetdir) do
+        if any(endswith(source.path, ext) for ext in tar_extensions)
+            if verbose
+                @info "Extracting tarball $(basename(source.path))..."
+            end
+            tar_flags = verbose ? "xvof" : "xof"
+            run(`tar -$(tar_flags) $(source.path)`)
+        elseif endswith(source.path, ".zip")
+            if verbose
+                @info "Extracting zipball $(basename(source.path))..."
+            end
+            run(`unzip -q $(source.path)`)
+        else
+            error("Unknown archive format")
+        end
+    end
+end
+
+function setup(source::SetupSource{FileSource}, target, verbose)
+    if verbose
+        @info "Copying $(basename(source.path)) in $(basename(target))..."
+    end
+    cp(source.path, target)
+end
+
+function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
+    # Need to strip the trailing separator also here
+    srcpath = isdirpath(source.path) ? dirname(source.path) : source.path
+    if verbose
+        @info "Copying content of $(basename(srcpath)) in $(basename(targetdir))..."
+    end
+    for file_dir in readdir(srcpath)
+        # Copy the content of the source directory to the destination
+        cp(joinpath(srcpath, file_dir), joinpath(targetdir, basename(file_dir)))
+    end
+end
 
 """
     setup_workspace(build_path::String, sources::Vector{SetupSource};
@@ -271,7 +324,7 @@ the environment variables that will be defined within the sandbox environment.
 This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
-function setup_workspace(build_path::AbstractString, sources::Vector{SetupSource};
+function setup_workspace(build_path::AbstractString, sources::Vector{<:SetupSource};
                          verbose::Bool = false)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
@@ -285,42 +338,13 @@ function setup_workspace(build_path::AbstractString, sources::Vector{SetupSource
     wrapperdir = joinpath(workspace, "compiler_wrappers")
     mkdir.((srcdir, destdir, metadir))
 
-    # For each source path, unpack it
+    # Setup all sources
     for source in sources
-        targetdir = joinpath(srcdir, source.unpack_target)
-        mkpath(targetdir)
-        if isdir(source.path)
-            # Chop off the `.git` at the end of the source.path
-            repo_dir = joinpath(targetdir, basename(source.path)[1:end-4])
-            LibGit2.with(LibGit2.clone(source.path, repo_dir)) do repo
-                LibGit2.checkout!(repo, source.hash)
-            end
-        else
-            # Extract with host tools because it is _much_ faster on e.g. OSX.
-            # If this becomes a compatibility problem, we'll just have to install
-            # our own `tar` and `unzip` through BP as dependencies for BB.
-            tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
-                              ".tar.xz", ".tar.Z", ".txz"]
-            cd(targetdir) do
-                if any(endswith(source.path, ext) for ext in tar_extensions)
-                    if verbose
-                        @info "Extracting tarball $(basename(source.path))..."
-                    end
-                    tar_flags = verbose ? "xvof" : "xof"
-                    run(`tar -$(tar_flags) $(source.path)`)
-                elseif endswith(source.path, ".zip")
-                    if verbose
-                        @info "Extracting zipball $(basename(source.path))..."
-                    end
-                    run(`unzip -q $(source.path)`)
-               else
-                   if verbose
-                       @info "Copying in $(basename(source.path))..."
-                   end
-                   cp(source.path, basename(source.path))
-                end
-            end
-        end
+        target = joinpath(srcdir, source.target)
+        # Trailing directory separator matters for `basename`, so let's strip it
+        # to avoid confusion
+        target = isdirpath(target) ? dirname(target) : target
+        setup(source, target, verbose)
     end
 
     # Return the build prefix

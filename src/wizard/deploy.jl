@@ -4,6 +4,8 @@ function print_build_tarballs(io::IO, state::WizardState)
         url_string = repr(x[1])
         if endswith(x[1], ".git")
             "GitSource($(url_string), $(repr(x[2].hash))),"
+        elseif any(endswith(x[1], ext) for ext in archive_extensions)
+            "ArchiveSource($(url_string), $(repr(x[2].hash)))"
         else
             "FileSource($(url_string), $(repr(x[2].hash))),"
         end

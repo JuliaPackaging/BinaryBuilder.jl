@@ -203,7 +203,7 @@ function step3_state()
     state.step = :step34
     state.platforms = [Linux(:x86_64)]
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
-    state.source_files = [BinaryBuilder.SetupSource(libfoo_tarball_path, libfoo_tarball_hash)]
+    state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}(libfoo_tarball_path, libfoo_tarball_hash, "")]
     state.name = "libfoo"
     state.version = v"1.0.0"
     state.dependencies = Dependency[]

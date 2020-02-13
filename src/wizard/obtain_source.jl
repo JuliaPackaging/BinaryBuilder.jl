@@ -184,7 +184,7 @@ function download_source(state::WizardState)
     end
 
     # Spit back the url, local path and source hash
-    return url, SetupSource(source_path, source_hash, "")
+    return url, SetupSource(url, source_path, source_hash, "")
 end
 
 """
