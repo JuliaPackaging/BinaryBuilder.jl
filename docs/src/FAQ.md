@@ -79,7 +79,7 @@ Yes, but it's unlikely that you'll need to.  The build environment is based on A
 
 The list of sources is a vector of [`BinaryBuilder.AbstractSource`](@ref)s.  What the hash is depends on what the source is:
 
-* For a [`FileSource`](@ref), the hash is a 64-character SHA256 checksum.  If you have a copy of that file, you can compute the hash in Julia with
+* For a [`FileSource`](@ref) or an [`ArchiveSource`](@ref), the hash is a 64-character SHA256 checksum.  If you have a copy of that file, you can compute the hash in Julia with
   ```julia
   using SHA
   open(path_to_the_file, "r") do f

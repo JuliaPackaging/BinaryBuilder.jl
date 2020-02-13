@@ -38,8 +38,8 @@ using SnoopCompile
         v"1.0.0",
         # Add some sources, so that we actually download them
         [
-            FileSource("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.gz",
-                       "e65d2f13f2085f2c279830e863292312a72930fee5ba3c792b14c33ce5c5cc58"),
+            ArchiveSource("https://github.com/staticfloat/small_bin/raw/master/socrates.tar.gz",
+                          "e65d2f13f2085f2c279830e863292312a72930fee5ba3c792b14c33ce5c5cc58"),
             DirectorySource("src"),
         ],
         # Build the test suite, install the binaries into our prefix's `bin`

@@ -24,7 +24,7 @@ using BinaryBuilder
 name = "libfoo"
 version = v"1.0.1"
 sources = [
-    FileSource("<url to source tarball>", "sha256 hash"),
+    ArchiveSource("<url to source tarball>", "sha256 hash"),
 ]
 
 script = raw"""

@@ -1,4 +1,4 @@
-export FileSource, GitSource, DirectorySource
+export ArchiveSource, FileSource, GitSource, DirectorySource
 
 """
 An `AbstractSource` is something used as source to build the package.  Sources
@@ -6,6 +6,7 @@ are installed to `\${WORKSPACE}/srcdir` in the build environment.
 
 Concrete subtypes of `AbstractSource` are:
 
+* [`ArchiveSource`](@ref): a remote archive to download from the Internet;
 * [`FileSource`](@ref): a remote file to download from the Internet;
 * [`GitSource`](@ref): a remote Git repository to clone;
 * [`DirectorySource`](@ref): a local directory to mount.
@@ -13,23 +14,47 @@ Concrete subtypes of `AbstractSource` are:
 abstract type AbstractSource end
 
 """
-    FileSource(url::String, hash::String; unpack_target::String = "")
+    ArchiveSource(url::String, hash::String; unpack_target::String = "")
 
-Specify a remote file to be downloaded from the Internet from `url`.  `hash` is
-the 64-character SHA256 checksum of the file.
+Specify a remote archive in one of the supported archive formats (e.g., TAR or
+ZIP balls) to be downloaded from the Internet from `url`.  `hash` is the
+64-character SHA256 checksum of the file.
 
-If the file is an archive in one of the supported archive formats (e.g., TAR or
-ZIP balls), it will be automatically unpacked to `\${WORKSPACE}/srcdir`, or in
-its subdirectory pointed to by the optional keyword `unpack_target`, if
-provided.
+In the builder environment, the archive will be automatically unpacked to
+`\${WORKSPACE}/srcdir`, or in its subdirectory pointed to by the optional
+keyword `unpack_target`, if provided.
 """
-struct FileSource <: AbstractSource
+struct ArchiveSource <: AbstractSource
     url::String
     hash::String
     unpack_target::String
 end
-FileSource(url::String, hash::String; unpack_target::String = "") =
-    FileSource(url, hash, unpack_target)
+ArchiveSource(url::String, hash::String; unpack_target::String = "") =
+    ArchiveSource(url, hash, unpack_target)
+
+# List of optionally compressed TAR archives that we know how to deal with
+const tar_extensions = [".tar", ".tar.gz", ".tgz", ".tar.bz", ".tar.bz2",
+                        ".tar.xz", ".tar.Z", ".txz"]
+# List of general archives that we know about
+const archive_extensions = vcat(tar_extensions, ".zip")
+
+"""
+    FileSource(url::String, hash::String; filename::String = basename(url))
+
+Specify a remote file to be downloaded from the Internet from `url`.  `hash` is
+the 64-character SHA256 checksum of the file.
+
+In the builder environment, the file will be saved under `\${WORKSPACE}/srcdir`
+with the same name as the basename of the originating URL, unless the the
+keyword argument `filename` is specified.
+"""
+struct FileSource <: AbstractSource
+    url::String
+    hash::String
+    filename::String
+end
+FileSource(url::String, hash::String; filename::String = basename(url)) =
+    FileSource(url, hash, filename)
 
 """
     GitSource(url::String, hash::String; unpack_target::String = "")
@@ -49,31 +74,43 @@ GitSource(url::String, hash::String; unpack_target::String = "") =
     GitSource(url, hash, unpack_target)
 
 """
-    DirectorySource(path::String; unpack_target::String = "")
+    DirectorySource(path::String; target::String = basename(path))
 
 Specify a local directory to mount from `path`.
 
 The content of the directory will be mounted in `\${WORKSPACE}/srcdir`, or in its
-subdirectory pointed to by the optional keyword `unpack_target`, if provided.
+subdirectory pointed to by the optional keyword `target`, if provided.
 """
 struct DirectorySource <: AbstractSource
     path::String
-    unpack_target::String
+    target::String
 end
-DirectorySource(path::String; unpack_target::String = "") =
-    DirectorySource(path, unpack_target)
+DirectorySource(path::String; target::String = "") =
+    DirectorySource(path, target)
 
 # This is not meant to be used as source in the `build_tarballs.jl` scripts but
 # only to set up the source in the workspace.
-struct SetupSource
+struct SetupSource{T<:AbstractSource}
     path::String
     hash::String
-    unpack_target::String
+    target::String
 end
-SetupSource(path::String, hash::String; unpack_target::String = "") =
-    SetupSource(path, hash, unpack_target)
+# This is used in wizard/obtain_source.jl to automatically guess the parameter
+# of SetupSource from the URL
+function SetupSource(url::String, path::String, hash::String, target::String)
+    if endswith(url, ".git")
+        return SetupSource{GitSource}(path, hash, target)
+    elseif any(endswith(url, ext) for ext in archive_extensions)
+        return SetupSource{ArchiveSource}(path, hash, target)
+    else
+        return SetupSource{FileSource}(path, hash, target)
+    end
+end
 
-function download_source(source::FileSource; verbose::Bool = false)
+
+function download_source(source::T; verbose::Bool = false) where {T<:Union{ArchiveSource,FileSource}}
+    gettarget(s::ArchiveSource) = s.unpack_target
+    gettarget(s::FileSource) = s.filename
     if isfile(source.url)
         # Immediately abspath() a src_url so we don't lose track of
         # sources given to us with a relative path
@@ -86,7 +123,7 @@ function download_source(source::FileSource; verbose::Bool = false)
         src_path = storage_dir("downloads", string(source.hash, "-", basename(source.url)))
         download_verify(source.url, source.hash, src_path; verbose=verbose)
     end
-    return SetupSource(src_path, source.hash, source.unpack_target)
+    return SetupSource{T}(src_path, source.hash, gettarget(source))
 end
 
 function download_source(source::GitSource; verbose::Bool = false)
@@ -114,29 +151,14 @@ function download_source(source::GitSource; verbose::Bool = false)
         # If there is no src_path yet, clone it down.
         repo = LibGit2.clone(source.url, src_path; isbare=true)
     end
-    return SetupSource(src_path, source.hash, source.unpack_target)
+    return SetupSource{GitSource}(src_path, source.hash, source.unpack_target)
 end
 
 function download_source(source::DirectorySource; verbose::Bool = false)
     if !isdir(source.path)
         error("Could not find directory \"$(source.path)\".")
     end
-
-    # Package up this directory and calculate its hash
-    tarball_pathv = ""
-    tarball_hash  = ""
-    mktempdir() do tempdir
-        tarball_path = joinpath(tempdir, basename(source.path) * ".tar.gz")
-        package(source.path, tarball_path)
-        tarball_hash = open(tarball_path, "r") do f
-            bytes2hex(sha256(f))
-        end
-
-        # Move it to a filename that has the hash as a part of it (to avoid name collisions)
-        tarball_pathv = storage_dir("downloads", string(tarball_hash, "-", basename(source.path), ".tar.gz"))
-        mv(tarball_path, tarball_pathv; force=true)
-    end
-    return SetupSource(tarball_pathv, tarball_hash, source.unpack_target)
+    return SetupSource{DirectorySource}(abspath(source.path), "", source.target)
 end
 
 """
@@ -148,6 +170,7 @@ BinaryBuilder `downloads` storage directory.
 download_source
 
 # Add JSON serialization to sources
+JSON.lower(fs::ArchiveSource) = Dict("type" => "archive", extract_fields(fs)...)
 JSON.lower(fs::FileSource) = Dict("type" => "file", extract_fields(fs)...)
 JSON.lower(gs::GitSource) = Dict("type" => "git", extract_fields(gs)...)
 JSON.lower(ds::DirectorySource) = Dict("type" => "directory", extract_fields(ds)...)
@@ -162,6 +185,8 @@ function sourcify(d::Dict)
         return GitSource(d["url"], d["hash"])
     elseif d["type"] == "file"
         return FileSource(d["url"], d["hash"])
+    elseif d["type"] == "archive"
+        return ArchiveSource(d["url"], d["hash"])
     else
         error("Cannot convert to source")
     end
@@ -179,6 +204,9 @@ function coerce_source(source::Pair)
     if endswith(src_url, ".git")
         @warn "Using a pair as source is deprecated, use GitSource instead"
         return GitSource(src_url, src_hash)
+    elseif any(endswith(src_url, ext) for ext in archive_extensions)
+        @warn "Using a pair as source is deprecated, use ArchiveSource instead"
+        return ArchiveSource(src_url, src_hash)
     else
         @warn "Using a pair as source is deprecated, use FileSource instead"
         return FileSource(src_url, src_hash)
