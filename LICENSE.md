@@ -1,6 +1,6 @@
 The BinaryBuilder.jl package is licensed under the MIT "Expat" License:
 
-> Copyright (c) 2017: Elliot Saba.
+> Copyright (c) 2020: Elliot Saba, Keno Fischer, Mosè Giordano and contributors.
 > 
 > Permission is hereby granted, free of charge, to any person obtaining a copy
 > of this software and associated documentation files (the "Software"), to deal
