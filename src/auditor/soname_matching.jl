@@ -117,10 +117,11 @@ function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
     soname_path = joinpath(dirname(path), basename(soname))
     if !isfile(soname_path)
         if autofix
+            target = basename(path)
             if verbose
-                @info("Library $(soname) does not exist, creating...")
+                @info("Library $(soname) does not exist, creating link to $(target)...")
             end
-            symlink(path, soname_path)
+            symlink(target, soname_path)
         else
             if verbose
                 @info("Library $(soname) does not exist, failing out...")

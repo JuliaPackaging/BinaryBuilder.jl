@@ -350,3 +350,47 @@ end
         end
     end
 end
+
+@testset "Auditor - soname matching" begin
+    mktempdir() do build_path
+        build_output_meta = nothing
+        linux_platform = Linux(:x86_64)
+        @test_logs (:info, r"creating link to libfoo\.so\.1\.0\.0") match_mode=:any begin
+            build_output_meta = autobuild(
+                build_path,
+                "soname_matching",
+                v"1.0.0",
+                # No sources
+                FileSource[],
+                # Build the library only with the versioned name
+                raw"""
+                mkdir -p ${prefix}/lib
+                cc -o ${prefix}/lib/libfoo.${dlext}.1.0.0 -fPIC -shared /usr/share/testsuite/c/dyn_link/libfoo/libfoo.c
+                # Set the soname to a non-existing file
+                patchelf --set-soname libfoo.so ${prefix}/lib/libfoo.${dlext}.1.0.0
+                """,
+                # Build for Linux
+                [linux_platform],
+                # Ensure our executable products are built
+                [LibraryProduct("libfoo", :libfoo)],
+                # No dependencies
+                Dependency[];
+                autofix = true,
+                verbose = true,
+                require_license = false
+            )
+        end
+        # Extract our platform's build
+        @test haskey(build_output_meta, linux_platform)
+        tarball_path, tarball_hash = build_output_meta[linux_platform][1:2]
+        # Ensure the build products were created
+        @test isfile(tarball_path)
+
+        # Unpack it somewhere else
+        @test verify(tarball_path, tarball_hash)
+        testdir = joinpath(build_path, "testdir")
+        mkdir(testdir)
+        unpack(tarball_path, testdir)
+        @test readlink(joinpath(testdir, "lib", "libfoo.so")) == "libfoo.so.1.0.0"
+    end
+end
