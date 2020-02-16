@@ -273,3 +273,32 @@ end
     end
 end
 
+@testset "Building from remote file" begin
+    build_output_meta = nothing
+    mktempdir() do build_path
+        build_output_meta = autobuild(
+            build_path,
+            "libconfuse",
+            v"3.2.2",
+            # libconfuse source
+            [ArchiveSource("https://github.com/martinh/libconfuse/releases/download/v3.2.2/confuse-3.2.2.tar.gz",
+                           "71316b55592f8d0c98924242c98dbfa6252153a8b6e7d89e57fe6923934d77d0")],
+            # Build script for libconfuse
+            raw"""
+            cd $WORKSPACE/srcdir/confuse-*/
+            ./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target}
+            make -j${nproc}
+            make install
+            """,
+            # Build for this platform
+            [platform],
+            # The products we expect to be build
+            [LibraryProduct("libconfuse", :libconfuse)],
+            # No depenedencies
+            Dependency[];
+            # Don't do audit passes
+            skip_audit=true,
+        )
+    end
+    @test haskey(build_output_meta, platform)
+end
