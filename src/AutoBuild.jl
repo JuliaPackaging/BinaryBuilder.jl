@@ -305,7 +305,7 @@ function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::
     for attempt in 1:attempts
         try
             ghr() do ghr_path
-                run(`$ghr_path -replace -u $(dirname(repo)) -r $(basename(repo)) $(tag) $(path)`)
+                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) $(tag) $(path)`)
             end
             return
         catch
