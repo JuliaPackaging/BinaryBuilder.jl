@@ -112,7 +112,7 @@ end
 Write out a WizardState to a `build_tarballs.jl` in an `Yggdrasil` clone, then
 open a pull request against `Yggdrasil`.
 """
-function yggdrasil_deploy(state::WizardState, open_it::Bool = true)
+function yggdrasil_deploy(state::WizardState, open_pr::Bool = true)
     btb = IOBuffer()
     print_build_tarballs(btb, state)
     seek(btb, 0)
@@ -123,11 +123,11 @@ function yggdrasil_deploy(state::WizardState, open_it::Bool = true)
         state.version,
         state.patches,
         build_tarballs_content;
-        open_it=open_it
+        open_pr=open_pr
     )
 end
 
-function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_it::Bool=false, branch_name=nothing)
+function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_pr::Bool=false, branch_name=nothing)
     # First, fork Yggdrasil (this just does nothing if it already exists)
     gh_auth = github_auth(;allow_anonymous=false)
     fork = GitHub.create_fork("JuliaPackaging/Yggdrasil"; auth=gh_auth)
@@ -186,7 +186,7 @@ function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_i
             Base.shred!(creds)
         end
 
-        if open_it
+        if open_pr
             # Open a pull request against Yggdrasil
             @info("Opening a pull request against JuliaPackaging/Yggdrasil...")
             params = Dict(
@@ -231,7 +231,7 @@ function step7(state::WizardState)
 
     if deploy_select == 1
         yggdrasil_select = request(terminal,
-            "Would you like to actuall open the pull request or just prepare it?",
+            "Would you like to actually open the pull request or just prepare it?",
             RadioMenu([
                 "Go ahead, open it",
                 "No, just prepare it and let me look at it first",
