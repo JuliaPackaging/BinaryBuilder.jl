@@ -314,7 +314,6 @@ function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
 end
 
 function setup(source::PatchSource, targetdir, verbose)
-    # Need to strip the trailing separator also here
     if verbose
         @info "Adding patch $(source.name)..."
     end

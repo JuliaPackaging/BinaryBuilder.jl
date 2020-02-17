@@ -12,7 +12,7 @@ function print_build_tarballs(io::IO, state::WizardState)
         end
     end
     if !isempty(state.patches)
-        push!(sources_strings, "\"./bundled\"")
+        push!(sources_strings, "DirectorySource(\"./bundled\")")
     end
     sources_string = strip(join(sources_strings, ",\n    "))
     if Set(state.platforms) == Set(supported_platforms())
