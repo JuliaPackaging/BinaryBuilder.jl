@@ -96,13 +96,25 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     state.file_varnames = Symbol[]
     println(state.outs, "Please provide a unique variable name for each build artifact:")
     for f in state.files
-        varname = nonempty_line_prompt(
-            "variable name",
-            string(f, ":");
-            force_identifier=true,
-            ins=state.ins,
-            outs=state.outs,
-        )
+        default = basename(f)
+        if Base.isidentifier(default)
+            varname = line_prompt(
+                "variable name",
+                string(f, " (default '$(default)'):");
+                force_identifier=true,
+                ins=state.ins,
+                outs=state.outs,
+            )
+            isempty(varname) && (varname = default)
+        else
+            varname = nonempty_line_prompt(
+                "variable name",
+                string(f, ":");
+                force_identifier=true,
+                ins=state.ins,
+                outs=state.outs,
+            )
+        end
         push!(state.file_varnames, Symbol(varname))
     end
 
