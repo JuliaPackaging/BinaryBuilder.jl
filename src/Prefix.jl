@@ -335,7 +335,7 @@ This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
 function setup_workspace(build_path::AbstractString, sources::Vector;
-                         verbose::Bool = false, srcdir_overlay = false)
+                         verbose::Bool = false)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
     workspace = joinpath(build_path, nonce)
@@ -347,12 +347,6 @@ function setup_workspace(build_path::AbstractString, sources::Vector;
     metadir = joinpath(workspace, "metadir")
     wrapperdir = joinpath(workspace, "compiler_wrappers")
     mkdir.((srcdir, destdir, metadir))
-
-    if srcdir_overlay
-        mkdir(joinpath(build_path, nonce, "srcdir_work"))
-        srcdir = joinpath(build_path, nonce, "srcdir_lower")
-        mkdir(srcdir)
-    end
 
     # Setup all sources
     for source in sources

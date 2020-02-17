@@ -127,6 +127,51 @@ function step3_audit(state::WizardState, platform::Platform, destdir::String)
     println(state.outs)
 end
 
+function diff_srcdir(state::WizardState, prefix::Prefix, ur::Runner)
+    # Check if there were any modifications made to the srcdir
+    if length(readdir(joinpath(prefix, "srcdir"))) > 0
+        # Note that we're re-creating the mount here, but in reverse
+        # the filesystem. It would be more efficient to just diff the files
+        # that were actually changed, but there doesn't seem to be a good
+        # way to tell diff to do that.
+        #
+        # N.B.: We only diff modified files. That should hopefully exclude
+        # generated build artifacts. Unfortunately, we may also miss files
+        # that the user newly added.
+        cmd = """
+            mkdir /meta/before
+            mkdir /meta/after
+            mount -t overlay overlay -o lowerdir=/workspace/srcdir,upperdir=/meta/upper,workdir=/meta/work /meta/after
+            mount --bind /workspace/srcdir /meta/before
+            cd /meta
+            /usr/bin/git diff --no-index --no-prefix --diff-filter=M before after
+            exit 0
+        """
+        # If so, generate a diff
+        diff = read(ur, `/bin/bash -c $cmd`)
+
+        # It's still quite possible for the diff to be empty (e.g. due to the diff-filter above)
+        if !isempty(diff)
+            println(state.outs, "The source directory had the following modifications: \n")
+            println(state.outs, diff)
+
+            if yn_prompt(state, "Would you like to turn these modifications into a patch?", :y) == :y
+                patchname = nonempty_line_prompt(
+                    "patch name",
+                    "Please provide a name for this patch (.patch will be automatically appended):";
+                    force_identifier=false,
+                    ins=state.ins,
+                    outs=state.outs,
+                )
+                patchname *= ".patch"
+                push!(state.patches, PatchSource(patchname, diff))
+                return true
+            end
+        end
+    end
+    return false
+end
+
 """
     interactive_build(state::WizardState, prefix::Prefix,
                       ur::Runner, build_path::AbstractString)
@@ -140,57 +185,29 @@ function interactive_build(state::WizardState, prefix::Prefix,
     histfile = joinpath(prefix, "metadir", ".bash_history")
     cmd = `/bin/bash -l`
 
-    if srcdir_overlay
-        cmd = """
-            mount -t overlay overlay -o lowerdir=/workspace/srcdir_lower,upperdir=/workspace/srcdir,workdir=/workspace/srcdir_work /workspace/srcdir
-            cd \$(pwd)
-            /bin/bash --login
-            """
-        cmd = `/bin/bash -c $cmd`
-    end
-
-    run_interactive(ur, cmd, stdin=state.ins, stdout=state.outs, stderr=state.outs)
-
     had_patches = false
-    if srcdir_overlay
-        # Check if there were any modifications made to the srcdir
-        if length(readdir(joinpath(prefix, "srcdir"))) > 0
-            # Note that we're mounting to /workspace/srcdir/upper so comparing
-            # upper and lower will now re-create the before and after view of
-            # the filesystem. It would be more efficient to just diff the files
-            # that were actually changed, but there doesn't seem to be a good
-            # way to tell diff to do that.
-            #
-            # N.B.: We only diff modified files. That should hopefully exclude
-            # generated build artifacts. Unfortunately, we may also miss files
-            # that the user newly added.
+    try
+        if srcdir_overlay
+            mkdir(joinpath(prefix, "metadir", "upper"))
+            mkdir(joinpath(prefix, "metadir", "work"))
             cmd = """
-                mount -t overlay overlay -o lowerdir=/workspace/srcdir_lower,upperdir=/workspace/srcdir,workdir=/workspace/srcdir_work /workspace/srcdir
-                cd /workspace
-                /usr/bin/git diff --no-index --no-prefix --diff-filter=M srcdir_lower srcdir
-                exit 0
-            """
-            # If so, generate a diff
-            diff = read(ur, `/bin/bash -c $cmd`)
+                mount -t overlay overlay -o lowerdir=/workspace/srcdir,upperdir=/meta/upper,workdir=/meta/work /workspace/srcdir
+                cd \$(pwd)
+                /bin/bash --login
+                """
+            cmd = `/bin/bash -c $cmd`
+        end
 
-            # It's still quite possible for the diff to be empty (e.g. due to the diff-filter above)
-            if !isempty(diff)
-                println(state.outs, "The source directory had the following modifications: \n")
-                println(state.outs, diff)
+        run_interactive(ur, cmd, stdin=state.ins, stdout=state.outs, stderr=state.outs)
 
-                if yn_prompt(state, "Would you like to turn these modifications into a patch?", :y) == :y
-                    patchname = nonempty_line_prompt(
-                        "patch name",
-                        "Please provide a name for this patch (.patch will be automatically appended):";
-                        force_identifier=false,
-                        ins=state.ins,
-                        outs=state.outs,
-                    )
-                    patchname *= ".patch"
-                    push!(state.patches, PatchSource(patchname, diff))
-                    had_patches = true
-                end
-            end
+        had_patches = srcdir_overlay && diff_srcdir(state, prefix, ur)
+    finally
+        # Julia's auto cleanup has trouble removing the overlayfs work
+        # directory, because the kernel sets permissions to `000` so do that
+        # here manually.
+        workdir = joinpath(prefix, "metadir", "work", "work")
+        if isdir(workdir)
+            rm(workdir)
         end
     end
 
@@ -354,12 +371,11 @@ function step34(state::WizardState)
     prefix = setup_workspace(
         build_path,
         vcat(state.source_files, state.patches);
-        verbose=false,
-        srcdir_overlay=true,
+        verbose=false
     )
     artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)
 
-    provide_hints(state, joinpath(prefix, "srcdir_lower"))
+    provide_hints(state, joinpath(prefix, "srcdir"))
 
     ur = preferred_runner()(
         prefix.path;
