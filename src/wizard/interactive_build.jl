@@ -136,44 +136,101 @@ end
 """
 function interactive_build(state::WizardState, prefix::Prefix,
                            ur::Runner, build_path::AbstractString;
-                           hist_modify = string)
-   histfile = joinpath(prefix, "metadir", ".bash_history")
-   runshell(ur, stdin=state.ins, stdout=state.outs, stderr=state.outs)
-   # This is an extremely simplistic way to capture the history,
-   # but ok for now. Obviously doesn't include any interactive
-   # programs, etc.
-   if isfile(histfile)
-       state.history = hist_modify(state.history,
+                           hist_modify = string, srcdir_overlay = true)
+    histfile = joinpath(prefix, "metadir", ".bash_history")
+    cmd = `/bin/bash -l`
+
+    if srcdir_overlay
+        cmd = """
+            mount -t overlay overlay -o lowerdir=/workspace/srcdir_lower,upperdir=/workspace/srcdir,workdir=/workspace/srcdir_work /workspace/srcdir
+            cd \$(pwd)
+            /bin/bash --login
+            """
+        cmd = `/bin/bash -c $cmd`
+    end
+
+    run_interactive(ur, cmd, stdin=state.ins, stdout=state.outs, stderr=state.outs)
+
+    had_patches = false
+    if srcdir_overlay
+        # Check if there were any modifications made to the srcdir
+        if length(readdir(joinpath(prefix, "srcdir"))) > 0
+            # Note that we're mounting to /workspace/srcdir/upper so comparing
+            # upper and lower will now re-create the before and after view of
+            # the filesystem. It would be more efficient to just diff the files
+            # that were actually changed, but there doesn't seem to be a good
+            # way to tell diff to do that.
+            #
+            # N.B.: We only diff modified files. That should hopefully exclude
+            # generated build artifacts. Unfortunately, we may also miss files
+            # that the user newly added.
+            cmd = """
+                mount -t overlay overlay -o lowerdir=/workspace/srcdir_lower,upperdir=/workspace/srcdir,workdir=/workspace/srcdir_work /workspace/srcdir
+                cd /workspace
+                /usr/bin/git diff --no-index --no-prefix --diff-filter=M srcdir_lower srcdir
+                exit 0
+            """
+            # If so, generate a diff
+            diff = read(ur, `/bin/bash -c $cmd`)
+
+            # It's still quite possible for the diff to be empty (e.g. due to the diff-filter above)
+            if !isempty(diff)
+                println(state.outs, "The source directory had the following modifications: \n")
+                println(state.outs, diff)
+
+                if yn_prompt(state, "Would you like to turn these modifications into a patch?", :y) == :y
+                    patchname = nonempty_line_prompt(
+                        "patch name",
+                        "Please provide a name for this patch (.patch will be automatically appended):";
+                        force_identifier=false,
+                        ins=state.ins,
+                        outs=state.outs,
+                    )
+                    patchname *= ".patch"
+                    push!(state.patches, PatchSource(patchname, diff))
+                    had_patches = true
+                end
+            end
+        end
+    end
+
+    # This is an extremely simplistic way to capture the history,
+    # but ok for now. Obviously doesn't include any interactive
+    # programs, etc.
+    if isfile(histfile)
+        state.history = hist_modify(state.history,
             # This is a bit of a hack for now to get around the fact
             # that we don't know cwd when we get back from bash, but
             # always start in the WORKSPACE. This makes sure the script
             # accurately reflects that.
-            string(
-               "cd \$WORKSPACE/srcdir\n",
-                String(read(histfile)),
-            ),
-        )
-       rm(histfile)
-   end
+            string("cd \$WORKSPACE/srcdir\n", had_patches ?
+                raw"""
+                for f in ${WORKSPACE}/srcdir/patches/*.patch; do
+                    atomic_patch -p1 ${f}
+                done
+                """ : "",
+            String(read(histfile))))
+        rm(histfile)
+    end
 
-   printstyled(state.outs, "\n\t\t\tBuild complete\n\n", bold=true)
-   print(state.outs, "Your build script was:\n\n\t")
-   println(state.outs, replace(state.history, "\n" => "\n\t"))
+    printstyled(state.outs, "\n\t\t\tBuild complete\n\n", bold=true)
+    print(state.outs, "Your build script was:\n\n\t")
+    println(state.outs, replace(state.history, "\n" => "\n\t"))
 
-   if yn_prompt(state, "Would you like to edit this script now?", :n) == :y
-       state.history = edit_script(state, state.history)
+    if yn_prompt(state, "Would you like to edit this script now?", :n) == :y
+        state.history = edit_script(state, state.history)
 
-       println(state.outs)
-       msg = strip("""
-       We will now rebuild with your new script to make sure it still works.
-       """)
-       println(state.outs, msg)
-       println(state.outs)
+        println(state.outs)
+        msg = strip("""
+        We will now rebuild with your new script to make sure it still works.
+        """)
+        println(state.outs, msg)
+        println(state.outs)
 
-       return true
-   else
-       return false
-   end
+        return true
+    else
+        return false
+    end
 end
 
 """
@@ -213,7 +270,7 @@ function step3_retry(state::WizardState)
 
     build_path = tempname()
     mkpath(build_path)
-    prefix = setup_workspace(build_path, state.source_files; verbose=false)
+    prefix = setup_workspace(build_path, vcat(state.source_files, state.patches); verbose=false)
     artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)
 
     ur = preferred_runner()(
@@ -296,12 +353,13 @@ function step34(state::WizardState)
     state.history = ""
     prefix = setup_workspace(
         build_path,
-        state.source_files;
+        vcat(state.source_files, state.patches);
         verbose=false,
+        srcdir_overlay=true,
     )
     artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)
 
-    provide_hints(state, joinpath(prefix.path, "srcdir"))
+    provide_hints(state, joinpath(prefix, "srcdir_lower"))
 
     ur = preferred_runner()(
         prefix.path;
@@ -340,7 +398,7 @@ function step5_internal(state::WizardState, platform::Platform)
     prefix_artifacts = Dict{Prefix,Vector{String}}()
     while !ok
         cd(build_path) do
-            prefix = setup_workspace(build_path, state.source_files; verbose=true)
+            prefix = setup_workspace(build_path, vcat(state.source_files, state.patches); verbose=true)
             # Clean up artifacts in case there are some
             cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
             artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)
@@ -405,7 +463,7 @@ function step5_internal(state::WizardState, platform::Platform)
                         mkpath(build_path)
                         prefix = setup_workspace(
                             build_path,
-                            state.source_files;
+                            vcat(state.source_files, state.patches);
                             verbose=true,
                         )
                         # Clean up artifacts in case there are some
@@ -538,7 +596,7 @@ function step5c(state::WizardState)
 
         prefix = setup_workspace(
             build_path,
-            state.source_files;
+            vcat(state.source_files, state.patches);
             verbose=false,
         )
         artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)

@@ -124,7 +124,7 @@ install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 end
 
 shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(platform))
-if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"    
+if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
     @info("Beginning full shard test... (this can take a while)")
     shards_to_test = supported_platforms()
 else
@@ -258,7 +258,7 @@ end
                 ]
             )
         end
-        
+
         # Test that manually specifying a build number in our src_version is an error()
         @test_throws ErrorException autobuild(
             build_path,

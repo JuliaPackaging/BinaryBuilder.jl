@@ -289,7 +289,7 @@ end
 
     our_platform = platform
     other_platform = BinaryBuilder.replace_libgfortran_version(our_platform, other_libgfortran_version)
-    
+
     for platform in (our_platform, other_platform)
         # Build `hello_world` in fortran for all three platforms; on our platform we expect it
         # to run, on `other` platform we expect it to not run, on `fail` platform we expect it
@@ -311,7 +311,7 @@ end
                 """,
                 # Build for ALL the platforms
                 [platform],
-                # 
+                #
                 Product[hello_world],
                 # No dependencies
                 Dependency[];

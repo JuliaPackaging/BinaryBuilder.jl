@@ -1,15 +1,20 @@
 function print_build_tarballs(io::IO, state::WizardState)
     urlfiles = zip(state.source_urls, state.source_files)
-    sources_string = strip(join(map(urlfiles) do x
+
+    sources_strings = map(urlfiles) do x
         url_string = repr(x[1])
         if endswith(x[1], ".git")
-            "GitSource($(url_string), $(repr(x[2].hash))),"
+            "GitSource($(url_string), $(repr(x[2].hash)))"
         elseif any(endswith(x[1], ext) for ext in archive_extensions)
             "ArchiveSource($(url_string), $(repr(x[2].hash)))"
         else
-            "FileSource($(url_string), $(repr(x[2].hash))),"
+            "FileSource($(url_string), $(repr(x[2].hash)))"
         end
-    end,"\n    "))
+    end
+    if !isempty(state.patches)
+        push!(sources_strings, "\"./bundled\"")
+    end
+    sources_string = strip(join(sources_strings, ",\n    "))
     if Set(state.platforms) == Set(supported_platforms())
         platforms_string = "supported_platforms()"
     else
@@ -107,7 +112,7 @@ end
 Write out a WizardState to a `build_tarballs.jl` in an `Yggdrasil` clone, then
 open a pull request against `Yggdrasil`.
 """
-function yggdrasil_deploy(state::WizardState)
+function yggdrasil_deploy(state::WizardState, open_it::Bool = true)
     btb = IOBuffer()
     print_build_tarballs(btb, state)
     seek(btb, 0)
@@ -116,11 +121,13 @@ function yggdrasil_deploy(state::WizardState)
     return yggdrasil_deploy(
         state.name,
         state.version,
-        build_tarballs_content,
+        state.patches,
+        build_tarballs_content;
+        open_it=open_it
     )
 end
 
-function yggdrasil_deploy(name, version, build_tarballs_content; branch_name=nothing)
+function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_it::Bool=false, branch_name=nothing)
     # First, fork Yggdrasil (this just does nothing if it already exists)
     gh_auth = github_auth(;allow_anonymous=false)
     fork = GitHub.create_fork("JuliaPackaging/Yggdrasil"; auth=gh_auth)
@@ -146,6 +153,17 @@ function yggdrasil_deploy(name, version, build_tarballs_content; branch_name=not
             write(io, build_tarballs_content)
         end
 
+        # If needed, add patches
+        if !isempty(patches)
+            rel_patches_path = joinpath(dirname(rel_bt_path), "bundled", "patches")
+            mkpath(joinpath(tmp, rel_patches_path))
+            for patch in patches
+                patch_path = joinpath(rel_patches_path, patch.name)
+                open(f->write(f, patch.patch), joinpath(tmp, patch_path), "w")
+                LibGit2.add!(repo, patch_path)
+            end
+        end
+
         # Commit it and push it up to our fork
         @info("Committing and pushing to $(fork.full_name)#$(branch_name)...")
         LibGit2.add!(repo, rel_bt_path)
@@ -168,24 +186,29 @@ function yggdrasil_deploy(name, version, build_tarballs_content; branch_name=not
             Base.shred!(creds)
         end
 
-        # Open a pull request against Yggdrasil
-        @info("Opening a pull request against JuliaPackaging/Yggdrasil...")
-        params = Dict(
-            "base" => "master",
-            "head" => "$(dirname(fork.full_name)):$(branch_name)",
-            "maintainer_can_modify" => true,
-            "title" => "Wizard recipe: $(name)-v$(version)",
-            "body" => """
-            This pull request contains a new build recipe I built using the BinaryBuilder.jl wizard:
+        if open_it
+            # Open a pull request against Yggdrasil
+            @info("Opening a pull request against JuliaPackaging/Yggdrasil...")
+            params = Dict(
+                "base" => "master",
+                "head" => "$(dirname(fork.full_name)):$(branch_name)",
+                "maintainer_can_modify" => true,
+                "title" => "Wizard recipe: $(name)-v$(version)",
+                "body" => """
+                This pull request contains a new build recipe I built using the BinaryBuilder.jl wizard:
 
-            * Package name: $(name)
-            * Version: v$(version)
+                * Package name: $(name)
+                * Version: v$(version)
 
-            @staticfloat please review and merge.
-            """
-        )
-        pr = create_or_update_pull_request("JuliaPackaging/Yggdrasil", params, auth=gh_auth)
-        @info("Pull request created: $(pr.html_url)")
+                @staticfloat please review and merge.
+                """
+            )
+            pr = create_or_update_pull_request("JuliaPackaging/Yggdrasil", params, auth=gh_auth)
+            @info("Pull request created: $(pr.html_url)")
+        else
+            println("Open the pull request by going to: ")
+            println("https://github.com/$(fork.full_name)/pull/new/$(HTTP.escapeuri(branch_name))?expand=1")
+        end
     end
 end
 
@@ -199,7 +222,7 @@ function step7(state::WizardState)
     deploy_select = request(terminal,
         "How should we deploy this build recipe?",
         RadioMenu([
-            "Open a pull request against the community buildtree, Yggdrasil",
+            "Prepare a pull request against the community buildtree, Yggdrasil",
             "Write to a local file",
             "Print to stdout",
         ])
@@ -207,7 +230,14 @@ function step7(state::WizardState)
     println(state.outs)
 
     if deploy_select == 1
-        yggdrasil_deploy(state)
+        yggdrasil_select = request(terminal,
+            "Would you like to actuall open the pull request or just prepare it?",
+            RadioMenu([
+                "Go ahead, open it",
+                "No, just prepare it and let me look at it first",
+            ])
+        )
+        yggdrasil_deploy(state, yggdrasil_select == 1)
     elseif deploy_select == 2
         filename = nonempty_line_prompt(
             "filename",

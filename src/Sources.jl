@@ -107,6 +107,10 @@ function SetupSource(url::String, path::String, hash::String, target::String)
     end
 end
 
+struct PatchSource
+    name::String
+    patch::String
+end
 
 function download_source(source::T; verbose::Bool = false) where {T<:Union{ArchiveSource,FileSource}}
     gettarget(s::ArchiveSource) = s.unpack_target

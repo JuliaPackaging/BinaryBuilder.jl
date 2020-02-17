@@ -313,6 +313,16 @@ function setup(source::SetupSource{DirectorySource}, targetdir, verbose)
     end
 end
 
+function setup(source::PatchSource, targetdir, verbose)
+    # Need to strip the trailing separator also here
+    if verbose
+        @info "Adding patch $(source.name)..."
+    end
+    patches_dir = joinpath(targetdir, "patches")
+    mkdir(patches_dir)
+    open(f->write(f, source.patch), joinpath(patches_dir, source.name), "w")
+end
+
 """
     setup_workspace(build_path::String, sources::Vector{SetupSource};
                     verbose::Bool = false)
@@ -324,8 +334,8 @@ the environment variables that will be defined within the sandbox environment.
 This method returns the `Prefix` to install things into, and the runner
 that can be used to launch commands within this workspace.
 """
-function setup_workspace(build_path::AbstractString, sources::Vector{<:SetupSource};
-                         verbose::Bool = false)
+function setup_workspace(build_path::AbstractString, sources::Vector;
+                         verbose::Bool = false, srcdir_overlay = false)
     # Use a random nonce to make detection of paths in embedded binary easier
     nonce = randstring()
     workspace = joinpath(build_path, nonce)
@@ -338,13 +348,23 @@ function setup_workspace(build_path::AbstractString, sources::Vector{<:SetupSour
     wrapperdir = joinpath(workspace, "compiler_wrappers")
     mkdir.((srcdir, destdir, metadir))
 
+    if srcdir_overlay
+        mkdir(joinpath(build_path, nonce, "srcdir_work"))
+        srcdir = joinpath(build_path, nonce, "srcdir_lower")
+        mkdir(srcdir)
+    end
+
     # Setup all sources
     for source in sources
-        target = joinpath(srcdir, source.target)
-        # Trailing directory separator matters for `basename`, so let's strip it
-        # to avoid confusion
-        target = isdirpath(target) ? dirname(target) : target
-        setup(source, target, verbose)
+        if isa(source, SetupSource)
+            target = joinpath(srcdir, source.target)
+            # Trailing directory separator matters for `basename`, so let's strip it
+            # to avoid confusion
+            target = isdirpath(target) ? dirname(target) : target
+            setup(source, target, verbose)
+        else
+            setup(source, srcdir, verbose)
+        end
     end
 
     # Return the build prefix
@@ -374,8 +394,8 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     dependencies = deepcopy(dependencies)
 
     # We're going to create a project and install all dependent packages within
-    # it, then create symlinks from those installed products to our build prefix 
-        
+    # it, then create symlinks from those installed products to our build prefix
+
     # Update registry first, in case the jll packages we're looking for have just been registered/updated
     Pkg.Registry.update()
 
@@ -421,7 +441,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
             src_path = Pkg.Artifacts.artifact_path(artifact_hash)
             dest_path = joinpath(prefix, "artifacts", basename(src_path))
             cp(src_path, dest_path)
-            
+
             # Keep track of our dep paths for later symlinking
             push!(artifact_paths, dest_path)
         end
