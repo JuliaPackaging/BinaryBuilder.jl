@@ -818,86 +818,95 @@ function init_jll_package(name, code_dir, deploy_repo;
     end
 end
 
-function rebuild_jll_packages(obj::Dict; build_version = nothing, verbose::Bool = false, lazy_artifacts::Bool = false)
+function rebuild_jll_package(obj::Dict;
+                             download_dir = nothing,
+                             upload_prefix = nothing,
+                             build_version = nothing,
+                             gh_org::String = "JuliaBinaryWrappers",
+                             verbose::Bool = false,
+                             lazy_artifacts::Bool = false)
     if build_version === nothing
         build_version = BinaryBuilder.get_next_wrapper_version(obj["name"], obj["version"])
     end
-    return rebuild_jll_packages(
+    if download_dir === nothing
+        download_dir = mktempdir()
+        repo = "$(gh_org)/$(name)_jll.jl"
+        tag = "$(name)-v$(build_version)"
+        download_github_release(download_dir, repo, tag; verbose=verbose)
+        upload_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
+    elseif upload_prefix === nothing
+        error("If download_dir is specified, you must specify upload_prefix as well!")
+    end
+
+    return rebuild_jll_package(
         obj["name"],
         build_version,
         obj["platforms"],
         obj["products"],
         obj["dependencies"],
+        download_dir,
+        upload_prefix;
         verbose=verbose,
         lazy_artifacts = lazy_artifacts,
     )
 end
 
-function rebuild_jll_packages(name::String, build_version::VersionNumber,
-                              platforms::Vector, products::Vector, dependencies::Vector;
-                              gh_org::String = "JuliaBinaryWrappers",
-                              code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
-                              verbose::Bool = false, lazy_artifacts::Bool = false,
-                              from_scratch::Bool = true)
-    repo = "$(gh_org)/$(name)_jll.jl"
-    tag = "$(name)-v$(build_version)"
-    bin_path = "https://github.com/$(repo)/releases/download/$(tag)"
+function rebuild_jll_package(name::String, build_version::VersionNumber,
+                             platforms::Vector, products::Vector, dependencies::Vector,
+                             download_dir::String, upload_prefix::String;
+                             code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
+                             verbose::Bool = false, lazy_artifacts::Bool = false,
+                             from_scratch::Bool = true)
+    # We're going to recreate "build_output_meta"
+    build_output_meta = Dict()
 
-    mktempdir() do download_dir
-        # First, download all the github releases
-        assets = download_github_release(download_dir, repo, tag; verbose=verbose)
+    # Then generate a JLL package for each platform
+    downloaded_files = readdir(download_dir)
+    for platform in platforms
+        # Find the corresponding tarball:
+        tarball_idx = findfirst([occursin(".$(triplet(platform)).", f) for f in downloaded_files])
+        if tarball_idx === nothing
+            error("Incomplete JLL release!  Could not find tarball for $(triplet(platform))")
+        end
+        tarball_path = joinpath(download_dir, downloaded_files[tarball_idx])
 
-        # We're going to recreate "build_output_meta"
-        build_output_meta = Dict()
+        # Begin reconstructing all the information we need
+        tarball_hash = open(tarball_path, "r") do io
+            bytes2hex(sha256(io))
+        end
 
-        # Then generate a JLL package for each platform
-        for platform in platforms
-            # Find the corresponding asset:
-            asset_idx = findfirst([occursin(".$(triplet(platform)).", a["name"]) for a in assets])
-            if asset_idx === nothing
-                error("Incomplete JLL release!  Could not find key for $(triplet(platform))")
+        # Unpack the tarball into a new location, calculate the git hash and locate() each product;
+        mktempdir() do dest_prefix
+            unpack(tarball_path, dest_prefix; verbose=verbose)
+
+            git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
+            if verbose
+                @info("Calculated git tree hash $(bytes2hex(git_hash.bytes)) for $(basename(tarball_path))")
             end
-            asset = assets[asset_idx]
 
-            # Begin reconstructing all the information we need
-            tarball_hash = open(joinpath(download_dir, asset["name"]), "r") do io
-                bytes2hex(sha256(io))
-            end
-            tarball_path = joinpath(bin_path, asset["name"])
-
-            # Unpack the tarball into a new location, calculate the git hash and locate() each product;
-            mktempdir() do dest_prefix
-                unpack(joinpath(download_dir, asset["name"]), dest_prefix; verbose=verbose)
-
-                git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
-                if verbose
-                    @info("Calculated git tree hash $(bytes2hex(git_hash.bytes)) for $(asset["name"])")
+            # Determine locations of each product
+            products_info = Dict()
+            for p in products
+                product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose, skip_dlopen=true)
+                if product_path === nothing
+                    error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
                 end
-
-                # Determine locations of each product
-                products_info = Dict()
-                for p in products
-                    product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose, skip_dlopen=true)
-                    if product_path === nothing
-                        error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
-                    end
-                    products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
-                    if p isa LibraryProduct
-                        products_info[p]["soname"] = something(
-                            get_soname(product_path),
-                            basename(product_path),
-                        )
-                    end
+                products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
+                if p isa LibraryProduct
+                    products_info[p]["soname"] = something(
+                        get_soname(product_path),
+                        basename(product_path),
+                    )
                 end
-
-                # Store all this information within build_output_meta:
-                build_output_meta[platform] = (
-                    tarball_path,
-                    tarball_hash,
-                    git_hash,
-                    products_info,
-                )
             end
+
+            # Store all this information within build_output_meta:
+            build_output_meta[platform] = (
+                joinpath(upload_prefix, downloaded_files[tarball_idx]),
+                tarball_hash,
+                git_hash,
+                products_info,
+            )
         end
 
         # If `from_scartch` is set (the default) we clear out any old crusty code
