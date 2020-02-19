@@ -917,7 +917,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber,
         end
 
         # Finally, generate the full JLL package
-        build_jll_package(name, build_version, code_dir, build_output_meta, dependencies, bin_path; verbose=verbose, lazy_artifacts=lazy_artifacts)
+        build_jll_package(name, build_version, code_dir, build_output_meta, dependencies, upload_prefix; verbose=verbose, lazy_artifacts=lazy_artifacts)
     end
 end
 
