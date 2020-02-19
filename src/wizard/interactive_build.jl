@@ -198,6 +198,7 @@ function interactive_build(state::WizardState, prefix::Prefix,
     cmd = `/bin/bash -l`
 
     had_patches = false
+    script_successful = false
     try
         if srcdir_overlay
             mkpath(joinpath(prefix, "metadir", "upper"))
@@ -210,7 +211,7 @@ function interactive_build(state::WizardState, prefix::Prefix,
             cmd = `/bin/bash -c $cmd`
         end
 
-        run_interactive(ur, cmd, stdin=state.ins, stdout=state.outs, stderr=state.outs)
+        script_successful = run_interactive(ur, ignorestatus(cmd), stdin=state.ins, stdout=state.outs, stderr=state.outs)
 
         had_patches = srcdir_overlay && diff_srcdir(state, prefix, ur)
     finally
@@ -240,6 +241,15 @@ function interactive_build(state::WizardState, prefix::Prefix,
                 """ : "",
             String(read(histfile))))
         rm(histfile)
+    end
+
+    if !script_successful
+        warn = """
+        \nWarning: The interactive build exited with an error code.
+        In non-interactive mode, this is an error. You may want to
+        adjust the script.
+        """
+        printstyled(state.outs, warn, color=:yellow)
     end
 
     printstyled(state.outs, "\n\t\t\tBuild complete\n\n", bold=true)
@@ -442,24 +452,31 @@ function step5_internal(state::WizardState, platform::Platform)
                 preferred_llvm_version=state.preferred_llvm_version,
             )
             with_logfile(joinpath(build_path, "out.log")) do io
-                run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
+                ok = run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
             end
 
             while true
                 msg = "\n\t\t\tBuild complete. Analyzing...\n\n"
                 printstyled(state.outs, msg, bold=true)
 
-                audit(Prefix(joinpath(prefix, "destdir")); io=state.outs,
-                    platform=platform, verbose=true, autofix=true, require_license=false)
-
-                ok = isempty(match_files(state, prefix, platform, state.files))
                 if !ok
                     println(state.outs)
                     printstyled(state.outs, "ERROR: ", color=:red)
-                    msg = "Some build products could not be found (see above)."
+                    msg = "The build script failed (see above).\n"
                     println(state.outs, msg)
-                    println(state.outs)
+                else
+                    audit(Prefix(joinpath(prefix, "destdir")); io=state.outs,
+                        platform=platform, verbose=true, autofix=true, require_license=false)
 
+                    ok = isempty(match_files(state, prefix, platform, state.files))
+                    if !ok
+                        println(state.outs)
+                        printstyled(state.outs, "ERROR: ", color=:red)
+                        msg = "Some build products could not be found (see above).\n"
+                        println(state.outs, msg)
+                    end
+                end
+                if !ok
                     choice = request(terminal,
                         "How would you like to proceed? (CTRL-C to exit)",
                         RadioMenu([
@@ -638,25 +655,27 @@ function step5c(state::WizardState)
             preferred_llvm_version=state.preferred_llvm_version,
         )
         with_logfile(joinpath(build_path, "out.log")) do io
-            run(ur, `/bin/bash -c $(state.history)`, io; verbose=false, tee_stream=state.outs)
+            ok = run(ur, `/bin/bash -c $(state.history)`, io; verbose=false, tee_stream=state.outs)
         end
 
-        audit(Prefix(joinpath(prefix, "destdir"));
-            io=state.outs,
-            platform=platform,
-            verbose=false,
-            silent=true,
-            autofix=true,
-            require_license=false,
-        )
+        if ok
+            audit(Prefix(joinpath(prefix, "destdir"));
+                io=state.outs,
+                platform=platform,
+                verbose=false,
+                silent=true,
+                autofix=true,
+                require_license=false,
+            )
 
-        ok = isempty(match_files(
-            state,
-            prefix,
-            platform,
-            state.files;
-            silent = true
-        ))
+            ok = isempty(match_files(
+                state,
+                prefix,
+                platform,
+                state.files;
+                silent = true
+            ))
+        end
 
         # Unsymlink all the deps from the prefix before moving to the next platform
         cleanup_dependencies(prefix, artifact_paths)

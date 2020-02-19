@@ -147,7 +147,11 @@ function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = fa
     did_succeed = false
     try
         mount_shards(ur; verbose=verbose)
-        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env); verbose=verbose, tee_stream=tee_stream)
+        sandbox_cmd = `$(ur.sandbox_cmd) -- $(cmd)`
+        if cmd.ignorestatus
+            sandbox_cmd = ignorestatus(sandbox_cmd)
+        end
+        oc = OutputCollector(setenv(sandbox_cmd, ur.env); verbose=verbose, tee_stream=tee_stream)
         did_succeed = wait(oc)
 
         # First print out the command, then the output
@@ -185,10 +189,13 @@ function Base.read(ur::UserNSRunner, cmd; verbose=false)
 end
 
 const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
-function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
+function run_interactive(ur::UserNSRunner, user_cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
     warn_priviledged()
 
-    cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
+    cmd = setenv(`$(ur.sandbox_cmd) -- $(user_cmd.exec)`, ur.env)
+    if user_cmd.ignorestatus
+        cmd = ignorestatus(cmd)
+    end
     @debug("About to run: $(cmd)")
 
     if stdin isa AnyRedirectable
@@ -214,8 +221,9 @@ function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = n
                 end
             end
             wait(process)
+            return success(process)
         else
-            run(cmd)
+            return success(run(cmd))
         end
     finally
         unmount_shards(ur)
