@@ -118,11 +118,16 @@ function get_bb_version()
     # Get BinaryBuilder.jl's version and git sha
     version = Pkg.TOML.parsefile(joinpath(@__DIR__, "..", "Project.toml"))["version"]
     try
+        # get the gitsha if we can
         repo = LibGit2.GitRepo(dirname(@__DIR__))
         gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
-        return VersionNumber("$(version)-$(gitsha)")
+        return VersionNumber("$(version)-git-$(gitsha[1:10])")
     catch
-        return VersionNumber(version)
+        # Settle for the treehash otherwise
+        env = Pkg.Types.Ctx().env
+        bb_uuid = Pkg.Types.UUID("12aac903-9f7c-5d81-afc2-d9565ea332ae")
+        bb_treehash = env.manifest[bb_uuid].tree_hash
+        return VersionNumber("$(version)-tree-$(treehash[1:10])")
     end
 end
 
