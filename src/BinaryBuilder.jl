@@ -124,9 +124,9 @@ function get_bb_version()
         return VersionNumber("$(version)-git-$(gitsha[1:10])")
     catch
         # Settle for the treehash otherwise
-        env = Pkg.Types.Ctx().env
+        env = Pkg.Types.Context().env
         bb_uuid = Pkg.Types.UUID("12aac903-9f7c-5d81-afc2-d9565ea332ae")
-        bb_treehash = env.manifest[bb_uuid].tree_hash
+        treehash = env.manifest[bb_uuid].tree_hash
         return VersionNumber("$(version)-tree-$(treehash[1:10])")
     end
 end
