@@ -126,7 +126,7 @@ function get_bb_version()
         # Settle for the treehash otherwise
         env = Pkg.Types.Context().env
         bb_uuid = Pkg.Types.UUID("12aac903-9f7c-5d81-afc2-d9565ea332ae")
-        treehash = env.manifest[bb_uuid].tree_hash
+        treehash = bytes2hex(env.manifest[bb_uuid].tree_hash.bytes)
         return VersionNumber("$(version)-tree-$(treehash[1:10])")
     end
 end
