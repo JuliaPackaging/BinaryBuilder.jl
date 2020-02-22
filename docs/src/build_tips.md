@@ -182,3 +182,39 @@ In addition to the standard Unix tools, in the build environment there are some 
   update_configure_scripts
   ```
   to get a newer version
+
+
+## Header files of the dependencies can't be found
+
+Sometimes the build system can't find the header files of the dependencies, even if they're properly installed.  When this happens, you have to inform the C/C++ preprocessor where the files are.
+
+For example, if the project uses Autotools you can set the `CPPFLAGS` environment variable:
+
+```sh
+export CPPFLAGS="-I${prefix}/include"
+./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target}
+make -j${nprocs}
+make install
+```
+
+See for example [Cairo](https://github.com/JuliaPackaging/Yggdrasil/blob/9a1ae803823e0dba7628bc71ff794d0c79e39c95/C/Cairo/build_tarballs.jl#L16-L17) build script.
+
+If instead the project uses CMake you'll need to use a different environment variable, since CMake ignores `CPPFLAGS`.  If the compiler that can't find the header file is the C one, you need to add the path to the `CFLAGS` variable (e.g., `CFLAGS="-I${prefix}/include"`), in case it's the C++ one you have to set the `CXXFLAGS` variable (e.g., `CXXFLAGS="-I${prefix}/include"`).  
+(original
+ [source](https://github.com/JuliaPackaging/Yggdrasil/wiki/Build-Tricks#header-files-of-the-dependencies-cant-be-found))
+
+
+## Libraries of the dependencies can't be found
+
+Like in the section above, it may happen that the build system fails to find the libraries of the dependencies, even when they're installed to the right place.  In these case, you have to inform the linker where the libraries are by setting the `LDFLAGS` environment variable:
+
+```sh
+export LDFLAGS="-L${libdir}"
+./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target}
+make -j${nprocs}
+make install
+```
+
+See for example [libwebp](https://github.com/JuliaPackaging/Yggdrasil/blob/9a1ae803823e0dba7628bc71ff794d0c79e39c95/L/libwebp/build_tarballs.jl#L19-L21) build script (in this case this was needed only when building for FreeBSD).  
+(original
+ [source](https://github.com/JuliaPackaging/Yggdrasil/wiki/Build-Tricks#libraries-of-the-dependencies-cant-be-found))
