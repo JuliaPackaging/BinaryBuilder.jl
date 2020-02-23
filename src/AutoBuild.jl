@@ -94,42 +94,20 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # Do not clobber caller's ARGS
     ARGS = deepcopy(ARGS)
 
-    function check_flag(flag)
-        flag_present = flag in ARGS
-        ARGS = filter!(x -> x != flag, ARGS)
-        return flag_present
-    end
-
-    function extract_flag(flag, val = nothing)
-        for f in ARGS
-            if f == flag || startswith(f, string(flag, "="))
-                # Check if it's just `--flag` or if it's `--flag=foo`
-                if f != flag
-                    val = split(f, '=')[2]
-                end
-
-                # Drop this value from our ARGS
-                ARGS = filter!(x -> x != f, ARGS)
-                return (true, val)
-            end
-        end
-        return (false, val)
-    end
-
     # This sets whether we should build verbosely or not
-    verbose = check_flag("--verbose")
+    verbose = check_flag!(ARGS, "--verbose")
 
     # This sets whether we drop into a debug shell on failure or not
-    debug = check_flag("--debug")
+    debug = check_flag!(ARGS, "--debug")
 
     # Are we skipping building and just outputting JSON?
-    meta_json, meta_json_file = extract_flag("--meta-json")
+    meta_json, meta_json_file = extract_flag!(ARGS, "--meta-json")
 
     # This sets whether we are going to deploy our binaries/wrapper code to GitHub releases
-    deploy, deploy_repo = extract_flag("--deploy", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    deploy_bin, deploy_bin_repo = extract_flag("--deploy-bin", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    deploy_jll, deploy_jll_repo = extract_flag("--deploy-jll", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    
+    deploy, deploy_repo = extract_flag!(ARGS, "--deploy", "JuliaBinaryWrappers/$(src_name)_jll.jl")
+    deploy_bin, deploy_bin_repo = extract_flag!(ARGS, "--deploy-bin", "JuliaBinaryWrappers/$(src_name)_jll.jl")
+    deploy_jll, deploy_jll_repo = extract_flag!(ARGS, "--deploy-jll", "JuliaBinaryWrappers/$(src_name)_jll.jl")
+
     # Resolve deploy settings
     if deploy
         deploy_bin = true
@@ -139,7 +117,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     # This sets whether we are going to register, and if so, which
-    register, register_path = extract_flag("--register", Pkg.depots1())
+    register, register_path = extract_flag!(ARGS, "--register", Pkg.depots1())
     if register && !deploy_jll
         error("Cannot register without deploying!")
     end
@@ -261,6 +239,28 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     return build_output_meta
+end
+
+function check_flag!(ARGS, flag)
+    flag_present = flag in ARGS
+    filter!(x -> x != flag, ARGS)
+    return flag_present
+end
+
+function extract_flag!(ARGS, flag, val = nothing)
+    for f in ARGS
+        if f == flag || startswith(f, string(flag, "="))
+            # Check if it's just `--flag` or if it's `--flag=foo`
+            if f != flag
+                val = split(f, '=')[2]
+            end
+
+            # Drop this value from our ARGS
+            filter!(x -> x != f, ARGS)
+            return (true, val)
+        end
+    end
+    return (false, val)
 end
 
 """
