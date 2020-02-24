@@ -28,17 +28,19 @@ jobs:
     - julia: 1.3
       env:
         - BINARYBUILDER_RUNNER=privileged
-        - BINARYBUILDER_USER_SQUASHFS=true
+        - BINARYBUILDER_USE_SQUASHFS=true
 
     # Add a job that uses the unprivileged builder with unpacked shards
     - julia: 1.3
       env:
         - BINARYBUILDER_RUNNER=unprivileged
+        - BINARYBUILDER_USE_SQUASHFS=false
 
     # Add a job that uses the docker builder with unpacked shards
     - julia: 1.3.0
       env:
         - BINARYBUILDER_RUNNER=docker
+        - BINARYBUILDER_USE_SQUASHFS=false
 
     # Build the docs!
     - stage: Documentation
