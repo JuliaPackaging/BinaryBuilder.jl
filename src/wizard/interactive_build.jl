@@ -188,8 +188,8 @@ function interactive_build(state::WizardState, prefix::Prefix,
     had_patches = false
     try
         if srcdir_overlay
-            mkdir(joinpath(prefix, "metadir", "upper"))
-            mkdir(joinpath(prefix, "metadir", "work"))
+            mkpath(joinpath(prefix, "metadir", "upper"))
+            mkpath(joinpath(prefix, "metadir", "work"))
             cmd = """
                 mount -t overlay overlay -o lowerdir=/workspace/srcdir,upperdir=/meta/upper,workdir=/meta/work /workspace/srcdir
                 cd \$(pwd)
