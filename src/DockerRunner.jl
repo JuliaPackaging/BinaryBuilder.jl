@@ -187,7 +187,7 @@ function Base.read(dr::DockerRunner, cmd; verbose=false)
     did_succeed = false
     try
         mount_shards(dr; verbose=verbose)
-        oc = OutputCollector(docker_cmd; verbose=verbose, tee_stream=tee_stream)
+        oc = OutputCollector(docker_cmd; verbose=verbose)
         did_succeed = wait(oc)
     finally
         unmount_shards(dr; verbose=verbose)
