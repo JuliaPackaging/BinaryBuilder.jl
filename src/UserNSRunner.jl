@@ -162,13 +162,20 @@ function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = fa
     return did_succeed
 end
 
-function Base.read(ur::UserNSRunner, cmd)
+function Base.read(ur::UserNSRunner, cmd; verbose=false)
     warn_priviledged()
 
-    did_succeed = true
-    oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env))
+    local oc
 
-    did_succeed = wait(oc)
+    did_succeed = false
+    try
+        mount_shards(ur; verbose=verbose)
+        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env))
+        did_succeed = wait(oc)
+    finally
+        unmount_shards(ur; verbose=verbose)
+    end
+
     if !did_succeed
         print(stderr, collect_stderr(oc))
         return nothing
