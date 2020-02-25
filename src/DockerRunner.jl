@@ -178,6 +178,32 @@ function Base.run(dr::DockerRunner, cmd, logger::IO=stdout; verbose::Bool=false,
     return did_succeed
 end
 
+function Base.read(ur::UserNSRunner, cmd; verbose=false)
+    did_succeed = true
+    docker_cmd = `$(dr.docker_cmd) $(docker_image(dr.shards[1])) $(cmd)`
+    @debug("About to run: $(docker_cmd)")
+
+    local oc
+    did_succeed = false
+    try
+        mount_shards(dr; verbose=verbose)
+        oc = OutputCollector(docker_cmd; verbose=verbose, tee_stream=tee_stream)
+        did_succeed = wait(oc)
+    finally
+        unmount_shards(dr; verbose=verbose)
+
+        # Cleanup permissions, if we need to.
+        chown_cleanup(dr; verbose=verbose)
+    end
+
+    if !did_succeed
+        print(stderr, collect_stderr(oc))
+        return nothing
+    end
+
+    return collect_stdout(oc)
+end
+
 function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
     tty_or_nothing(s) = s === nothing || typeof(s) <: Base.TTY
     run_flags = all(tty_or_nothing.((stdin, stdout, stderr))) ? "-ti" : "-i"
