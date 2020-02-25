@@ -178,7 +178,7 @@ function Base.run(dr::DockerRunner, cmd, logger::IO=stdout; verbose::Bool=false,
     return did_succeed
 end
 
-function Base.read(ur::UserNSRunner, cmd; verbose=false)
+function Base.read(dr::DockerRunner, cmd; verbose=false)
     did_succeed = true
     docker_cmd = `$(dr.docker_cmd) $(docker_image(dr.shards[1])) $(cmd)`
     @debug("About to run: $(docker_cmd)")
