@@ -134,7 +134,7 @@ function step3_audit(state::WizardState, platform::Platform, destdir::String)
     printstyled(state.outs, "\n\t\t\tAnalyzing...\n\n", bold=true)
 
     audit(Prefix(destdir); io=state.outs, platform=platform,
-        verbose=true, autofix=true, require_license=false)
+        verbose=true, autofix=true, require_license=true)
 
     println(state.outs)
 end
@@ -242,6 +242,9 @@ function interactive_build(state::WizardState, prefix::Prefix,
             String(read(histfile))))
         rm(histfile)
     end
+    if !run(ur, `/bin/bash -lc "auto_install_license -c"`, devnull)
+        @warn "License file not found, install it with the `install_license` command"
+    end
 
     if !script_successful
         warn = """
@@ -321,8 +324,9 @@ function step3_retry(state::WizardState)
         preferred_gcc_version=state.preferred_gcc_version,
         preferred_llvm_version=state.preferred_llvm_version,
     )
+    full_script = state.history * "\n/bin/bash -lc auto_install_license"
     with_logfile(joinpath(build_path, "out.log")) do io
-        run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
+        run(ur, `/bin/bash -c $(full_script)`, io; verbose=true, tee_stream=state.outs)
     end
     step3_audit(state, platform, joinpath(prefix, "destdir"))
     # Unsymlink all the deps from the dest_prefix before moving to the next step
@@ -451,8 +455,9 @@ function step5_internal(state::WizardState, platform::Platform)
                 preferred_gcc_version=state.preferred_gcc_version,
                 preferred_llvm_version=state.preferred_llvm_version,
             )
+            full_script = state.history * "\n/bin/bash -lc auto_install_license"
             with_logfile(joinpath(build_path, "out.log")) do io
-                ok = run(ur, `/bin/bash -c $(state.history)`, io; verbose=true, tee_stream=state.outs)
+                ok = run(ur, `/bin/bash -c $(full_script)`, io; verbose=true, tee_stream=state.outs)
             end
 
             while true
@@ -466,7 +471,7 @@ function step5_internal(state::WizardState, platform::Platform)
                     println(state.outs, msg)
                 else
                     audit(Prefix(joinpath(prefix, "destdir")); io=state.outs,
-                        platform=platform, verbose=true, autofix=true, require_license=false)
+                        platform=platform, verbose=true, autofix=true, require_license=true)
 
                     ok = isempty(match_files(state, prefix, platform, state.files))
                     if !ok
@@ -654,8 +659,9 @@ function step5c(state::WizardState)
             preferred_gcc_version=state.preferred_gcc_version,
             preferred_llvm_version=state.preferred_llvm_version,
         )
+        full_script = state.history * "\n/bin/bash -lc auto_install_license"
         with_logfile(joinpath(build_path, "out.log")) do io
-            ok = run(ur, `/bin/bash -c $(state.history)`, io; verbose=false, tee_stream=state.outs)
+            ok = run(ur, `/bin/bash -c $(full_script)`, io; verbose=false, tee_stream=state.outs)
         end
 
         if ok
@@ -665,7 +671,7 @@ function step5c(state::WizardState)
                 verbose=false,
                 silent=true,
                 autofix=true,
-                require_license=false,
+                require_license=true,
             )
 
             ok = isempty(match_files(
