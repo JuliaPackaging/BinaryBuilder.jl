@@ -228,6 +228,13 @@ function step3_test(state)
 end
 
 @testset "Wizard - Building" begin
+    function succcess_path_call_response(ins, outs)
+        call_response(ins, outs, "Would you like to edit this script now?", "N")
+        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
+        call_response(ins, outs, "lib/libfoo.so", "libfoo")
+        call_response(ins, outs, "bin/fooifier", "fooifier")
+    end
+
     # Test step3 success path
     state = step3_state()
     with_wizard_output(state, BinaryBuilder.step34) do ins, outs
@@ -236,10 +243,7 @@ end
         make install
         exit
         """)
-        call_response(ins, outs, "Would you like to edit this script now?", "N")
-        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
-        call_response(ins, outs, "lib/libfoo.so:", "libfoo")
-        call_response(ins, outs, "bin/fooifier:", "fooifier")
+        succcess_path_call_response(ins, outs)
     end
     @test state.history == """
     cd \$WORKSPACE/srcdir
@@ -264,10 +268,7 @@ end
         exit
         """)
 
-        call_response(ins, outs, "Would you like to edit this script now?", "N")
-        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
-        call_response(ins, outs, "lib/libfoo.so:", "libfoo")
-        call_response(ins, outs, "bin/fooifier:", "fooifier")
+        succcess_path_call_response(ins, outs)
     end
     @test state.history == """
     cd \$WORKSPACE/srcdir
@@ -291,6 +292,21 @@ end
     end
     @test state.step == :step3
 
+    # Step 3 with a failing script
+    state = step3_state()
+    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+        # Build ok, but then indicate a failure
+        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+        cd libfoo
+        make install
+        exit 1
+        """)
+
+        @test readuntil_sift(outs, "Warning:")
+
+        succcess_path_call_response(ins, outs)
+    end
+    step3_test(state)
 
     # Step 3 dependency download
     state = step3_state()
@@ -305,11 +321,33 @@ end
         make install
         exit
         """)
-        call_response(ins, outs, "Would you like to edit this script now?", "N")
-        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
-        call_response(ins, outs, "lib/libfoo.so:", "libfoo")
-        call_response(ins, outs, "bin/fooifier:", "fooifier")
+        succcess_path_call_response(ins, outs)
     end
+end
+
+function step5_state(script)
+    state = step3_state()
+    state.history = script
+    state.files = ["lib/libfoo.so","bin/fooifier"]
+    state.file_kinds = [:library, :executable]
+    state.file_varnames = [:libfoo, :fooifier]
+    state
+end
+
+@testset "Wizard - Generalizing" begin
+    # Check that with a failing script, step 5 rejects,
+    # even if all artifacts are present.
+    state = step5_state("""
+        cd libfoo
+        make install
+        exit 1
+    """)
+
+    with_wizard_output(state, state->BinaryBuilder.step5_internal(state, first(state.platforms))) do ins, outs
+        call_response(ins, outs, "Press any key to continue...", "\n")
+        call_response(ins, outs, "How would you like to proceed?", "\e[B\e[B\r")
+    end
+    @test isempty(state.platforms)
 end
 
 @testset "GitHub - authentication" begin

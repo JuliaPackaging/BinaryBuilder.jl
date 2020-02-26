@@ -207,7 +207,10 @@ end
 function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
     tty_or_nothing(s) = s === nothing || typeof(s) <: Base.TTY
     run_flags = all(tty_or_nothing.((stdin, stdout, stderr))) ? "-ti" : "-i"
-    docker_cmd = `$(dr.docker_cmd) $(run_flags) -i $(docker_image(dr.shards[1])) $(cmd)`
+    docker_cmd = `$(dr.docker_cmd) $(run_flags) -i $(docker_image(dr.shards[1])) $(cmd.exec)`
+    if cmd.ignorestatus
+        docker_cmd = ignorestatus(docker_cmd)
+    end
     @debug("About to run: $(docker_cmd)")
 
     if stdin isa AnyRedirectable
@@ -233,8 +236,9 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
                 end
             end
             wait(process)
+            return success(process)
         else
-            run(docker_cmd)
+            return success(run(docker_cmd))
         end
     finally
         # Cleanup permissions, if we need to.

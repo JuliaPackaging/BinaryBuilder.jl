@@ -25,9 +25,7 @@ function _getpass(input::Base.TTY)
 end
 end
 
-function nonempty_line_prompt(name, msg; ins=stdin, outs=stdout,
-                              force_identifier=false, echo=true)
-    val = ""
+function line_prompt(name, msg; ins=stdin, outs=stdout, force_identifier=false, echo=true)
     while true
         print(outs, msg, "\n> ")
         if echo
@@ -36,12 +34,23 @@ function nonempty_line_prompt(name, msg; ins=stdin, outs=stdout,
             val = strip(read(_getpass(ins), String))
         end
         println(outs)
-        if !isempty(val) && (!force_identifier || Base.isidentifier(val))
-            break
+        if !isempty(val) && force_identifier && !Base.isidentifier(val)
+            printstyled(outs, "$(name) must be an identifier!\n", color=:red)
+            continue
         end
-        printstyled(outs, "$(name) may not be empty!\n", color=:red)
+        return val
     end
-    return val
+end
+
+function nonempty_line_prompt(name, msg; outs=stdout, kwargs...)
+    while true
+        val = line_prompt(name, msg; outs=outs, kwargs...)
+        if isempty(val)
+            printstyled(outs, "$(name) may not be empty!\n", color=:red)
+            continue
+        end
+        return val
+    end
 end
 
 """
