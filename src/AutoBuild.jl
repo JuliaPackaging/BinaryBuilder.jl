@@ -696,7 +696,7 @@ function autobuild(dir::AbstractString,
         for p in products
             product_path = locate(p, dest_prefix; platform=platform)
             products_info[p] = Dict("path" => relpath(product_path, dest_prefix.path))
-            if p isa LibraryProduct
+            if p isa LibraryProduct || p isa FrameworkProduct
                 products_info[p]["soname"] = something(
                     get_soname(product_path),
                     basename(product_path),
@@ -896,7 +896,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber,
                     error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
                 end
                 products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
-                if p isa LibraryProduct
+                if p isa LibraryProduct || p isa FrameworkProduct
                     products_info[p]["soname"] = something(
                         get_soname(product_path),
                         basename(product_path),
@@ -995,6 +995,8 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 """
             end
 
+            global_declaration(p::FrameworkProduct, p_info::Dict) = global_declaration(p.libraryproduct, p_info)
+
             function global_declaration(p::ExecutableProduct, p_info::Dict)
                 vp = variable_name(p)
                 # An executable product's public interface is a do-block wrapper function
@@ -1085,7 +1087,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                 """)
 
                 # If `p` is a `LibraryProduct`, dlopen() it right now!
-                if p isa LibraryProduct
+                if p isa LibraryProduct || p isa FrameworkProduct
                     println(io, """
                         # Manually `dlopen()` this right now so that future invocations
                         # of `ccall` with its `SONAME` will find this path immediately.
@@ -1178,6 +1180,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
     product_names(p::ExecutableProduct) = p.binnames
     product_names(p::FileProduct) = p.paths
     product_names(p::LibraryProduct) = p.libnames
+    product_names(p::FrameworkProduct) = p.libraryproduct.libnames
     # Add a README.md
     open(joinpath(code_dir, "README.md"), "w") do io
         print(io,
