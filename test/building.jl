@@ -302,3 +302,33 @@ end
     end
     @test haskey(build_output_meta, platform)
 end
+
+@testset "Building framework" begin
+    mac_shards = filter(p -> p isa MacOS, shards_to_test)
+    if isempty(mac_shards)
+        mac_shards = [MacOS()] # Make sure to always also test this using MacOS
+    end
+    # The framework is only built as a framework on Mac and using CMake, and a regular lib elsewhere
+    script = libfoo_cmake_script
+    products = [FrameworkProduct("fooFramework", :libfooFramework)]
+    # Do build within a separate temporary directory
+    mktempdir() do build_path
+        products = [FrameworkProduct("fooFramework", :libfooFramework)]
+
+        build_output_meta = autobuild(
+            build_path,
+            "libfoo",
+            v"1.0.0",
+            # No sources
+            [DirectorySource(build_tests_dir)],
+            # Build the test suite, install the binaries into our prefix's `bin`
+            libfoo_cmake_script,
+            # Build for ALL the platforms
+            mac_shards,
+            products,
+            # No dependencies
+            Dependency[];
+            verbose=true,
+        )
+    end
+end

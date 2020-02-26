@@ -1,12 +1,12 @@
-export Product, LibraryProduct, FileProduct, ExecutableProduct, satisfied,
+export Product, LibraryProduct, FileProduct, ExecutableProduct, FrameworkProduct, satisfied,
        locate, write_deps_file, variable_name
 import Base: repr
 
 """
 A `Product` is an expected result after building or installation of a package.
 
-Examples of `Product`s include [`LibraryProduct`](@ref),
-[`ExecutableProduct`](@ref) and [`FileProduct`](@ref).  All `Product` types must
+Examples of `Product`s include [`LibraryProduct`](@ref), [`FrameworkProduct`](@ref),
+[`ExecutableProduct`](@ref) and [`FileProduct`](@ref). All `Product` types must
 define the following minimum set of functionality:
 
 * [`locate(::Product)`](@ref): given a `Product`, locate it within
@@ -208,6 +208,77 @@ function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = platfor
 end
 
 """
+A `FrameworkProduct` is a  [`Product`](@ref) that encapsulates a macOS Framework.
+It behaves mostly as a [`LibraryProduct`](@ref) for now, but is a distinct type.
+This implies that for cross-platform builds where a library is provided as a Framework
+on macOS and as a normal library on other platforms, two calls to [`build_tarballs`](@ref)
+are needed: one with the `LibraryProduct` and all non-macOS platforms, and one with the `FrameworkProduct`
+and the `MacOS` platforms.
+"""
+struct FrameworkProduct <: Product
+    libraryproduct::LibraryProduct
+
+    """
+        FrameworkProduct(fwnames, varname::Symbol)
+
+    Declares a macOS [`FrameworkProduct`](@ref) that points to a framework located within
+    the `libdir` of the given `Prefix`, with a name containing `fwname` appended with `.framework`.  As an
+    example, given that `libdir(prefix)` is equal to `usr/lib`, and `fwname` is
+    equal to `QtCore`, this would be satisfied by the following paths:
+
+        usr/lib/QtCore.framework
+    """
+    FrameworkProduct(fwname::AbstractString, varname, args...; kwargs...) = FrameworkProduct([fwname], varname, args...; kwargs...)
+    function FrameworkProduct(fwnames::Vector{<:AbstractString}, varname::Symbol,
+                            dir_paths::Vector{<:AbstractString}=String[];
+                            kwargs...)
+        # If some other kind of AbstractString is passed in, convert it
+        return new(LibraryProduct(fwnames, varname, dir_paths; kwargs...))
+    end
+
+    FrameworkProduct(meta_obj::Dict) = new(LibraryProduct(meta_obj))
+end
+
+Base.:(==)(a::FrameworkProduct, b::FrameworkProduct) = (a.libraryproduct == b.libraryproduct)
+
+repr(p::FrameworkProduct) = "Framework" * repr(p.libraryproduct)[8:end]
+
+variable_name(fp::FrameworkProduct) = variable_name(fp.libraryproduct)
+
+function locate(fp::FrameworkProduct, prefix::Prefix; platform::Platform = platform_key_abi(), verbose::Bool = false, kwargs...)
+    dir_paths = joinpath.(prefix.path, template.(fp.libraryproduct.dir_paths, Ref(platform)))
+    append!(dir_paths, libdirs(prefix, platform))
+    for dir_path in dir_paths
+        if !isdir(dir_path)
+            continue
+        end
+        for libname in fp.libraryproduct.libnames
+            framework_dir = joinpath(dir_path,libname*".framework")
+            if isdir(framework_dir)
+                currentversion = joinpath(framework_dir, "Versions", "Current")
+                if islink(currentversion)
+                    currentversion = joinpath(framework_dir, "Versions", readlink(currentversion))
+                end
+                if isdir(currentversion)
+                    dl_path = abspath(joinpath(currentversion, libname))
+                    if isfile(dl_path)
+                        if verbose
+                            @info("$(dl_path) matches our search criteria of framework $(libname)")
+                        end
+                        return dl_path
+                    end
+                end
+            end
+        end
+    end
+
+    if verbose
+        @info("No match found for $fp")
+    end
+    return nothing
+end
+
+"""
 An `ExecutableProduct` is a [`Product`](@ref) that represents an executable file.
 
 On all platforms, an ExecutableProduct checks for existence of the file.  On
@@ -361,4 +432,5 @@ end
 # Add JSON serialization to products
 JSON.lower(ep::ExecutableProduct) = Dict("type" => "exe", extract_fields(ep)...)
 JSON.lower(lp::LibraryProduct) = Dict("type" => "lib", extract_fields(lp)...)
+JSON.lower(fp::FrameworkProduct) = Dict("type" => "framework", extract_fields(fp.libraryproduct)...)
 JSON.lower(fp::FileProduct) = Dict("type" => "file", extract_fields(fp)...)

@@ -41,6 +41,8 @@ function cleanup_merged_object!(meta::Dict)
             return ExecutableProduct(p)
         elseif p["type"] == "lib"
             return LibraryProduct(p)
+        elseif p["type"] == "framework"
+            return FrameworkProduct(p)
         elseif p["type"] == "file"
             return FileProduct(p)
         else

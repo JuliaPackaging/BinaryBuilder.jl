@@ -13,7 +13,7 @@ import BinaryBuilder: sourcify, dependencify
             [FileSource("https://julialang.org", "123123"), DirectorySource("./bundled")],
             "exit 1",
             [Linux(:x86_64)],
-            Product[LibraryProduct("libfoo", :libfoo)],
+            Product[LibraryProduct("libfoo", :libfoo), FrameworkProduct("fooFramework", :libfooFramework)],
             [Dependency("Zlib_jll")];
             meta_json_stream=meta_json_buff,
         )
@@ -79,8 +79,8 @@ import BinaryBuilder: sourcify, dependencify
         @test d.pkg.version.ranges[1].lower.t == ref_d.pkg.version.ranges[1].lower.t
         @test d.pkg.version.ranges[1].lower.n == ref_d.pkg.version.ranges[1].lower.n
         @test_throws ErrorException dependencify(Dict("type" => "bar"))
-        @test length(meta["products"]) == 2
-        @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia)), Ref(meta["products"])))
+        @test length(meta["products"]) == 3
+        @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia), FrameworkProduct("fooFramework", :libfooFramework)), Ref(meta["products"])))
         @test length(meta["script"]) == 2
         @test all(in.(("exit 0", "exit 1"), Ref(meta["script"])))
     end
