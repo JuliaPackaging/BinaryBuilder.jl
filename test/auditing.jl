@@ -281,72 +281,53 @@ end
     our_libgfortran_version = libgfortran_version(compiler_abi(platform))
     @test our_libgfortran_version != nothing
 
-    # Get one that isn't us.
-    other_libgfortran_version = v"4"
-    if our_libgfortran_version == other_libgfortran_version
-        other_libgfortran_version = v"5"
-    end
-
-    our_platform = platform
-    other_platform = BinaryBuilder.replace_libgfortran_version(our_platform, other_libgfortran_version)
-
-    for platform in (our_platform, other_platform)
-        # Build `hello_world` in fortran for all three platforms; on our platform we expect it
-        # to run, on `other` platform we expect it to not run, on `fail` platform we expect it
-        # to throw an error during auditing:
-        mktempdir() do build_path
-            hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
-            build_output_meta = autobuild(
-                build_path,
-                "hello_fortran",
-                v"1.0.0",
-                # No sources
-                FileSource[],
-                # Build the test suite, install the binaries into our prefix's `bin`
-                raw"""
+    mktempdir() do build_path
+        hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
+        build_output_meta = autobuild(
+            build_path,
+            "hello_fortran",
+            v"1.0.0",
+            # No sources
+            FileSource[],
+            # Build the test suite, install the binaries into our prefix's `bin`
+            raw"""
                 # Build fortran hello world
                 make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
                 # Install fake license just to silence the warning
                 install_license /usr/share/licenses/libuv/LICENSE
                 """,
-                # Build for ALL the platforms
-                [platform],
-                #
-                Product[hello_world],
-                # No dependencies
-                Dependency[];
-            )
+            # Build for our platform
+            [platform],
+            #
+            Product[hello_world],
+            # No dependencies
+            Dependency[];
+        )
 
-            # Extract our platform's build, run the hello_world tests:
-            output_meta = select_platform(build_output_meta, platform)
-            @test output_meta != nothing
-            tarball_path, tarball_hash = output_meta[1:2]
+        # Extract our platform's build, run the hello_world tests:
+        output_meta = select_platform(build_output_meta, platform)
+        @test output_meta != nothing
+        tarball_path, tarball_hash = output_meta[1:2]
 
-            # Ensure the build products were created
-            @test isfile(tarball_path)
+        # Ensure the build products were created
+        @test isfile(tarball_path)
 
-            # Unpack it somewhere else
-            @test verify(tarball_path, tarball_hash)
-            testdir = joinpath(build_path, "testdir")
-            mkdir(testdir)
-            unpack(tarball_path, testdir)
+        # Unpack it somewhere else
+        @test verify(tarball_path, tarball_hash)
+        testdir = joinpath(build_path, "testdir")
+        mkdir(testdir)
+        unpack(tarball_path, testdir)
 
-            # Attempt to run the executable, but only expect it to work if it's our platform:
-            hello_world_path = locate(hello_world, Prefix(testdir); platform=platform)
-            with_libgfortran() do
-                if platform == our_platform
-                    @test strip(String(read(`$hello_world_path`))) == "Hello, World!"
-                elseif platform == other_platform
-                    fail_cmd = pipeline(`$hello_world_path`, stdout=devnull, stderr=devnull)
-                    @test_throws ProcessFailedException run(fail_cmd)
-                end
-            end
+        # Attempt to run the executable, we expect it to work since it's our platform:
+        hello_world_path = locate(hello_world, Prefix(testdir); platform=platform)
+        with_libgfortran() do
+            @test strip(String(read(`$hello_world_path`))) == "Hello, World!"
+        end
 
-            # If we audit the testdir, pretending that we're trying to build an ABI-agnostic
-            # tarball, make sure it warns us about it.
-            @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
-                BinaryBuilder.audit(Prefix(testdir); platform=BinaryBuilder.abi_agnostic(platform), autofix=false)
-            end
+        # If we audit the testdir, pretending that we're trying to build an ABI-agnostic
+        # tarball, make sure it warns us about it.
+        @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
+            BinaryBuilder.audit(Prefix(testdir); platform=BinaryBuilder.abi_agnostic(platform), autofix=false)
         end
     end
 end
