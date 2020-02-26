@@ -236,8 +236,9 @@ function run_interactive(dr::DockerRunner, cmd::Cmd; stdin = nothing, stdout = n
                 end
             end
             wait(process)
+            return success(process)
         else
-            run(docker_cmd)
+            return success(run(docker_cmd))
         end
     finally
         # Cleanup permissions, if we need to.
