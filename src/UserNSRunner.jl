@@ -60,7 +60,7 @@ function UserNSRunner(workspace_root::String;
         # Choose the shards we're going to mount
         shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
     end
-	
+
     # Construct sandbox command to look at the location it'll be mounted under
     mpath = mount_path(shards[1], workspace_root)
     sandbox_cmd = `$(mpath)/sandbox`
@@ -133,12 +133,16 @@ function show(io::IO, x::UserNSRunner)
 end
 
 prompted_userns_run_privileged = false
-function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = false, tee_stream=stdout)
+function warn_priviledged()
     global prompted_userns_run_privileged
     if runner_override == "privileged" && !prompted_userns_run_privileged
         @info("Running privileged container via `sudo`, may ask for your password:")
         prompted_userns_run_privileged = true
     end
+end
+
+function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = false, tee_stream=stdout)
+    warn_priviledged()
 
     did_succeed = false
     try
@@ -158,13 +162,31 @@ function Base.run(ur::UserNSRunner, cmd, logger::IO = stdout; verbose::Bool = fa
     return did_succeed
 end
 
-const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream, IOBuffer}
-function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
-    global prompted_userns_run_privileged
-    if runner_override == "privileged" && !prompted_userns_run_privileged
-        @info("Running privileged container via `sudo`, may ask for your password:")
-        prompted_userns_run_privileged = true
+function Base.read(ur::UserNSRunner, cmd; verbose=false)
+    warn_priviledged()
+
+    local oc
+
+    did_succeed = false
+    try
+        mount_shards(ur; verbose=verbose)
+        oc = OutputCollector(setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env))
+        did_succeed = wait(oc)
+    finally
+        unmount_shards(ur; verbose=verbose)
     end
+
+    if !did_succeed
+        print(stderr, collect_stderr(oc))
+        return nothing
+    end
+
+    return collect_stdout(oc)
+end
+
+const AnyRedirectable = Union{Base.AbstractCmd, Base.TTY, IOStream}
+function run_interactive(ur::UserNSRunner, cmd::Cmd; stdin = nothing, stdout = nothing, stderr = nothing, verbose::Bool = false)
+    warn_priviledged()
 
     cmd = setenv(`$(ur.sandbox_cmd) -- $(cmd)`, ur.env)
     @debug("About to run: $(cmd)")
@@ -429,7 +451,7 @@ function check_encryption(workspace_root::AbstractString;
         return
     end
     msg = []
-    
+
     is_encrypted, mountpoint = is_ecryptfs(workspace_root; verbose=verbose)
     if is_encrypted
         push!(msg, replace(strip("""

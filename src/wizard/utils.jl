@@ -209,10 +209,10 @@ function print_wizard_logo(outs)
           ||\\     `" / ''--       00000004: 00000010  .
           `/_\\,-|    |            00000005: 00000001  .
               \\/     L
-               \\ ,'   \             
+               \\ ,'   \
              _/ L'   `  \          Join us in the #binarybuilder channel on the
             /  /    /   /          community slack: https://julialang.slack.com
-           /  /    |    \            
+           /  /    |    \
           "_''--_-''---__=;        https://github.com/JuliaPackaging/BinaryBuilder.jl
     """
 
