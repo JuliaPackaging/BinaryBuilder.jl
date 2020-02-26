@@ -28,7 +28,7 @@ necessary.  It also holds all necessary metadata such as input/output streams.
 
     # Filled in by step 1
     platforms::Union{Nothing, Vector{Platform}} = nothing
-    
+
     # Filled in by step 2
     workspace::Union{Nothing, String} = nothing
     source_urls::Union{Nothing, Vector{String}} = nothing
@@ -43,6 +43,7 @@ necessary.  It also holds all necessary metadata such as input/output streams.
     files::Union{Nothing, Vector{String}} = nothing
     file_kinds::Union{Nothing, Vector{Symbol}} = nothing
     file_varnames::Union{Nothing, Vector{Symbol}} = nothing
+    patches::Vector{PatchSource} = PatchSource[]
 
     # Filled in by step 5c
     failed_platforms::Set{Platform} = Set{Platform}()
