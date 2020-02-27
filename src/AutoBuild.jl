@@ -664,6 +664,7 @@ function autobuild(dir::AbstractString,
         if !skip_audit
             audit_result = audit(dest_prefix, src_name;
                                  platform=platform, verbose=verbose,
+                                 has_csl = any(getname.(dependencies) .== "CompilerSupportLibraries_jll"),
                                  autofix=autofix, require_license=require_license)
             if !audit_result && !ignore_audit_errors
                 msg = replace("""

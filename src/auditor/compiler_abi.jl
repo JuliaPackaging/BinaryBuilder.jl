@@ -20,7 +20,8 @@ function detect_libgfortran_version(oh::ObjectHandle, platform::Platform)
     return detect_libgfortran_version(first(fortran_libs), platform)
 end
 
-function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
+function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose::Bool = false,
+                                   has_csl::Bool = true)
     libgfortran_version = nothing
     try
         libgfortran_version = detect_libgfortran_version(oh, platform)
@@ -34,6 +35,14 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
 
     if verbose && libgfortran_version != nothing
         @info("$(path(oh)) locks us to libgfortran v$(libgfortran_version)")
+    end
+
+    if !has_csl && libgfortran_version !== nothing
+        @warn("""
+              To ensure that the correct version of libgfortran is found at runtime, add the following entry to the list of dependencies of this builder
+
+                  Dependency(PackageSpec(name="CompilerSupportLibraries_jll", uuid="e66e0078-7015-5450-92f7-15fbd957f2ae"))
+              """)
     end
 
     if compiler_abi(platform).libgfortran_version === nothing && libgfortran_version != nothing
