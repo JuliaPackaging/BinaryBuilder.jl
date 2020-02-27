@@ -407,7 +407,11 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
 
         # Load their Artifacts.toml files
         for dep in dependencies
-            dep_path = Pkg.Operations.source_path(dep)
+            if VERSION >= v"1.4.0-rc2.0"
+                dep_path = Pkg.Operations.source_path(ctx, dep)
+            else
+                dep_path = Pkg.Operations.source_path(dep)
+            end
             name = getname(dep)
 
             # Skip dependencies that didn't get installed?
