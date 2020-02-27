@@ -283,26 +283,28 @@ end
 
     mktempdir() do build_path
         hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
-        build_output_meta = autobuild(
-            build_path,
-            "hello_fortran",
-            v"1.0.0",
-            # No sources
-            FileSource[],
-            # Build the test suite, install the binaries into our prefix's `bin`
-            raw"""
-                # Build fortran hello world
-                make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
-                # Install fake license just to silence the warning
-                install_license /usr/share/licenses/libuv/LICENSE
-                """,
-            # Build for our platform
-            [platform],
-            #
-            Product[hello_world],
-            # No dependencies
-            Dependency[];
-        )
+        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") match_mode=:any begin
+            autobuild(
+                build_path,
+                "hello_fortran",
+                v"1.0.0",
+                # No sources
+                FileSource[],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                    # Build fortran hello world
+                    make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
+                    # Install fake license just to silence the warning
+                    install_license /usr/share/licenses/libuv/LICENSE
+                    """,
+                # Build for our platform
+                [platform],
+                #
+                Product[hello_world],
+                # No dependencies
+                Dependency[];
+            )
+        end
 
         # Extract our platform's build, run the hello_world tests:
         output_meta = select_platform(build_output_meta, platform)

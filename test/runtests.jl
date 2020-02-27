@@ -6,6 +6,7 @@ using Random, LibGit2, Libdl, Test, ObjectFile, SHA
 
 # The platform we're running on
 const platform = platform_key_abi()
+const build_tests_dir = joinpath(@__DIR__, "build_tests")
 
 # Helper function to run fortran code with the path to libgfortran/libquadmath
 # embedded in the appropriate environment variables (JLL packages we love you so)

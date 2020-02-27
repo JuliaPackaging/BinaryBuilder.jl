@@ -1,5 +1,4 @@
 ## Tests involing building packages and whatnot
-build_tests_dir = joinpath(@__DIR__, "build_tests")
 libfoo_products = [
     LibraryProduct("libfoo", :libfoo),
     ExecutableProduct("fooifier", :fooifier),

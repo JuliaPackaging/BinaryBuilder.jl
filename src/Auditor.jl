@@ -36,6 +36,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = false,
+                               has_csl::Bool = true,
                                require_license::Bool = true)
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
@@ -79,7 +80,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     # If this is a dynamic object, do the dynamic checks
                     if isdynamic(oh)
                         # Check that the libgfortran version matches
-                        all_ok &= check_libgfortran_version(oh, platform; verbose=verbose)
+                        all_ok &= check_libgfortran_version(oh, platform; verbose=verbose, has_csl = has_csl)
                         # Check that the libstdcxx string ABI matches
                         all_ok &= check_cxxstring_abi(oh, platform; verbose=verbose)
                         # Check that this binary file's dynamic linkage works properly.  Note to always
