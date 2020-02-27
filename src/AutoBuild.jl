@@ -1155,7 +1155,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         platforms = [Pkg.Artifacts.unpack_platform(e, $(repr(src_name)), artifacts_toml) for e in artifacts[$(repr(src_name))]]
 
         # Filter platforms based on what wrappers we've generated on-disk
-        platforms = filter(p -> isfile(joinpath(@__DIR__, "wrappers", triplet(p) * ".jl")), platforms)
+        filter!(p -> isfile(joinpath(@__DIR__, "wrappers", replace(triplet(p), "arm-" => "armv7l-") * ".jl")), platforms)
 
         # From the available options, choose the best platform
         best_platform = select_platform(Dict(p => triplet(p) for p in platforms))
