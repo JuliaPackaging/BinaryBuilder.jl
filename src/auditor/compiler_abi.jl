@@ -1,6 +1,13 @@
 import Pkg.BinaryPlatforms: detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi
 using ObjectFile
 
+csl_warning(lib) = @warn(
+    """
+    To ensure that the correct version of $(lib) is found at runtime, add the following entry to the list of dependencies of this builder
+
+        Dependency(PackageSpec(name="CompilerSupportLibraries_jll", uuid="e66e0078-7015-5450-92f7-15fbd957f2ae"))
+    """)
+
 """
     detect_libgfortran_version(oh::ObjectHandle, platform::Platform)
 
@@ -38,11 +45,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
     end
 
     if !has_csl && libgfortran_version !== nothing
-        @warn("""
-              To ensure that the correct version of libgfortran is found at runtime, add the following entry to the list of dependencies of this builder
-
-                  Dependency(PackageSpec(name="CompilerSupportLibraries_jll", uuid="e66e0078-7015-5450-92f7-15fbd957f2ae"))
-              """)
+        csl_warning("libgfortran")
     end
 
     if compiler_abi(platform).libgfortran_version === nothing && libgfortran_version != nothing
@@ -54,6 +57,27 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
         """, '\n' => ' '))
         msg *= "\n\n    platforms = expand_gfortran_versions(platforms)"
         @warn(msg)
+        return false
+    end
+    return true
+end
+
+function check_libgomp(oh::ObjectHandle, platform::Platform; verbose::Bool = false,
+                       has_csl::Bool = true)
+    has_libgomp = false
+    try
+        libs = basename.(path.(DynamicLinks(oh)))
+        has_libgomp = length(filter(l -> occursin("libgfortran", l), libs)) >= 1
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
+        @warn "$(path(oh)) could not be scanned for libgomp dependency!" exception=(e, catch_backtrace())
+        return true
+    end
+
+    if !has_csl && has_libgomp
+        csl_warning("libgomp")
         return false
     end
     return true
