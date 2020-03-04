@@ -445,3 +445,11 @@ end
     @test next_version.minor == version.minor
     @test next_version.patch == version.patch
 end
+
+@testset "Dlopen flags" begin
+    prod = LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL, :RTLD_NOLOAD])
+    @test prod.dlopen_flags == [:RTLD_GLOBAL, :RTLD_NOLOAD]
+    flag_str = BinaryBuilder.dlopen_flags_str(prod.dlopen_flags)
+    @test flag_str == ", RTLD_GLOBAL | RTLD_NOLOAD"
+    @test eval(Meta.parse(flag_str[3:end])) == (RTLD_NOLOAD | RTLD_GLOBAL)
+end

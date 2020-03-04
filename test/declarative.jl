@@ -26,7 +26,7 @@ import BinaryBuilder: sourcify, dependencify
             [GitSource("https://github.com/JuliaLang/julia.git", "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65")],
             "exit 0",
             [Linux(:x86_64), Windows(:x86_64)],
-            Product[ExecutableProduct("julia", :julia)],
+            Product[ExecutableProduct("julia", :julia), LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL])],
             Dependency[];
             meta_json_stream=meta_json_buff,
         )
@@ -79,8 +79,8 @@ import BinaryBuilder: sourcify, dependencify
         @test d.pkg.version.ranges[1].lower.t == ref_d.pkg.version.ranges[1].lower.t
         @test d.pkg.version.ranges[1].lower.n == ref_d.pkg.version.ranges[1].lower.n
         @test_throws ErrorException dependencify(Dict("type" => "bar"))
-        @test length(meta["products"]) == 3
-        @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia), FrameworkProduct("fooFramework", :libfooFramework)), Ref(meta["products"])))
+        @test length(meta["products"]) == 4
+        @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia), LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL]), FrameworkProduct("fooFramework", :libfooFramework)), Ref(meta["products"])))
         @test length(meta["script"]) == 2
         @test all(in.(("exit 0", "exit 1"), Ref(meta["script"])))
     end
