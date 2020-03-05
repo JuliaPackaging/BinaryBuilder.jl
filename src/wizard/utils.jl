@@ -267,14 +267,18 @@ function with_logfile(f::Function, logfile::String)
 end
 
 function prepare_for_deletion(prefix::String)
-    for (root, dirs, files) in walkdir(prefix)
-        for d in dirs
-            # Ensure that each directory is writable by by the owning user (should be us)
-            path = joinpath(root, d)
-            try
-                chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
-            catch
+    # Temporarily work around walkdir bug with endless symlinks: https://github.com/JuliaLang/julia/pull/35006
+    try
+        for (root, dirs, files) in walkdir(prefix; follow_symlinks=false)
+            for d in dirs
+                # Ensure that each directory is writable by by the owning user (should be us)
+                path = joinpath(root, d)
+                try
+                    chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
+                catch
+                end
             end
         end
+    catch
     end
 end
