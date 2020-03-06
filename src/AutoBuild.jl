@@ -114,6 +114,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         deploy_jll = true
         deploy_bin_repo = deploy_repo
         deploy_jll_repo = deploy_repo
+    elseif deploy_bin # make sure bin repo and jll repo match
+        deploy_jll_repo = deploy_bin_repo 
+    elseif deploy_jll 
+        deploy_bin_repo = deploy_jll_repo
     end
 
     # This sets whether we are going to register, and if so, which
@@ -305,11 +309,12 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
-function upload_to_github_releases(repo, tag, path; attempts::Int = 3, verbose::Bool = false)
+function upload_to_github_releases(repo, tag, path; gh_auth=github_auth(;allow_anonymous=false), 
+                                   attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
             ghr() do ghr_path
-                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) $(tag) $(path)`)
+                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) $(tag) $(path)`)
             end
             return
         catch
