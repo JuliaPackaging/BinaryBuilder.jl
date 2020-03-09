@@ -67,7 +67,7 @@ function check_libgomp(oh::ObjectHandle, platform::Platform; verbose::Bool = fal
     has_libgomp = false
     try
         libs = basename.(path.(DynamicLinks(oh)))
-        has_libgomp = length(filter(l -> occursin("libgfortran", l), libs)) >= 1
+        has_libgomp = length(filter(l -> occursin("libgomp", l), libs)) >= 1
     catch e
         if isa(e, InterruptException)
             rethrow(e)
