@@ -276,6 +276,21 @@ end
     end
 end
 
+@testset "Auditor - broken symlinks" begin
+    mktempdir() do build_path
+        bindir = joinpath(realpath(build_path), "bin")
+        mkpath(bindir)
+        # Test both broken and working (but external) symlinks
+        symlink("../../artifacts/1a2b3/lib/libzmq.dll.a", joinpath(bindir, "libzmq.dll.a"))
+        symlink("/bin/bash", joinpath(bindir, "bash.exe"))
+
+        # Test that `audit()` warns about broken symlinks
+        @test_logs (:warn, r"Broken symlink: bin/libzmq.dll.a") match_mode=:any begin
+            BinaryBuilder.warn_deadlinks(build_path)
+        end
+    end
+end
+
 @testset "Auditor - gcc version" begin
     # These tests assume our gcc version is concrete (e.g. that Julia is linked against libgfortran)
     our_libgfortran_version = libgfortran_version(compiler_abi(platform))

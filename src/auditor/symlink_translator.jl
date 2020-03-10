@@ -18,3 +18,20 @@ function translate_symlinks(root::AbstractString; verbose::Bool=false)
         end
     end
 end
+
+"""
+    warn_deadlinks(root::AbstractString)
+
+Walks through the given `root` directory, finding broken symlinks and warning
+the user about them.  This is used to catch instances such as a build recipe
+copying a symlink that points to a dependency; by doing so, it implicitly
+breaks relocatability.
+"""
+function warn_deadlinks(root::AbstractString)
+    for f in collect_files(root, islink; exclude_externalities=false)
+        link_target = readlink(f)
+        if !isfile(link_target)
+            @warn("Broken symlink: $(relpath(f, root))")
+        end
+    end
+end
