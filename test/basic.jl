@@ -447,9 +447,13 @@ end
 end
 
 @testset "Dlopen flags" begin
-    prod = LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL, :RTLD_NOLOAD])
-    @test prod.dlopen_flags == [:RTLD_GLOBAL, :RTLD_NOLOAD]
-    flag_str = BinaryBuilder.dlopen_flags_str(prod.dlopen_flags)
-    @test flag_str == ", RTLD_GLOBAL | RTLD_NOLOAD"
-    @test eval(Meta.parse(flag_str[3:end])) == (RTLD_NOLOAD | RTLD_GLOBAL)
+    lp = LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL, :RTLD_NOLOAD])
+    @test lp.dlopen_flags == [:RTLD_GLOBAL, :RTLD_NOLOAD]
+    fp = FrameworkProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL, :RTLD_NOLOAD])
+    @test fp.libraryproduct.dlopen_flags == [:RTLD_GLOBAL, :RTLD_NOLOAD]
+    for p in (lp, fp)
+        flag_str = BinaryBuilder.dlopen_flags_str(p)
+        @test flag_str == ", RTLD_GLOBAL | RTLD_NOLOAD"
+        @test eval(Meta.parse(flag_str[3:end])) == (RTLD_NOLOAD | RTLD_GLOBAL)
+    end
 end
