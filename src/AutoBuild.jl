@@ -1095,7 +1095,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                     println(io, """
                         # Manually `dlopen()` this right now so that future invocations
                         # of `ccall` with its `SONAME` will find this path immediately.
-                        global $(vp)_handle = dlopen($(vp)_path$(dlopen_flags_str(p.dlopen_flags)))
+                        global $(vp)_handle = dlopen($(vp)_path$(dlopen_flags_str(p)))
                         push!(LIBPATH_list, dirname($(vp)_path))
                     """)
                 elseif p isa ExecutableProduct

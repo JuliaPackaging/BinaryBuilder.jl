@@ -119,9 +119,9 @@ struct LibraryProduct <: Product
     )
 end
 
-function dlopen_flags_str(dlopen_flags::Vector{Symbol}=Symbol[])
-    if length(dlopen_flags) > 0
-        return ", $(join(dlopen_flags, " | "))"
+function dlopen_flags_str(p::LibraryProduct)
+    if length(p.dlopen_flags) > 0
+        return ", $(join(p.dlopen_flags, " | "))"
     else
         return ""
     end
@@ -291,6 +291,8 @@ function locate(fp::FrameworkProduct, prefix::Prefix; platform::Platform = platf
     end
     return nothing
 end
+
+dlopen_flags_str(p::FrameworkProduct) = dlopen_flags_str(p.libraryproduct)
 
 """
 An `ExecutableProduct` is a [`Product`](@ref) that represents an executable file.
