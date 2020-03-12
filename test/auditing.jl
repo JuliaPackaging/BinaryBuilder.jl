@@ -282,7 +282,9 @@ end
         mkpath(bindir)
         # Test both broken and working (but external) symlinks
         symlink("../../artifacts/1a2b3/lib/libzmq.dll.a", joinpath(bindir, "libzmq.dll.a"))
+        # The following symlinks shouldn't raise a warning
         symlink("/bin/bash", joinpath(bindir, "bash.exe"))
+        symlink("libfoo.so.1.2.3", joinpath(bindir, "libfoo.so"))
 
         # Test that `audit()` warns about broken symlinks
         @test_logs (:warn, r"Broken symlink: bin/libzmq.dll.a") match_mode=:any begin
