@@ -30,6 +30,14 @@ breaks relocatability.
 function warn_deadlinks(root::AbstractString)
     for f in collect_files(root, islink; exclude_externalities=false)
         link_target = readlink(f)
+        if !startswith(link_target, "/")
+            # If the link is relative, prepend the dirname of `f` to
+            # `link_target`, otherwise `isfile(link_target)` will always be
+            # false, as the test isn't performed in dirname(f).  Why Not using
+            # `isabspath`?  Because that command is platform-dependent, but we
+            # always build in a Unix-like environment.
+            link_target = joinpath(dirname(f), link_target)
+        end
         if !isfile(link_target)
             @warn("Broken symlink: $(relpath(f, root))")
         end
