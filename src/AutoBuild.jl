@@ -396,6 +396,7 @@ function register_jll(name, build_version, dependencies;
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies))
+    errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
     reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
         project,
@@ -403,6 +404,7 @@ function register_jll(name, build_version, dependencies;
         registry=registry_url,
         cache=cache,
         push=true,
+        checks_triggering_error = errors,
     )
     if haskey(reg_branch.metadata, "error")
         @error(reg_branch.metadata["error"])
