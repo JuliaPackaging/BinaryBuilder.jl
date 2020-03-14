@@ -118,7 +118,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         deploy_jll_repo = deploy_bin_repo 
     elseif deploy_jll 
         deploy_bin_repo = deploy_jll_repo
-    else if deploy_bin && deploy_jll
+    elseif deploy_bin && deploy_jll
         if deploy_bin_repo != deploy_jll_repo
             error("Binaries and JLLs must be deployed to the same repositories")
         end
