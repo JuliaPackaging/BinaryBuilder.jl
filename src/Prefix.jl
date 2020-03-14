@@ -398,7 +398,8 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     Pkg.activate(deps_project) do
         # Find UUIDs for all dependencies
         ctx = Pkg.Types.Context()
-        Pkg.Operations.resolve_versions!(ctx, dependencies)
+        # Fredrik thinks this is unnecessary, and he's probably right
+        #Pkg.Operations.resolve_versions!(ctx, dependencies)
 
         # Add all dependencies
         Pkg.add(dependencies; platform=platform)
