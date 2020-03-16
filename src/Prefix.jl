@@ -396,19 +396,17 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
     mkpath(joinpath(prefix, "artifacts"))
     deps_project = joinpath(prefix, ".project")
     Pkg.activate(deps_project) do
-        # Find UUIDs for all dependencies
-        ctx = Pkg.Types.Context()
-        # Fredrik thinks this is unnecessary, and he's probably right
-        #Pkg.Operations.resolve_versions!(ctx, dependencies)
-
         # Add all dependencies
         Pkg.add(dependencies; platform=platform)
 
-        # Filter out everything that doesn't end in `_jll`
-        dependencies = filter(x -> endswith(getname(x), "_jll"), dependencies)
+        # Get all JLL packages within the current project
+        ctx = Pkg.Types.Context()
+        installed_jlls = [
+            Pkg.Types.PackageSpec(name=p.name, uuid=u, tree_hash=p.tree_hash) for (u, p) in ctx.env.manifest if endswith(p.name, "_jll")
+        ]
 
         # Load their Artifacts.toml files
-        for dep in dependencies
+        for dep in installed_jlls
             if VERSION >= v"1.4.0-rc2.0"
                 dep_path = Pkg.Operations.source_path(ctx, dep)
             else
@@ -418,7 +416,7 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
 
             # Skip dependencies that didn't get installed?
             if dep_path === nothing
-                @warn("Dependency $(name) not installed, depsite our best efforts!")
+                @warn("Dependency $(name) not installed, despite our best efforts!")
                 continue
             end
 
