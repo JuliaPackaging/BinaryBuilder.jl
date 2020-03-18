@@ -1316,6 +1316,17 @@ function build_project_dict(name, version, dependencies::Array{Dependency})
                length(d.pkg.version.ranges) != 1 ||
                d.pkg.version.ranges[1] != r
     end
+    function exactly_this_version(v::VersionNumber)
+        return string("=", VersionNumber(v.major, v.minor, v.patch))
+    end
+    function exactly_this_version(v::Pkg.Types.VersionSpec)
+        if length(v.ranges) == 1 &&
+           v.ranges[1].lower == v.ranges[1].upper
+           return string("=", v)
+       end
+       return string(v)
+    end
+    exactly_this_version(v) = v
     project = Dict(
         "name" => "$(name)_jll",
         "uuid" => string(jll_uuid("$(name)_jll")),
@@ -1329,7 +1340,7 @@ function build_project_dict(name, version, dependencies::Array{Dependency})
         depname = getname(dep)
         project["deps"][depname] = string(jll_uuid(depname))
         if has_compat_info(dep)
-            project["compat"][depname] = string(dep.pkg.version)
+            project["compat"][depname] = string(exactly_this_version(dep.pkg.version))
         end
     end
     # Always add Libdl and Pkg as dependencies
