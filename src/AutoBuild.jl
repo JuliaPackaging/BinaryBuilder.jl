@@ -1312,7 +1312,8 @@ jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
 function build_project_dict(name, version, dependencies::Array{Dependency})
     function has_compat_info(d::Dependency)
         r = Pkg.Types.VersionRange()
-        return length(d.pkg.version.ranges) != 1 ||
+        return isa(d.pkg.version, VersionNumber) ||
+               length(d.pkg.version.ranges) != 1 ||
                d.pkg.version.ranges[1] != r
     end
     project = Dict(
