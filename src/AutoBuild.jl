@@ -1310,14 +1310,27 @@ const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # "_jll" to the name of the new package before computing its UUID.
 jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
 function build_project_dict(name, version, dependencies::Array{Dependency})
+    function has_compat_info(d::Dependency)
+        r = Pkg.Types.VersionRange()
+        return length(d.pkg.version.ranges) != 1 ||
+               d.pkg.version.ranges[1] != r
+    end
     project = Dict(
         "name" => "$(name)_jll",
         "uuid" => string(jll_uuid("$(name)_jll")),
         "version" => string(version),
-        "deps" => Dict{String,Any}(dep => string(jll_uuid(dep)) for dep in getname.(dependencies)),
-        # We require at least Julia 1.3+, for Pkg.Artifacts support
-        "compat" => Dict{String,Any}("julia" => "1.0"),
+        "deps" => Dict{String,Any}(),
+        # We require at least Julia 1.3+, for Pkg.Artifacts support, but we only claim
+        # Julia 1.0+ so that empty JLLs can be installed on older versions.
+        "compat" => Dict{String,Any}("julia" => "1.0")
     )
+    for dep in dependencies
+        depname = getname(dep)
+        project["deps"][depname] = string(jll_uuid(depname))
+        if has_compat_info(dep)
+            project["compat"][depname] = string(dep.pkg.version)
+        end
+    end
     # Always add Libdl and Pkg as dependencies
     stdlibs = isdefined(Pkg.Types, :stdlib) ? Pkg.Types.stdlib : Pkg.Types.stdlibs
     project["deps"]["Libdl"] = first([string(u) for (u, n) in stdlibs() if n == "Libdl"])
