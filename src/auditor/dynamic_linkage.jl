@@ -158,22 +158,14 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libgcc_s.so.1",
         "libm.so.5",
         "libm.so.6",
-        "libgfortran.so.3",
-        "libgfortran.so.4",
-        "libgfortran.so.5",
-        "libquadmath.so.0",
         "libthr.so.3",
         "libpthread.so.0",
-        "libgomp.so.1",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
 function should_ignore_lib(lib, ::MachOHandle)
     ignore_libs = [
         "libsystem.b.dylib",
-        "libstdc++.6.dylib",
-        "libc++.1.dylib",
-        "libgomp.1.dylib",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
@@ -227,7 +219,7 @@ function should_ignore_lib(lib, ::COFFHandle)
 end
 
 # Determine whether a library is a "default" library or not, if it is we need
-# to map it to `@rpath/$libname` on OSX.
+# to map it to `@rpath/$libname` on OSX or `\$ORIGIN/$libname` on Linux/FreeBSD
 is_default_lib(lib, oh) = false
 function is_default_lib(lib, ::MachOHandle)
     default_libs = [
@@ -236,6 +228,21 @@ function is_default_lib(lib, ::MachOHandle)
         "libgfortran.4.dylib",
         "libgfortran.5.dylib",
         "libquadmath.0.dylib",
+        "libgomp.1.dylib",
+        "libstdc++.6.dylib",
+        "libc++.1.dylib",
+    ]
+    return lowercase(basename(lib)) in default_libs
+end
+function is_default_lib(lib, ::ELFHandle)
+    default_libs = [
+        "libgcc_s.so.1",
+        "libgfortran.so.3",
+        "libgfortran.so.4",
+        "libgfortran.so.5",
+        "libgomp.so.1",
+        "libstdc++.so.6",
+        "libc++.so.1",
     ]
     return lowercase(basename(lib)) in default_libs
 end
