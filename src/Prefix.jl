@@ -384,8 +384,15 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
         return artifact_paths
     end
 
-    # Immediately copy so we don't clobber the caller's dependencies
-    dependencies = deepcopy(dependencies)
+    # We occasionally generate "illegal" package specs, where we provide both version and tree hash.
+    # we trust the treehash over the version, so drop the version for any that exists here:
+    function filter_redundant_version(p::PkgSpec)
+        if p.version !== nothing && p.tree_hash !== nothing
+            return Pkg.Types.PackageSpec(;name=p.name, tree_hash=p.tree_hash, repo=p.repo)
+        end
+        return p
+    end
+    dependencies = filter_redundant_version.(dependencies)
 
     # We're going to create a project and install all dependent packages within
     # it, then create symlinks from those installed products to our build prefix
