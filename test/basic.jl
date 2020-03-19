@@ -456,7 +456,7 @@ end
     ]
     dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
     @test dict["compat"]["julia"] == "1.0"
-    @test dict["compat"]["libLLVM_jll"] == "9.0.0"
+    @test dict["compat"]["libLLVM_jll"] == "=9.0.0"
     
     dependencies = [
         Dependency(PackageSpec(name="libLLVM_jll", version="8.3-10")),
