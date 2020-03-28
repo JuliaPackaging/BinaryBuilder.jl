@@ -116,6 +116,7 @@ struct LibraryProduct <: Product
         Symbol(meta_obj["variable_name"]),
         String.(meta_obj["dir_paths"]),
         meta_obj["dont_dlopen"],
+        Symbol.(meta_obj["dlopen_flags"]),
     )
 end
 
