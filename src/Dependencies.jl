@@ -100,7 +100,7 @@ minor(v::Pkg.Types.VersionBound) = v.t[2]
 patch(v::Pkg.Types.VersionBound) = v.t[3]
 __version(v::VersionNumber) = v
 __version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
-version(d::Union{Dependency, BuildDependency}) = __version(d.pkg.version)
+version(d::AbstractDependency) = __version(getpkg(d).version)
 
 JSON.lower(d::Dependency) = Dict("type" => "dependency", "name" => d.pkg.name, "uuid" => string_or_nothing(d.pkg.uuid),
                                  "version-major" => major(version(d)),
