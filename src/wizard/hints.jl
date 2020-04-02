@@ -1,7 +1,7 @@
 """
     print_autoconf_hint(state::WizardState)
 
-Print a hint for projets that use autoconf to have a good `./configure` line.
+Print a hint for projects that use autoconf to have a good `./configure` line.
 """
 function print_autoconf_hint(state::WizardState)
     println(state.outs, "    The recommended options for GNU Autoconf are:")

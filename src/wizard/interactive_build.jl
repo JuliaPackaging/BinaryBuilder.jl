@@ -42,7 +42,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     if length(files) == 0
         printstyled(state.outs, "ERROR: ", color=:red)
         println(state.outs, "The build has produced no binary artifacts.")
-        println(state.outs, " "^7, "This is generally because an error occured during the build")
+        println(state.outs, " "^7, "This is generally because an error occurred during the build")
         println(state.outs, " "^7, "or because you forgot to `make install` or equivalent.")
         println(state.outs)
 
@@ -603,7 +603,7 @@ end
 
 function step5b(state::WizardState)
 
-    # We will try to pick a platform for a different architeture
+    # We will try to pick a platform for a different architecture
     possible_platforms = filter(state.platforms) do plat
         !(any(state.visited_platforms) do p
             arch(plat) == arch(p) ||

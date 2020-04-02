@@ -162,7 +162,7 @@ function versioninfo()
     end
 
     # Dump any relevant environment variables:
-    @info("Relevant envionment variables:")
+    @info("Relevant environment variables:")
     env_var_suffixes = [
         "AUTOMATIC_APPLE",
         "USE_SQUASHFS",

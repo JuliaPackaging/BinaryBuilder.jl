@@ -576,7 +576,7 @@ function autobuild(dir::AbstractString,
 
         shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:bootstrap_list,:compilers))...)
         # We want to get dependencies that have exactly the same GCC ABI as the
-        # choosen compiler, otherwise we risk, e.g., to build in an environment
+        # chosen compiler, otherwise we risk, e.g., to build in an environment
         # with libgfortran3 a dependency built with libgfortran5.
         # `concrete_platform` is needed only to setup the dependencies and the
         # runner.  We _don't_ want the platform passed to `audit()` or
@@ -1149,7 +1149,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
             # if they are willing to engage in the kinds of hoop-jumping they might need
             # to in order to install binaries in a JLL-compatible way on 1.0-1.2. One
             # example of this hoop-jumping being to express a dependency on this JLL
-            # package, then import it wtihin a `VERSION >= v"1.3"` conditional, and use
+            # package, then import it within a `VERSION >= v"1.3"` conditional, and use
             # the deprecated `build.jl` mechanism to download the binaries through e.g.
             # `BinaryProvider.jl`.  This should work well for the simplest packages, and
             # require greater and greater heroics for more and more complex packages.

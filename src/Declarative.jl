@@ -1,4 +1,4 @@
-# merge mutiple JSON objects garnered via `--meta-json`
+# merge multiple JSON objects garnered via `--meta-json`
 function merge_json_objects(objs::Vector)
     merged = Dict()
     for obj in objs
@@ -51,7 +51,7 @@ function cleanup_merged_object!(meta::Dict)
     end
     meta["products"] = Product[reconstruct_product(p) for p in meta["products"]]
 
-    # Convert platforms back to acutal Platform objects
+    # Convert platforms back to actual Platform objects
     meta["platforms"] = [platform_key_abi(p) for p in meta["platforms"]]
 
     # Return the cleaned-up meta for fun

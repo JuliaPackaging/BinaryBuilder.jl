@@ -69,7 +69,7 @@ Yes!  You can use [`BinaryBuilder.runshell(platform)`](@ref) to quickly start a 
 ```
 julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Windows(:i686))'
 ```
-will open a shell in a Windows 32-bit buid environment, without any source loaded.  The current working directory of your system will be mounted on `${WORKSPACE}` within this BinaryBuilder environment.
+will open a shell in a Windows 32-bit build environment, without any source loaded.  The current working directory of your system will be mounted on `${WORKSPACE}` within this BinaryBuilder environment.
 
 ### Can I install packages in the build environment?
 

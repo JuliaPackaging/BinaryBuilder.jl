@@ -358,7 +358,7 @@ const available_llvm_builds = [
     gcc_version(cabi::CompilerABI, GCC_builds::Vector{GCCBuild})
 
 Returns the closest matching GCC version number for the given CompilerABI
-representing a particular platofrm, from the given set of options.  If no match
+representing a particular platform, from the given set of options.  If no match
 is found, returns an empty list.  This method assumes that `cabi` represents a
 platform that binaries will be run on, and thus versions are always rounded
 down; e.g. if the platform supports a `libstdc++` version that corresponds to
@@ -429,7 +429,7 @@ function choose_shards(p::Platform;
             # Because GCC has lots of compatibility issues, we always default to
             # the earliest version possible.
             preferred_gcc_version::VersionNumber = getversion(GCC_builds[1]),
-            # Because LLVM doesn't have compatibilty issues, we always default
+            # Because LLVM doesn't have compatibility issues, we always default
             # to the newest version possible.
             preferred_llvm_version::VersionNumber = getversion(LLVM_builds[end]),
         )
@@ -627,7 +627,7 @@ function preferred_libgfortran_version(platform::Platform, shard::CompilerShard;
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
-            error("The shard doesn't match any version of the avaiable GCC builds")
+            error("The shard doesn't match any version of the available GCC builds")
         else
             return getabi(gcc_builds[idx]).libgfortran_version
         end
@@ -657,7 +657,7 @@ function preferred_cxxstring_abi(platform::Platform, shard::CompilerShard;
     else
         idx = findfirst(b -> getversion(b) == shard.version, available_gcc_builds)
         if isnothing(idx)
-            error("The shard doesn't match any version of the avaiable GCC builds")
+            error("The shard doesn't match any version of the available GCC builds")
         else
             return getabi(gcc_builds[idx]).cxxstring_abi
         end
@@ -761,7 +761,7 @@ end
 """
     get_mutable_artifact_path(art_name::String)
 
-Convenience wrapper to get an artifact bound withing `MutableArtifacts.toml`.
+Convenience wrapper to get an artifact bound within `MutableArtifacts.toml`.
 Returns `nothing` if artifact not bound yet.
 """
 function get_mutable_artifact_path(art_name::String)
