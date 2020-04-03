@@ -38,7 +38,7 @@ function warn_deadlinks(root::AbstractString)
             # always build in a Unix-like environment.
             link_target = joinpath(dirname(f), link_target)
         end
-        if !isfile(link_target)
+        if !ispath(link_target)
             @warn("Broken symlink: $(relpath(f, root))")
         end
     end
