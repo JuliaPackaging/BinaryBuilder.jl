@@ -91,14 +91,25 @@ end
 
 # Add JSON serialization of dependencies
 string_or_nothing(x) = isnothing(x) ? x : string(x)
+
+major(v::VersionNumber) = v.major
+minor(v::VersionNumber) = v.minor
+patch(v::VersionNumber) = v.patch
+major(v::Pkg.Types.VersionBound) = v.t[1]
+minor(v::Pkg.Types.VersionBound) = v.t[2]
+patch(v::Pkg.Types.VersionBound) = v.t[3]
+__version(v::VersionNumber) = v
+__version(v::Pkg.Types.VersionSpec) = v.ranges[1].lower
+version(d::AbstractDependency) = __version(getpkg(d).version)
+
 JSON.lower(d::Dependency) = Dict("type" => "dependency", "name" => d.pkg.name, "uuid" => string_or_nothing(d.pkg.uuid),
-                                 "version-major" => d.pkg.version.ranges[1].lower.t[1],
-                                 "version-minor" => d.pkg.version.ranges[1].lower.t[2],
-                                 "version-patch" => d.pkg.version.ranges[1].lower.t[3])
+                                 "version-major" => major(version(d)),
+                                 "version-minor" => minor(version(d)),
+                                 "version-patch" => patch(version(d)))
 JSON.lower(d::BuildDependency) = Dict("type" => "builddependency", "name" => d.pkg.name, "uuid" => string_or_nothing(d.pkg.uuid),
-                                      "version-major" => d.pkg.version.ranges[1].lower.t[1],
-                                      "version-minor" => d.pkg.version.ranges[1].lower.t[2],
-                                      "version-patch" => d.pkg.version.ranges[1].lower.t[3])
+                                      "version-major" => major(version(d)),
+                                      "version-minor" => minor(version(d)),
+                                      "version-patch" => patch(version(d)))
 
 # When deserialiasing the JSON file, the dependencies are in the form of
 # dictionaries.  This function converts the dictionary back to the appropriate

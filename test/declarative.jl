@@ -1,6 +1,6 @@
 using JSON, BinaryBuilder, Test
 
-import BinaryBuilder: sourcify, dependencify
+import BinaryBuilder: sourcify, dependencify, major, minor, patch, version
 
 @testset "Meta JSON" begin
     mktempdir() do tmpdir
@@ -69,15 +69,17 @@ import BinaryBuilder: sourcify, dependencify
         ref_d = Dependency(PackageSpec(; name = "Foo_jll"))
         @test d.pkg.name == ref_d.pkg.name
         @test d.pkg.uuid == ref_d.pkg.uuid
-        @test d.pkg.version.ranges[1].lower.t == ref_d.pkg.version.ranges[1].lower.t
-        @test d.pkg.version.ranges[1].lower.n == ref_d.pkg.version.ranges[1].lower.n
+        v = version(d)
+        ref_v = version(ref_d)
+        @test (major(v), minor(v), patch(v)) == (major(ref_v), minor(ref_v), patch(ref_v))
         d = dependencify(Dict("type" => "builddependency", "name" => "Qux_jll", "uuid" => nothing,
                               "version-major" => 1, "version-minor" => 2, "version-patch" => 3))
         ref_d = Dependency(PackageSpec(; name = "Qux_jll", version = v"1.2.3"))
         @test d.pkg.name == ref_d.pkg.name
         @test d.pkg.uuid == ref_d.pkg.uuid
-        @test d.pkg.version.ranges[1].lower.t == ref_d.pkg.version.ranges[1].lower.t
-        @test d.pkg.version.ranges[1].lower.n == ref_d.pkg.version.ranges[1].lower.n
+        v = version(d)
+        ref_v = version(ref_d)
+        @test (major(v), minor(v), patch(v)) == (major(ref_v), minor(ref_v), patch(ref_v))
         @test_throws ErrorException dependencify(Dict("type" => "bar"))
         @test length(meta["products"]) == 4
         @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia), LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL]), FrameworkProduct("fooFramework", :libfooFramework)), Ref(meta["products"])))
