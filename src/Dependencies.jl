@@ -11,7 +11,7 @@ Concrete subtypes of `AbstractDependency` are
 
 * [`Dependency`](@ref): a JLL package that is necessary for to build the package
   and to load the generated JLL package.
-* [`BuildDependency`](@ref): a JLL package that is necessary only t obuild the
+* [`BuildDependency`](@ref): a JLL package that is necessary only to build the
   package.  This will not be a dependency of the generated JLL package.
 """
 abstract type AbstractDependency end

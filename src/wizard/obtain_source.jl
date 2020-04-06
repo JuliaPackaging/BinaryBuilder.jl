@@ -136,7 +136,7 @@ function download_source(state::WizardState)
         repo = clone(url, source_path)
 
         msg = "You have selected a git repository. Please enter a branch, commit or tag to use.\n" *
-        "Please note that for reproducability, the exact commit will be recorded, \n" *
+        "Please note that for reproducibility, the exact commit will be recorded, \n" *
         "so updates to the remote resource will not be used automatically; \n" *
         "you will have to manually update the recorded commit."
         #print(state.outs, msg, "\n> ")
@@ -192,7 +192,7 @@ end
 
 It all starts with a single step, the unabashed ambition to leave your current
 stability and engage with the universe on a quest to create something new,
-beautiful and unforseen.  It all ends with compiler errors.
+beautiful and unforeseen.  It all ends with compiler errors.
 
 This step selects the relevant platform(s) for the built binaries.
 """

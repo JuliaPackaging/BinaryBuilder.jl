@@ -78,7 +78,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     # particular, what we care about with regard to the wrappers is the C++
     # string ABI.  We have the following situations:
     #   * they are equal: this is fine
-    #   * they're different and the host has a prefernce for the C++ string ABI:
+    #   * they're different and the host has a preference for the C++ string ABI:
     #     we can't deal with this situation as the host wrappers will be always
     #     overwritten, then error out
     #   * in all other cases we don't do anything here but later below we'll let

@@ -32,7 +32,7 @@ const SQUASHFS_MAGIC = 0x73717368
     generate_per_uid_squashfs(cs, new_uid = getuid())
 
 In order for the sandbox to work well, we need to have the uids of the squashfs
-images match the uid of the current unpriviledged user.  Unfortunately there is
+images match the uid of the current unprivileged user.  Unfortunately there is
 no mount-time option to do this for us.  Fortunately, squashfs is simple enough
 that if the ID table is uncompressed, we can just manually patch the uids to be
 what we need.  This function performs this operation, by rewriting all UIDs and

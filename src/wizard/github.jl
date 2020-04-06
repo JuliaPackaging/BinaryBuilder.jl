@@ -41,7 +41,7 @@ function obtain_token(; ins=stdin, outs=stdout, github_api=GitHub.DEFAULT_API)
         ],
         "note" => "BinaryBuilder.jl generated token at $(now())",
         "note_url" => "https://github.com/JuliaPackaging/BinaryBuilder.jl",
-        "fingerpint" => randstring(40)
+        "fingerprint" => randstring(40)
     )
 
     while true
