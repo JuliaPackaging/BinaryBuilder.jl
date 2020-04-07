@@ -179,7 +179,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
             """)
         else
             write(io, """
-            vrun $(prog) "\$@"
+            vrun $(prog) "\${PRE_FLAGS[@]}" "\$@" "\${POST_FLAGS[@]}"
             """)
         end
     end
@@ -346,6 +346,19 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         wrapper(io, "/usr/bin/meson"; allow_ccache=false, env=meson_env)
     end
 
+    # Patchelf needs some page-alignment on aarch64 and ppc64le forced into its noggin
+    # https://github.com/JuliaPackaging/BinaryBuilder.jl/commit/cce4f8fdbb16425d245ab87a50f60d1a16d04948
+    function patchelf(io::IO, p::Platform)
+        extra_cmds = ""
+        if isa(p, Linux) && arch(p) in (:aarch64, :powerpc64le)
+            extra_cmds = raw"""
+            if [[ " $@ " != *'--page-size'* ]]; then
+                PRE_FLAGS+=( '--page-size' '65536' )
+            fi
+            """
+        end
+        wrapper(io, "/usr/bin/patchelf"; allow_ccache=false, extra_cmds=extra_cmds)
+    end
 
     # Default these tools to the "target tool" versions, will override later
     for tool in (:ar, :as, :cpp, :ld, :nm, :libtool, :objcopy, :objdump, :otool,
@@ -433,6 +446,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         if :go in compilers
             write_wrapper(go, p, "$(t)-go")
         end
+
+        # Misc. utilities
+        write_wrapper(patchelf, p, "$(t)-patchelf")
     end
 
     # Rust stuff doesn't use the normal "host" platform, it uses x86_64-linux-gnu, so we always have THREE around,
@@ -454,6 +470,9 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     default_tools = [
         # Binutils
         "ar", "as", "c++filt", "ld", "nm", "libtool", "objcopy", "ranlib", "readelf", "strip",
+
+        # Misc. utilities
+        "patchelf",
     ]
 
     if platform isa MacOS
