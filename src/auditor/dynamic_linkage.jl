@@ -166,6 +166,8 @@ end
 function should_ignore_lib(lib, ::MachOHandle)
     ignore_libs = [
         "libsystem.b.dylib",
+        # This is not built by clang or GCC, so we leave it as a system library
+        "libc++.1.dylib",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
@@ -230,7 +232,6 @@ function is_default_lib(lib, ::MachOHandle)
         "libquadmath.0.dylib",
         "libgomp.1.dylib",
         "libstdc++.6.dylib",
-        "libc++.1.dylib",
     ]
     return lowercase(basename(lib)) in default_libs
 end
