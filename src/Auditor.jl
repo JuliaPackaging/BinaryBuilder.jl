@@ -435,7 +435,7 @@ function check_license(prefix::Prefix, src_name::AbstractString = "";
         return true
     else
         if !silent
-            @warn("Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
+            @error("Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
         end
         # This is pretty serious; don't let us get through without a license
         return false

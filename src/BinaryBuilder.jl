@@ -28,6 +28,7 @@ include("DockerRunner.jl")
 include("AutoBuild.jl")
 include("Wizard.jl")
 include("Declarative.jl")
+include("Logging.jl")
 
 # This is the location that all binary builder-related files are stored under.
 # downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
@@ -111,6 +112,11 @@ function __init__()
     # If the user has enabled `ccache` support, use it!
     if get(ENV, "BINARYBUILDER_USE_CCACHE", "false") == "true"
         use_ccache = true
+    end
+
+    # If we're running on Azure, enable azure logging:
+    if !isempty(get(ENV, "AZP_TOKEN", ""))
+        enable_azure_logging()
     end
 end
 
