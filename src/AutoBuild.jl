@@ -719,8 +719,8 @@ function autobuild(dir::AbstractString,
         # Unsymlink all the deps from the dest_prefix
         cleanup_dependencies(prefix, artifact_paths)
 
-        # Search for dead links; raise warnings about them.
-        warn_deadlinks(prefix.path)
+        # Search for dead links in dest_prefix; raise warnings about them.
+        warn_deadlinks(dest_prefix.path)
 
         # Cull empty directories, for neatness' sake, unless auditing is disabled
         if !skip_audit
