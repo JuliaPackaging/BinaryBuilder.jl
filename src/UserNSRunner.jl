@@ -348,7 +348,7 @@ function probe_unprivileged_containers(;verbose::Bool=false)
             end
             try
                 cmd = `$(mpath)/sandbox --rootfs $(mpath) $(workspace_flag) $(map_flag) -- /bin/sh -c "echo hello julia"`
-                oc = OutputCollector(cmd; tail_error=false)
+                oc = OutputCollector(cmd; tail_error=verbose)
                 return wait(oc) && merge(oc) == "hello julia\n"
             finally
                 if map_shard
