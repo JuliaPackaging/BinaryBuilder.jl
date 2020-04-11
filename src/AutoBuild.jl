@@ -331,7 +331,7 @@ function upload_to_github_releases(repo, tag, path; gh_auth=github_auth(;allow_a
 end
 
 # Julia 1.3- needs a compat shim here
-if VERSION < v"1.4-"
+@static if VERSION < v"1.4-"
     Pkg.Operations.registered_paths(ctx::Pkg.Types.Context, uuid::UUID) = Pkg.Operations.registered_paths(ctx.env, uuid)
 end
 
@@ -1138,7 +1138,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         print(io, """
         module $(src_name)_jll
 
-        if VERSION < v"1.3.0-rc4"
+        @static if VERSION < v"1.3.0-rc4"
             # We lie a bit in the registry that JLL packages are usable on Julia 1.0-1.2.
             # This is to allow packages that might want to support Julia 1.0 to get the
             # benefits of a JLL package on 1.3 (requiring them to declare a dependence on
