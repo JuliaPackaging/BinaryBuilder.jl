@@ -32,6 +32,11 @@ exeext(p::Windows) = ".exe"
 exeext(p::Union{Linux,FreeBSD,MacOS}) = ""
 exeext(p::Platform) = error("Unknown exeext for platform $(p)")
 
+whole_archive(p::Platform) = "--whole-archive"
+whole_archive(p::MacOS) = "-all_load"
+nowhole_archive(p::Platform) = "--no-whole-archive"
+nowhole_archive(p::MacOS) = "-noall_load"
+
 # Convert platform to a triplet, but strip out the ABI parts.
 # Also translate `armv7l` -> `arm` for now, since that's what most
 # compiler toolchains call it.  :(
@@ -565,6 +570,8 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         "proc_family" => string(proc_family(platform)),
         "dlext" => dlext(platform),
         "exeext" => exeext(platform),
+        "whole_archive" => whole_archive(platform),
+        "nowhole_archive" => nowhole_archive(platform),
         "PATH" => "/usr/local/bin:/usr/local/sbin:/usr/bin:/usr/sbin:/bin:/sbin",
         "MACHTYPE" => "x86_64-linux-musl",
 
