@@ -208,10 +208,20 @@ function symlink_tree(src::AbstractString, dest::AbstractString)
         for d in dirs
             # If `d` is itself a symlink, recreate that symlink
             d_path = joinpath(root, d)
+            dest_dir = joinpath(dest, relpath(root, src), d)
             if islink(d_path)
-                symlink(readlink(d_path), joinpath(dest, relpath(root, src), d))
+                if ispath(dest_dir)
+                    # We can't overwrite an existing file on disk with a symlink
+                    error("Symlink $(d) from artifact $(basename(src)) already exists on disk")
+                end
+                symlink(readlink(d_path), dest_dir)
             else
-                mkpath(joinpath(dest, relpath(root, src), d))
+                if ispath(dest_dir) && !isdir(realpath(dest_dir))
+                    # We can't create a directory if the destination exists and
+                    # is not a directory or a symlink to a directory.
+                    error("Directory $(d) from artifact $(basename(src)) already exists on disk and is not a directory")
+                end
+                mkpath(dest_dir)
             end
         end
 
