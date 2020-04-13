@@ -659,7 +659,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         "MESON_TARGET_TOOLCHAIN" => "/opt/$(target)/$(target).meson",
 
         # We should always be looking for packages already in the prefix
-        "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig:$(prefix)/share/pkgconfig",
+        "PKG_CONFIG_PATH" => "$(prefix)/lib/pkgconfig:$(prefix)/lib64/pkgconfig:$(prefix)/share/pkgconfig",
         "PKG_CONFIG_SYSROOT_DIR" => prefix,
 
         # ccache options
