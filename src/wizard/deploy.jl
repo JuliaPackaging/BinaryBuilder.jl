@@ -39,8 +39,12 @@ function print_build_tarballs(io::IO, state::WizardState)
                 return "ExecutableProduct($(repr(basename(file))), $(repr(varname)), $(repr(dir_path)))"
             end
         elseif kind == :library
-            # Normalize library names, since they are almost always in `lib`/`bin`
-            return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)))"
+            dir_path = dirname(file)
+            if isempty(dir_path) || dirname(file) in ("bin", "lib", "lib64")
+                return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)))"
+            else
+                return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)), $(repr(dir_path)))"
+            end
         else
             return "FileProduct($(repr(file)), $(repr(varname)))"
         end
