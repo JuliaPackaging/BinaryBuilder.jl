@@ -15,7 +15,7 @@ function get_yggdrasil()
         end
     end
     global yggdrasil_updated = true
-    return yggdrasil_dir
+    return LibGit2.GitRepo(yggdrasil_dir)
 end
 
 # We only want to update the registry once per run
@@ -45,36 +45,35 @@ function yggdrasil_build_tarballs_path(name)
     return "$(dir)/$(name)/build_tarballs.jl"
 end
 
-function case_insensitive_file_exists(path)
-    # Start with an absolute path
-    path = abspath(path)
-
+using LibGit2: GitRepo, GitCommit, GitTree, GitObject
+function case_insensitive_repo_file_exists(repo::GitRepo, path)
     # Walk from top-to-bottom, checking all branches for the eventual leaf node
+    tree = LibGit2.peel(GitTree, GitCommit(repo, "origin/master"))
     spath = splitpath(path)
-    branches = String[spath[1]]
-    for node in spath[2:end]
+
+    frontier = GitTree[tree]
+
+    for (idx,node) in enumerate(spath)
         lnode = lowercase(node)
-        
-        new_branches = String[]
-        for b in branches
-            for bf in readdir(b)
-                if lowercase(bf) == lnode
-                    push!(new_branches, joinpath(b, bf))
+        new_frontier = GitTree[]
+        for tree in frontier
+            LibGit2.treewalk(tree) do root, entry
+                if lowercase(LibGit2.filename(entry)) == lnode &&
+                     (idx == lastindex(spath) || LibGit2.entrytype(entry) == GitTree)
+                    push!(new_frontier, GitTree(entry))
                 end
+                return 1
             end
         end
-
-        branches = new_branches
-        if isempty(branches)
-            return false
-        end
+        frontier = new_frontier
+        isempty(frontier) && return false
     end
-    return !isempty(branches)
+    return !isempty(frontier)
 end
 
 function with_yggdrasil_pr(f::Function, pr_number::Integer)
     # Get Yggdrasil, then force it to fetch our pull request refspec
-    yggy = LibGit2.GitRepo(get_yggdrasil())
+    yggy = get_yggdrasil()
 
     # First, delete any local branch that might exist with our "pr-$(pr_number)" name:
     branch_name = "pr-$(pr_number)"
