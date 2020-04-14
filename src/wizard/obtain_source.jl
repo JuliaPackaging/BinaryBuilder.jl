@@ -322,7 +322,7 @@ function obtain_source(state::WizardState)
 end
 
 function get_name_and_version(state::WizardState)
-    yggdrasil_path = get_yggdrasil()
+    ygg = get_yggdrasil()
 
     while state.name === nothing
         msg = "Enter a name for this project.  This will be used for filenames:"
@@ -334,7 +334,7 @@ function get_name_and_version(state::WizardState)
         end
 
         # Check to see if this project name already exists
-        if case_insensitive_file_exists(joinpath(yggdrasil_path, yggdrasil_build_tarballs_path(new_name)))
+        if case_insensitive_repo_file_exists(ygg, yggdrasil_build_tarballs_path(new_name))
             println(state.outs, "A build recipe with that name already exists within Yggdrasil.")
 
             if yn_prompt(state, "Choose a new project name?", :y) == :n
