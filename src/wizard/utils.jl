@@ -33,6 +33,9 @@ function line_prompt(name, msg; ins=stdin, outs=stdout, force_identifier=false, 
         else
             val = strip(read(_getpass(ins), String))
         end
+        if !isopen(ins)
+            throw(InterruptException())
+        end
         println(outs)
         if !isempty(val) && force_identifier && !Base.isidentifier(val)
             printstyled(outs, "$(name) must be an identifier!\n", color=:red)
