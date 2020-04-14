@@ -1,0 +1,48 @@
+name: CI
+
+on:
+  push:
+    branches:
+      - master
+      - gh-pages # For building documentation
+      - /^testing-.*$/ # testing branches
+      - /^v[0-9]+\.[0-9]+\.[0-9]+$/ # version tags
+    tags: ["*"]
+  pull_request:
+
+env:
+  BINARYBUILDER_AUTOMATIC_APPLE: true
+
+jobs:
+  test:
+    runs-on: [self-hosted, arctic3]
+    strategy:
+      fail-fast: false
+        arch:
+          - x64
+        include:
+          # Add a job that uses the privileged builder with squashfs shards
+          - env:
+              - BINARYBUILDER_RUNNER: privileged
+              - BINARYBUILDER_USE_SQUASHFS: true
+
+          # Add a job that uses the unprivileged builder with unpacked shards
+          - env:
+              - BINARYBUILDER_RUNNER: unprivileged
+              - BINARYBUILDER_USE_SQUASHFS: false
+
+          # Add a job that uses the docker builder with unpacked shards
+          - env:
+              - BINARYBUILDER_RUNNER: docker
+              - BINARYBUILDER_USE_SQUASHFS: false
+    steps:
+      - uses: actions/checkout@v2
+      - uses: julia-actions/julia-buildpkg@latest
+      # - name: Setup git user
+      #   run: |
+      #     git config --global user.name "Binary Builder"
+      #     git config --global user.email "binary.builder@julialang.org"
+      - uses: julia-actions/julia-runtest@latest
+      - uses: julia-actions/julia-uploadcodecov@latest
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
