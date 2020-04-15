@@ -125,12 +125,12 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 using Libdl
                 try
                     dlopen($(repr(f)))
-                    return 0
+                    exit(0)
                 catch e
                     if $(repr(verbose))
                         Base.display_error(e)
                     end
-                    return 1
+                    exit(1)
                 end
             """
             try
