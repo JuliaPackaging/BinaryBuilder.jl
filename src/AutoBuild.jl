@@ -876,7 +876,8 @@ function rebuild_jll_package(obj::Dict;
                              build_version = nothing,
                              gh_org::String = "JuliaBinaryWrappers",
                              verbose::Bool = false,
-                             lazy_artifacts::Bool = false)
+                             lazy_artifacts::Bool = false,
+                             from_scratch::Bool = true)
     if build_version === nothing
         build_version = BinaryBuilder.get_next_wrapper_version(obj["name"], obj["version"])
     end
@@ -900,6 +901,7 @@ function rebuild_jll_package(obj::Dict;
         upload_prefix;
         verbose=verbose,
         lazy_artifacts = lazy_artifacts,
+        from_scratch = from_scratch
     )
 end
 
