@@ -765,6 +765,9 @@ function autobuild(dir::AbstractString,
             end
         end
 
+        # Compress log files
+        compress_dir(joinpath(dest_prefix.path, "logs"), verbose=verbose)
+
         # Once we're built up, go ahead and package this dest_prefix out
         tarball_path, tarball_hash, git_hash = package(
             dest_prefix,
