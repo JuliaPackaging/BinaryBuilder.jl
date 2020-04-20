@@ -322,7 +322,7 @@ function obtain_source(state::WizardState)
 end
 
 function get_name_and_version(state::WizardState)
-    ygg = get_yggdrasil()
+    ygg = LibGit2.GitRepo(get_yggdrasil())
 
     while state.name === nothing
         msg = "Enter a name for this project.  This will be used for filenames:"

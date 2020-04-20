@@ -15,7 +15,7 @@ function get_yggdrasil()
         end
     end
     global yggdrasil_updated = true
-    return LibGit2.GitRepo(yggdrasil_dir)
+    return yggdrasil_dir
 end
 
 # We only want to update the registry once per run
@@ -73,7 +73,7 @@ end
 
 function with_yggdrasil_pr(f::Function, pr_number::Integer)
     # Get Yggdrasil, then force it to fetch our pull request refspec
-    yggy = get_yggdrasil()
+    yggy = LibGit2.GitRepo(get_yggdrasil())
 
     # First, delete any local branch that might exist with our "pr-$(pr_number)" name:
     branch_name = "pr-$(pr_number)"
