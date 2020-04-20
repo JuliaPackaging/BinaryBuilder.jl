@@ -478,15 +478,18 @@ end
 
 """
     compress_dir(dir::AbstractString;
-                 compression_stream = GzipCompressorStream,
+                 compressor_stream = GzipCompressorStream,
+                 level::Int = 9,
                  extension::AbstractString = ".gz",
                  verbose::Bool = false)
 
-Compress all files in `dir` using the specified `compression_stream`, appending
-`extension` to the filenames and remove the original uncompressed files.
+Compress all files in `dir` using the specified `compressor_stream` with
+compression level equal to `level`, appending `extension` to the filenames.
+Remove the original uncompressed files at the end.
 """
 function compress_dir(dir::AbstractString;
-                      compression_stream = GzipCompressorStream,
+                      compressor_stream = GzipCompressorStream,
+                      level::Int = 9,
                       extension::AbstractString = ".gz",
                       verbose::Bool = false)
     if isdir(dir)
@@ -497,9 +500,9 @@ function compress_dir(dir::AbstractString;
             filename = joinpath(dir, f)
             if isfile(filename)
                 text = read(filename, String)
-                open(compression_stream, filename * extension, "w") do stream
-                    write(stream, text)
-                end
+                stream = compressor_stream(open(filename * extension, "w"); level=level)
+                write(stream, text)
+                close(stream)
                 rm(filename; force=true)
             end
         end
