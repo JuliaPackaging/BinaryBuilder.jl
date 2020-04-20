@@ -337,12 +337,11 @@ function get_name_and_version(state::WizardState)
         if case_insensitive_repo_file_exists(ygg, yggdrasil_build_tarballs_path(new_name))
             println(state.outs, "A build recipe with that name already exists within Yggdrasil.")
 
-            if yn_prompt(state, "Choose a new project name?", :y) == :n
-                break
+            if yn_prompt(state, "Choose a new project name?", :y) != :n
+                continue
             end
-        else
-            state.name = new_name
         end
+        state.name = new_name
     end
 
     msg = "Enter a version number for this project:"

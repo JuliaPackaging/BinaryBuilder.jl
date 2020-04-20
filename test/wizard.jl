@@ -86,6 +86,34 @@ function call_response(ins, outs, question, answer; newline=true)
     end
 end
 
+@testset "Wizard - Obtain source" begin
+    state = BinaryBuilder.WizardState()
+    # Use a non existing name
+    with_wizard_output(state, BinaryBuilder.get_name_and_version) do ins, outs
+        call_response(ins, outs, "Enter a name for this project", "libfoobarqux")
+        call_response(ins, outs, "Enter a version number", "1.2.3")
+    end
+    @test state.name == "libfoobarqux"
+    @test state.version == v"1.2.3"
+    state.name = nothing
+    # Use an existing name, choose a new one afterwards
+    with_wizard_output(state, BinaryBuilder.get_name_and_version) do ins, outs
+        call_response(ins, outs, "Enter a name for this project", "libcurl")
+        call_response(ins, outs, "Choose a new project name", "y")
+        call_response(ins, outs, "Enter a name for this project", "libfoobarqux")
+    end
+    @test state.name == "libfoobarqux"
+    @test state.version == v"1.2.3"
+    state.name = nothing
+    # Use an existing name, confirm the choice
+    with_wizard_output(state, BinaryBuilder.get_name_and_version) do ins, outs
+        call_response(ins, outs, "Enter a name for this project", "libcurl")
+        call_response(ins, outs, "Choose a new project name", "N")
+    end
+    @test state.name == "libcurl"
+    @test state.version == v"1.2.3"
+end
+
 # Set the state up
 function step2_state()
     state = BinaryBuilder.WizardState()
