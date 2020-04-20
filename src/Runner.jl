@@ -266,11 +266,12 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
         end
         return String[]
     end
+    gfortran_link_flags(p::Platform) = gcc_link_flags(p)
 
     # C/C++/Fortran
     gcc(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gcc $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
     gxx(io::IO, p::Platform)      = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-g++ $(gcc_flags(p))"; hash_args=true, link_only_flags=gcc_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
-    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
+    gfortran(io::IO, p::Platform) = wrapper(io, "/opt/$(aatriplet(p))/bin/$(aatriplet(p))-gfortran $(fortran_flags(p))"; allow_ccache=false, link_only_flags=gfortran_link_flags(p), unsafe_flags = allow_unsafe_flags ? String[] : ["-Ofast", "-ffast-math", "-funsafe-math-optimizations"])
     clang(io::IO, p::Platform)    = wrapper(io, "/opt/$(host_target)/bin/clang $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
     clangxx(io::IO, p::Platform)  = wrapper(io, "/opt/$(host_target)/bin/clang++ $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
     objc(io::IO, p::Platform)     = wrapper(io, "/opt/$(host_target)/bin/clang -x objective-c $(clang_flags(p))"; compile_only_flags=clang_compile_flags(p), link_only_flags=clang_link_flags(p))
