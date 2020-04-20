@@ -300,6 +300,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     function go(io::IO, p::Platform)
         env = Dict(
             "GOOS" => GOOS(p),
+            "GOROOT" => "/opt/$(host_target)/go",
             "GOARCH" => GOARCH(p),
         )
         return wrapper(io, "/opt/$(host_target)/go/bin/go"; env=env, allow_ccache=false)
