@@ -29,7 +29,7 @@ function save_last_wizard_state(state::WizardState)
     return state
 end
 
-function load_last_wizard_state()
+function load_last_wizard_state(; as_is::Bool = false)
     wizard_state_dir = get_mutable_artifact_path("wizard_state")
 
     # If no state dir exists, early-exit
@@ -40,6 +40,11 @@ function load_last_wizard_state()
     try
         state = jldopen(joinpath(wizard_state_dir, "wizard.state"), "r") do f
             return unserialize(f)
+        end
+
+        if as_is
+            # Return the state as it is, without further questions.
+            return state
         end
 
         # Looks like we had an incomplete build; ask the user if they want to continue
@@ -113,7 +118,15 @@ function run_wizard(state::Union{Nothing,WizardState} = nothing)
         # If anything goes wrong, immediately save the current wizard state
         save_last_wizard_state(state)
         if isa(err, InterruptException)
-            msg = "\n\nWizard stopped, use run_wizard() to resume.\n\n"
+            msg = "\n\nWizard stopped, use BinaryBuilder.run_wizard() to resume"
+            if state.step in (:step3, :step3_retry, :step5a, :step5b, :step5c, :step6)
+                # We allow deploying a partial script only if the wizard got at
+                # least to the interactive build and it isn't done.  `:step7`
+                # would be about to deploy, no need to suggest using `deploy()`
+                # at this stage.
+                msg *= ",\nor BinaryBuilder.deploy() to deploy the incomplete script"
+            end
+            msg *= "\n\n"
             printstyled(state.outs, msg, bold=true, color=:red)
         else
             bt = catch_backtrace()

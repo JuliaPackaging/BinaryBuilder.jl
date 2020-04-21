@@ -25,30 +25,34 @@ function print_build_tarballs(io::IO, state::WizardState)
         """
     end
 
-    stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
-    products_string = join(map(stuff) do x
-        file, kind, varname = x
+    if state.files === nothing
+        products_string = "Product[\n]"
+    else
+        stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
+        products_string = "[\n    " * join(map(stuff) do x
+            file, kind, varname = x
 
-        if kind == :executable
-            # It's very common that executable products are in `bin`,
-            # so we special-case these to just print the basename:
-            dir_path = dirname(file)
-            if isempty(dir_path) || dirname(file) == "bin"
-                return "ExecutableProduct($(repr(basename(file))), $(repr(varname)))"
+            if kind == :executable
+                # It's very common that executable products are in `bin`,
+                # so we special-case these to just print the basename:
+                dir_path = dirname(file)
+                if isempty(dir_path) || dirname(file) == "bin"
+                    return "ExecutableProduct($(repr(basename(file))), $(repr(varname)))"
+                else
+                    return "ExecutableProduct($(repr(basename(file))), $(repr(varname)), $(repr(dir_path)))"
+                end
+            elseif kind == :library
+                dir_path = dirname(file)
+                if isempty(dir_path) || dirname(file) in ("bin", "lib", "lib64")
+                    return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)))"
+                else
+                    return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)), $(repr(dir_path)))"
+                end
             else
-                return "ExecutableProduct($(repr(basename(file))), $(repr(varname)), $(repr(dir_path)))"
+                return "FileProduct($(repr(file)), $(repr(varname)))"
             end
-        elseif kind == :library
-            dir_path = dirname(file)
-            if isempty(dir_path) || dirname(file) in ("bin", "lib", "lib64")
-                return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)))"
-            else
-                return "LibraryProduct($(repr(normalize_name(file))), $(repr(varname)), $(repr(dir_path)))"
-            end
-        else
-            return "FileProduct($(repr(file)), $(repr(varname)))"
-        end
-    end,",\n    ")
+        end,",\n    ") * "\n]"
+    end
 
     if length(state.dependencies) >= 1
         psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\", uuid=\"$(getpkg(ps).uuid)\"))"
@@ -98,9 +102,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     platforms = $(platforms_string)
 
     # The products that we will ensure are always built
-    products = [
-        $(products_string)
-    ]
+    products = $(products_string)
 
     # Dependencies that must be installed before this package can be built
     dependencies = $(dependencies_string)
@@ -216,12 +218,7 @@ function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_p
     end
 end
 
-function step7(state::WizardState)
-    print(state.outs, "Your build script was:\n\n\t")
-    println(state.outs, replace(state.history, "\n" => "\n\t"))
-
-    printstyled(state.outs, "\t\t\t# Step 7: Deployment\n\n", bold=true)
-
+function _deploy(state::WizardState)
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
     deploy_select = request(terminal,
         "How should we deploy this build recipe?",
@@ -258,5 +255,28 @@ function step7(state::WizardState)
         println(state.outs, "\n```")
         print_build_tarballs(state.outs, state)
         println(state.outs, "```")
+    end
+end
+
+function step7(state::WizardState)
+    print(state.outs, "Your build script was:\n\n\t")
+    println(state.outs, replace(state.history, "\n" => "\n\t"))
+
+    printstyled(state.outs, "\t\t\t# Step 7: Deployment\n\n", bold=true)
+    _deploy(state)
+end
+
+function deploy(state::WizardState = load_last_wizard_state(; as_is = true))
+    if state.step == :done
+        println(state.outs, "This state has been already deployed")
+        return
+    end
+    if state.step in (:step1, :step2)
+        println(state.outs, "This state cannot be deployed")
+        return
+    end
+    q = "This is an incomplete state, are you sure you want to deploy it?"
+    if yn_prompt(state, q, :n) == :y
+        _deploy(state)
     end
 end
