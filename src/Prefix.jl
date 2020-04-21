@@ -2,7 +2,7 @@
 #  on disk.  Things like the name of where downloads are stored, and what
 #  environment variables must be updated to, etc...
 import Base: convert, joinpath, show, withenv
-using SHA
+using SHA, CodecZlib
 
 export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
        isinstalled,
@@ -473,5 +473,38 @@ end
 function cleanup_dependencies(prefix::Prefix, artifact_paths)
     for art_path in artifact_paths
         unsymlink_tree(art_path, joinpath(prefix, "destdir"))
+    end
+end
+
+"""
+    compress_dir(dir::AbstractString;
+                 compressor_stream = GzipCompressorStream,
+                 level::Int = 9,
+                 extension::AbstractString = ".gz",
+                 verbose::Bool = false)
+
+Compress all files in `dir` using the specified `compressor_stream` with
+compression level equal to `level`, appending `extension` to the filenames.
+Remove the original uncompressed files at the end.
+"""
+function compress_dir(dir::AbstractString;
+                      compressor_stream = GzipCompressorStream,
+                      level::Int = 9,
+                      extension::AbstractString = ".gz",
+                      verbose::Bool = false)
+    if isdir(dir)
+        if verbose
+            @info "Compressing files in $(dir)"
+        end
+        for f in readdir(dir)
+            filename = joinpath(dir, f)
+            if isfile(filename)
+                text = read(filename, String)
+                stream = compressor_stream(open(filename * extension, "w"); level=level)
+                write(stream, text)
+                close(stream)
+                rm(filename; force=true)
+            end
+        end
     end
 end

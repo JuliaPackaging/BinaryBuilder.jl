@@ -5,6 +5,7 @@ version = "0.2.4"
 
 [deps]
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 GitHub = "bc5e4493-9b4d-5f90-b8aa-2b2bcaad7a26"
 HTTP = "cd3eb016-35fb-5094-929b-558a96fad6f3"
@@ -30,6 +31,7 @@ UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
 [compat]
+CodecZlib = "0.5, 0.6, 0.7"
 GitHub = "5.1"
 HTTP = "0.8"
 JLD2 = "0.1.6"
