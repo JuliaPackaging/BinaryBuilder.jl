@@ -93,7 +93,13 @@ or develop it with
 ]dev https://github.com/MY_USERNAME/Libfoo_jll.jl.git
 ```
 
-In this way this package will be added to your environment and you will be able to use it as dependency of the builder for `Quxlib`.  If you want, you can of course in turn build and deply this package with
+Since this package is unregistered, you have to use the full [`PackageSpec`](https://julialang.github.io/Pkg.jl/stable/api/#Pkg.PackageSpec) specification to add it as dependency of the local builder for `Quxlib`:
+
+```julia
+    Dependency(PackageSpec(; name = "Libfoo_jll",  uuid = "...", url = "https://github.com/MY_USERNAME/Libfoo_jll.jl.git"))
+```
+
+You can of course in turn build and deply this package with
 
 ```
 julia --color=yes build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
