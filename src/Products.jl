@@ -103,6 +103,9 @@ struct LibraryProduct <: Product
                             dir_paths::Vector{<:AbstractString}=String[];
                             dont_dlopen::Bool=false,
                             dlopen_flags::Vector{Symbol}=Symbol[])
+        if isdefined(Base, varname)
+            error("`$(varname)` is already defined in Base")
+        end
         # catch invalid flags as early as possible
         for flag in dlopen_flags
             isdefined(Libdl, flag) || error("Libdl.$flag is not a valid flag")
@@ -315,6 +318,9 @@ struct ExecutableProduct <: Product
     the `bindir` of the given `Prefix`, named one of the given `binname`s.
     """
     function ExecutableProduct(binnames::Vector{String}, varname::Symbol, dir_path::Union{AbstractString, Nothing}=nothing)
+        if isdefined(Base, varname)
+            error("`$(varname)` is already defined in Base")
+        end
         # If some other kind of AbstractString is passed in, convert it
         if dir_path != nothing
             dir_path = string(dir_path)
@@ -408,6 +414,12 @@ a `Prefix`, must simply exist to be satisfied.
 struct FileProduct <: Product
     paths::Vector{String}
     variable_name::Symbol
+    function FileProduct(paths::Vector{String}, varname::Symbol)
+        if isdefined(Base, varname)
+            error("`$(varname)` is already defined in Base")
+        end
+        return new(paths, varname)
+    end
 end
 
 FileProduct(path::AbstractString, variable_name::Symbol) = FileProduct([path], variable_name)
