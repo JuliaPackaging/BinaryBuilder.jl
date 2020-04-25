@@ -575,6 +575,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         "prefix" => prefix,
         "bindir" => "$(prefix)/bin",
         "libdir" => libdir,
+        "includedir" => "$(prefix)/include",
 
         # Fancyness!
         "USER" => get(ENV, "USER", "julia"),

@@ -137,12 +137,14 @@ The following variables are useful to control the build script over different ta
 * `prefix`: the path to the top-directory of where all the products should be installed.  This will be the top-directory of the generated tarball
 * `libdir`: the path to the directory where the shared libraries should be installed.  This is `${prefix}/bin` when building for Windows, `${prefix}/lib` for all other platforms
 * `bindir`: the path to the directory where the executables should be installed.  This is equivalent to `${prefix}/bin`
+* `includedir`: the path to the directory where the header files should be installed.  This is equivalent to `${prefix}/include`
 * `target`: the target platform
 * `bb_full_target`: the full target platform, containing things like libstdc++ string ABI platform tags, and libgfortran version
 * `nproc`: the number of processors of the host machine, useful for parallel building (e.g., `make -j${nproc}`)
 * `nbits`: number of bits of the target architecture (usually it is either 32 or 64)
 * `proc_family`: target processor family (e.g., "intel", "power", or "arm")
 * `dlext`: extension of the shared library on the target system.  It is "dll" for Windows, "dylib" for macOS, and "so" for the other Unix systems
+* `exeext`: extension of the executable on the target system, including the dot if present.  It is ".exe" for Windows and the empty string "" for all the other target platforms
 * `SRC_NAME`: name of the project being built
 
 ## Using GCC on macOS and FreeBSD
