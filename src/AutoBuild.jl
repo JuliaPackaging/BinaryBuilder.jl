@@ -489,6 +489,10 @@ function get_concrete_platform(platform::Platform;
     return get_concrete_platform(platform, shards)
 end
 
+# XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
+get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
+    get_concrete_platform(Linux(:x86_64, libc=:musl), shards)
+
 """
     autobuild(dir::AbstractString, src_name::AbstractString,
               src_version::VersionNumber, sources::Vector,
@@ -723,6 +727,11 @@ function autobuild(dir::AbstractString,
         # Finally, error out if something isn't satisfied
         unsatisfied_so_die = false
         for p in products
+            if platform isa AnyPlatform && !(p isa FileProduct)
+                # `AnyPlatform` is by design platform-independent, so we allow
+                # only `FileProduct`s.
+                error("Cannot have $(typeof(p)) for AnyPlatform")
+            end
             if !satisfied(p, dest_prefix; verbose=verbose, platform=platform)
                 if !verbose
                     # If we never got a chance to see the verbose output, give it here:
@@ -1003,7 +1012,12 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         download_info = Tuple[
             (joinpath(bin_path, basename(tarball_name)), tarball_hash),
         ]
-        bind_artifact!(artifacts_toml, src_name, git_hash; platform=platform, download_info=download_info, force=true, lazy=lazy_artifacts)
+        if platform isa AnyPlatform
+            # AnyPlatform begs for a platform-independent artifact
+            bind_artifact!(artifacts_toml, src_name, git_hash; download_info=download_info, force=true, lazy=lazy_artifacts)
+        else
+            bind_artifact!(artifacts_toml, src_name, git_hash; platform=platform, download_info=download_info, force=true, lazy=lazy_artifacts)
+        end
 
         # Generate the platform-specific wrapper code
         open(joinpath(code_dir, "src", "wrappers", "$(triplet(platform)).jl"), "w") do io
@@ -1172,8 +1186,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
     end
 
     # Generate target-demuxing main source file.
-    open(joinpath(code_dir, "src", "$(src_name)_jll.jl"), "w") do io
-        print(io, """
+    jll_jl = """
         module $(src_name)_jll
 
         if VERSION < v"1.3.0-rc4"
@@ -1202,32 +1215,47 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
         const PATH_list = String[]
         const LIBPATH_list = String[]
 
-        # Load Artifacts.toml file
-        artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
+        """
+    if Set(platforms) == Set([AnyPlatform()])
+        # We know directly the wrapper we want to include
+        jll_jl *= """
+            include(joinpath(@__DIR__, "wrappers", "any.jl"))
+            """
+    else
+        jll_jl *= """
+            # Load Artifacts.toml file
+            artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
 
-        # Extract all platforms
-        artifacts = Pkg.Artifacts.load_artifacts_toml(artifacts_toml; pkg_uuid=$(repr(jll_uuid("$(src_name)_jll"))))
-        platforms = [Pkg.Artifacts.unpack_platform(e, $(repr(src_name)), artifacts_toml) for e in artifacts[$(repr(src_name))]]
+            # Extract all platforms
+            artifacts = Pkg.Artifacts.load_artifacts_toml(artifacts_toml; pkg_uuid=$(repr(jll_uuid("$(src_name)_jll"))))
+            platforms = [Pkg.Artifacts.unpack_platform(e, $(repr(src_name)), artifacts_toml) for e in artifacts[$(repr(src_name))]]
 
-        # Filter platforms based on what wrappers we've generated on-disk
-        filter!(p -> isfile(joinpath(@__DIR__, "wrappers", replace(triplet(p), "arm-" => "armv7l-") * ".jl")), platforms)
+            # Filter platforms based on what wrappers we've generated on-disk
+            filter!(p -> isfile(joinpath(@__DIR__, "wrappers", replace(triplet(p), "arm-" => "armv7l-") * ".jl")), platforms)
 
-        # From the available options, choose the best platform
-        best_platform = select_platform(Dict(p => triplet(p) for p in platforms))
+            # From the available options, choose the best platform
+            best_platform = select_platform(Dict(p => triplet(p) for p in platforms))
 
-        # Silently fail if there's no binaries for this platform
-        if best_platform === nothing
-            @debug("Unable to load $(src_name); unsupported platform \$(triplet(platform_key_abi()))")
-        else
-            # Load the appropriate wrapper.  Note that on older Julia versions, we still
-            # say "arm-linux-gnueabihf" instead of the more correct "armv7l-linux-gnueabihf",
-            # so we manually correct for that here:
-            best_platform = replace(best_platform, "arm-" => "armv7l-")
-            include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
-        end
+            # Silently fail if there's no binaries for this platform
+            if best_platform === nothing
+                @debug("Unable to load $(src_name); unsupported platform \$(triplet(platform_key_abi()))")
+            else
+                # Load the appropriate wrapper.  Note that on older Julia versions, we still
+                # say "arm-linux-gnueabihf" instead of the more correct "armv7l-linux-gnueabihf",
+                # so we manually correct for that here:
+                best_platform = replace(best_platform, "arm-" => "armv7l-")
+                include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
+            end
+            """
+    end
+    jll_jl *= """
 
         end  # module $(src_name)_jll
-        """)
+        """
+
+
+    open(joinpath(code_dir, "src", "$(src_name)_jll.jl"), "w") do io
+        print(io, jll_jl)
     end
 
     product_names(p::ExecutableProduct) = p.binnames
@@ -1242,7 +1270,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
 
               This is an autogenerated package constructed using [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/BinaryBuilder.jl).
 
-              For more details about JLL package, see `BinaryBuilder.jl` [documentation](https://juliapackaging.github.io/BinaryBuilder.jl/dev/jll/).
+              For more details about JLL packages, see `BinaryBuilder.jl` [documentation](https://juliapackaging.github.io/BinaryBuilder.jl/dev/jll/).
 
               """,
               iszero(length(keys(products_info))) ? "" :

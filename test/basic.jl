@@ -60,6 +60,18 @@ end
     @test !any(opt_out_fx .== [Linux(:i686 , libc=:glibc)])
 end
 
+@testset "AnyPlatform" begin
+    # Test some AnyPlatform properties
+    @test triplet(AnyPlatform()) == "any"
+    @test Pkg.BinaryPlatforms.platform_name(AnyPlatform()) == "AnyPlatform"
+
+    # In the build environment we want AnyPlatform to look like x86_64-linux-musl
+    @test BinaryBuilder.get_concrete_platform(AnyPlatform(); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9") ==
+        BinaryBuilder.get_concrete_platform(Linux(:x86_64, libc=:musl); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9")
+    @test BinaryBuilder.choose_shards(AnyPlatform()) == BinaryBuilder.choose_shards(Linux(:x86_64, libc=:musl))
+    @test BinaryBuilder.aatriplet(AnyPlatform()) == BinaryBuilder.aatriplet(Linux(:x86_64, libc=:musl))
+end
+
 @testset "Target properties" begin
     for p in [Linux(:i686), Windows(:i686), Linux(:armv7l)]
         @test BinaryBuilder.nbits(p) == 32
