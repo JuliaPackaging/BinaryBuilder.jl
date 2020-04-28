@@ -71,6 +71,40 @@ julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Windows(:i686))'
 ```
 will open a shell in a Windows 32-bit build environment, without any source loaded.  The current working directory of your system will be mounted on `${WORKSPACE}` within this BinaryBuilder environment.
 
+### Can I publish a JLL package locally without going through Yggdrasil?
+
+You can always build a JLL package on your machine with the `--deploy` flag to the `build_tarballs.jl` script.  Read the help (`--help`) for more information.
+
+A common use case is that you want to build a JLL package for, say, `Libfoo`, that will be used as dependency to build `Quxlib`, and you want to make sure that building both `Libfoo` and `Quxlib` will work before submitting all the pull requests to [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/).  You can prepare the `build_tarballs.jl` script for `Libfoo` and then build and deploy it with
+
+```
+julia --color=yes build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Libfoo_jll.jl"
+```
+
+replacing `MY_USERNAME` with your GitHub username: this will build the tarballs for all the platforms requested and upload them to a release of the `MY_USERNAME/Libfoo_jll.jl`, where the JLL package will aslo be created.  As explained above, you can pass argument the list of triplets of the platforms for you which you want to build the tarballs, in case you want to compile only some of them.  In the Julia REPL, you can install this package as any unregistered package with
+
+```julia
+]add https://github.com/MY_USERNAME/Libfoo_jll.jl.git
+```
+
+or develop it with
+
+```julia
+]dev https://github.com/MY_USERNAME/Libfoo_jll.jl.git
+```
+
+Since this package is unregistered, you have to use the full [`PackageSpec`](https://julialang.github.io/Pkg.jl/stable/api/#Pkg.PackageSpec) specification to add it as dependency of the local builder for `Quxlib`:
+
+```julia
+    Dependency(PackageSpec(; name = "Libfoo_jll",  uuid = "...", url = "https://github.com/MY_USERNAME/Libfoo_jll.jl.git"))
+```
+
+You can of course in turn build and deply this package with
+
+```
+julia --color=yes build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
+```
+
 ### Can I install packages in the build environment?
 
 Yes, but it's unlikely that you'll need to.  The build environment is based on Alpine Linux (triplet: `x86_64-linux-musl`) so you can use [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management) to install packages in it.  However, if you need runtime libraries or programs for the target system these packages won't help you.  The package manager is useful only to install utilities, tools or libraries that are needed exclusively at compile time on the build system.
