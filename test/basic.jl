@@ -95,7 +95,7 @@ end
 @testset "Products" begin
     @test_throws ErrorException LibraryProduct("sin", :sin)
     @test_throws ErrorException ExecutableProduct("convert", :convert)
-    @test_throws ErrorException FileeProduct("open", :open)
+    @test_throws ErrorException FileProduct("open", :open)
 end
 
 # Are we using docker? If so, test that the docker runner works...
