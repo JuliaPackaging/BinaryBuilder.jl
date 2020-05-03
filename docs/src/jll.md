@@ -14,7 +14,7 @@ and then loaded with
 using NAME_jll
 ```
 However, most users will not ever need to do these steps on their own, JLL
-packages are usually only used as dependency of packages wrapping binary
+packages are usually only used as dependencies of packages wrapping binary
 libraries or executables.
 
 Most JLL packages live under the
@@ -126,7 +126,7 @@ package providing all the main three products, have a look at
 
 A [`LibraryProduct`](@ref) is a shared library that can be
 [`ccall`](https://docs.julialang.org/en/v1/manual/calling-c-and-fortran-code/)ed
-from Julia.  Assuming that the product is called `libdataproc`, te wrapper
+from Julia.  Assuming that the product is called `libdataproc`, the wrapper
 defines the following variables:
 
 * `libdataproc`: this is the exported
@@ -149,7 +149,7 @@ should run by the user in the following way:
 
 ```julia
 mungify_exe() do exe
-    run(`exe $arguments`)
+    run(`$exe $arguments`)
 end
 ```
 
@@ -163,7 +163,7 @@ call the binary with
 A common point of confusion about `ExecutableProduct`s in JLL packages is why
 this function is needed: while in principle you could directly run the
 executable directly by using its absolute path in `run`, this wrapper function
-ensures that the executable will find the shared library it needs while running.
+ensures that the executable will find all shared libraries it needs while running.
 
 In addition to the function called `mungify_exe`, for this product there will be
 the following unexported variables:
