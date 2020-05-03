@@ -6,6 +6,7 @@ makedocs(
     pages = [
         "Home" => "index.md",
         "Building Packages" => "build_tips.md",
+        "JLL packages" => "jll.md",
         "FAQ" => "FAQ.md",
         "Internals" => [
             "RootFS" => "rootfs.md",
