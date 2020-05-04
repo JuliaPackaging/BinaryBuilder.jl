@@ -272,6 +272,23 @@ end
     end
 end
 
+@testset "AnyPlatform" begin
+    mktempdir() do build_path
+        # Test that having a LibraryProduct for AnyPlatform raises an error
+        @test_throws ErrorException autobuild(
+            build_path,
+            "libfoo",
+            v"1.0.0",
+            [DirectorySource(build_tests_dir)],
+            libfoo_cmake_script,
+            [AnyPlatform()],
+            libfoo_products,
+            # No dependencies
+            Dependency[]
+        )
+    end
+end
+
 @testset "Building from remote file" begin
     build_output_meta = nothing
     mktempdir() do build_path
@@ -318,7 +335,6 @@ end
             build_path,
             "libfoo",
             v"1.0.0",
-            # No sources
             [DirectorySource(build_tests_dir)],
             # Build the test suite, install the binaries into our prefix's `bin`
             libfoo_cmake_script,

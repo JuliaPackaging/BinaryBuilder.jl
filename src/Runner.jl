@@ -38,6 +38,8 @@ exeext(p::Platform) = error("Unknown exeext for platform $(p)")
 function aatriplet(p::Platform)
     return replace(triplet(abi_agnostic(p)), "armv7l" => "arm")
 end
+# XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
+aatriplet(p::AnyPlatform) = aatriplet(Linux(:x86_64, libc=:musl))
 
 """
     generate_compiler_wrappers!(platform::Platform; bin_path::AbstractString,

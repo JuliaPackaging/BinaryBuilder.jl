@@ -503,6 +503,9 @@ function choose_shards(p::Platform;
     return shards
 end
 
+# XXX: we want AnyPlatform to look like `x86_64-linux-musl` in the build environment.
+choose_shards(::AnyPlatform; kwargs...) = choose_shards(Linux(:x86_64, libc=:musl); kwargs...)
+
 """
     supported_platforms(;exclude::Union{Vector{<:Platform},Function}=x->false)
 
