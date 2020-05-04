@@ -91,6 +91,13 @@ end
     @test BinaryBuilder.exeext(Windows(:i686)) == ".exe"
 end
 
+
+@testset "Products" begin
+    @test_throws ErrorException LibraryProduct("sin", :sin)
+    @test_throws ErrorException ExecutableProduct("convert", :convert)
+    @test_throws ErrorException FileProduct("open", :open)
+end
+
 # Are we using docker? If so, test that the docker runner works...
 @testset "Runner utilities" begin
     # Test that is_ecryptfs works for something we're certain isn't encrypted
