@@ -351,7 +351,7 @@ function repr(p::ExecutableProduct)
 end
 
 """
-    locate(fp::ExecutableProduct, prefix::Prefix;
+    locate(ep::ExecutableProduct, prefix::Prefix;
            platform::Platform = platform_key_abi(),
            verbose::Bool = false,
            isolate::Bool = false)
