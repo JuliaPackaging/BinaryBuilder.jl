@@ -274,6 +274,24 @@ end
 
 @testset "AnyPlatform" begin
     mktempdir() do build_path
+        build_output_meta = autobuild(
+            build_path,
+            "header",
+            v"1.0.0",
+            # No sources
+            DirectorySource[],
+            raw"""
+            mkdir -p ${includedir}/
+            touch ${includedir}/libqux.h
+            install_license /usr/share/licenses/MIT
+            """,
+            [AnyPlatform()],
+            [FileProduct("include/libqux.h", :libqux_h)],
+            # No dependencies
+            Dependency[]
+        )
+        @test haskey(build_output_meta, AnyPlatform())
+
         # Test that having a LibraryProduct for AnyPlatform raises an error
         @test_throws ErrorException autobuild(
             build_path,
