@@ -1034,12 +1034,15 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
             # The LIBPATH is called different things on different platforms
             if platform isa Windows
                 LIBPATH_env = "PATH"
+                LIBPATH_default = ""
                 pathsep = ';'
             elseif platform isa MacOS
                 LIBPATH_env = "DYLD_FALLBACK_LIBRARY_PATH"
+                LIBPATH_default = "~/lib:/usr/local/lib:/lib:/usr/lib"
                 pathsep = ':'
             else
                 LIBPATH_env = "LD_LIBRARY_PATH"
+                LIBPATH_default = ""
                 pathsep = ':'
             end
 
@@ -1048,6 +1051,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
             PATH = ""
             LIBPATH = ""
             LIBPATH_env = $(repr(LIBPATH_env))
+            LIBPATH_default = $(repr(LIBPATH_default))
             """)
 
             # Next, begin placing products
@@ -1079,7 +1083,7 @@ function build_jll_package(src_name::String, build_version::VersionNumber, code_
                         end
                     end
                     if adjust_LIBPATH
-                        if !isempty(get(ENV, LIBPATH_env, ""))
+                        if !isempty(get(ENV, LIBPATH_env, expanduser(LIBPATH_default)))
                             env_mapping[LIBPATH_env] = string(LIBPATH, $(repr(pathsep)), ENV[LIBPATH_env])
                         else
                             env_mapping[LIBPATH_env] = LIBPATH
