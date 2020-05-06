@@ -51,6 +51,7 @@ import BinaryBuilder: sourcify, dependencify, major, minor, patch, version
         @test all(haskey.(Ref(meta), ("name", "version", "script", "platforms", "products", "dependencies")))
         @test meta["name"] == "libfoo"
         @test meta["version"] == v"1.0.0"
+        @test Set(meta["platforms"]) == Set([Linux(:x86_64, libc=:glibc), Windows(:x86_64)])
         @test length(meta["sources"]) == 3
         @test all(in.(
               (

@@ -51,7 +51,7 @@ function cleanup_merged_object!(meta::Dict)
     end
     meta["products"] = Product[reconstruct_product(p) for p in meta["products"]]
 
-    if haskey(meta, "platform")
+    if haskey(meta, "platforms")
         # Convert platforms back to actual Platform objects
         meta["platforms"] = [platform_key_abi(p) for p in meta["platforms"]]
     else
