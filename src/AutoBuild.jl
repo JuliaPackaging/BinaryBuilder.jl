@@ -161,7 +161,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # If the user passed in a platform (or a few, comma-separated) on the
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
-        platforms = platform_key_abi.(split(ARGS[1], ","))
+        _platform_key_abi(p::AbstractString) = p == "any" ? AnyPlatform() : platform_key_abi(p)
+        platforms = _platform_key_abi.(split(ARGS[1], ","))
     end
 
     # Check to make sure we have the necessary environment stuff
@@ -570,16 +571,20 @@ function autobuild(dir::AbstractString,
     @nospecialize
     # If they've asked for the JSON metadata, by all means, give it to them!
     if meta_json_stream !== nothing
-        println(meta_json_stream, JSON.json(Dict(
+        dict = Dict(
             "name" => src_name,
             "version" => "v$(src_version)",
             "sources" => sources,
             "script" => script,
-            "platforms" => triplet.(platforms),
             "products" => products,
             "dependencies" => dependencies,
             "lazy_artifacts" => lazy_artifacts,
-        )))
+        )
+        # Do not write the list of platforms when building only for `AnyPlatform`
+        if platforms != [AnyPlatform()]
+            dict["platforms"] = triplet.(platforms)
+        end
+        println(meta_json_stream, JSON.json(dict))
         return Dict()
     end
 

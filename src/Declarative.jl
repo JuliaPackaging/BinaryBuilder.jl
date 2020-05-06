@@ -51,8 +51,14 @@ function cleanup_merged_object!(meta::Dict)
     end
     meta["products"] = Product[reconstruct_product(p) for p in meta["products"]]
 
-    # Convert platforms back to actual Platform objects
-    meta["platforms"] = [platform_key_abi(p) for p in meta["platforms"]]
+    if haskey(meta, "platform")
+        # Convert platforms back to actual Platform objects
+        meta["platforms"] = [platform_key_abi(p) for p in meta["platforms"]]
+    else
+        # If the key isn't there it's because this is a platform-independent
+        # build, so use `AnyPlatform()`.
+        meta["platforms"] = [AnyPlatform()]
+    end
 
     # Return the cleaned-up meta for fun
     return meta

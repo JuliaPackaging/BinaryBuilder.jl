@@ -4,7 +4,7 @@ import BinaryBuilder: sourcify, dependencify, major, minor, patch, version
 
 @testset "Meta JSON" begin
     mktempdir() do tmpdir
-        meta_json_buff = IOBuffer() 
+        meta_json_buff = IOBuffer()
         # Run autobuild() a few times to generate a moderately complex `meta.json`:
         build_output_meta = autobuild(
             tmpdir,
@@ -85,5 +85,39 @@ import BinaryBuilder: sourcify, dependencify, major, minor, patch, version
         @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia), LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL]), FrameworkProduct("fooFramework", :libfooFramework)), Ref(meta["products"])))
         @test length(meta["script"]) == 2
         @test all(in.(("exit 0", "exit 1"), Ref(meta["script"])))
+    end
+
+    @testset "AnyPlatform" begin
+        mktempdir() do tmpdir
+            meta_json_buff = IOBuffer()
+            build_output_meta = autobuild(
+                tmpdir,
+                "any_file",
+                v"1.0.0",
+                FileSource[],
+                "exit 1",
+                [AnyPlatform()],
+                Product[FileProduct("file", :file)],
+                BuildDependency[];
+                meta_json_stream=meta_json_buff,
+            )
+            @test build_output_meta == Dict()
+            # Deserialize the info:
+            seekstart(meta_json_buff)
+            # Strip out ending newlines as that makes our while loop below sad
+            meta_json_buff = IOBuffer(strip(String(take!(meta_json_buff))))
+            objs = []
+            while !eof(meta_json_buff)
+                push!(objs, JSON.parse(meta_json_buff))
+            end
+            # Ensure that we get one JSON object
+            @test length(objs) == 1
+            # Platform-independent build: the JSON file doesn't have a "platforms" key
+            @test !haskey(objs[1], "platforms")
+            # Merge them, then test that the merged object contains everything we expect
+            meta = BinaryBuilder.cleanup_merged_object!(BinaryBuilder.merge_json_objects(objs))
+            # The "platforms" key comes back in the cleaned up object
+            @test meta["platforms"] == [AnyPlatform()]
+        end
     end
 end
