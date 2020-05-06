@@ -189,6 +189,12 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
             This is not an interactive Julia session, so we will not prompt you
             to download and install the macOS SDK.  Because you have not agreed
             to the Xcode license terms, we will not be able to build for MacOS.
+            Please read the Apple and Xcode SDK agreement for more information
+            on the restrictions and legal terms you agree to when using the SDK
+            to build software: https://images.apple.com/legal/sla/docs/xcode.pdf.
+            Should you then wish to agree to them, you can do so by setting the
+            environment variable BINARYBUILDER_AUTOMATIC_APPLE to `true` and then
+            restarting this computation.
             """)
             @error(msg)
             error("macOS SDK not installable")
