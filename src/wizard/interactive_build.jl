@@ -296,6 +296,8 @@ function interactive_build(state::WizardState, prefix::Prefix,
 
     had_patches = false
     script_successful = false
+    server = nothing
+    fpath = nothing
     try
         if srcdir_overlay
             mkpath(joinpath(prefix, "metadir", "upper"))
@@ -321,9 +323,9 @@ function interactive_build(state::WizardState, prefix::Prefix,
         if isdir(workdir)
             rm(workdir)
         end
-        if @isdefined server
+        if server !== nothing
             close(server)
-            rm(fpath)
+            rm(fpath; force=true)
         end
     end
 
