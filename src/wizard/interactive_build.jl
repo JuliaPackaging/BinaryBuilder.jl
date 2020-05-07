@@ -199,6 +199,87 @@ function diff_srcdir(state::WizardState, prefix::Prefix, ur::Runner)
     return false
 end
 
+function bb_add(client, state::WizardState, prefix::Prefix, platform::Platform, jll::AbstractString)
+    if any(dep->getpkg(dep).name == jll, state.dependencies)
+        println(client, "ERROR: Package was already added")
+        return
+    end
+    new_dep = Dependency(jll)
+    try
+        # This will redo some work, but that may be ok
+        concrete_platform = get_concrete_platform(platform;
+                                                  preferred_gcc_version = state.preferred_gcc_version,
+                                                  preferred_llvm_version = state.preferred_llvm_version,
+                                                  compilers = state.compilers)
+        setup_dependencies(prefix, getpkg.([state.dependencies; new_dep]), concrete_platform)
+        push!(state.dependencies, new_dep)
+    catch e
+        showerror(client, e)
+    end
+end
+
+using ArgParse
+
+function bb_parser()
+    s = ArgParseSettings()
+
+    @add_arg_table! s begin
+        "add"
+            help = "Add a jll package as if specified at the start of the wizard"
+            action = :command
+    end
+
+    @add_arg_table! s["add"] begin
+        "jll"
+        help = "The jll to add"
+        required = true
+    end
+
+    s
+end
+
+function setup_bb_service(state::WizardState, prefix, platform)
+    fpath = joinpath(prefix, "metadir", "bb_service")
+    server = listen(fpath)
+    @async begin
+        while isopen(server)
+            client = accept(server)
+            function client_error(err)
+                println(client, "ERROR: $err")
+                close(client)
+            end
+            @async while isopen(client)
+                try
+                    cmd = readline(client)
+                    ARGS = split(cmd, " ")
+                    s = bb_parser()
+                    try
+                        popfirst!(ARGS)
+                        parsed = parse_args(ARGS, s)
+                        if parsed == nothing
+                        elseif parsed["%COMMAND%"] == "add"
+                            bb_add(client, state, prefix, platform, parsed["add"]["jll"])
+                        end
+                        close(client)
+                    catch e
+                        if isa(e, ArgParseError)
+                            println(client, "ERROR: ", e.text, "\n")
+                            ArgParse.show_help(client, s)
+                            close(client)
+                        else
+                            rethrow(e)
+                        end
+                    end
+                catch e
+                    showerror(stderr, e)
+                    close(client)
+                end
+            end
+        end
+    end
+    (fpath, server)
+end
+
 """
     interactive_build(state::WizardState, prefix::Prefix,
                       ur::Runner, build_path::AbstractString)
@@ -207,13 +288,16 @@ end
     reproducible steps for building this source. Shared between steps 3 and 5
 """
 function interactive_build(state::WizardState, prefix::Prefix,
-                           ur::Runner, build_path::AbstractString;
+                           ur::Runner, build_path::AbstractString,
+                           platform::Platform;
                            hist_modify = string, srcdir_overlay = true)
     histfile = joinpath(prefix, "metadir", ".bash_history")
     cmd = `/bin/bash -l`
 
     had_patches = false
     script_successful = false
+    server = nothing
+    fpath = nothing
     try
         if srcdir_overlay
             mkpath(joinpath(prefix, "metadir", "upper"))
@@ -226,6 +310,8 @@ function interactive_build(state::WizardState, prefix::Prefix,
             cmd = `/bin/bash -c $cmd`
         end
 
+        (fpath, server) = setup_bb_service(state, prefix, platform)
+
         script_successful = run_interactive(ur, ignorestatus(cmd), stdin=state.ins, stdout=state.outs, stderr=state.outs)
 
         had_patches = srcdir_overlay && diff_srcdir(state, prefix, ur)
@@ -236,6 +322,10 @@ function interactive_build(state::WizardState, prefix::Prefix,
         workdir = joinpath(prefix, "metadir", "work", "work")
         if isdir(workdir)
             rm(workdir)
+        end
+        if server !== nothing
+            close(server)
+            rm(fpath; force=true)
         end
     end
 
@@ -301,7 +391,7 @@ function step3_interactive(state::WizardState, prefix::Prefix,
                            platform::Platform,
                            ur::Runner, build_path::AbstractString, artifact_paths::Vector{String})
 
-    if interactive_build(state, prefix, ur, build_path)
+    if interactive_build(state, prefix, ur, build_path, platform)
         # Unsymlink all the deps from the dest_prefix before moving to the next step
         cleanup_dependencies(prefix, artifact_paths)
         state.step = :step3_retry
@@ -520,7 +610,7 @@ function step5_internal(state::WizardState, platform::Platform)
                     )
 
                     if choice == 1
-                        if interactive_build(state, prefix, ur, build_path;
+                        if interactive_build(state, prefix, ur, build_path, platform;
                                           hist_modify = function(olds, s)
                             """
                             $olds
@@ -563,7 +653,7 @@ function step5_internal(state::WizardState, platform::Platform)
                             preferred_llvm_version=state.preferred_llvm_version,
                         )
 
-                        if interactive_build(state, prefix, ur, build_path;
+                        if interactive_build(state, prefix, ur, build_path, platform;
                                           hist_modify = function(olds, s)
                             """
                             if [ \$target != "$(triplet(platform))" ]; then
