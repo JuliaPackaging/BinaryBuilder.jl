@@ -660,10 +660,12 @@ function autobuild(dir::AbstractString,
 
         # If we're running as `bash`, then use the `DEBUG` and `ERR` traps
         if [ \$(basename \$0) = "bash" ]; then
-            trap "trap - DEBUG INT TERM ERR EXIT; \\
+            trap "RET=\\\$?; \\
+                  trap - DEBUG INT TERM ERR EXIT; \\
                   set +e +x; \\
                   auto_install_license; \\
-                  save_env" \\
+                  save_env; \\
+                  exit \\\$RET" \\
                 EXIT
 
             trap "RET=\\\$?; \\
