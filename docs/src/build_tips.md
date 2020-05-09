@@ -106,6 +106,21 @@ Examples of builders that depend on other binaries include:
 
 * [ImageMagick](https://github.com/JuliaPackaging/Yggdrasil/blob/029e588412f232f215e5e6a7564693d3dbf8e922/I/ImageMagick/build_tarballs.jl#L32-L35) depends on `Zlib`, `libpng`, `JpegTurbo` and `Libtiff`.
 
+## Building a platform-independent package
+
+`BinaryBuilder.jl` is particularly useful to build packages involving shared libraries and binary executables.  There is little benefit in using this package to build a package that would be platform-independent, for example to install a dataset to be used in a Julia package on the user's machine.  For this purpose a simple [`Artifacts.toml`](https://julialang.github.io/Pkg.jl/v1/artifacts/#Artifacts.toml-files-1) file generated with [`create_artifact`](https://julialang.github.io/Pkg.jl/v1/artifacts/#Using-Artifacts-1) would do exactly the same job.  Nevertheless, there are cases where a platform-independent JLL package would still be useful, for example to build a package containing only header files that will be used as dependency of other packages.  To build a platform-independent package you can use the special platform [`AnyPlatform`](@ref):
+
+```julia
+platforms = [AnyPlatform()]
+```
+
+Within the build environment, an `AnyPlatform` looks like `x86_64-linux-musl`, but this shouldn't affect your build in any way.  Note that when building a package for `AnyPlatform` you can only have products of type `FileProduct`, as all other types are platform-dependent.  The JLL package generated for an `AnyPlatform` is [platform-independent](https://julialang.github.io/Pkg.jl/v1/artifacts/#Artifact-types-and-properties-1) and can thus be installed on any machine.
+
+Example of builders using `AnyPlatform`:
+
+* [OpenCL\_Headers](https://github.com/JuliaPackaging/Yggdrasil/blob/1e069da9a4f9649b5f42547ced7273c27bd2db30/O/OpenCL_Headers/build_tarballs.jl);
+* [SPIRV\_Headers](https://github.com/JuliaPackaging/Yggdrasil/blob/1e069da9a4f9649b5f42547ced7273c27bd2db30/S/SPIRV_Headers/build_tarballs.jl).
+
 ## Editing files in the wizard
 
 In the wizard, the `vim` editor is available for editing files. But, it doesn't leave any record in the build script. One generally needs to provide patch files or use something like `sed`. If a file needs patching, we suggest using `git` to add the entire worktree to a new repo, make the changes you need, then use `git diff -p` to output a patch that can be included alongside your build recipe.
@@ -175,6 +190,14 @@ In addition to the standard Unix tools, in the build environment there are some 
   ```sh
   atomic_patch -p1 /path/to/file.patch
   ```
+* `flagon`: utility to translate some compiler-flags to the one required on the current platform.  For example, to build a shared library from a static archive:
+  ```sh
+  cc -o "${libdir}/libfoo.${dlext}" $(flagon --whole-archive) libfoo.a $(flagon --no-whole-archive) -lm
+  ```
+  The currently supported flags are:
+  * `--whole-archive`;
+  * `--no-whole-archive`;
+  * `--relative-rpath-link`.
 * `install_license`: utility to install a file to `${prefix}/share/licenses/${SRC_NAME}`:
   ```sh
   install_license ${WORKSPACE}/srcdir/THIS_IS_THE_LICENSE.md
