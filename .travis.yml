@@ -42,15 +42,6 @@ jobs:
         - BINARYBUILDER_RUNNER=docker
         - BINARYBUILDER_USE_SQUASHFS=false
 
-    # Build the docs!
-    - stage: Documentation
-      julia: 1.3
-      os: linux
-      script:
-        - julia --project=docs -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
-        - julia --project=docs --color=yes docs/make.jl
-      after_success: skip
-
 branches:
   only:
   - master
