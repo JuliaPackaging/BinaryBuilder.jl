@@ -1,7 +1,12 @@
 export AnyPlatform
 
-# A platform that matches all platforms.  This is useful for building some
-# platform-independent packages, like those containing only header files.
+"""
+    AnyPlatform()
+
+A special platform to be used to build platform-independent tarballs, like those
+containing only header files.  [`FileProduct`](@ref) is the only product type
+allowed with this platform.
+"""
 struct AnyPlatform <: Platform end
 abi_agnostic(p::AnyPlatform) = p
 Pkg.BinaryPlatforms.platform_name(::AnyPlatform) = "AnyPlatform"
