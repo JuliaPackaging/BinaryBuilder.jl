@@ -451,8 +451,12 @@ function setup_dependencies(prefix::Prefix, dependencies::Vector{PkgSpec}, platf
                 continue
             end
 
-            # Make sure the artifact is actually installed.  It may not be the case for lazy artifacts
-            ensure_artifact_installed(name[1:end-4], artifacts_toml; platform=platform)
+            # If the artifact is available for the given platform, make sure it
+            # is also installed.  It may not be the case for lazy artifacts
+            meta = artifact_meta(name[1:end-4], artifacts_toml; platform=platform)
+            if meta !== nothing
+                ensure_artifact_installed(name[1:end-4], meta, artifacts_toml; platform=platform)
+            end
 
             # Copy the artifact from the global installation location into this build-specific artifacts collection
             src_path = Pkg.Artifacts.artifact_path(artifact_hash)
