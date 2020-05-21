@@ -1,5 +1,10 @@
 include("hints.jl")
 
+# When rerunning the script generated during the wizard we want to fail on error
+# and automatically install license at the end.
+full_wizard_script(state::WizardState) =
+    "set -e\n" * state.history * "\n/bin/bash -lc auto_install_license"
+
 """
     step4(state::WizardState, ur::Runner, platform::Platform,
           build_path::AbstractString, prefix::Prefix)
@@ -433,9 +438,8 @@ function step3_retry(state::WizardState)
         preferred_gcc_version=state.preferred_gcc_version,
         preferred_llvm_version=state.preferred_llvm_version,
     )
-    full_script = state.history * "\n/bin/bash -lc auto_install_license"
     with_logfile(joinpath(build_path, "out.log")) do io
-        run(ur, `/bin/bash -c $(full_script)`, io; verbose=true, tee_stream=state.outs)
+        run(ur, `/bin/bash -c $(full_wizard_script(state))`, io; verbose=true, tee_stream=state.outs)
     end
     step3_audit(state, platform, joinpath(prefix, "destdir"))
     # Unsymlink all the deps from the dest_prefix before moving to the next step
@@ -572,9 +576,8 @@ function step5_internal(state::WizardState, platform::Platform)
                 preferred_gcc_version=state.preferred_gcc_version,
                 preferred_llvm_version=state.preferred_llvm_version,
             )
-            full_script = state.history * "\n/bin/bash -lc auto_install_license"
             with_logfile(joinpath(build_path, "out.log")) do io
-                ok = run(ur, `/bin/bash -c $(full_script)`, io; verbose=true, tee_stream=state.outs)
+                ok = run(ur, `/bin/bash -c $(full_wizard_script(state))`, io; verbose=true, tee_stream=state.outs)
             end
 
             while true
@@ -784,9 +787,8 @@ function step5c(state::WizardState)
             preferred_gcc_version=state.preferred_gcc_version,
             preferred_llvm_version=state.preferred_llvm_version,
         )
-        full_script = state.history * "\n/bin/bash -lc auto_install_license"
         with_logfile(joinpath(build_path, "out.log")) do io
-            ok = run(ur, `/bin/bash -c $(full_script)`, io; verbose=false, tee_stream=state.outs)
+            ok = run(ur, `/bin/bash -c $(full_wizard_script(state))`, io; verbose=false, tee_stream=state.outs)
         end
 
         if ok
