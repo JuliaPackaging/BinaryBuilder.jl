@@ -122,6 +122,16 @@ JLL package and detailed below.  If you want to see a concrete example of a
 package providing all the main three products, have a look at
 [`Fontconfig_jll.jl`](https://github.com/JuliaBinaryWrappers/Fontconfig_jll.jl/tree/785936d816d1ae65c2a6648f3a6acbfd72535e36).
 
+In what follows, we will use as an example a builder that has these products:
+
+```julia
+products = [
+    FileProduct("src/data.txt", :data_txt),
+    LibraryProduct("libdataproc", :libdataproc),
+    ExecutableProduct("mungify", :mungify_exe),
+]
+```
+
 ### LibraryProduct
 
 A [`LibraryProduct`](@ref) is a shared library that can be
@@ -131,12 +141,21 @@ defines the following variables:
 
 * `libdataproc`: this is the exported
   [`const`](https://docs.julialang.org/en/v1/manual/variables-and-scoping/#Constants-1)
-  variable that should be used in a `ccall`.  To make it simply, the value of
-  this variable is roughly the basename of the shared library;
+  variable that should be used in
+  [`ccall`](https://docs.julialang.org/en/v1/manual/calling-c-and-fortran-code/index.html):
+
+  ```julia
+  num_chars = ccall((:count_characters, libdataproc), Cint,
+                    (Cstring, Cint), data_lines[1], length(data_lines[1]))
+  ```
+
+  Roughly speaking, the value of this variable is the basename of the shared
+  library, not its full absolute path;
 * `libdataproc_splitpath`: the path of the shared library, relative to
   `artifact_dir`, as returned by
   [`splitpath`](https://docs.julialang.org/en/v1/base/file/#Base.Filesystem.splitpath);
-* `libdataproc_path`: the full absolute path of the shared library;
+* `libdataproc_path`: the full absolute path of the shared library.  Note that
+  this is not `const`, thus it can't be used in `ccall`;
 * `libdataproc_handle`: the address in memory of the shared library after it has
   been loaded at initialization time.
 
@@ -180,6 +199,13 @@ example, the `FileProduct` has been called `data_txt`, the only variables
 defined for it are:
 
 * `data_txt`: this exported variable has the absolute path to the mentioned
-  file;
+  file:
+
+  ```julia
+  data_lines = open(data_txt, "r") do io
+      readlines(io)
+  end
+  ```
+
 * `data_txt_path`: this unexported variable is actually equal to `data_txt`, but
   is kept for consistency with all other product types.
