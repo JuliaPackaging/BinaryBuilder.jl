@@ -195,7 +195,7 @@ function locate(lp::LibraryProduct, prefix::Prefix; platform::Platform = platfor
                     if (!lp.dont_dlopen && !skip_dlopen) && platforms_match(platform, platform_key_abi())
                         if isolate
                             # Isolated dlopen is a lot slower, but safer
-                            if success(`$(Base.julia_cmd()) -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)
+                            if success(`$(Base.julia_cmd()) --startup-file=no -e "import Libdl; Libdl.dlopen(\"$dl_path\")"`)
                                 return dl_path
                             end
                         else
