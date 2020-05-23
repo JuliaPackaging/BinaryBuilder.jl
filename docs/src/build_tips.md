@@ -29,7 +29,7 @@ It is also possible to run quite different scripts for each target by running di
 Autoconfigure builds are generally quite straightforward. Here is a typical approach:
 
 ```sh
-./configure --prefix=$prefix --host=${target}
+./configure --prefix=$prefix --build=${MACHTYPE} --host=${target}
 make -j${nproc}
 make install
 ```
