@@ -240,14 +240,14 @@ function _deploy(state::WizardState)
         )
         yggdrasil_deploy(state, yggdrasil_select == 1)
     elseif deploy_select == 2
-        filename = nonempty_line_prompt(
+        directory = nonempty_line_prompt(
             "filename",
-            "Enter path to build_tarballs.jl to write to:";
+            "Enter directory where to write build_tarballs.jl to:";
             ins=state.ins,
             outs=state.outs,
         )
-        mkpath(dirname(abspath(filename)))
-        open(filename, "w") do io
+        mkpath(directory))
+        open(joinpath(directory, "build_tarballs.jl"), "w") do io
             print_build_tarballs(io, state)
         end
     else
