@@ -206,4 +206,7 @@ In addition to the standard Unix tools, in the build environment there are some 
   ```sh
   update_configure_scripts
   ```
-  to get a newer version.
+  to get a newer version.  With the `--reconf` flag, it also runs `autoreconf -i -f` afterwards:
+  ```sh
+  update_configure_scripts --reconf
+  ```
