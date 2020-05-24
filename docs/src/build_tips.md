@@ -2,6 +2,8 @@
 
 BinaryBuilder provides a convenient environment to enable cross-platform building. But, many libraries have complicated build scripts that may need to be adapted to support all of the BinaryBuilder targets.
 
+If your build fails with some errors, look at the [Build Troubleshooting](@ref) page.
+
 *If you have additional tips, please submit a PR with suggestions.*
 
 ## Initiating different shell commands based on target
