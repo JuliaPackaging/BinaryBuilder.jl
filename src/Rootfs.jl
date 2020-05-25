@@ -169,6 +169,35 @@ function mount_path(cs::CompilerShard, build_prefix::AbstractString)
 end
 
 """
+    accept_apple_sdk(ins::IO, outs::IO) -> Bool
+
+Ask the user whether they accept the terms of the macOS SDK, and return a
+boolean with their choice.  Write messages to `outs`, read input from `ins`.
+"""
+function accept_apple_sdk(ins::IO, outs::IO)
+    msg = strip("""
+                Apple restricts distribution and usage of the macOS SDK, a necessary
+                component to build software for macOS targets.  Please read the Apple
+                and Xcode SDK agreement for more information on the restrictions and
+                legal terms you agree to when using the SDK to build software for Apple
+                operating systems: https://images.apple.com/legal/sla/docs/xcode.pdf.
+                """)
+    printstyled(outs, msg, bold=true)
+    println(outs)
+    while true
+        print(outs, "Would you like to download and use the macOS SDK? [y/N]: ")
+        answer = lowercase(strip(readline(ins)))
+        if answer == "y" || answer == "yes"
+            return true
+        elseif answer == "n" || answer == "no"
+            return false
+        else
+            println(outs, "Unrecognized answer. Answer `y` or `n`.")
+        end
+    end
+end
+
+"""
     mount(cs::CompilerShard, build_prefix::String)
 
 Mount a compiler shard, if possible.  Uses `run()` so will error out if
@@ -199,25 +228,8 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
             @error(msg)
             error("macOS SDK not installable")
         else
-            msg = strip("""
-            Apple restricts distribution and usage of the macOS SDK, a necessary
-            component to build software for macOS targets.  Please read the Apple
-            and Xcode SDK agreement for more information on the restrictions and
-            legal terms you agree to when using the SDK to build software for Apple
-            operating systems: https://images.apple.com/legal/sla/docs/xcode.pdf.
-            """)
-            printstyled(msg, bold=true)
-            println()
-            while true
-                print("Would you like to download and use the macOS SDK? [y/N]: ")
-                answer = lowercase(strip(readline(stdin)))
-                if answer == "y" || answer == "yes"
-                    break
-                elseif answer == "n" || answer == "no"
-                    error("macOS SDK not installable")
-                else
-                    println("Unrecognized answer. Answer `y` or `n`.")
-                end
+            if !accept_apple_sdk(stdin, stdout)
+                error("macOS SDK not installable")
             end
         end
     end
