@@ -8,6 +8,7 @@ makedocs(
         "Building Packages" => "build_tips.md",
         "JLL packages" => "jll.md",
         "FAQ" => "FAQ.md",
+        "Build Troubleshooting" => "troubleshooting.md",
         "Internals" => [
             "RootFS" => "rootfs.md",
             "Environment Variables" => "environment_variables.md",
@@ -19,4 +20,5 @@ makedocs(
 
 deploydocs(
     repo = "github.com/JuliaPackaging/BinaryBuilder.jl.git",
+    push_preview = true,
 )
