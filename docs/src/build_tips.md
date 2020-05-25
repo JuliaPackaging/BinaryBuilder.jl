@@ -194,7 +194,7 @@ In addition to the standard Unix tools, in the build environment there are some 
   ```
 * `flagon`: utility to translate some compiler-flags to the one required on the current platform.  For example, to build a shared library from a static archive:
   ```sh
-  cc -o "${libdir}/libfoo.${dlext}" $(flagon --whole-archive) libfoo.a $(flagon --no-whole-archive) -lm
+  cc -o "${libdir}/libfoo.${dlext}" -Wl,$(flagon --whole-archive) libfoo.a -Wl,$(flagon --no-whole-archive) -lm
   ```
   The currently supported flags are:
   * `--whole-archive`;
