@@ -246,7 +246,7 @@ function _deploy(state::WizardState)
             ins=state.ins,
             outs=state.outs,
         )
-        mkpath(directory))
+        mkpath(directory)
         open(joinpath(directory, "build_tarballs.jl"), "w") do io
             print_build_tarballs(io, state)
         end
