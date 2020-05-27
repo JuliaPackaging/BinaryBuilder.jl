@@ -458,6 +458,9 @@ function locate(fp::FileProduct, prefix::Prefix; platform::Platform = platform_k
     return nothing
 end
 
+# Necessary to get the products in the wrappers always sorted consistently
+Base.isless(x::Product, y::Product) = isless(variable_name(x), variable_name(y))
+
 # Add JSON serialization to products
 JSON.lower(ep::ExecutableProduct) = Dict("type" => "exe", extract_fields(ep)...)
 JSON.lower(lp::LibraryProduct) = Dict("type" => "lib", extract_fields(lp)...)
