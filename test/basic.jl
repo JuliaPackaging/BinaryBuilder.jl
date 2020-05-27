@@ -58,6 +58,10 @@ end
     @test length(all) == length(opt_out_specific)+1
     @test any(opt_out_specific .== [Linux(:i686 , libc=:glibc)])
     @test !any(opt_out_fx .== [Linux(:i686 , libc=:glibc)])
+
+    @test sort([Windows(:x86_64), Linux(:i686, libc=:musl), Linux(:i686, libc=:glibc), MacOS(:x86_64)],
+               by = triplet) ==
+                   [Linux(:i686, libc=:glibc), Linux(:i686, libc=:musl), MacOS(:x86_64), Windows(:x86_64)]
 end
 
 @testset "AnyPlatform" begin
@@ -108,6 +112,9 @@ end
     @test_throws ErrorException LibraryProduct("sin", :sin)
     @test_throws ErrorException ExecutableProduct("convert", :convert)
     @test_throws ErrorException FileProduct("open", :open)
+
+    @test sort([LibraryProduct("libbar", :libbar), ExecutableProduct("foo", :foo), FrameworkProduct("buzz", :buzz)]) ==
+        [FrameworkProduct("buzz", :buzz), ExecutableProduct("foo", :foo), LibraryProduct("libbar", :libbar)]
 end
 
 # Are we using docker? If so, test that the docker runner works...
