@@ -81,7 +81,7 @@ A common use case is that you want to build a JLL package for, say, `Libfoo`, th
 julia --color=yes build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Libfoo_jll.jl"
 ```
 
-replacing `MY_USERNAME` with your GitHub username: this will build the tarballs for all the platforms requested and upload them to a release of the `MY_USERNAME/Libfoo_jll.jl`, where the JLL package will aslo be created.  As explained above, you can pass argument the list of triplets of the platforms for you which you want to build the tarballs, in case you want to compile only some of them.  In the Julia REPL, you can install this package as any unregistered package with
+replacing `MY_USERNAME` with your GitHub username: this will build the tarballs for all the platforms requested and upload them to a release of the `MY_USERNAME/Libfoo_jll.jl`, where the JLL package will also be created.  As explained above, you can pass argument the list of triplets of the platforms for you which you want to build the tarballs, in case you want to compile only some of them.  In the Julia REPL, you can install this package as any unregistered package with
 
 ```julia
 ]add https://github.com/MY_USERNAME/Libfoo_jll.jl.git

@@ -104,7 +104,7 @@ See for example the builder for [Giflib](https://github.com/JuliaPackaging/Yggdr
 
 ## FreeBSD
 
-### ``undefined reference to `backtrace_symbols'``
+### ```undefined reference to `backtrace_symbols'```
 
 If compilation fails because of the following errors
 
@@ -146,7 +146,9 @@ libtool:   error: can't build i686-w64-mingw32 shared library unless -no-undefin
 
 In these cases you have to pass the `-no-undefined` option to the linker, as explicitly suggested by the second message.
 
-Doing this properly is a bit tricky: I couldn't make `CFLAGS=-Wl,-no-undefined` work, instead setting `LDFLAGS=-no-undefined` before `./configure` make this fail (because it will run a command like `cc -no-undefined conftest.c`, which upsets the compiler).  What I use to do is to pass `LDFLAGS=-no-undefined` only to `make`:
+A proper fix requires to add the `-no-undefined` flag to the `LDFLAGS` of the corresponding libtool archive in the `Makefile.am` file.  For example, this is done in [`CALCEPH`](https://github.com/JuliaPackaging/Yggdrasil/blob/d1e5159beef7fcf8c631e893f62925ca5bd54bec/C/CALCEPH/build_tarballs.jl#L19), [`ERFA`](https://github.com/JuliaPackaging/Yggdrasil/blob/d1e5159beef7fcf8c631e893f62925ca5bd54bec/E/ERFA/build_tarballs.jl#L17), and [`libsharp2`](https://github.com/JuliaPackaging/Yggdrasil/blob/d1e5159beef7fcf8c631e893f62925ca5bd54bec/L/libsharp2/build_tarballs.jl#L19).
+
+A quick and dirty alternative to patching the `Makefile.am` file is to pass `LDFLAGS=-no-undefined` only to `make`:
 
 ```sh
 FLAGS=()
@@ -158,4 +160,4 @@ make -j${nprocs} "${FLAGS[@]}"
 make install
 ```
 
-See for example [#170](https://github.com/JuliaPackaging/Yggdrasil/pull/170), [#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354).
+Note that setting `LDFLAGS=-no-undefined` before `./configure` would make this fail because it would run a command like `cc -no-undefined conftest.c`, which upsets the compiler).  See for example [#170](https://github.com/JuliaPackaging/Yggdrasil/pull/170), [#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354).
