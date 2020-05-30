@@ -113,8 +113,14 @@ end
     @test_throws ErrorException ExecutableProduct("convert", :convert)
     @test_throws ErrorException FileProduct("open", :open)
 
+    # Test sorting of products....
     @test sort([LibraryProduct("libbar", :libbar), ExecutableProduct("foo", :foo), FrameworkProduct("buzz", :buzz)]) ==
         [FrameworkProduct("buzz", :buzz), ExecutableProduct("foo", :foo), LibraryProduct("libbar", :libbar)]
+    # ...and products info
+    p1 = LibraryProduct(["libchafa"], :libchafa, ) => Dict("soname" => "libchafa.so.0","path" => "lib/libchafa.so")
+    p2 = ExecutableProduct(["chafa"], :chafa, ) => Dict("path" => "bin/chafa")
+    products_info = Dict{Product,Any}(p1, p2)
+    @test sort(products_info) == [p2, p1]
 end
 
 # Are we using docker? If so, test that the docker runner works...
