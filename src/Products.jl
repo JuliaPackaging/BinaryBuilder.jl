@@ -460,6 +460,7 @@ end
 
 # Necessary to get the products in the wrappers always sorted consistently
 Base.isless(x::Product, y::Product) = isless(variable_name(x), variable_name(y))
+Base.sort(d::Dict{Product}) = sort(collect(d), by = first)
 
 # Add JSON serialization to products
 JSON.lower(ep::ExecutableProduct) = Dict("type" => "exe", extract_fields(ep)...)
