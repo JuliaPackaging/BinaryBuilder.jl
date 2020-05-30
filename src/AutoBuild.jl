@@ -1276,7 +1276,8 @@ function build_jll_package(src_name::String,
     end
 
     is_yggdrasil = get(ENV, "YGGDRASIL", "false") == "true"
-    ygg_head = is_yggdrasil ? LibGit2.head("..") : ""
+    # Use an Azure Pipelines environment variable to get the current commit hash
+    ygg_head = is_yggdrasil ? ENV["BUILD_SOURCEVERSION"] : ""
     src_name_first = uppercase(first(src_name))
     print_source(io, s::ArchiveSource) = println(io, "* compressed archive: ", s.url, " (SHA256 checksum: `", s.hash,"`)")
     print_source(io, s::GitSource) =     println(io, "* git repository: ", s.url, " (revision: `", s.hash,"`)")
