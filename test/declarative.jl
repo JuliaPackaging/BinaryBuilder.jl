@@ -1,6 +1,6 @@
 using JSON, BinaryBuilder, Test
 
-import BinaryBuilder: sourcify, dependencify, major, minor, patch, version
+import BinaryBuilder.BinaryBuilderBase: sourcify, dependencify, major, minor, patch, version
 
 @testset "Meta JSON" begin
     mktempdir() do tmpdir

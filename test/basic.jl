@@ -1,6 +1,8 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg, UUIDs
 using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!, getpkg, build_project_dict
+using BinaryBuilder.BinaryBuilderBase
+using BinaryBuilder.Wizard
 
 @testset "File Collection" begin
     temp_prefix() do prefix
@@ -70,8 +72,8 @@ end
     @test Pkg.BinaryPlatforms.platform_name(AnyPlatform()) == "AnyPlatform"
 
     # In the build environment we want AnyPlatform to look like x86_64-linux-musl
-    @test BinaryBuilder.get_concrete_platform(AnyPlatform(); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9") ==
-        BinaryBuilder.get_concrete_platform(Linux(:x86_64, libc=:musl); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9")
+    @test BinaryBuilderBase.get_concrete_platform(AnyPlatform(); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9") ==
+        BinaryBuilderBase.get_concrete_platform(Linux(:x86_64, libc=:musl); compilers = [:c], preferred_gcc_version = v"7", preferred_llvm_version = v"9")
     @test BinaryBuilder.choose_shards(AnyPlatform()) == BinaryBuilder.choose_shards(Linux(:x86_64, libc=:musl))
     @test BinaryBuilder.aatriplet(AnyPlatform()) == BinaryBuilder.aatriplet(Linux(:x86_64, libc=:musl))
 end
@@ -95,10 +97,10 @@ end
     @test BinaryBuilder.proc_family(Linux(:powerpc64le)) == :power
 
     for p in [Linux(:aarch64), FreeBSD(:x86_64)]
-        @test BinaryBuilder.dlext(p) == "so"
+        @test BinaryBuilderBase.dlext(p) == "so"
     end
-    @test BinaryBuilder.dlext(MacOS()) == "dylib"
-    @test BinaryBuilder.dlext(Windows(:i686)) == "dll"
+    @test BinaryBuilderBase.dlext(MacOS()) == "dylib"
+    @test BinaryBuilderBase.dlext(Windows(:i686)) == "dll"
 
     for p in [Linux(:x86_64), FreeBSD(:x86_64), Linux(:powerpc64le), MacOS()]
         @test BinaryBuilder.exeext(p) == ""
@@ -134,13 +136,13 @@ end
     # Test that is_ecryptfs works for something we're certain isn't encrypted
     if isdir("/proc")
         isecfs = (false, "/proc/")
-        @test BinaryBuilder.is_ecryptfs("/proc"; verbose=true) == isecfs
-        @test BinaryBuilder.is_ecryptfs("/proc/"; verbose=true) == isecfs
-        @test BinaryBuilder.is_ecryptfs("/proc/not_a_file"; verbose=true) == isecfs
+        @test BinaryBuilderBase.is_ecryptfs("/proc"; verbose=true) == isecfs
+        @test BinaryBuilderBase.is_ecryptfs("/proc/"; verbose=true) == isecfs
+        @test BinaryBuilderBase.is_ecryptfs("/proc/not_a_file"; verbose=true) == isecfs
     else
-        @test BinaryBuilder.is_ecryptfs("/proc"; verbose=true) == (false, "/proc")
-        @test BinaryBuilder.is_ecryptfs("/proc/"; verbose=true) == (false, "/proc/")
-        @test BinaryBuilder.is_ecryptfs("/proc/not_a_file"; verbose=true) == (false, "/proc/not_a_file")
+        @test BinaryBuilderBase.is_ecryptfs("/proc"; verbose=true) == (false, "/proc")
+        @test BinaryBuilderBase.is_ecryptfs("/proc/"; verbose=true) == (false, "/proc/")
+        @test BinaryBuilderBase.is_ecryptfs("/proc/not_a_file"; verbose=true) == (false, "/proc/not_a_file")
     end
 
     if isa(preferred_runner(), BinaryBuilder.DockerRunner)
@@ -220,19 +222,19 @@ end
 @testset "Wizard Utilities" begin
     # Make sure canonicalization does what we expect
     zmq_url = "https://github.com/zeromq/zeromq3-x/releases/download/v3.2.5/zeromq-3.2.5.tar.gz"
-    @test BinaryBuilder.canonicalize_source_url(zmq_url) == zmq_url
+    @test Wizard.canonicalize_source_url(zmq_url) == zmq_url
     this_url = "https://github.com/JuliaPackaging/BinaryBuilder.jl/blob/1fee900486baedfce66ddb24872133ef36b9d899/test/wizard.jl"
     this_url_ans = "https://raw.githubusercontent.com/JuliaPackaging/BinaryBuilder.jl/1fee900486baedfce66ddb24872133ef36b9d899/test/wizard.jl"
-    @test BinaryBuilder.canonicalize_file_url(this_url) == this_url_ans
+    @test Wizard.canonicalize_file_url(this_url) == this_url_ans
 
     # Make sure normalization does what we expect
-    @test BinaryBuilder.normalize_name("foo/libfoo.tar.gz") == "libfoo"
-    @test BinaryBuilder.normalize_name("foo/libfoo-2.dll") == "libfoo"
-    @test BinaryBuilder.normalize_name("libfoo") == "libfoo"
+    @test Wizard.normalize_name("foo/libfoo.tar.gz") == "libfoo"
+    @test Wizard.normalize_name("foo/libfoo-2.dll") == "libfoo"
+    @test Wizard.normalize_name("libfoo") == "libfoo"
 end
 
 @testset "State serialization" begin
-    state = BinaryBuilder.WizardState()
+    state = Wizard.WizardState()
     state.step = :step34
     state.platforms = [Linux(:x86_64)]
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
@@ -244,18 +246,18 @@ end
     state.history = "exit 1"
 
     io = Dict()
-    BinaryBuilder.serialize(io, state)
-    new_state = BinaryBuilder.unserialize(io)
+    Wizard.serialize(io, state)
+    new_state = Wizard.unserialize(io)
 
-    for field in fieldnames(BinaryBuilder.WizardState)
+    for field in fieldnames(Wizard.WizardState)
         @test getfield(state, field) == getfield(new_state, field)
     end
 end
 
 # Test that updating Yggdrasil works
 @testset "Yggdrasil" begin
-    Core.eval(BinaryBuilder, :(yggdrasil_updated = false))
-    @test_logs (:info, r"Yggdrasil") BinaryBuilder.get_yggdrasil()
+    Core.eval(Wizard, :(yggdrasil_updated = false))
+    @test_logs (:info, r"Yggdrasil") Wizard.get_yggdrasil()
 end
 
 @testset "Tree symlinking" begin
@@ -278,7 +280,7 @@ end
         dstdir = joinpath(tmpdir, "dst")
 
         # Set up a symlink tree inside of dstdir
-        BinaryBuilder.symlink_tree(srcdir, dstdir)
+        BinaryBuilderBase.symlink_tree(srcdir, dstdir)
 
         @test isdir(dstdir)
         @test isdir(joinpath(dstdir, "dir"))
@@ -303,7 +305,7 @@ end
         symlink(joinpath("dir", "fileC"), joinpath(dstdir, "sym_fileC"))
         symlink("dir", joinpath(dstdir, "sym_dir2"))
 
-        BinaryBuilder.unsymlink_tree(srcdir, dstdir)
+        BinaryBuilderBase.unsymlink_tree(srcdir, dstdir)
 
         @test isdir(dstdir)
         @test isdir(joinpath(dstdir, "dir"))
@@ -412,7 +414,7 @@ end
             # Make sure the C++ string ABI is not set
             @test !occursin("-D_GLIBCXX_USE_CXX11_ABI", read(joinpath(bin_path, "gcc"), String))
             # Make sure gfortran doesn't uses ccache when BinaryBuilder.use_ccache is true
-            BinaryBuilder.use_ccache && @test !occursin("ccache", read(joinpath(bin_path, "gfortran"), String))
+            BinaryBuilderBase.use_ccache[] && @test !occursin("ccache", read(joinpath(bin_path, "gfortran"), String))
         end
         platform = Linux(:x86_64, libc=:musl, compiler_abi=CompilerABI(cxxstring_abi=:cxx03))
         mktempdir() do bin_path
@@ -510,8 +512,8 @@ end
     fp = FrameworkProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL, :RTLD_NOLOAD])
     @test fp.libraryproduct.dlopen_flags == [:RTLD_GLOBAL, :RTLD_NOLOAD]
     for p in (lp, fp)
-        flag_str = BinaryBuilder.dlopen_flags_str(p)
+        flag_str = BinaryBuilderBase.dlopen_flags_str(p)
         @test flag_str == ", RTLD_GLOBAL | RTLD_NOLOAD"
-        @test eval(Meta.parse(flag_str[3:end])) == (RTLD_NOLOAD | RTLD_GLOBAL)
+        @test Libdl.eval(Meta.parse(flag_str[3:end])) == (Libdl.RTLD_NOLOAD | Libdl.RTLD_GLOBAL)
     end
 end

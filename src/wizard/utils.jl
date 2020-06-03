@@ -122,7 +122,7 @@ function match_files(state::WizardState, prefix::Prefix,
     # Check if we can load them as an object file
     prefix_files = filter(prefix_files) do f
         readmeta(f) do oh
-            if !is_for_platform(oh, platform)
+            if !Auditor.is_for_platform(oh, platform)
                 if !silent
                     @warn("Skipping binary `$f` with incorrect platform")
                 end
@@ -253,35 +253,4 @@ function print_wizard_logo(outs)
         "We'll get you set up in no time."
     )
     println(outs)
-end
-
-
-with_logfile(f::Function, prefix::Prefix, name::String) = with_logfile(f, joinpath(logdir(prefix), name))
-function with_logfile(f::Function, logfile::String)
-    mkpath(dirname(logfile))
-
-    # If it's already a file, remove it, as it is probably an incorrect symlink
-    if isfile(logfile)
-        rm(logfile; force=true)
-    end
-    open(logfile, "w") do io
-        f(io)
-    end
-end
-
-function prepare_for_deletion(prefix::String)
-    # Temporarily work around walkdir bug with endless symlinks: https://github.com/JuliaLang/julia/pull/35006
-    try
-        for (root, dirs, files) in walkdir(prefix; follow_symlinks=false)
-            for d in dirs
-                # Ensure that each directory is writable by by the owning user (should be us)
-                path = joinpath(root, d)
-                try
-                    chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
-                catch
-                end
-            end
-        end
-    catch
-    end
 end

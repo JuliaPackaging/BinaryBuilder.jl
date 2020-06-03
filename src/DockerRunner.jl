@@ -91,7 +91,7 @@ function DockerRunner(workspace_root::String;
     insert!(workspaces, 1, workspace_root => "/workspace")
 
     # If we're enabling ccache, then map in a named docker volume for it
-    if use_ccache
+    if use_ccache[]
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end

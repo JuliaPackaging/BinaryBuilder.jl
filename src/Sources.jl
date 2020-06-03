@@ -1,4 +1,8 @@
+using LibGit2
+
 export ArchiveSource, FileSource, GitSource, DirectorySource
+
+storage_cache = Ref("")
 
 """
 An `AbstractSource` is something used as source to build the package.  Sources

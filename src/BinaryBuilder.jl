@@ -1,6 +1,6 @@
 module BinaryBuilder
-using Libdl, LibGit2, Random, Sockets, Base64, JSON
-using ObjectFile
+using Libdl, LibGit2, Random, Base64, JSON
+using ObjectFile # TODO can this be removed from top-level?
 using GitHub
 import InteractiveUtils
 using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts
@@ -13,69 +13,215 @@ export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi
        call_abi, wordsize, triplet, select_platform, platforms_match,
        CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
 
-include("compat.jl")
+module OutputCollectors
+
+export OutputCollector, LineStream
+
 include("OutputCollector.jl")
+
+end # module OutputCollectors
+
+module BinaryBuilderBase
+
+using JSON, Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts, ..OutputCollectors, Random, Libdl
+
+export AbstractSource, AbstractDependency, SetupSource, PatchSource,
+    resolve_jlls, coerce_dependency, coerce_source, Runner,
+    generate_compiler_wrappers!, preferred_runner, CompilerShard, UserNSRunner,
+    DockerRunner, choose_shards, exeext, preferred_libgfortran_version,
+    preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion,
+    getpkg, replace_libgfortran_version, replace_cxxstring_abi, aatriplet,
+    nbits, proc_family, storage_dir, extract_kwargs, extract_fields,
+    download_source, setup_workspace, setup_dependencies, update_registry,
+    getname, cleanup_dependencies, compress_dir, prepare_for_deletion,
+    run_interactive, sourcify, dependencify, with_logfile, get_concrete_platform
+
+include("compat.jl")
+
 include("Sources.jl")
 include("Dependencies.jl")
 include("Prefix.jl")
 include("Products.jl")
-include("Auditor.jl")
 include("Platforms.jl")
+
 include("Runner.jl")
 include("Rootfs.jl")
 include("squashfs_utils.jl")
 include("UserNSRunner.jl")
 include("DockerRunner.jl")
-include("AutoBuild.jl")
+
+## Functions previously in the wizard
+
+with_logfile(f::Function, prefix::Prefix, name::String) = with_logfile(f, joinpath(logdir(prefix), name))
+function with_logfile(f::Function, logfile::String)
+    mkpath(dirname(logfile))
+
+    # If it's already a file, remove it, as it is probably an incorrect symlink
+    if isfile(logfile)
+        rm(logfile; force=true)
+    end
+    open(logfile, "w") do io
+        f(io)
+    end
+end
+
+# We only want to update the registry once per run
+registry_updated = false
+function update_registry(ctx = Pkg.Types.Context())
+    global registry_updated
+    if !registry_updated
+        Pkg.Registry.update(ctx, [
+            Pkg.Types.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106"),
+        ])
+        registry_updated = true
+    end
+end
+
+function prepare_for_deletion(prefix::String)
+    # Temporarily work around walkdir bug with endless symlinks: https://github.com/JuliaLang/julia/pull/35006
+    try
+        for (root, dirs, files) in walkdir(prefix; follow_symlinks=false)
+            for d in dirs
+                # Ensure that each directory is writable by by the owning user (should be us)
+                path = joinpath(root, d)
+                try
+                    chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
+                catch
+                end
+            end
+        end
+    catch
+    end
+end
+
+##
+
+## Functions previously in AutoBuild.jl
+
+"""
+    get_concrete_platform(platform::Platform, shards::Vector{CompilerShard})
+
+Return the concrete platform for the given `platform` based on the GCC compiler
+ABI in the `shards`.
+"""
+function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard})
+    # We want to get dependencies that have exactly the same GCC ABI as the
+    # chosen compiler, otherwise we risk, e.g., to build in an environment
+    # with libgfortran3 a dependency built with libgfortran5.
+    # `concrete_platform` is needed only to setup the dependencies and the
+    # runner.  We _don't_ want the platform passed to `audit()` or
+    # `package()` to be more specific than it is.
+    concrete_platform = platform
+    gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
+                                      x.target.arch == platform.arch &&
+                                      x.target.libc == platform.libc,
+                                      shards)
+    if !isnothing(gccboostrap_shard_idx)
+        libgfortran_version = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
+        cxxstring_abi = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
+        concrete_platform = replace_cxxstring_abi(replace_libgfortran_version(platform, libgfortran_version), cxxstring_abi)
+    end
+    return concrete_platform
+end
+
+"""
+    get_concrete_platform(platform::Platform;
+                          preferred_gcc_version = nothing,
+                          preferred_llvm_version = nothing,
+                          compilers = nothing)
+
+Return the concrete platform for the given `platform` based on the GCC compiler
+ABI.  The set of shards is chosen by the keyword arguments (see [`choose_shards`](@ref)).
+"""
+function get_concrete_platform(platform::Platform;
+                               preferred_gcc_version = nothing,
+                               preferred_llvm_version = nothing,
+                               compilers = nothing)
+    shards = choose_shards(platform;
+                           preferred_gcc_version = preferred_gcc_version,
+                           preferred_llvm_version = preferred_llvm_version,
+                           compilers = compilers)
+    return get_concrete_platform(platform, shards)
+end
+
+# XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
+get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
+    get_concrete_platform(Linux(:x86_64, libc=:musl), shards)
+
+##
+
+end # module BinaryBuilderBase
+
+module Auditor
+
+using ..BinaryBuilderBase
+using Pkg, Pkg.BinaryPlatforms
+using ObjectFile
+
+include("Auditor.jl")
+
+end # module Auditor
+
+module Wizard
+
+using ..BinaryBuilderBase, ..OutputCollectors, ..Auditor
+using Random
+using GitHub, LibGit2, Pkg, Sockets, ObjectFile
+import SHA: sha256
+
 include("Wizard.jl")
+
+end # module Wizard
+
+using .OutputCollectors, .BinaryBuilderBase, .Auditor, .Wizard
+## Reexport the exports
+
+# Prefix.jl
+export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
+       isinstalled,
+       install, uninstall, list_tarball_files, verify, temp_prefix
+# Rootfs.jl
+export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis
+# Platforms.jl
+export AnyPlatform
+# Products.jl
+export Product, LibraryProduct, FileProduct, ExecutableProduct, FrameworkProduct, satisfied,
+       locate, write_deps_file, variable_name
+# Dependency.jl
+export Dependency, BuildDependency
+# Sources.jl
+export ArchiveSource, FileSource, GitSource, DirectorySource
+# Auditor.jl
+export audit, collect_files, collapse_symlinks
+
+##
+
+include("AutoBuild.jl")
 include("Declarative.jl")
 include("Logging.jl")
 
-# This is the location that all binary builder-related files are stored under.
-# downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
-function storage_dir(args::AbstractString...)
-    global storage_cache
-    dir = joinpath(storage_cache, args...)
-    mkpath(dirname(dir))
-    return dir
-end
-ccache_dir() = storage_dir("ccache")
-
-# These globals store important information such as where we're downloading
-# the rootfs to, and where we're unpacking it.  These constants are initialized
-# by `__init__()` to allow for environment variable overrides from the user.
-storage_cache = ""
-automatic_apple = false
-use_squashfs = false
-allow_ecryptfs = false
-use_ccache = false
-bootstrap_list = Symbol[]
-
 function __init__()
-    global runner_override, use_squashfs, automatic_apple, allow_ecryptfs
-    global use_ccache, storage_cache
-
     # Pkg does this lazily; do it explicitly here.
     Pkg.PlatformEngines.probe_platform_engines!()
 
     # Allow the user to override the default value for `storage_dir`
-    storage_cache = get(ENV, "BINARYBUILDER_STORAGE_DIR",
-                        abspath(joinpath(@__DIR__, "..", "deps")))
+    BinaryBuilderBase.storage_cache[] = get(ENV, "BINARYBUILDER_STORAGE_DIR",
+                                            abspath(joinpath(@__DIR__, "..", "deps")))
 
     # If the user has signalled that they really want us to automatically
     # accept apple EULAs, do that.
     if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
-        automatic_apple = true
+        BinaryBuilderBase.automatic_apple[] = true
     end
 
     # If the user has overridden our runner selection algorithms, honor that
-    runner_override = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
-    if runner_override == "unprivileged"
-        runner_override = "userns"
+    BinaryBuilderBase.runner_override[] = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
+    if BinaryBuilderBase.runner_override[] == "unprivileged"
+        BinaryBuilderBase.runner_override[] = "userns"
     end
-    if !(runner_override in ["", "userns", "privileged", "docker"])
-        @warn("Invalid runner value $runner_override, ignoring...")
-        runner_override = ""
+    if !(BinaryBuilderBase.runner_override[] in ["", "userns", "privileged", "docker"])
+        @warn("Invalid runner value $(BinaryBuilderBase.runner_override[]), ignoring...")
+        BinaryBuilderBase.runner_override[] = ""
     end
 
     # If the user has asked for squashfs mounting instead of tarball mounting,
@@ -84,35 +230,35 @@ function __init__()
     # default. If we are not on Travis, we default to using tarballs and not
     # squashfs images as using them requires `sudo` access.
     if get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "false"
-        use_squashfs = false
+        BinaryBuilderBase.use_squashfs[] = false
     elseif get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "true"
-        use_squashfs = true
+        BinaryBuilderBase.use_squashfs[] = true
     else
         # If it hasn't been specified, but we're on Travis, default to "on"
         if get(ENV, "TRAVIS", "") == "true"
-            use_squashfs = true
+            BinaryBuilderBase.use_squashfs[] = true
         end
 
         # If it hasn't been specified but we're going to use the docker runner,
         # then set `use_squashfs` to `true` here.
         if preferred_runner() == DockerRunner
             # Conversely, if we're dock'ing it up, don't use it.
-            use_squashfs = false
-        elseif runner_override == "privileged"
+            BinaryBuilderBase.use_squashfs[] = false
+        elseif BinaryBuilderBase.runner_override[] == "privileged"
             # If we're forcing a privileged runner, go ahead and default to squashfs
-            use_squashfs = true
+            BinaryBuilderBase.use_squashfs[] = true
         end
     end
 
     # If the user has signified that they want to allow mounting of ecryptfs
     # paths, then let them do so at their own peril.
     if get(ENV, "BINARYBUILDER_ALLOW_ECRYPTFS", "") == "true"
-        allow_ecryptfs = true
+        BinaryBuilderBase.allow_ecryptfs[] = true
     end
 
     # If the user has enabled `ccache` support, use it!
     if get(ENV, "BINARYBUILDER_USE_CCACHE", "false") == "true"
-        use_ccache = true
+        BinaryBuilderBase.use_ccache[] = true
     end
 
     # If we're running on Azure, enable azure logging:
@@ -200,7 +346,7 @@ function versioninfo()
     run_interactive(runner, `/bin/bash -c "echo hello julia"`)
 
     # If we use ccache, dump the ccache stats
-    if use_ccache
+    if BinaryBuilderBase.use_ccache[]
         @info("ccache stats:")
         runner = preferred_runner()(
             pwd();

@@ -1,4 +1,17 @@
 import Base: strip
+
+use_ccache = Ref(false)
+
+# This is the location that all binary builder-related files are stored under.
+# downloads, unpacked .tar.gz shards, mounted shards, ccache cache, etc....
+function storage_dir(args::AbstractString...)
+    global storage_cache
+    dir = joinpath(storage_cache[], args...)
+    mkpath(dirname(dir))
+    return dir
+end
+ccache_dir() = storage_dir("ccache")
+
 abstract type Runner; end
 
 function nbits(p::Platform)
@@ -99,7 +112,7 @@ function generate_compiler_wrappers!(platform::Platform; bin_path::AbstractStrin
     end
 
     # If we should use ccache, prepend this to every compiler invocation
-    ccache = use_ccache ? "ccache" : ""
+    ccache = use_ccache[] ? "ccache" : ""
 
     function wrapper(io::IO, prog::String;
                      allow_ccache::Bool = true,
@@ -653,7 +666,7 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
         "RUSTUP_TOOLCHAIN" => "stable-$(map_rust_target(rust_host))",
 
         # We conditionally add on some compiler flags; we'll cull empty ones at the end
-        "USE_CCACHE" => "$(use_ccache)",
+        "USE_CCACHE" => "$(use_ccache[])",
         "LLVM_TARGET" => target,
         "LLVM_HOST_TARGET" => host_target,
 
@@ -705,13 +718,14 @@ function platform_envs(platform::Platform, src_name::AbstractString; host_platfo
     return mapping
 end
 
-runner_override = ""
+runner_override = Ref("")
+
 function preferred_runner()
     global runner_override
-    if runner_override != ""
-        if runner_override in ["userns", "privileged"]
+    if runner_override[] != ""
+        if runner_override[] in ["userns", "privileged"]
             return UserNSRunner
-        elseif runner_override in ["docker"]
+        elseif runner_override[] in ["docker"]
             return DockerRunner
         end
     end

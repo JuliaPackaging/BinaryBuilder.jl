@@ -1,6 +1,6 @@
 export build_tarballs, autobuild, print_artifacts_toml, build
 import GitHub: gh_get_json, DEFAULT_API
-import SHA: sha256
+import SHA: sha256, sha1
 using Pkg.TOML, Dates, UUIDs
 using RegistryTools, Registrator
 import LibGit2
@@ -446,56 +446,6 @@ function register_jll(name, build_version, dependencies;
 end
 
 """
-    get_concrete_platform(platform::Platform, shards::Vector{CompilerShard})
-
-Return the concrete platform for the given `platform` based on the GCC compiler
-ABI in the `shards`.
-"""
-function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard})
-    # We want to get dependencies that have exactly the same GCC ABI as the
-    # chosen compiler, otherwise we risk, e.g., to build in an environment
-    # with libgfortran3 a dependency built with libgfortran5.
-    # `concrete_platform` is needed only to setup the dependencies and the
-    # runner.  We _don't_ want the platform passed to `audit()` or
-    # `package()` to be more specific than it is.
-    concrete_platform = platform
-    gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
-                                      x.target.arch == platform.arch &&
-                                      x.target.libc == platform.libc,
-                                      shards)
-    if !isnothing(gccboostrap_shard_idx)
-        libgfortran_version = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
-        cxxstring_abi = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
-        concrete_platform = replace_cxxstring_abi(replace_libgfortran_version(platform, libgfortran_version), cxxstring_abi)
-    end
-    return concrete_platform
-end
-
-"""
-    get_concrete_platform(platform::Platform;
-                          preferred_gcc_version = nothing,
-                          preferred_llvm_version = nothing,
-                          compilers = nothing)
-
-Return the concrete platform for the given `platform` based on the GCC compiler
-ABI.  The set of shards is chosen by the keyword arguments (see [`choose_shards`](@ref)).
-"""
-function get_concrete_platform(platform::Platform;
-                               preferred_gcc_version = nothing,
-                               preferred_llvm_version = nothing,
-                               compilers = nothing)
-    shards = choose_shards(platform;
-                           preferred_gcc_version = preferred_gcc_version,
-                           preferred_llvm_version = preferred_llvm_version,
-                           compilers = compilers)
-    return get_concrete_platform(platform, shards)
-end
-
-# XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
-get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
-    get_concrete_platform(Linux(:x86_64, libc=:musl), shards)
-
-"""
     autobuild(dir::AbstractString, src_name::AbstractString,
               src_version::VersionNumber, sources::Vector,
               script::AbstractString, platforms::Vector,
@@ -758,7 +708,7 @@ function autobuild(dir::AbstractString,
             products_info[p] = Dict("path" => relpath(product_path, dest_prefix.path))
             if p isa LibraryProduct || p isa FrameworkProduct
                 products_info[p]["soname"] = something(
-                    get_soname(product_path),
+                    Auditor.get_soname(product_path),
                     basename(product_path),
                 )
             end
@@ -768,7 +718,7 @@ function autobuild(dir::AbstractString,
         cleanup_dependencies(prefix, artifact_paths)
 
         # Search for dead links in dest_prefix; raise warnings about them.
-        warn_deadlinks(dest_prefix.path)
+        Auditor.warn_deadlinks(dest_prefix.path)
 
         # Cull empty directories, for neatness' sake, unless auditing is disabled
         if !skip_audit
@@ -967,7 +917,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
                 if p isa LibraryProduct || p isa FrameworkProduct
                     products_info[p]["soname"] = something(
-                        get_soname(product_path),
+                        Auditor.get_soname(product_path),
                         basename(product_path),
                     )
                 end

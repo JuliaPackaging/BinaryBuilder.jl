@@ -2,6 +2,10 @@ export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis
 
 import Pkg.Artifacts: load_artifacts_toml, ensure_all_artifacts_installed
 
+bootstrap_list = Symbol[]
+use_squashfs = Ref(false)
+automatic_apple = Ref(false)
+
 # This is a type that encompasses a shard; it makes it easy to pass it around,
 # get its download url, extraction url, mounting url, etc...
 struct CompilerShard
@@ -212,7 +216,7 @@ function mount(cs::CompilerShard, build_prefix::AbstractString; verbose::Bool = 
     # environment variable BINARYBUILDER_AUTOMATIC_APPLE has been set to `true`
     # or if the SDK has been downloaded in the past.
     global automatic_apple
-    if typeof(cs.target) <: MacOS && !automatic_apple && !macos_sdk_already_installed()
+    if typeof(cs.target) <: MacOS && !automatic_apple[] && !macos_sdk_already_installed()
         if !isinteractive()
             msg = strip("""
             This is not an interactive Julia session, so we will not prompt you
@@ -442,7 +446,7 @@ function choose_shards(p::Platform;
             LLVM_builds::Vector{LLVMBuild}=available_llvm_builds,
             Rust_build::VersionNumber=v"1.18.3",
             Go_build::VersionNumber=v"1.13",
-            archive_type::Symbol = (use_squashfs ? :squashfs : :unpacked),
+            archive_type::Symbol = (use_squashfs[] ? :squashfs : :unpacked),
             bootstrap_list::Vector{Symbol} = bootstrap_list,
             # Because GCC has lots of compatibility issues, we always default to
             # the earliest version possible.

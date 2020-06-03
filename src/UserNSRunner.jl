@@ -1,5 +1,7 @@
 import Base: show
 
+allow_ecryptfs = Ref(false)
+
 """
     UserNSRunner
 
@@ -29,7 +31,7 @@ function UserNSRunner(workspace_root::String;
                       src_name::AbstractString = "",
                       shards = nothing,
                       kwargs...)
-    global use_ccache, use_squashfs, runner_override
+    global use_ccache, runner_override
 
     # Check that our kernel is new enough to use this runner
     kernel_version_check()
@@ -49,7 +51,7 @@ function UserNSRunner(workspace_root::String;
     insert!(workspaces, 1, workspace_root => "/workspace")
 
     # If we're enabling ccache, then mount in a read-writeable volume at /root/.ccache
-    if use_ccache
+    if use_ccache[]
         if !isdir(ccache_dir())
             mkpath(ccache_dir())
         end
@@ -90,7 +92,7 @@ function UserNSRunner(workspace_root::String;
 
     # If runner_override is not yet set, let's probe to see if we can use
     # unprivileged containers, and if we can't, switch over to privileged.
-    if runner_override == ""
+    if runner_override[] == ""
         if !probe_unprivileged_containers()
             msg = strip("""
             Unable to run unprivileged containers on this system!
@@ -101,14 +103,14 @@ function UserNSRunner(workspace_root::String;
             environment variable to "privileged" before starting Julia.
             """)
             @warn(replace(msg, "\n" => " "))
-            runner_override = "privileged"
+            runner_override[] = "privileged"
         else
-            runner_override = "userns"
+            runner_override[] = "userns"
         end
     end
 
     # Check to see if we need to run privileged containers.
-    if runner_override == "privileged"
+    if runner_override[] == "privileged"
         # Next, prefer `sudo`, but allow fallback to `su`. Also, force-set
         # our environmental mappings with sudo, because it is typically
         # lost and forgotten.  :(
@@ -135,7 +137,7 @@ end
 prompted_userns_run_privileged = false
 function warn_priviledged()
     global prompted_userns_run_privileged
-    if runner_override == "privileged" && !prompted_userns_run_privileged
+    if runner_override[] == "privileged" && !prompted_userns_run_privileged
         @info("Running privileged container via `sudo`, may ask for your password:")
         prompted_userns_run_privileged = true
     end
@@ -455,7 +457,7 @@ function check_encryption(workspace_root::AbstractString;
                           verbose::Bool = false)
     # If we've explicitly allowed ecryptfs, just quit out immediately
     global allow_ecryptfs
-    if allow_ecryptfs
+    if allow_ecryptfs[]
         return
     end
     msg = []

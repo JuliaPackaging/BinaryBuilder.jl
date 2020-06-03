@@ -1,3 +1,5 @@
+using BinaryBuilder.Auditor
+
 # Tests for our auditing infrastructure
 
 @testset "Auditor - cppfilt" begin
@@ -8,7 +10,7 @@
         "_Z10my_listlenNSt7__cxx114listIiSaIiEEE",
         "_ZNKSt7__cxx114listIiSaIiEE4sizeEv",
     ]
-    unmangled_symbol_names = BinaryBuilder.cppfilt(mangled_symbol_names, Linux(:x86_64))
+    unmangled_symbol_names = Auditor.cppfilt(mangled_symbol_names, Linux(:x86_64))
     @test all(unmangled_symbol_names .== [
         "std::__cxx11::_List_base<int, std::allocator<int> >::_M_node_count() const",
         "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::length() const@@GLIBCXX_3.4.21",
@@ -64,7 +66,7 @@ end
         # Run ISA tests
         for (product, true_isa) in zip(products, (:core2, :sandybridge, :haswell))
             readmeta(locate(product, prefix)) do oh
-                detected_isa = BinaryBuilder.analyze_instruction_set(oh, platform; verbose=true)
+                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
                 @test detected_isa == true_isa
             end
         end
@@ -119,7 +121,7 @@ end
 
                 # Ensure that the library detects as the correct cxxstring_abi:
                 readmeta(locate(libcxxstringabi_test, prefix)) do oh
-                    detected_cxxstring_abi = BinaryBuilder.detect_cxxstring_abi(oh, platform)
+                    detected_cxxstring_abi = Auditor.detect_cxxstring_abi(oh, platform)
                     @test detected_cxxstring_abi == cxxstring_abi(platform)
                 end
 
@@ -271,7 +273,7 @@ end
 
         # Test that `audit()` warns about an absolute path within the prefix
         @test_logs (:warn, r"share/foo.conf contains an absolute path") match_mode=:any begin
-            BinaryBuilder.audit(Prefix(build_path); verbose=true)
+            Auditor.audit(Prefix(build_path); verbose=true)
         end
     end
 end
@@ -288,7 +290,7 @@ end
 
         # Test that `audit()` warns about broken symlinks
         @test_logs (:warn, r"Broken symlink: bin/libzmq.dll.a") match_mode=:any begin
-            BinaryBuilder.warn_deadlinks(build_path)
+            Auditor.warn_deadlinks(build_path)
         end
     end
 end
@@ -346,7 +348,7 @@ end
         # If we audit the testdir, pretending that we're trying to build an ABI-agnostic
         # tarball, make sure it warns us about it.
         @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
-            BinaryBuilder.audit(Prefix(testdir); platform=BinaryBuilder.abi_agnostic(platform), autofix=false)
+            Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(platform), autofix=false)
         end
     end
 end
