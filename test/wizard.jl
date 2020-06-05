@@ -372,7 +372,7 @@ end
     """)
 
     with_wizard_output(state, state->BinaryBuilder.step5_internal(state, first(state.platforms))) do ins, outs
-        call_response(ins, outs, "Press any key to continue...", "\n")
+        call_response(ins, outs, "Press Enter to continue...", "\n")
         call_response(ins, outs, "How would you like to proceed?", "\e[B\e[B\r")
     end
     @test isempty(state.platforms)

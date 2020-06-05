@@ -539,7 +539,7 @@ function step5_internal(state::WizardState, platform::Platform)
     print(state.outs, "Your next build target will be ")
     printstyled(state.outs, triplet(platform), bold=true)
     println(state.outs)
-    print(state.outs, "Press any key to continue...")
+    print(state.outs, "Press Enter to continue...")
     read(state.ins, Char)
     println(state.outs)
 
@@ -755,7 +755,7 @@ function step5c(state::WizardState)
     builds are not verbose.  If you have edited the script since we attempted
     to build for any given platform, we will verify that the new script still
     works.  This will probably take a while.
-    Press any key to continue...
+    Press Enter to continue...
     """)
     print(state.outs, msg)
     read(state.ins, Char)
