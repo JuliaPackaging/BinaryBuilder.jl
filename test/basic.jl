@@ -109,6 +109,12 @@ end
 
 
 @testset "Products" begin
+    lp = LibraryProduct("libfakechroot", :libfakechroot, "lib/fakechroot")
+    @test lp.libnames ==  ["libfakechroot"]
+    @test lp.dir_paths == ["lib/fakechroot"]
+    ep = ExecutableProduct("fooify", :fooify, "bin/foo_inc")
+    @test ep.binnames ==  ["fooify"]
+
     @test_throws ErrorException LibraryProduct("sin", :sin)
     @test_throws ErrorException ExecutableProduct("convert", :convert)
     @test_throws ErrorException FileProduct("open", :open)
