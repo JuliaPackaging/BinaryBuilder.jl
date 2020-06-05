@@ -99,6 +99,7 @@ struct LibraryProduct <: Product
     `dlopen()`'able.
     """
     LibraryProduct(libname::AbstractString, varname, args...; kwargs...) = LibraryProduct([libname], varname, args...; kwargs...)
+    LibraryProduct(libnames::Vector{<:AbstractString}, varname::Symbol, dir_path::AbstractString, args...; kwargs...) = LibraryProduct(libnames, varname, [dir_path], args...; kwargs...)
     function LibraryProduct(libnames::Vector{<:AbstractString}, varname::Symbol,
                             dir_paths::Vector{<:AbstractString}=String[];
                             dont_dlopen::Bool=false,
