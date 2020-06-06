@@ -16,9 +16,9 @@ git:
 env:
   global:
     - BINARYBUILDER_AUTOMATIC_APPLE=true
-cache:
-  directories:
-    - deps
+# cache:
+#   directories:
+#     - deps
 
 jobs:
   allow_failures:
