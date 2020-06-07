@@ -4,6 +4,7 @@ import SHA: sha256
 using Pkg.TOML, Dates, UUIDs
 using RegistryTools, Registrator
 import LibGit2
+import PkgLicenses
 
 const BUILD_HELP = (
     """
@@ -1354,7 +1355,13 @@ function build_jll_package(src_name::String,
     end
 
     # Add before the license a note about to what files this applies
-    license = strip(read(joinpath(code_dir, "LICENSE"), String))
+    license = if isfile(joinpath(code_dir, "LICENSE"))
+        # In most cases we have a file called `LICENSE`...
+        strip(read(joinpath(code_dir, "LICENSE"), String))
+    else
+        # ...but sometimes this is missing.
+        strip("MIT License\n\nCopyright (c) $(year(now()))\n" * PkgLicenses.readlicense("MIT"))
+    end
     note_lines = split("""
                        The Julia source code within this repository (all files under `src/`) are
                        released under the terms of the MIT \"Expat\" License, the text of which is
