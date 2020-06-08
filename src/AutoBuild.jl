@@ -1207,7 +1207,7 @@ function build_jll_package(src_name::String,
         module $(src_name)_jll
         
         if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
-            @eval Base.Experimental.@optlevel 1
+            @eval Base.Experimental.@optlevel 0
         end                    
                                 
         if VERSION < v"1.3.0-rc4"
