@@ -13,17 +13,9 @@ export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi
        call_abi, wordsize, triplet, select_platform, platforms_match,
        CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
 
-module OutputCollectors
-
-export OutputCollector, LineStream
-
-include("OutputCollector.jl")
-
-end # module OutputCollectors
-
 module BinaryBuilderBase
 
-using JSON, Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts, ..OutputCollectors, Random, Libdl
+using JSON, Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts, OutputCollectors, Random, Libdl
 
 export AbstractSource, AbstractDependency, SetupSource, PatchSource,
     resolve_jlls, coerce_dependency, coerce_source, Runner,
@@ -33,8 +25,8 @@ export AbstractSource, AbstractDependency, SetupSource, PatchSource,
     getpkg, replace_libgfortran_version, replace_cxxstring_abi, aatriplet,
     nbits, proc_family, storage_dir, extract_kwargs, extract_fields,
     download_source, setup_workspace, setup_dependencies, update_registry,
-    getname, cleanup_dependencies, compress_dir, prepare_for_deletion,
-    run_interactive, sourcify, dependencify, with_logfile, get_concrete_platform
+    getname, cleanup_dependencies, compress_dir, run_interactive, sourcify,
+    dependencify, with_logfile, get_concrete_platform
 
 include("compat.jl")
 
@@ -74,23 +66,6 @@ function update_registry(ctx = Pkg.Types.Context())
             Pkg.Types.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106"),
         ])
         registry_updated = true
-    end
-end
-
-function prepare_for_deletion(prefix::String)
-    # Temporarily work around walkdir bug with endless symlinks: https://github.com/JuliaLang/julia/pull/35006
-    try
-        for (root, dirs, files) in walkdir(prefix; follow_symlinks=false)
-            for d in dirs
-                # Ensure that each directory is writable by by the owning user (should be us)
-                path = joinpath(root, d)
-                try
-                    chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
-                catch
-                end
-            end
-        end
-    catch
     end
 end
 
@@ -164,7 +139,7 @@ end # module Auditor
 
 module Wizard
 
-using ..BinaryBuilderBase, ..OutputCollectors, ..Auditor
+using ..BinaryBuilderBase, OutputCollectors, ..Auditor
 using Random
 using GitHub, LibGit2, Pkg, Sockets, ObjectFile
 import SHA: sha256
@@ -173,7 +148,7 @@ include("Wizard.jl")
 
 end # module Wizard
 
-using .OutputCollectors, .BinaryBuilderBase, .Auditor, .Wizard
+using OutputCollectors, .BinaryBuilderBase, .Auditor, .Wizard
 ## Reexport the exports
 
 # Prefix.jl
@@ -201,66 +176,6 @@ include("Declarative.jl")
 include("Logging.jl")
 
 function __init__()
-    # Pkg does this lazily; do it explicitly here.
-    Pkg.PlatformEngines.probe_platform_engines!()
-
-    # Allow the user to override the default value for `storage_dir`
-    BinaryBuilderBase.storage_cache[] = get(ENV, "BINARYBUILDER_STORAGE_DIR",
-                                            abspath(joinpath(@__DIR__, "..", "deps")))
-
-    # If the user has signalled that they really want us to automatically
-    # accept apple EULAs, do that.
-    if get(ENV, "BINARYBUILDER_AUTOMATIC_APPLE", "") == "true"
-        BinaryBuilderBase.automatic_apple[] = true
-    end
-
-    # If the user has overridden our runner selection algorithms, honor that
-    BinaryBuilderBase.runner_override[] = lowercase(get(ENV, "BINARYBUILDER_RUNNER", ""))
-    if BinaryBuilderBase.runner_override[] == "unprivileged"
-        BinaryBuilderBase.runner_override[] = "userns"
-    end
-    if !(BinaryBuilderBase.runner_override[] in ["", "userns", "privileged", "docker"])
-        @warn("Invalid runner value $(BinaryBuilderBase.runner_override[]), ignoring...")
-        BinaryBuilderBase.runner_override[] = ""
-    end
-
-    # If the user has asked for squashfs mounting instead of tarball mounting,
-    # use that here.  Note that on Travis, we default to using squashfs, unless
-    # BINARYBUILDER_USE_SQUASHFS is set to "false", which overrides this
-    # default. If we are not on Travis, we default to using tarballs and not
-    # squashfs images as using them requires `sudo` access.
-    if get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "false"
-        BinaryBuilderBase.use_squashfs[] = false
-    elseif get(ENV, "BINARYBUILDER_USE_SQUASHFS", "") == "true"
-        BinaryBuilderBase.use_squashfs[] = true
-    else
-        # If it hasn't been specified, but we're on Travis, default to "on"
-        if get(ENV, "TRAVIS", "") == "true"
-            BinaryBuilderBase.use_squashfs[] = true
-        end
-
-        # If it hasn't been specified but we're going to use the docker runner,
-        # then set `use_squashfs` to `true` here.
-        if preferred_runner() == DockerRunner
-            # Conversely, if we're dock'ing it up, don't use it.
-            BinaryBuilderBase.use_squashfs[] = false
-        elseif BinaryBuilderBase.runner_override[] == "privileged"
-            # If we're forcing a privileged runner, go ahead and default to squashfs
-            BinaryBuilderBase.use_squashfs[] = true
-        end
-    end
-
-    # If the user has signified that they want to allow mounting of ecryptfs
-    # paths, then let them do so at their own peril.
-    if get(ENV, "BINARYBUILDER_ALLOW_ECRYPTFS", "") == "true"
-        BinaryBuilderBase.allow_ecryptfs[] = true
-    end
-
-    # If the user has enabled `ccache` support, use it!
-    if get(ENV, "BINARYBUILDER_USE_CCACHE", "false") == "true"
-        BinaryBuilderBase.use_ccache[] = true
-    end
-
     # If we're running on Azure, enable azure logging:
     if !isempty(get(ENV, "AZP_TOKEN", ""))
         enable_azure_logging()

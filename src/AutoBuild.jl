@@ -773,6 +773,22 @@ function autobuild(dir::AbstractString,
     return build_output_meta
 end
 
+function prepare_for_deletion(prefix::String)
+    # Temporarily work around walkdir bug with endless symlinks: https://github.com/JuliaLang/julia/pull/35006
+    try
+        for (root, dirs, files) in walkdir(prefix; follow_symlinks=false)
+            for d in dirs
+                # Ensure that each directory is writable by by the owning user (should be us)
+                path = joinpath(root, d)
+                try
+                    chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
+                catch
+                end
+            end
+        end
+    catch
+    end
+end
 
 function download_github_release(download_dir, repo, tag; gh_auth=github_auth(), verbose::Bool=false)
     release = gh_get_json(DEFAULT_API, "/repos/$(repo)/releases/tags/$(tag)", auth=gh_auth)
