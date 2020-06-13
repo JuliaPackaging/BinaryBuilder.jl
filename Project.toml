@@ -6,6 +6,7 @@ version = "0.2.5"
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 Base64 = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
+BinaryBuilderBase = "7f725544-6523-48cd-82d1-3fa08ff4056e"
 CodecZlib = "944b1d66-785c-5afd-91f1-9de20f533193"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 GitHub = "bc5e4493-9b4d-5f90-b8aa-2b2bcaad7a26"
@@ -34,6 +35,7 @@ ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
 [compat]
 ArgParse = "1.1"
+BinaryBuilderBase = "0.1"
 CodecZlib = "0.5, 0.6, 0.7"
 GitHub = "5.1"
 HTTP = "0.8"

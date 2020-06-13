@@ -20,6 +20,12 @@ version = "0.2.0"
 [[Base64]]
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
+[[BinaryBuilderBase]]
+deps = ["CodecZlib", "JSON", "LibGit2", "Libdl", "OutputCollectors", "Pkg", "Random", "SHA"]
+git-tree-sha1 = "2783323f77041b1685ac15a1fbb1d8bff374c7be"
+uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
+version = "0.1.0"
+
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
 git-tree-sha1 = "ded953804d019afa9a3f98981d99b33e3db7b6da"
@@ -321,9 +327,9 @@ version = "1.2.0"
 
 [[ZeroMQ_jll]]
 deps = ["Libdl", "Pkg"]
-git-tree-sha1 = "ac15b32cf384a72b058f3c214708e5a11a91ac86"
+git-tree-sha1 = "733352667c60ce39dfd3017db9b798b288c87417"
 uuid = "8f1865be-045e-5c20-9c9f-bfbfb0764568"
-version = "4.3.2+3"
+version = "4.3.2+4"
 
 [[Zlib_jll]]
 deps = ["Libdl", "Pkg"]
