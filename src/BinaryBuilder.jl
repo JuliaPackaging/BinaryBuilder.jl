@@ -1,7 +1,7 @@
 module BinaryBuilder
-using Libdl, LibGit2, Random, Base64, JSON
+using Libdl, LibGit2, Random, JSON
 using BinaryBuilderBase
-using ObjectFile # TODO can this be removed from top-level?
+using ObjectFile
 using GitHub
 import InteractiveUtils
 using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts
@@ -40,8 +40,7 @@ using OutputCollectors, BinaryBuilderBase, .Auditor, .Wizard
 
 # Prefix.jl
 export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
-       isinstalled,
-       install, uninstall, list_tarball_files, verify, temp_prefix
+       isinstalled, install, uninstall, list_tarball_files, verify, temp_prefix
 # Rootfs.jl
 export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis
 # Platforms.jl

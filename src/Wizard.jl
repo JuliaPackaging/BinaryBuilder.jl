@@ -4,7 +4,6 @@ using REPL.TerminalMenus
 using ObjectFile.ELF
 using HTTP
 import PkgLicenses
-using MbedTLS
 using JLD2
 using Pkg.BinaryPlatforms
 using Dates
