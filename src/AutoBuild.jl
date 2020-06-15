@@ -315,7 +315,7 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
-function upload_to_github_releases(repo, tag, path; gh_auth=github_auth(;allow_anonymous=false), 
+function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false), 
                                    attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
@@ -393,7 +393,7 @@ end
 function register_jll(name, build_version, dependencies;
                       deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
                       code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
-                      gh_auth=github_auth(;allow_anonymous=false),
+                      gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     if !Base.isidentifier(name)
         error("Package name \"$(name)\" is not a valid identifier")
@@ -790,7 +790,7 @@ function prepare_for_deletion(prefix::String)
     end
 end
 
-function download_github_release(download_dir, repo, tag; gh_auth=github_auth(), verbose::Bool=false)
+function download_github_release(download_dir, repo, tag; gh_auth=Wizard.github_auth(), verbose::Bool=false)
     release = gh_get_json(DEFAULT_API, "/repos/$(repo)/releases/tags/$(tag)", auth=gh_auth)
     assets = [a for a in release["assets"] if endswith(a["name"], ".tar.gz")]
 
@@ -805,7 +805,7 @@ end
 
 
 function init_jll_package(name, code_dir, deploy_repo;
-                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
                           gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     try
         # This throws if it does not exist
@@ -1132,7 +1132,7 @@ function build_jll_package(src_name::String,
                     println(io, """
                         # Manually `dlopen()` this right now so that future invocations
                         # of `ccall` with its `SONAME` will find this path immediately.
-                        global $(vp)_handle = dlopen($(vp)_path$(dlopen_flags_str(p)))
+                        global $(vp)_handle = dlopen($(vp)_path$(BinaryBuilderBase.dlopen_flags_str(p)))
                         push!(LIBPATH_list, dirname($(vp)_path))
                     """)
                 elseif p isa ExecutableProduct
@@ -1356,7 +1356,7 @@ end
 function push_jll_package(name, build_version;
                           code_dir = joinpath(Pkg.devdir(), "$(name)_jll"),
                           deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
-                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
                           gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     # Next, push up the wrapper code repository
     wrapper_repo = LibGit2.GitRepo(code_dir)
