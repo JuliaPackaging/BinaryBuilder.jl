@@ -1150,8 +1150,6 @@ function build_jll_package(src_name::String,
 
                 # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
-                # We first need to add to LIBPATH_list the libraries provided by Julia
-                append!(LIBPATH_list, [$(init_libpath)])
             """)
 
             if !isempty(dependencies)
@@ -1162,6 +1160,11 @@ function build_jll_package(src_name::String,
                     foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
                 """)
             end
+
+            print(io, """
+                # Lastly, we need to add to LIBPATH_list the libraries provided by Julia
+                append!(LIBPATH_list, [$(init_libpath)])
+            """)
 
             for (p, p_info) in sort(products_info)
                 vp = variable_name(p)
