@@ -1133,14 +1133,6 @@ function build_jll_package(src_name::String,
                 """)
             end
 
-            # Libraries shipped by Julia can be found in different directories,
-            # depending on the operating system and whether Julia has been built
-            # from source or it's a pre-built binary. For all OSes libraries can
-            # be found in Base.LIBDIR or Base.LIBDIR/julia, on Windows they are
-            # in Sys.BINDIR, we just add everything.
-            init_libpath = (platform isa Windows ? "Sys.BINDIR, " : "") *
-                "joinpath(Sys.BINDIR, Base.LIBDIR, \"julia\"), joinpath(Sys.BINDIR, Base.LIBDIR)"
-
             print(io, """
             \"\"\"
             Open all libraries
@@ -1160,11 +1152,6 @@ function build_jll_package(src_name::String,
                     foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
                 """)
             end
-
-            print(io, """
-                # Lastly, we need to add to LIBPATH_list the libraries provided by Julia
-                append!(LIBPATH_list, [$(init_libpath)])
-            """)
 
             for (p, p_info) in sort(products_info)
                 vp = variable_name(p)
@@ -1189,19 +1176,22 @@ function build_jll_package(src_name::String,
                 end
             end
 
+            # Libraries shipped by Julia can be found in different directories,
+            # depending on the operating system and whether Julia has been built
+            # from source or it's a pre-built binary. For all OSes libraries can
+            # be found in Base.LIBDIR or Base.LIBDIR/julia, on Windows they are
+            # in Sys.BINDIR, so we just add everything.
+            init_libpath = "joinpath(Sys.BINDIR, Base.LIBDIR, \"julia\"), joinpath(Sys.BINDIR, Base.LIBDIR)"
+            if isa(platform, Windows)
+                init_libpath = string("Sys.BINDIR, ", init_libpath)
+            end
+
             println(io, """
                 # Filter out duplicate and empty entries in our PATH and LIBPATH entries
                 filter!(!isempty, unique!(PATH_list))
                 filter!(!isempty, unique!(LIBPATH_list))
                 global PATH = join(PATH_list, $(repr(pathsep)))
-                global LIBPATH = join(LIBPATH_list, $(repr(pathsep)))
-
-                # Add each element of LIBPATH to our DL_LOAD_PATH (necessary on platforms
-                # that don't honor our "already opened" trick)
-                #for lp in LIBPATH_list
-                #    push!(DL_LOAD_PATH, lp)
-                #end
-            end  # __init__()
+                global LIBPATH = join(vcat(LIBPATH_list, [$(init_libpath)]), $(repr(pathsep))))            end  # __init__()
             """)
         end
     end
