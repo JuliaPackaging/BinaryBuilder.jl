@@ -21,10 +21,10 @@ version = "0.2.0"
 uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilderBase]]
-deps = ["CodecZlib", "JSON", "LibGit2", "Libdl", "OutputCollectors", "Pkg", "Random", "SHA"]
-git-tree-sha1 = "2783323f77041b1685ac15a1fbb1d8bff374c7be"
+deps = ["CodecZlib", "JSON", "LibGit2", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "UUIDs"]
+git-tree-sha1 = "9336cac403e06adf1aced56c6519c22a6aa00d56"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
-version = "0.1.0"
+version = "0.2.0"
 
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -39,9 +39,9 @@ version = "1.3.0"
 
 [[DataStructures]]
 deps = ["InteractiveUtils", "OrderedCollections"]
-git-tree-sha1 = "6166ecfaf2b8bbf2b68d791bc1d54501f345d314"
+git-tree-sha1 = "be680f1ad03c0a03796aa3fda5a2180df7f83b46"
 uuid = "864edb3b-99cc-5e75-8d2d-829cb0a9cfe8"
-version = "0.17.15"
+version = "0.17.18"
 
 [[DataValueInterfaces]]
 git-tree-sha1 = "bfc1187b79289637fa0ef6d4436ebdfe6905cbd6"
@@ -73,15 +73,15 @@ version = "0.1.5"
 
 [[GitHub]]
 deps = ["Base64", "Dates", "HTTP", "JSON", "MbedTLS", "Sockets"]
-git-tree-sha1 = "bc8ded5984130076ca6fe6b752508effa1201a19"
+git-tree-sha1 = "a1c60c4079c54486e5e1daab1f4cdaebb21f6f63"
 uuid = "bc5e4493-9b4d-5f90-b8aa-2b2bcaad7a26"
-version = "5.1.5"
+version = "5.1.6"
 
 [[HTTP]]
 deps = ["Base64", "Dates", "IniFile", "MbedTLS", "Sockets"]
-git-tree-sha1 = "fe31f4ff144392ad8176f5c7c03cca6ba320271c"
+git-tree-sha1 = "ec87d5e2acbe1693789efbbe14f5ea7525758f71"
 uuid = "cd3eb016-35fb-5094-929b-558a96fad6f3"
-version = "0.8.14"
+version = "0.8.15"
 
 [[Hiccup]]
 deps = ["MacroTools", "Test"]
@@ -118,9 +118,9 @@ version = "0.21.0"
 
 [[JSON2]]
 deps = ["Dates", "Parsers", "Test"]
-git-tree-sha1 = "6cbbbab27d9411946725f5d5c91e8b8fb5f7d5db"
+git-tree-sha1 = "66397cc6c08922f98a28ab05a8d3002f9853b129"
 uuid = "2535ab7d-5cd8-5a07-80ac-9b1792aadce3"
-version = "0.3.1"
+version = "0.3.2"
 
 [[Lazy]]
 deps = ["MacroTools"]
@@ -143,9 +143,9 @@ uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
 
 [[LoggingExtras]]
-git-tree-sha1 = "c867b50bfc564f0beded1c566f4fc66cfd8b5418"
+git-tree-sha1 = "b60616c70eff0cc2c0831b6aace75940aeb0939d"
 uuid = "e6f89c97-d47a-5376-807f-9c37f3926c36"
-version = "0.4.0"
+version = "0.4.1"
 
 [[MacroTools]]
 deps = ["Markdown", "Random"]
@@ -174,9 +174,9 @@ uuid = "a63ad114-7e13-5084-954f-fe012c677804"
 
 [[Mustache]]
 deps = ["Printf", "Tables"]
-git-tree-sha1 = "2e11fc5de3a01d23482a257e22009ddaab058d9a"
+git-tree-sha1 = "fcfc8266461f2905534aa00c0fc59b8751b1026e"
 uuid = "ffc61752-8dc7-55ee-8c37-f3e9cdd09e70"
-version = "1.0.2"
+version = "1.0.3"
 
 [[Mux]]
 deps = ["AssetRegistry", "Base64", "HTTP", "Hiccup", "Lazy", "Pkg", "Sockets", "Test", "WebSockets"]
@@ -186,9 +186,9 @@ version = "0.7.0"
 
 [[ObjectFile]]
 deps = ["Reexport", "StructIO", "Test"]
-git-tree-sha1 = "310770e17bb9c4142b9f0b8d2d30dd7bd1c13a73"
+git-tree-sha1 = "26bf52f95a07d471a4ec2dcae6774584e7d2d7c1"
 uuid = "d8793406-e978-5875-9003-1fc021f44a92"
-version = "0.3.3"
+version = "0.3.4"
 
 [[OrderedCollections]]
 git-tree-sha1 = "12ce190210d278e12644bcadf5b21cbdcf225cd3"
@@ -202,9 +202,9 @@ version = "0.1.0"
 
 [[Parsers]]
 deps = ["Dates", "Test"]
-git-tree-sha1 = "72c3451932513427caffbd8bab15643ad693804b"
+git-tree-sha1 = "eb3e09940c0d7ae01b01d9291ebad7b081c844d3"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "1.0.3"
+version = "1.0.5"
 
 [[Pidfile]]
 deps = ["FileWatching", "Test"]
@@ -228,9 +228,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "ea1f4fa0ff5e8b771bf130d87af5b7ef400760bd"
+git-tree-sha1 = "3e1784c27847bba115815d4d4e668b99873985e5"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.2.0"
+version = "1.3.1"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets"]
@@ -321,9 +321,9 @@ version = "1.5.2"
 
 [[ZMQ]]
 deps = ["FileWatching", "Sockets", "ZeroMQ_jll"]
-git-tree-sha1 = "adb2d52aa12c8284da12714f35d2b21fc3d5b2bb"
+git-tree-sha1 = "fc68e8a3719166950a0f3e390a14c7302c48f8de"
 uuid = "c2297ded-f4af-51ae-bb23-16f91089e4e1"
-version = "1.2.0"
+version = "1.2.1"
 
 [[ZeroMQ_jll]]
 deps = ["Libdl", "Pkg"]
@@ -333,9 +333,9 @@ version = "4.3.2+4"
 
 [[Zlib_jll]]
 deps = ["Libdl", "Pkg"]
-git-tree-sha1 = "a2e0d558f6031002e380a90613b199e37a8565bf"
+git-tree-sha1 = "64b39656c75e67f85b4ac2b336c54674a39f599d"
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
-version = "1.2.11+10"
+version = "1.2.11+11"
 
 [[ghr_jll]]
 deps = ["Libdl", "Pkg"]

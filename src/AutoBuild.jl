@@ -601,7 +601,7 @@ function autobuild(dir::AbstractString,
             compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
             src_name = src_name,
             shards = shards,
-            extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers,:allow_unsafe_flags))...,
+            extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers,:allow_unsafe_flags,:lock_microarchitecture))...,
         )
 
         # Set up some bash traps

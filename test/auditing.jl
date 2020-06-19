@@ -48,6 +48,10 @@ end
                 Dependency[];
                 # We need to build with very recent GCC so that we can emit AVX2
                 preferred_gcc_version=v"8",
+                # Allow forcing a different microarchitecture.
+                # TODO: change this test to use built-in method to select
+                # different microarchitectures.
+                lock_microarchitecture=false,
             )
         end
 
