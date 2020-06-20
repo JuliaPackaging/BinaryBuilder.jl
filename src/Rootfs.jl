@@ -156,7 +156,7 @@ end
 
 function mount_path(cs::CompilerShard, build_prefix::AbstractString)
     if cs.archive_type == :squashfs
-        return joinpath(build_prefix, "mounts", artifact_name(cs))
+        return joinpath(build_prefix, ".mounts", artifact_name(cs))
     else
         name = artifact_name(cs)
         artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
@@ -760,7 +760,7 @@ function unmount_shards(ur::Runner; verbose::Bool = false)
 
     # Remove `mounts` if it's empty
     try
-        rm(joinpath(ur.workspace_root, "mounts"))
+        rm(joinpath(ur.workspace_root, ".mounts"))
     catch
     end
 end
