@@ -20,7 +20,7 @@ include("wizard/interactive_build.jl")
 include("wizard/deploy.jl")
 
 function save_last_wizard_state(state::WizardState)
-    create_and_bind_mutable_artifact!("wizard_state") do dir
+    BinaryBuilderBase.create_and_bind_mutable_artifact!("wizard_state") do dir
         jldopen(joinpath(dir, "wizard.state"), "w") do f
             serialize(f, state)
         end
@@ -29,7 +29,7 @@ function save_last_wizard_state(state::WizardState)
 end
 
 function load_last_wizard_state(; as_is::Bool = false)
-    wizard_state_dir = get_mutable_artifact_path("wizard_state")
+    wizard_state_dir = BinaryBuilderBase.get_mutable_artifact_path("wizard_state")
 
     # If no state dir exists, early-exit
     if wizard_state_dir === nothing
