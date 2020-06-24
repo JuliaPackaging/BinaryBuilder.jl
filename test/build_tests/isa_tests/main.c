@@ -8,7 +8,7 @@ ELTYPE summation(ELTYPE * data, int length) {
     ELTYPE sum = 0;
     for( int idx=0; idx<length/STRIDE; ++idx ) {
         for( int jdx=0; jdx<STRIDE; ++jdx ) {
-            sum += data[idx + jdx];
+            sum += data[idx * STRIDE + jdx];
         }
     }
     return sum;
@@ -31,7 +31,7 @@ int main(int argc, char ** argv) {
         data[idx] = (ELTYPE)(idx*idx);
     }
     ELTYPE sum = summation(data, length);
-    printf("Sum of x^2 over [0, %d]: %f\n", length, sum);
+    printf("Sum of x^2 over [0, %d]: %f\n", length-1, sum);
     return 0;
 }
    
