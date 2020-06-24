@@ -1191,7 +1191,8 @@ function build_jll_package(src_name::String,
                 filter!(!isempty, unique!(PATH_list))
                 filter!(!isempty, unique!(LIBPATH_list))
                 global PATH = join(PATH_list, $(repr(pathsep)))
-                global LIBPATH = join(vcat(LIBPATH_list, [$(init_libpath)]), $(repr(pathsep))))            end  # __init__()
+                global LIBPATH = join(vcat(LIBPATH_list, [$(init_libpath)]), $(repr(pathsep)))
+            end  # __init__()
             """)
         end
     end
