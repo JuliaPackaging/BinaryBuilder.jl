@@ -25,10 +25,11 @@ end
             ExecutableProduct("main_sse", :main_sse),
             ExecutableProduct("main_avx", :main_avx),
             ExecutableProduct("main_avx2", :main_avx2),
+            ExecutableProduct("main_avx512", :main_avx512),
         ]
 
         build_output_meta = nothing
-        @test_logs (:warn, r"sandybridge") (:warn, r"haswell") match_mode=:any begin
+        @test_logs (:warn, r"sandybridge") (:warn, r"haswell") (:warn, r"skylake_avx512") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
