@@ -14,7 +14,7 @@ function get_yggdrasil()
             repo = LibGit2.GitRepo(yggdrasil_dir)
             LibGit2.fetch(repo)
             origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
-            LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
+            LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_SOFT)
         end
     end
     global yggdrasil_updated = true
