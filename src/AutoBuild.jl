@@ -76,6 +76,17 @@ download, build and package the tarballs, generating a `build.jl` file when
 appropriate.  Note that `ARGS` should be the top-level Julia `ARGS` command-
 line arguments object.  This function does some rudimentary parsing of the
 `ARGS`, call it with `--help` in the `ARGS` to see what it can do.
+
+The `kwargs` are passed on to [`autobuild`](@ref), see there for a list of
+supported ones. In addition, the keyword argument `init_block` may be set to
+a string containing Julia code; if present, this code will be inserted into
+the initialization path of the generated JLL package. This can for example be
+used to invoke an initialization API of a shared library.
+
+!!! note
+
+    The `init_block` keyword argument is experimental and may be removed
+    in a future version of this package. Please use it sparingly.
 """
 function build_tarballs(ARGS, src_name, src_version, sources, script,
                         platforms, products, dependencies; kwargs...)
@@ -227,7 +238,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
         build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
                           dependencies, bin_path; verbose=verbose,
-                          extract_kwargs(kwargs, (:lazy_artifacts,))...,
+                          extract_kwargs(kwargs, (:lazy_artifacts, :init_block))...,
                           )
         push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_repo)
         if register
@@ -567,6 +578,7 @@ function autobuild(dir::AbstractString,
                    code_dir::Union{String,Nothing} = nothing,
                    require_license::Bool = true,
                    lazy_artifacts::Bool = false,
+                   init_block::String = "",
                    meta_json_stream = nothing,
                    kwargs...)
     @nospecialize
@@ -580,6 +592,7 @@ function autobuild(dir::AbstractString,
             "products" => products,
             "dependencies" => dependencies,
             "lazy_artifacts" => lazy_artifacts,
+            "init_block" => init_block,
         )
         # Do not write the list of platforms when building only for `AnyPlatform`
         if platforms != [AnyPlatform()]
@@ -888,6 +901,8 @@ function init_jll_package(name, code_dir, deploy_repo;
     end
 end
 
+# rebuild_jll_package is not called from anywhere in BinaryBuilder,
+# but rather from JuliaPackaging/Yggdrasil/.ci/register_package.jl
 function rebuild_jll_package(obj::Dict;
                              download_dir = nothing,
                              upload_prefix = nothing,
@@ -920,6 +935,7 @@ function rebuild_jll_package(obj::Dict;
         upload_prefix;
         verbose=verbose,
         lazy_artifacts = lazy_artifacts,
+        init_block = get(obj, "init_block", ""),
         from_scratch = from_scratch,
     )
 end
@@ -929,7 +945,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                              download_dir::String, upload_prefix::String;
                              code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
                              verbose::Bool = false, lazy_artifacts::Bool = false,
-                             from_scratch::Bool = true)
+                             init_block::String = "", from_scratch::Bool = true)
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
 
@@ -982,7 +998,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
             )
         end
 
-        # If `from_scartch` is set (the default) we clear out any old crusty code
+        # If `from_scratch` is set (the default) we clear out any old crusty code
         # before generating our new, pristine, JLL package within it.  :)
         if from_scratch
             rm(joinpath(code_dir, "src"); recursive=true, force=true)
@@ -990,7 +1006,9 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         end
 
         # Finally, generate the full JLL package
-        build_jll_package(name, build_version, sources, code_dir, build_output_meta, dependencies, upload_prefix; verbose=verbose, lazy_artifacts=lazy_artifacts)
+        build_jll_package(name, build_version, sources, code_dir, build_output_meta,
+                          dependencies, upload_prefix; verbose=verbose,
+                          lazy_artifacts=lazy_artifacts, init_block=init_block)
     end
 end
 
@@ -1002,7 +1020,8 @@ function build_jll_package(src_name::String,
                            dependencies::Vector,
                            bin_path::String;
                            verbose::Bool = false,
-                           lazy_artifacts::Bool = false)
+                           lazy_artifacts::Bool = false,
+                           init_block = "")
     if !Base.isidentifier(src_name)
         error("Package name \"$(src_name)\" is not a valid identifier")
     end
@@ -1192,6 +1211,8 @@ function build_jll_package(src_name::String,
                 filter!(!isempty, unique!(LIBPATH_list))
                 global PATH = join(PATH_list, $(repr(pathsep)))
                 global LIBPATH = join(vcat(LIBPATH_list, [$(init_libpath)]), $(repr(pathsep)))
+
+                $(init_block)
             end  # __init__()
             """)
         end
