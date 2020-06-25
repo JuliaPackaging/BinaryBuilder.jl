@@ -11,7 +11,10 @@ function get_yggdrasil()
     else
         if !yggdrasil_updated
             @info("Updating bare Yggdrasil clone in deps/Yggdrasil...")
-            LibGit2.fetch(LibGit2.GitRepo(yggdrasil_dir))
+            repo = LibGit2.GitRepo(yggdrasil_dir)
+            LibGit2.fetch(repo)
+            origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
+            LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
         end
     end
     global yggdrasil_updated = true
