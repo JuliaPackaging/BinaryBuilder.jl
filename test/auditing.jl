@@ -20,59 +20,72 @@ using BinaryBuilder.Auditor
 end
 
 @testset "Auditor - ISA tests" begin
-    mktempdir() do build_path
-        products = Product[
-            ExecutableProduct("main_sse", :main_sse),
-            ExecutableProduct("main_avx", :main_avx),
-            ExecutableProduct("main_avx2", :main_avx2),
-            ExecutableProduct("main_avx512", :main_avx512),
-        ]
+    product = ExecutableProduct("main", :main)
 
-        build_output_meta = nothing
-        @test_logs (:warn, r"sandybridge") (:warn, r"haswell") (:warn, r"skylake_avx512") match_mode=:any begin
-            build_output_meta = autobuild(
-                build_path,
-                "isa_tests",
-                v"1.0.0",
-                [DirectorySource(build_tests_dir)],
-                # Build the test suite, install the binaries into our prefix's `bin`
-                raw"""
-                cd ${WORKSPACE}/srcdir/isa_tests
-                make -j${nproc} install
-                install_license /usr/include/ltdl.h
-                """,
-                # Build for our platform
-                [platform],
-                # Ensure our executable products are built
-                products,
-                # No dependencies
-                Dependency[];
-                # We need to build with very recent GCC so that we can emit AVX2
-                preferred_gcc_version=v"8",
-                # Allow forcing a different microarchitecture.
-                # TODO: change this test to use built-in method to select
-                # different microarchitectures.
-                lock_microarchitecture=false,
-            )
-        end
+    for (march, isa) in (("x86_64", "core2"), ("avx", "sandybridge"), ("avx2", "haswell"), ("avx512", "skylake_avx512"))
+        mktempdir() do build_path
+            platform = ExtendedPlatform(Linux(:x86_64); march=march)
+            build_output_meta = nothing
+            if march == "x86_64"
+                @test_logs (:info, "Building for x86_64-linux-gnu-march+x86_64") match_mode=:any @test_nowarn begin
+                    build_output_meta = autobuild(
+                        build_path,
+                        "isa_tests",
+                        v"1.0.0",
+                        [DirectorySource(build_tests_dir)],
+                        # Build the test suite, install the binaries into our prefix's `bin`
+                        raw"""
+                        cd ${WORKSPACE}/srcdir/isa_tests
+                        make -j${nproc} install
+                        install_license /usr/include/ltdl.h
+                        """,
+                        # Build for our platform
+                        [platform],
+                        # Ensure our executable products are built
+                        [product],
+                        # No dependencies
+                        Dependency[];
+                    )
+                end
+            else
+                @test_logs (:warn, Regex(isa)) match_mode=:any begin
+                    build_output_meta = autobuild(
+                        build_path,
+                        "isa_tests",
+                        v"1.0.0",
+                        [DirectorySource(build_tests_dir)],
+                        # Build the test suite, install the binaries into our prefix's `bin`
+                        raw"""
+                        cd ${WORKSPACE}/srcdir/isa_tests
+                        make -j${nproc} install
+                        install_license /usr/include/ltdl.h
+                        """,
+                        # Build for our platform
+                        [platform],
+                        # Ensure our executable products are built
+                        [product],
+                        # No dependencies
+                        Dependency[];
+                    )
+                end
+            end
 
-        # Extract our platform's build
-        @test haskey(build_output_meta, platform)
-        tarball_path, tarball_hash = build_output_meta[platform][1:2]
-        @test isfile(tarball_path)
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
 
-        # Unpack it somewhere else
-        @test verify(tarball_path, tarball_hash)
-        testdir = joinpath(build_path, "testdir")
-        mkdir(testdir)
-        unpack(tarball_path, testdir)
-        prefix = Prefix(testdir)
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
 
-        # Run ISA tests
-        for (product, true_isa) in zip(products, (:core2, :sandybridge, :haswell))
+            # Run ISA test
             readmeta(locate(product, prefix)) do oh
                 detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
-                @test detected_isa == true_isa
+                @test detected_isa == Symbol(isa)
             end
         end
     end

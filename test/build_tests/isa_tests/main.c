@@ -6,8 +6,9 @@
 
 ELTYPE summation(ELTYPE * data, int length) {
     ELTYPE sum = 0;
-    for( int idx=0; idx<length/STRIDE; ++idx ) {
-        for( int jdx=0; jdx<STRIDE; ++jdx ) {
+    int idx, jdx;
+    for( idx=0; idx<length/STRIDE; ++idx ) {
+        for( jdx=0; jdx<STRIDE; ++jdx ) {
             sum += data[idx * STRIDE + jdx];
         }
     }
@@ -27,7 +28,8 @@ int main(int argc, char ** argv) {
     }
 
     ELTYPE * data = (ELTYPE *) malloc(sizeof(ELTYPE)*length);
-    for( int idx = 0; idx<length; ++idx ) {
+    int idx;
+    for( idx = 0; idx<length; ++idx ) {
         data[idx] = (ELTYPE)(idx*idx);
     }
     ELTYPE sum = summation(data, length);
