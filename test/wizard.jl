@@ -1,8 +1,8 @@
-using BinaryBuilder
+using BinaryBuilder, BinaryBuilder.BinaryBuilderBase, BinaryBuilder.Wizard
 using GitHub, Test, VT100, Sockets, HTTP, SHA
-import Pkg
+import Pkg: PackageSpec
 
-import BinaryBuilder: available_gcc_builds, available_llvm_builds, getversion
+import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
 
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
@@ -87,9 +87,9 @@ function call_response(ins, outs, question, answer; newline=true)
 end
 
 @testset "Wizard - Obtain source" begin
-    state = BinaryBuilder.WizardState()
+    state = Wizard.WizardState()
     # Use a non existing name
-    with_wizard_output(state, BinaryBuilder.get_name_and_version) do ins, outs
+    with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
         call_response(ins, outs, "Enter a name for this project", "libfoobarqux")
         call_response(ins, outs, "Enter a version number", "1.2.3")
     end
@@ -97,7 +97,7 @@ end
     @test state.version == v"1.2.3"
     state.name = nothing
     # Use an existing name, choose a new one afterwards
-    with_wizard_output(state, BinaryBuilder.get_name_and_version) do ins, outs
+    with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
         call_response(ins, outs, "Enter a name for this project", "libcurl")
         call_response(ins, outs, "Choose a new project name", "y")
         call_response(ins, outs, "Enter a name for this project", "libfoobarqux")
@@ -106,7 +106,7 @@ end
     @test state.version == v"1.2.3"
     state.name = nothing
     # Use an existing name, confirm the choice
-    with_wizard_output(state, BinaryBuilder.get_name_and_version) do ins, outs
+    with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
         call_response(ins, outs, "Enter a name for this project", "libcurl")
         call_response(ins, outs, "Choose a new project name", "N")
     end
@@ -116,7 +116,7 @@ end
 
 # Set the state up
 function step2_state()
-    state = BinaryBuilder.WizardState()
+    state = Wizard.WizardState()
     state.step = :step2
     state.platforms = [Linux(:x86_64)]
 
@@ -125,7 +125,7 @@ end
 
 @testset "Wizard - Downloading" begin
     state = step2_state()
-    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+    with_wizard_output(state, Wizard.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "N")
@@ -149,11 +149,11 @@ end
     @test state.preferred_gcc_version == getversion(available_gcc_builds[1])
     # The default LLVM shard is the latest one, and above we pressed three times
     # arrow down in the reverse order list.
-    @test state.preferred_llvm_version == getversion(BinaryBuilder.available_llvm_builds[end-3])
+    @test state.preferred_llvm_version == getversion(available_llvm_builds[end-3])
 
     # Test two tar.gz download
     state = step2_state()
-    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+    with_wizard_output(state, Wizard.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "Y")
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/b/source.tar.gz")
@@ -178,7 +178,7 @@ end
     # Test download/install with a broken symlink that used to kill the wizard
     # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/183
     state = step2_state()
-    with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+    with_wizard_output(state, Wizard.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "https://github.com/staticfloat/small_bin/raw/d846f4a966883e7cc032a84acf4fa36695d05482/broken_symlink/broken_symlink.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "N")
@@ -191,7 +191,7 @@ end
 
     # Test failure to resolve a dependency
     state = step2_state()
-    @test_logs (:warn, r"Unable to resolve iso_codez_jll") match_mode=:any with_wizard_output(state, BinaryBuilder.step2) do ins, outs
+    @test_logs (:warn, r"Unable to resolve iso_codez_jll") match_mode=:any with_wizard_output(state, Wizard.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "Y")
@@ -227,7 +227,7 @@ open(f -> write(f, libfoo_tarball_data), libfoo_tarball_path, "w")
 
 
 function step3_state()
-    state = BinaryBuilder.WizardState()
+    state = Wizard.WizardState()
     state.step = :step34
     state.platforms = [Linux(:x86_64)]
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
@@ -265,7 +265,7 @@ end
 
     # Test step3 success path
     state = step3_state()
-    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+    with_wizard_output(state, Wizard.step34) do ins, outs
         call_response(ins, outs, "\${WORKSPACE}/srcdir", """
         cd libfoo
         make install
@@ -283,7 +283,7 @@ end
 
     # Step 3 failure path (no binary in destdir -> return to build)
     state = step3_state()
-    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+    with_wizard_output(state, Wizard.step34) do ins, outs
         # Don't build anything
         call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
         call_response(ins, outs, "Would you like to edit this script now?", "N")
@@ -310,7 +310,7 @@ end
 
     # Step 3 failure path (no binary in destdir -> retry with a clean build environment)
     state = step3_state()
-    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+    with_wizard_output(state, Wizard.step34) do ins, outs
         # Don't build anything
         call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
         call_response(ins, outs, "Would you like to edit this script now?", "N")
@@ -322,7 +322,7 @@ end
 
     # Step 3 with a failing script
     state = step3_state()
-    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+    with_wizard_output(state, Wizard.step34) do ins, outs
         # Build ok, but then indicate a failure
         call_response(ins, outs, "\${WORKSPACE}/srcdir", """
         cd libfoo
@@ -338,8 +338,8 @@ end
 
     # Step 3 dependency download
     state = step3_state()
-    state.dependencies = [Dependency(Pkg.PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a"))]
-    with_wizard_output(state, BinaryBuilder.step34) do ins, outs
+    state.dependencies = [Dependency(PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a"))]
+    with_wizard_output(state, Wizard.step34) do ins, outs
         call_response(ins, outs, "\${WORKSPACE}/srcdir", """
         if [[ ! -f \${libdir}/libz.\${dlext} ]]; then
             echo "ERROR: Could not find libz.\${dlext}" >&2
@@ -371,7 +371,7 @@ end
         exit 1
     """)
 
-    with_wizard_output(state, state->BinaryBuilder.step5_internal(state, first(state.platforms))) do ins, outs
+    with_wizard_output(state, state->Wizard.step5_internal(state, first(state.platforms))) do ins, outs
         call_response(ins, outs, "Press Enter to continue...", "\n")
         call_response(ins, outs, "How would you like to proceed?", "\e[B\e[B\r")
     end
@@ -380,9 +380,9 @@ end
 
 @testset "GitHub - authentication" begin
     withenv("GITHUB_TOKEN" => "") do
-        @test BinaryBuilder.github_auth(allow_anonymous=true) isa GitHub.AnonymousAuth
+        @test Wizard.github_auth(allow_anonymous=true) isa GitHub.AnonymousAuth
         input_stream = IOBuffer()
         close(input_stream)
-        @test_throws ErrorException BinaryBuilder.obtain_token(ins=input_stream)
+        @test_throws ErrorException Wizard.obtain_token(ins=input_stream)
     end
 end

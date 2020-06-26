@@ -1,6 +1,6 @@
 using SnoopCompile
 
-@snoopiBot "BinaryBuilder" begin
+@snoopi_bot "BinaryBuilder" begin
     using BinaryBuilder
     # Do an actual build
     products = Product[

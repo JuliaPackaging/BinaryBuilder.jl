@@ -1,8 +1,9 @@
 using Pkg
-using BinaryBuilder
-using BinaryBuilder: preferred_runner, exeext, dlext
+using BinaryBuilder, BinaryBuilder.BinaryBuilderBase
+using BinaryBuilder.BinaryBuilderBase: preferred_runner, exeext, dlext
 using Pkg.PlatformEngines, Pkg.BinaryPlatforms
-using Random, LibGit2, Libdl, Test, ObjectFile, SHA
+using Random, LibGit2, Test, ObjectFile, SHA
+import Libdl
 
 # The platform we're running on
 const platform = platform_key_abi()

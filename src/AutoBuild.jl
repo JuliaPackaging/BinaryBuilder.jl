@@ -1,6 +1,6 @@
 export build_tarballs, autobuild, print_artifacts_toml, build
 import GitHub: gh_get_json, DEFAULT_API
-import SHA: sha256
+import SHA: sha256, sha1
 using Pkg.TOML, Dates, UUIDs
 using RegistryTools, Registrator
 import LibGit2
@@ -326,7 +326,7 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
-function upload_to_github_releases(repo, tag, path; gh_auth=github_auth(;allow_anonymous=false), 
+function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false), 
                                    attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
@@ -404,7 +404,7 @@ end
 function register_jll(name, build_version, dependencies;
                       deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
                       code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
-                      gh_auth=github_auth(;allow_anonymous=false),
+                      gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     if !Base.isidentifier(name)
         error("Package name \"$(name)\" is not a valid identifier")
@@ -455,56 +455,6 @@ function register_jll(name, build_version, dependencies;
         create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth)
     end
 end
-
-"""
-    get_concrete_platform(platform::Platform, shards::Vector{CompilerShard})
-
-Return the concrete platform for the given `platform` based on the GCC compiler
-ABI in the `shards`.
-"""
-function get_concrete_platform(platform::Platform, shards::Vector{CompilerShard})
-    # We want to get dependencies that have exactly the same GCC ABI as the
-    # chosen compiler, otherwise we risk, e.g., to build in an environment
-    # with libgfortran3 a dependency built with libgfortran5.
-    # `concrete_platform` is needed only to setup the dependencies and the
-    # runner.  We _don't_ want the platform passed to `audit()` or
-    # `package()` to be more specific than it is.
-    concrete_platform = platform
-    gccboostrap_shard_idx = findfirst(x -> x.name == "GCCBootstrap" &&
-                                      x.target.arch == platform.arch &&
-                                      x.target.libc == platform.libc,
-                                      shards)
-    if !isnothing(gccboostrap_shard_idx)
-        libgfortran_version = preferred_libgfortran_version(platform, shards[gccboostrap_shard_idx])
-        cxxstring_abi = preferred_cxxstring_abi(platform, shards[gccboostrap_shard_idx])
-        concrete_platform = replace_cxxstring_abi(replace_libgfortran_version(platform, libgfortran_version), cxxstring_abi)
-    end
-    return concrete_platform
-end
-
-"""
-    get_concrete_platform(platform::Platform;
-                          preferred_gcc_version = nothing,
-                          preferred_llvm_version = nothing,
-                          compilers = nothing)
-
-Return the concrete platform for the given `platform` based on the GCC compiler
-ABI.  The set of shards is chosen by the keyword arguments (see [`choose_shards`](@ref)).
-"""
-function get_concrete_platform(platform::Platform;
-                               preferred_gcc_version = nothing,
-                               preferred_llvm_version = nothing,
-                               compilers = nothing)
-    shards = choose_shards(platform;
-                           preferred_gcc_version = preferred_gcc_version,
-                           preferred_llvm_version = preferred_llvm_version,
-                           compilers = compilers)
-    return get_concrete_platform(platform, shards)
-end
-
-# XXX: we want the AnyPlatform to look like `x86_64-linux-musl`,
-get_concrete_platform(::AnyPlatform, shards::Vector{CompilerShard}) =
-    get_concrete_platform(Linux(:x86_64, libc=:musl), shards)
 
 """
     autobuild(dir::AbstractString, src_name::AbstractString,
@@ -664,7 +614,7 @@ function autobuild(dir::AbstractString,
             compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
             src_name = src_name,
             shards = shards,
-            extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers,:allow_unsafe_flags))...,
+            extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers,:allow_unsafe_flags,:lock_microarchitecture))...,
         )
 
         # Set up some bash traps
@@ -773,7 +723,7 @@ function autobuild(dir::AbstractString,
             products_info[p] = Dict("path" => relpath(product_path, dest_prefix.path))
             if p isa LibraryProduct || p isa FrameworkProduct
                 products_info[p]["soname"] = something(
-                    get_soname(product_path),
+                    Auditor.get_soname(product_path),
                     basename(product_path),
                 )
             end
@@ -783,7 +733,7 @@ function autobuild(dir::AbstractString,
         cleanup_dependencies(prefix, artifact_paths)
 
         # Search for dead links in dest_prefix; raise warnings about them.
-        warn_deadlinks(dest_prefix.path)
+        Auditor.warn_deadlinks(dest_prefix.path)
 
         # Cull empty directories, for neatness' sake, unless auditing is disabled
         if !skip_audit
@@ -838,8 +788,24 @@ function autobuild(dir::AbstractString,
     return build_output_meta
 end
 
+function prepare_for_deletion(prefix::String)
+    # Temporarily work around walkdir bug with endless symlinks: https://github.com/JuliaLang/julia/pull/35006
+    try
+        for (root, dirs, files) in walkdir(prefix; follow_symlinks=false)
+            for d in dirs
+                # Ensure that each directory is writable by by the owning user (should be us)
+                path = joinpath(root, d)
+                try
+                    chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
+                catch
+                end
+            end
+        end
+    catch
+    end
+end
 
-function download_github_release(download_dir, repo, tag; gh_auth=github_auth(), verbose::Bool=false)
+function download_github_release(download_dir, repo, tag; gh_auth=Wizard.github_auth(), verbose::Bool=false)
     release = gh_get_json(DEFAULT_API, "/repos/$(repo)/releases/tags/$(tag)", auth=gh_auth)
     assets = [a for a in release["assets"] if endswith(a["name"], ".tar.gz")]
 
@@ -854,7 +820,7 @@ end
 
 
 function init_jll_package(name, code_dir, deploy_repo;
-                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
                           gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     try
         # This throws if it does not exist
@@ -985,7 +951,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
                 if p isa LibraryProduct || p isa FrameworkProduct
                     products_info[p]["soname"] = something(
-                        get_soname(product_path),
+                        Auditor.get_soname(product_path),
                         basename(product_path),
                     )
                 end
@@ -1187,7 +1153,7 @@ function build_jll_package(src_name::String,
                     println(io, """
                         # Manually `dlopen()` this right now so that future invocations
                         # of `ccall` with its `SONAME` will find this path immediately.
-                        global $(vp)_handle = dlopen($(vp)_path$(dlopen_flags_str(p)))
+                        global $(vp)_handle = dlopen($(vp)_path$(BinaryBuilderBase.dlopen_flags_str(p)))
                         push!(LIBPATH_list, dirname($(vp)_path))
                     """)
                 elseif p isa ExecutableProduct
@@ -1413,7 +1379,7 @@ end
 function push_jll_package(name, build_version;
                           code_dir = joinpath(Pkg.devdir(), "$(name)_jll"),
                           deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
-                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
                           gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     # Next, push up the wrapper code repository
     wrapper_repo = LibGit2.GitRepo(code_dir)

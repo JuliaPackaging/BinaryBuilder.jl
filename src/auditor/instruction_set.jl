@@ -844,6 +844,15 @@ instruction_categories = Dict(
         "vzeroupper",
     ],
     "avx2" => [
+        "vpermd", # also avx512
+        "vpbroadcastd", # also avx512
+        "vpbroadcastq", # also avx512
+        "vpbroadcastb", # also avx512
+        "vpbroadcastw", # also avx512
+        "vextracti128",
+        "vinserti128",
+    ],
+    "avx512" => [
         "vblendmpd",
         "vblendmps",
         "vpblendmd",
@@ -860,10 +869,10 @@ instruction_categories = Dict(
         "vpcmpuw",
         "vptestmq",
         "vptestmd",
-        "vptestnmd",
-        "vptestnmq",
         "vptestmb",
         "vptestmw",
+        "vptestnmd",
+        "vptestnmq",
         "vptestnmb",
         "vptestnmw",
         "vcompresspd",
@@ -878,16 +887,16 @@ instruction_categories = Dict(
         "vpermw",
         "vpermt2b",
         "vpermt2w",
-        "vpermi2pd",
-        "vpermi2ps",
-        "vpermi2d",
-        "vpermi2q",
-        "vpermi2b",
-        "vpermi2w",
         "vpermt2ps",
         "vpermt2pd",
         "vpermt2d",
         "vpermt2q",
+        "vpermi2pd",
+        "vpermi2ps",
+        "vpermi2d",
+        "vpermi2q",
+        "vpermi2w",
+        "vpermi2b",
         "vshuff32x4",
         "vshuff64x2",
         "vshuffi32x4",
@@ -916,9 +925,9 @@ instruction_categories = Dict(
         "vcvtpd2udq",
         "vcvttps2udq",
         "vcvttpd2udq",
-        "vcvtss2usi ",
-        "vcvtsd2usi ",
-        "vcvttss2usi ",
+        "vcvtss2usi",
+        "vcvtsd2usi",
+        "vcvttss2usi",
         "vcvttsd2usi",
         "vcvtps2qq",
         "vcvtpd2qq",
@@ -930,7 +939,7 @@ instruction_categories = Dict(
         "vcvttpd2uqq",
         "vcvtudq2ps ",
         "vcvtudq2pd",
-        "vcvtusi2ps ",
+        "vcvtusi2ps",
         "vcvtusi2pd",
         "vcvtusi2sd",
         "vcvtusi2ss",
@@ -969,10 +978,6 @@ instruction_categories = Dict(
         "valignd",
         "valignq",
         "vdbpsadbw",
-        "vpbroadcastd",
-        "vpbroadcastq",
-        "vpbroadcastb",
-        "vpbroadcastw",
         "vbroadcastf32x4",
         "vbroadcastf64x4",
         "vbroadcasti32x4",
@@ -985,18 +990,18 @@ instruction_categories = Dict(
         "vbroadcasti32x8",
         "vextractf32x4",
         "vextractf64x4",
-        "vextracti32x4",
-        "vextracti64x4",
         "vextractf64x2",
         "vextractf32x8",
+        "vextracti32x4",
+        "vextracti64x4",
         "vextracti64x2",
         "vextracti32x8",
         "vinsertf32x4",
         "vinsertf64x4",
-        "vinserti32x4",
-        "vinserti64x4",
         "vinsertf64x2",
         "vinsertf32x8",
+        "vinserti32x4",
+        "vinserti64x4",
         "vinserti64x2",
         "vinserti32x8",
         "vpabsq",
@@ -1034,7 +1039,7 @@ instruction_categories = Dict(
         "vplzcntd",
         "vplzcntq",
         "vpbroadcastmb2q",
-        "pbroadcastmw2d",
+        "vpbroadcastmw2d",
         "vexp2pd",
         "vexp2ps",
         "vrcp28pd",
@@ -1073,20 +1078,20 @@ instruction_categories = Dict(
         "vreducepd",
         "vreducess",
         "vreducesd",
-        "vpmovm2d",
-        "vpmovm2q",
         "vpmovm2b",
         "vpmovm2w",
-        "vpmovd2m",
-        "vpmovq2m",
+        "vpmovm2d",
+        "vpmovm2q",
         "vpmovb2m",
         "vpmovw2m",
+        "vpmovd2m",
+        "vpmovq2m",
         "vpmullq",
         "vpmadd52luq",
         "vpmadd52huq",
         "v4fmaddps",
-        "v4fmaddss",
         "v4fnmaddps",
+        "v4fmaddss",
         "v4fnmaddss",
         "vp4dpwssd",
         "vp4dpwssds",
@@ -1168,17 +1173,20 @@ whether the object file being pointed to is a 32-bit or 64-bit one:
 
 * For 32-bit object files, this returns one of [:pentium4, :prescott]
 
-* For 64-bit object files, this returns one of [:core2, :sandybridge, :haswell]
+* For 64-bit object files, this returns one of [:x86_64, :sandybridge, :haswell, :skylake_avx512]
 """
 function minimum_instruction_set(counts::Dict, is_64bit::Bool)
     if is_64bit
+        if counts["avx512"] > 0
+            return :skylake_avx512
+        end
         if counts["avx2"] > 0
             return :haswell
         end
         if counts["avx"] > 0
             return :sandybridge
         end
-        return :core2
+        return :x86_64
     else
         if counts["sse3"] > 0
             return :prescott
@@ -1215,7 +1223,7 @@ function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::
     # If the binary uses `cpuid`, we can't know what it's doing, so just
     # return the most conservative ISA and warn the user if `verbose` is set.
     if counts["cpuid"] > 0
-        new_min_isa = is64bit(oh) ? :core2 : :pentium4
+        new_min_isa = is64bit(oh) ? :x86_64 : :pentium4
         if verbose && new_min_isa != min_isa
             msg = replace("""
             $(basename(path(oh))) contains a `cpuid` instruction; refusing to

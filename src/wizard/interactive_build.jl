@@ -1,3 +1,5 @@
+using BinaryBuilderBase: get_concrete_platform
+
 include("hints.jl")
 
 # When rerunning the script generated during the wizard we want to fail on error
@@ -24,7 +26,7 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
     # Check if we can load them as an object file
     files = filter(files) do f
         readmeta(f) do oh
-            return is_for_platform(oh, platform)
+            return Auditor.is_for_platform(oh, platform)
         end
     end
 

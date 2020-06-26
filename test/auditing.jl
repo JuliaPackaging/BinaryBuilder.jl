@@ -1,3 +1,6 @@
+using BinaryBuilder.Auditor
+using BinaryBuilder.Auditor: compatible_x86_64_archs
+
 # Tests for our auditing infrastructure
 
 @testset "Auditor - cppfilt" begin
@@ -8,7 +11,7 @@
         "_Z10my_listlenNSt7__cxx114listIiSaIiEEE",
         "_ZNKSt7__cxx114listIiSaIiEE4sizeEv",
     ]
-    unmangled_symbol_names = BinaryBuilder.cppfilt(mangled_symbol_names, Linux(:x86_64))
+    unmangled_symbol_names = Auditor.cppfilt(mangled_symbol_names, Linux(:x86_64))
     @test all(unmangled_symbol_names .== [
         "std::__cxx11::_List_base<int, std::allocator<int> >::_M_node_count() const",
         "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::length() const@@GLIBCXX_3.4.21",
@@ -18,15 +21,20 @@
 end
 
 @testset "Auditor - ISA tests" begin
-    mktempdir() do build_path
-        products = Product[
-            ExecutableProduct("main_sse", :main_sse),
-            ExecutableProduct("main_avx", :main_avx),
-            ExecutableProduct("main_avx2", :main_avx2),
-        ]
+    @test compatible_x86_64_archs(Linux(:x86_64)) == [:x86_64]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="x86_64")) == [:x86_64]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx")) == [:x86_64, :sandybridge]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx2")) == [:x86_64, :sandybridge, :haswell]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx512")) == [:x86_64, :sandybridge, :haswell, :skylake_avx512]
+    @test_throws ArgumentError compatible_x86_64_archs(Linux(:aarch64))
 
+    product = ExecutableProduct("main", :main)
+
+    # The microarchitecture of the product doesn't match the target architecture: complain!
+    mktempdir() do build_path
+        platform = ExtendedPlatform(Linux(:x86_64); march="avx")
         build_output_meta = nothing
-        @test_logs (:warn, r"sandybridge") (:warn, r"haswell") match_mode=:any begin
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is skylake_avx512, not sandybridge as desired.$") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
@@ -35,37 +43,128 @@ end
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
                 cd ${WORKSPACE}/srcdir/isa_tests
-                make -j${nproc} install
+                make -j${nproc} CFLAGS="-march=skylake-avx512 -mtune=skylake-avx512" install
                 install_license /usr/include/ltdl.h
                 """,
                 # Build for our platform
                 [platform],
                 # Ensure our executable products are built
-                products,
+                [product],
                 # No dependencies
                 Dependency[];
-                # We need to build with very recent GCC so that we can emit AVX2
-                preferred_gcc_version=v"8",
+                preferred_gcc_version=v"6",
+                lock_microarchitecture=false,
             )
-        end
 
-        # Extract our platform's build
-        @test haskey(build_output_meta, platform)
-        tarball_path, tarball_hash = build_output_meta[platform][1:2]
-        @test isfile(tarball_path)
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
 
-        # Unpack it somewhere else
-        @test verify(tarball_path, tarball_hash)
-        testdir = joinpath(build_path, "testdir")
-        mkdir(testdir)
-        unpack(tarball_path, testdir)
-        prefix = Prefix(testdir)
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
 
-        # Run ISA tests
-        for (product, true_isa) in zip(products, (:core2, :sandybridge, :haswell))
+            # Run ISA test
             readmeta(locate(product, prefix)) do oh
-                detected_isa = BinaryBuilder.analyze_instruction_set(oh, platform; verbose=true)
-                @test detected_isa == true_isa
+                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                @test detected_isa == :skylake_avx512
+            end
+        end
+    end
+
+    # The instruction set of the product is compatible with the target
+    # architecture, but it's lower than desired: issue a gentle warning
+    mktempdir() do build_path
+        platform = ExtendedPlatform(Linux(:x86_64); march="avx512")
+        build_output_meta = nothing
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is sandybridge, not skylake_avx512 as desired. You may be missing some optimization flags during compilation.$") match_mode=:any begin
+            build_output_meta = autobuild(
+                build_path,
+                "isa_tests",
+                v"1.0.0",
+                [DirectorySource(build_tests_dir)],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                cd ${WORKSPACE}/srcdir/isa_tests
+                make -j${nproc} CFLAGS="-march=sandybridge -mtune=sandybridge" install
+                install_license /usr/include/ltdl.h
+                """,
+                # Build for our platform
+                [platform],
+                # Ensure our executable products are built
+                [product],
+                # No dependencies
+                Dependency[];
+                preferred_gcc_version=v"6",
+                lock_microarchitecture=false,
+            )
+
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
+
+            # Run ISA test
+            readmeta(locate(product, prefix)) do oh
+                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                @test detected_isa == :sandybridge
+            end
+        end
+    end
+
+    # The microarchitecture of the product matches the target architecture: no warnings!
+    for (march, isa) in (("x86_64", "x86_64"), ("avx", "sandybridge"), ("avx2", "haswell"), ("avx512", "skylake_avx512"))
+        mktempdir() do build_path
+            platform = ExtendedPlatform(Linux(:x86_64); march=march)
+            build_output_meta = nothing
+            @test_logs (:info, "Building for x86_64-linux-gnu-march+$(march)") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "isa_tests",
+                    v"1.0.0",
+                    [DirectorySource(build_tests_dir)],
+                    # Build the test suite, install the binaries into our prefix's `bin`
+                    raw"""
+                    cd ${WORKSPACE}/srcdir/isa_tests
+                    make -j${nproc} install
+                    install_license /usr/include/ltdl.h
+                    """,
+                    # Build for our platform
+                    [platform],
+                    # Ensure our executable products are built
+                    [product],
+                    # No dependencies
+                    Dependency[];
+                )
+            end
+
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
+
+            # Run ISA test
+            readmeta(locate(product, prefix)) do oh
+                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                @test detected_isa == Symbol(isa)
             end
         end
     end
@@ -119,7 +218,7 @@ end
 
                 # Ensure that the library detects as the correct cxxstring_abi:
                 readmeta(locate(libcxxstringabi_test, prefix)) do oh
-                    detected_cxxstring_abi = BinaryBuilder.detect_cxxstring_abi(oh, platform)
+                    detected_cxxstring_abi = Auditor.detect_cxxstring_abi(oh, platform)
                     @test detected_cxxstring_abi == cxxstring_abi(platform)
                 end
 
@@ -271,7 +370,7 @@ end
 
         # Test that `audit()` warns about an absolute path within the prefix
         @test_logs (:warn, r"share/foo.conf contains an absolute path") match_mode=:any begin
-            BinaryBuilder.audit(Prefix(build_path); verbose=true)
+            Auditor.audit(Prefix(build_path); verbose=true)
         end
     end
 end
@@ -288,7 +387,7 @@ end
 
         # Test that `audit()` warns about broken symlinks
         @test_logs (:warn, r"Broken symlink: bin/libzmq.dll.a") match_mode=:any begin
-            BinaryBuilder.warn_deadlinks(build_path)
+            Auditor.warn_deadlinks(build_path)
         end
     end
 end
@@ -346,7 +445,7 @@ end
         # If we audit the testdir, pretending that we're trying to build an ABI-agnostic
         # tarball, make sure it warns us about it.
         @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
-            BinaryBuilder.audit(Prefix(testdir); platform=BinaryBuilder.abi_agnostic(platform), autofix=false)
+            Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(platform), autofix=false)
         end
     end
 end

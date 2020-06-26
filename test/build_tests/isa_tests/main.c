@@ -6,9 +6,10 @@
 
 ELTYPE summation(ELTYPE * data, int length) {
     ELTYPE sum = 0;
-    for( int idx=0; idx<length/STRIDE; ++idx ) {
-        for( int jdx=0; jdx<STRIDE; ++jdx ) {
-            sum += data[idx + jdx];
+    int idx, jdx;
+    for( idx=0; idx<length/STRIDE; ++idx ) {
+        for( jdx=0; jdx<STRIDE; ++jdx ) {
+            sum += data[idx * STRIDE + jdx];
         }
     }
     return sum;
@@ -27,11 +28,12 @@ int main(int argc, char ** argv) {
     }
 
     ELTYPE * data = (ELTYPE *) malloc(sizeof(ELTYPE)*length);
-    for( int idx = 0; idx<length; ++idx ) {
+    int idx;
+    for( idx = 0; idx<length; ++idx ) {
         data[idx] = (ELTYPE)(idx*idx);
     }
     ELTYPE sum = summation(data, length);
-    printf("Sum of x^2 over [0, %d]: %f\n", length, sum);
+    printf("Sum of x^2 over [0, %d]: %f\n", length-1, sum);
     return 0;
 }
    

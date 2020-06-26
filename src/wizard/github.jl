@@ -1,3 +1,5 @@
+using Registrator
+
 # This is a global github authentication token that is set the first time
 # we authenticate and then reused
 const _github_auth = Ref{GitHub.Authorization}()

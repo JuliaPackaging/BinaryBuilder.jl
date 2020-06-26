@@ -21,18 +21,6 @@ function get_yggdrasil()
     return yggdrasil_dir
 end
 
-# We only want to update the registry once per run
-registry_updated = false
-function update_registry(ctx = Pkg.Types.Context())
-    global registry_updated
-    if !registry_updated
-        Pkg.Registry.update(ctx, [
-            Pkg.Types.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106"),
-        ])
-        registry_updated = true
-    end
-end
-
 """
     yggdrasil_build_tarballs_path(name::String)
 

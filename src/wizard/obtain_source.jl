@@ -1,3 +1,4 @@
+using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, automatic_apple, macos_sdk_already_installed
 using ProgressMeter
 const update! = ProgressMeter.update!
 
@@ -250,7 +251,6 @@ function step1(state::WizardState)
         error("Somehow platform_select was not a valid choice!")
     end
 
-    global automatic_apple
     if any(p -> p isa MacOS, state.platforms) && !automatic_apple && !macos_sdk_already_installed()
         # Ask the user if they accept to download the macOS SDK
         automatic_apple = accept_apple_sdk(state.ins, state.outs)
