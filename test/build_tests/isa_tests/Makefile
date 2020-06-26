@@ -5,11 +5,11 @@ CC ?= gcc
 all: main
 
 main: main.c
-	$(CC) -o main -O3 main.c
+	$(CC) $(CFLAGS) -o $@ -O3 $^
 
 install: main
 	mkdir -p $(bindir)
-	cp main $(bindir)/
+	cp $^ $(bindir)/
 
 clean:
-	rm -f main*
+	rm -f main

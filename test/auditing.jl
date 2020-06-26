@@ -1,4 +1,5 @@
 using BinaryBuilder.Auditor
+using BinaryBuilder.Auditor: compatible_x86_64_archs
 
 # Tests for our auditing infrastructure
 
@@ -20,54 +21,132 @@ using BinaryBuilder.Auditor
 end
 
 @testset "Auditor - ISA tests" begin
+    @test compatible_x86_64_archs(Linux(:x86_64)) == [:x86_64]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="x86_64")) == [:x86_64]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx")) == [:x86_64, :sandybridge]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx2")) == [:x86_64, :sandybridge, :haswell]
+    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx512")) == [:x86_64, :sandybridge, :haswell, :skylake_avx512]
+    @test_throws ArgumentError compatible_x86_64_archs(Linux(:aarch64))
+
     product = ExecutableProduct("main", :main)
 
-    for (march, isa) in (("x86_64", "core2"), ("avx", "sandybridge"), ("avx2", "haswell"), ("avx512", "skylake_avx512"))
+    # The microarchitecture of the product doesn't match the target architecture: complain!
+    mktempdir() do build_path
+        platform = ExtendedPlatform(Linux(:x86_64); march="avx")
+        build_output_meta = nothing
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is skylake_avx512, not sandybridge as desired.$") match_mode=:any begin
+            build_output_meta = autobuild(
+                build_path,
+                "isa_tests",
+                v"1.0.0",
+                [DirectorySource(build_tests_dir)],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                cd ${WORKSPACE}/srcdir/isa_tests
+                make -j${nproc} CFLAGS="-march=skylake-avx512 -mtune=skylake-avx512" install
+                install_license /usr/include/ltdl.h
+                """,
+                # Build for our platform
+                [platform],
+                # Ensure our executable products are built
+                [product],
+                # No dependencies
+                Dependency[];
+                preferred_gcc_version=v"6",
+                lock_microarchitecture=false,
+            )
+
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
+
+            # Run ISA test
+            readmeta(locate(product, prefix)) do oh
+                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                @test detected_isa == :skylake_avx512
+            end
+        end
+    end
+
+    # The instruction set of the product is compatible with the target
+    # architecture, but it's lower than desired: issue a gentle warning
+    mktempdir() do build_path
+        platform = ExtendedPlatform(Linux(:x86_64); march="avx512")
+        build_output_meta = nothing
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is sandybridge, not skylake_avx512 as desired. You may be missing some optimization flags during compilation.$") match_mode=:any begin
+            build_output_meta = autobuild(
+                build_path,
+                "isa_tests",
+                v"1.0.0",
+                [DirectorySource(build_tests_dir)],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                cd ${WORKSPACE}/srcdir/isa_tests
+                make -j${nproc} CFLAGS="-march=sandybridge -mtune=sandybridge" install
+                install_license /usr/include/ltdl.h
+                """,
+                # Build for our platform
+                [platform],
+                # Ensure our executable products are built
+                [product],
+                # No dependencies
+                Dependency[];
+                preferred_gcc_version=v"6",
+                lock_microarchitecture=false,
+            )
+
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
+
+            # Run ISA test
+            readmeta(locate(product, prefix)) do oh
+                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                @test detected_isa == :sandybridge
+            end
+        end
+    end
+
+    # The microarchitecture of the product matches the target architecture: no warnings!
+    for (march, isa) in (("x86_64", "x86_64"), ("avx", "sandybridge"), ("avx2", "haswell"), ("avx512", "skylake_avx512"))
         mktempdir() do build_path
             platform = ExtendedPlatform(Linux(:x86_64); march=march)
             build_output_meta = nothing
-            if march == "x86_64"
-                @test_logs (:info, "Building for x86_64-linux-gnu-march+x86_64") match_mode=:any @test_nowarn begin
-                    build_output_meta = autobuild(
-                        build_path,
-                        "isa_tests",
-                        v"1.0.0",
-                        [DirectorySource(build_tests_dir)],
-                        # Build the test suite, install the binaries into our prefix's `bin`
-                        raw"""
-                        cd ${WORKSPACE}/srcdir/isa_tests
-                        make -j${nproc} install
-                        install_license /usr/include/ltdl.h
-                        """,
-                        # Build for our platform
-                        [platform],
-                        # Ensure our executable products are built
-                        [product],
-                        # No dependencies
-                        Dependency[];
-                    )
-                end
-            else
-                @test_logs (:warn, Regex(isa)) match_mode=:any begin
-                    build_output_meta = autobuild(
-                        build_path,
-                        "isa_tests",
-                        v"1.0.0",
-                        [DirectorySource(build_tests_dir)],
-                        # Build the test suite, install the binaries into our prefix's `bin`
-                        raw"""
-                        cd ${WORKSPACE}/srcdir/isa_tests
-                        make -j${nproc} install
-                        install_license /usr/include/ltdl.h
-                        """,
-                        # Build for our platform
-                        [platform],
-                        # Ensure our executable products are built
-                        [product],
-                        # No dependencies
-                        Dependency[];
-                    )
-                end
+            @test_logs (:info, "Building for x86_64-linux-gnu-march+$(march)") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "isa_tests",
+                    v"1.0.0",
+                    [DirectorySource(build_tests_dir)],
+                    # Build the test suite, install the binaries into our prefix's `bin`
+                    raw"""
+                    cd ${WORKSPACE}/srcdir/isa_tests
+                    make -j${nproc} install
+                    install_license /usr/include/ltdl.h
+                    """,
+                    # Build for our platform
+                    [platform],
+                    # Ensure our executable products are built
+                    [product],
+                    # No dependencies
+                    Dependency[];
+                )
             end
 
             # Extract our platform's build

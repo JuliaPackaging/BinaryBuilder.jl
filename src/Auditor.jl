@@ -1,3 +1,5 @@
+using BinaryBuilderBase: march
+
 export audit, collect_files, collapse_symlinks
 
 include("auditor/instruction_set.jl")
@@ -218,21 +220,63 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     return all_ok
 end
 
+# Return the list of microarchitectures of an object file that would be
+# compatible with the given platform.  The last element is the "highest"
+# platform, the desired one.
+function compatible_x86_64_archs(platform::Platform)
+    if arch(platform) != :x86_64
+        throw(ArgumentError("Only x86-64 platforms are acceptable"))
+    end
+    # In `ExtendedPlatforms` we use a specific feature as name, here we use the
+    # Intel names.  This is the list of the Intel names.
+    list = [:x86_64, :sandybridge, :haswell, :skylake_avx512]
+    # We loop over all microarchitectures, as named in `ExtendedPlatform`, from
+    # the highest to the second lowest one, popping the last element if the
+    # microarchitecture doesn't match that of the given platform
+    if march(platform) !== nothing
+        for m in ("avx512", "avx2", "avx")
+            if march(platform) == m
+                return list
+            end
+            pop!(list)
+        end
+    end
+    return [first(list)]
+end
+
 function check_isa(oh, platform, prefix;
                    verbose::Bool = false,
                    silent::Bool = false)
     # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
     if arch(platform_for_object(oh)) in [:x86_64, :i686]
         instruction_set = analyze_instruction_set(oh, platform; verbose=verbose)
-        if is64bit(oh) && instruction_set != :core2
-            if !silent
-                msg = replace("""
-                Minimum instruction set for $(relpath(path(oh), prefix.path)) is
-                $(instruction_set), not core2 as desired.
-                """, '\n' => ' ')
-                @warn(strip(msg))
+        if is64bit(oh)
+            compatible_archs = compatible_x86_64_archs(platform)
+            if instruction_set ∉ compatible_archs
+                # The object file is for a microarchitecture not compatible with
+                # the desired one
+                if !silent
+                    msg = replace("""
+                    Minimum instruction set detected for $(relpath(path(oh), prefix.path)) is
+                    $(instruction_set), not $(last(compatible_archs)) as desired.
+                    """, '\n' => ' ')
+                    @warn(strip(msg))
+                end
+                return false
+            elseif instruction_set != last(compatible_archs)
+                # The object file is compatible with the desired
+                # microarchitecture, but using a lower instruction set: inform
+                # the user that they may be missing some optimisation, but the
+                # there is incompatibility, so return true.
+                if !silent
+                    msg = replace("""
+                    Minimum instruction set detected for $(relpath(path(oh), prefix.path)) is
+                    $(instruction_set), not $(last(compatible_archs)) as desired.
+                    You may be missing some optimization flags during compilation.
+                    """, '\n' => ' ')
+                    @warn(strip(msg))
+                end
             end
-            return false
         elseif !is64bit(oh) && instruction_set != :pentium4
             if !silent
                 msg = replace("""

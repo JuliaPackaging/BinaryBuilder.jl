@@ -1173,7 +1173,7 @@ whether the object file being pointed to is a 32-bit or 64-bit one:
 
 * For 32-bit object files, this returns one of [:pentium4, :prescott]
 
-* For 64-bit object files, this returns one of [:core2, :sandybridge, :haswell, :skylake_avx512]
+* For 64-bit object files, this returns one of [:x86_64, :sandybridge, :haswell, :skylake_avx512]
 """
 function minimum_instruction_set(counts::Dict, is_64bit::Bool)
     if is_64bit
@@ -1186,7 +1186,7 @@ function minimum_instruction_set(counts::Dict, is_64bit::Bool)
         if counts["avx"] > 0
             return :sandybridge
         end
-        return :core2
+        return :x86_64
     else
         if counts["sse3"] > 0
             return :prescott
@@ -1223,7 +1223,7 @@ function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::
     # If the binary uses `cpuid`, we can't know what it's doing, so just
     # return the most conservative ISA and warn the user if `verbose` is set.
     if counts["cpuid"] > 0
-        new_min_isa = is64bit(oh) ? :core2 : :pentium4
+        new_min_isa = is64bit(oh) ? :x86_64 : :pentium4
         if verbose && new_min_isa != min_isa
             msg = replace("""
             $(basename(path(oh))) contains a `cpuid` instruction; refusing to
