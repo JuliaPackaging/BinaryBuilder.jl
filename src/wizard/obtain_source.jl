@@ -1,3 +1,4 @@
+using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, automatic_apple, macos_sdk_already_installed
 using ProgressMeter
 const update! = ProgressMeter.update!
 
@@ -250,10 +251,10 @@ function step1(state::WizardState)
         error("Somehow platform_select was not a valid choice!")
     end
 
-    if any(p -> p isa MacOS, state.platforms) && !BinaryBuilderBase.automatic_apple && !BinaryBuilderBase.macos_sdk_already_installed()
+    if any(p -> p isa MacOS, state.platforms) && !automatic_apple && !macos_sdk_already_installed()
         # Ask the user if they accept to download the macOS SDK
-        BinaryBuilderBase.automatic_apple = accept_apple_sdk(state.ins, state.outs)
-        if !BinaryBuilderBase.automatic_apple
+        automatic_apple = accept_apple_sdk(state.ins, state.outs)
+        if !automatic_apple
             # The user refused to download the macOS SDK
             println(state.outs)
             printstyled(state.outs, "Removing MacOS from the list of platforms...\n", bold=true)
@@ -421,14 +422,14 @@ function step2(state::WizardState)
     if yn_prompt(state, "Do you want to customize the set of compilers?", :n) == :y
         get_compilers(state)
         # Default GCC version is the oldest one
-        get_preferred_version(state, "GCC", getversion.(BinaryBuilderBase.available_gcc_builds))
+        get_preferred_version(state, "GCC", getversion.(available_gcc_builds))
         # Default LLVM version is the latest one
-        get_preferred_version(state, "LLVM", getversion.(reverse(BinaryBuilderBase.available_llvm_builds)))
+        get_preferred_version(state, "LLVM", getversion.(reverse(available_llvm_builds)))
     else
         state.compilers = [:c]
         # Default GCC version is the oldest one
-        state.preferred_gcc_version = getversion(BinaryBuilderBase.available_gcc_builds[1])
+        state.preferred_gcc_version = getversion(available_gcc_builds[1])
         # Default LLVM version is the latest one
-        state.preferred_llvm_version = getversion(BinaryBuilderBase.available_llvm_builds[end])
+        state.preferred_llvm_version = getversion(available_llvm_builds[end])
     end
 end

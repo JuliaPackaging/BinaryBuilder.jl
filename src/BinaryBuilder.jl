@@ -13,49 +13,27 @@ export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi
        detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi,
        call_abi, wordsize, triplet, select_platform, platforms_match,
        CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
-
-module Auditor
-
-using BinaryBuilderBase
-using Pkg, Pkg.BinaryPlatforms
-using ObjectFile
-
-include("Auditor.jl")
-
-end # module Auditor
-
-module Wizard
-
-using BinaryBuilderBase, OutputCollectors, ..Auditor
-using Random
-using GitHub, LibGit2, Pkg, Sockets, ObjectFile
-import SHA: sha256
-
-include("Wizard.jl")
-
-end # module Wizard
-
-using OutputCollectors, BinaryBuilderBase, .Auditor, .Wizard
-## Reexport the exports
-
-# Prefix.jl
+# BinaryBuilderBase/src/Prefix.jl
 export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
        isinstalled, install, uninstall, list_tarball_files, verify, temp_prefix
-# Rootfs.jl
+# BinaryBuilderBase/src/Rootfs.jl
 export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis
-# Platforms.jl
+# BinaryBuilderBase/src/Platforms.jl
 export AnyPlatform
-# Products.jl
+# BinaryBuilderBase/src/Products.jl
 export Product, LibraryProduct, FileProduct, ExecutableProduct, FrameworkProduct, satisfied,
        locate, write_deps_file, variable_name
-# Dependency.jl
+# BinaryBuilderBase/src/Dependency.jl
 export Dependency, BuildDependency
-# Sources.jl
+# BinaryBuilderBase/src/Sources.jl
 export ArchiveSource, FileSource, GitSource, DirectorySource
 # Auditor.jl
 export audit, collect_files, collapse_symlinks
 
-##
+include("Auditor.jl")
+include("Wizard.jl")
+
+using OutputCollectors, BinaryBuilderBase, .Auditor, .Wizard
 
 include("AutoBuild.jl")
 include("Declarative.jl")

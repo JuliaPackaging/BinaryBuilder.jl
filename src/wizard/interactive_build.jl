@@ -1,3 +1,5 @@
+using BinaryBuilderBase: get_concrete_platform
+
 include("hints.jl")
 
 # When rerunning the script generated during the wizard we want to fail on error
@@ -61,10 +63,10 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
 
         if choice == 1
             # Link dependencies into the prefix again
-            concrete_platform = BinaryBuilderBase.get_concrete_platform(platform;
-                                                                        preferred_gcc_version = state.preferred_gcc_version,
-                                                                        preferred_llvm_version = state.preferred_llvm_version,
-                                                                        compilers = state.compilers)
+            concrete_platform = get_concrete_platform(platform;
+                                                      preferred_gcc_version = state.preferred_gcc_version,
+                                                      preferred_llvm_version = state.preferred_llvm_version,
+                                                      compilers = state.compilers)
             artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
             return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
         elseif choice == 2
@@ -212,10 +214,10 @@ function bb_add(client, state::WizardState, prefix::Prefix, platform::Platform, 
     new_dep = Dependency(jll)
     try
         # This will redo some work, but that may be ok
-        concrete_platform = BinaryBuilderBase.get_concrete_platform(platform;
-                                                                    preferred_gcc_version = state.preferred_gcc_version,
-                                                                    preferred_llvm_version = state.preferred_llvm_version,
-                                                                    compilers = state.compilers)
+        concrete_platform = get_concrete_platform(platform;
+                                                  preferred_gcc_version = state.preferred_gcc_version,
+                                                  preferred_llvm_version = state.preferred_llvm_version,
+                                                  compilers = state.compilers)
         setup_dependencies(prefix, getpkg.([state.dependencies; new_dep]), concrete_platform)
         push!(state.dependencies, new_dep)
     catch e
@@ -423,10 +425,10 @@ function step3_retry(state::WizardState)
     build_path = tempname()
     mkpath(build_path)
     prefix = setup_workspace(build_path, vcat(state.source_files, state.patches); verbose=false)
-    concrete_platform = BinaryBuilderBase.get_concrete_platform(platform;
-                                                                preferred_gcc_version = state.preferred_gcc_version,
-                                                                preferred_llvm_version = state.preferred_llvm_version,
-                                                                compilers = state.compilers)
+    concrete_platform = get_concrete_platform(platform;
+                                              preferred_gcc_version = state.preferred_gcc_version,
+                                              preferred_llvm_version = state.preferred_llvm_version,
+                                              compilers = state.compilers)
     artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
 
     ur = preferred_runner()(
@@ -512,10 +514,10 @@ function step34(state::WizardState)
         vcat(state.source_files, state.patches);
         verbose=false
     )
-    concrete_platform = BinaryBuilderBase.get_concrete_platform(platform;
-                                                                preferred_gcc_version = state.preferred_gcc_version,
-                                                                preferred_llvm_version = state.preferred_llvm_version,
-                                                                compilers = state.compilers)
+    concrete_platform = get_concrete_platform(platform;
+                                              preferred_gcc_version = state.preferred_gcc_version,
+                                              preferred_llvm_version = state.preferred_llvm_version,
+                                              compilers = state.compilers)
     artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
 
     provide_hints(state, joinpath(prefix, "srcdir"))
@@ -560,10 +562,10 @@ function step5_internal(state::WizardState, platform::Platform)
             prefix = setup_workspace(build_path, vcat(state.source_files, state.patches); verbose=true)
             # Clean up artifacts in case there are some
             cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
-            concrete_platform = BinaryBuilderBase.get_concrete_platform(platform;
-                                                                        preferred_gcc_version = state.preferred_gcc_version,
-                                                                        preferred_llvm_version = state.preferred_llvm_version,
-                                                                        compilers = state.compilers)
+            concrete_platform = get_concrete_platform(platform;
+                                                      preferred_gcc_version = state.preferred_gcc_version,
+                                                      preferred_llvm_version = state.preferred_llvm_version,
+                                                      compilers = state.compilers)
             artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
             # Record newly added artifacts for this prefix
             prefix_artifacts[prefix] = artifact_paths
@@ -638,10 +640,10 @@ function step5_internal(state::WizardState, platform::Platform)
                         )
                         # Clean up artifacts in case there are some
                         cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
-                        concrete_platform = BinaryBuilderBase.get_concrete_platform(platform;
-                                                                                    preferred_gcc_version = state.preferred_gcc_version,
-                                                                                    preferred_llvm_version = state.preferred_llvm_version,
-                                                                                    compilers = state.compilers)
+                        concrete_platform = get_concrete_platform(platform;
+                                                                  preferred_gcc_version = state.preferred_gcc_version,
+                                                                  preferred_llvm_version = state.preferred_llvm_version,
+                                                                  compilers = state.compilers)
                         artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)
                         # Record newly added artifacts for this prefix
                         prefix_artifacts[prefix] = artifact_paths
@@ -773,10 +775,10 @@ function step5c(state::WizardState)
             vcat(state.source_files, state.patches);
             verbose=false,
         )
-        concrete_platform = BinaryBuilderBase.get_concrete_platform(platform;
-                                                                    preferred_gcc_version = state.preferred_gcc_version,
-                                                                    preferred_llvm_version = state.preferred_llvm_version,
-                                                                    compilers = state.compilers)
+        concrete_platform = get_concrete_platform(platform;
+                                                  preferred_gcc_version = state.preferred_gcc_version,
+                                                  preferred_llvm_version = state.preferred_llvm_version,
+                                                  compilers = state.compilers)
         artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
         ur = preferred_runner()(
             prefix.path;

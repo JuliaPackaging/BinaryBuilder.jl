@@ -1,3 +1,9 @@
+module Wizard
+
+using BinaryBuilderBase, OutputCollectors, ..Auditor
+using Random
+using GitHub, LibGit2, Pkg, Sockets, ObjectFile
+import SHA: sha256
 using REPL
 using REPL.Terminals
 using REPL.TerminalMenus
@@ -143,3 +149,5 @@ function run_wizard(state::Union{Nothing,WizardState} = nothing)
 
     state
 end
+
+end # module Wizard

@@ -1,3 +1,9 @@
+module Auditor
+
+using BinaryBuilderBase
+using Pkg, Pkg.BinaryPlatforms
+using ObjectFile
+
 using BinaryBuilderBase: march
 
 export audit, collect_files, collapse_symlinks
@@ -485,3 +491,5 @@ function check_license(prefix::Prefix, src_name::AbstractString = "";
         return false
     end
 end
+
+end # module Auditor
