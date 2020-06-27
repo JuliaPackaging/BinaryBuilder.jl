@@ -1,4 +1,4 @@
-using Documenter, BinaryBuilder
+using Documenter, BinaryBuilder, BinaryBuilderBase
 
 makedocs(
     modules = [BinaryBuilder],
