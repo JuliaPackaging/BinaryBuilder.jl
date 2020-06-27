@@ -5,7 +5,8 @@ makedocs(
     sitename = "BinaryBuilder.jl",
     pages = [
         "Home" => "index.md",
-        "Building Packages" => "build_tips.md",
+        "Building Packages" => "building.md",
+        "Build Tips" => "build_tips.md",
         "JLL packages" => "jll.md",
         "FAQ" => "FAQ.md",
         "Build Troubleshooting" => "troubleshooting.md",
