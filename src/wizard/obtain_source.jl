@@ -342,7 +342,9 @@ function get_name_and_version(state::WizardState)
 
     while state.name === nothing
         msg = "Enter a name for this project.  This will be used for filenames:"
-        new_name = nonempty_line_prompt("Name", msg; ins=state.ins, outs=state.outs)
+        # Remove trailing `_jll` in case the user thinks this should be part of the name
+        new_name = replace(nonempty_line_prompt("Name", msg; ins=state.ins, outs=state.outs),
+                           r"_jll$" => "")
 
         if !Base.isidentifier(new_name)
             println(state.outs, "\"$(new_name)\" is an invalid identifier. Try again.")

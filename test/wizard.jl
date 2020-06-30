@@ -90,7 +90,8 @@ end
     state = Wizard.WizardState()
     # Use a non existing name
     with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
-        call_response(ins, outs, "Enter a name for this project", "libfoobarqux")
+        # Append "_jll" to the name and make sure this is automatically removed
+        call_response(ins, outs, "Enter a name for this project", "libfoobarqux_jll")
         call_response(ins, outs, "Enter a version number", "1.2.3")
     end
     @test state.name == "libfoobarqux"
