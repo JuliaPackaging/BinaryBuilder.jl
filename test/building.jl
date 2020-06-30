@@ -1,37 +1,3 @@
-## Tests involing building packages and whatnot
-libfoo_products = [
-    LibraryProduct("libfoo", :libfoo),
-    ExecutableProduct("fooifier", :fooifier),
-]
-
-libfoo_make_script = raw"""
-cd ${WORKSPACE}/srcdir/libfoo
-make install
-install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
-"""
-
-libfoo_cmake_script = raw"""
-mkdir ${WORKSPACE}/srcdir/libfoo/build && cd ${WORKSPACE}/srcdir/libfoo/build
-cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} ..
-make install
-install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
-"""
-
-libfoo_meson_script = raw"""
-mkdir ${WORKSPACE}/srcdir/libfoo/build && cd ${WORKSPACE}/srcdir/libfoo/build
-meson .. -Dprefix=${prefix} --cross-file="${MESON_TARGET_TOOLCHAIN}"
-ninja install -v
-
-# grumble grumble meson!  Why do you go to all the trouble to build it properly
-# in `build`, then screw it up when you `install` it?!  Silly willy.
-if [[ ${target} == *apple* ]]; then
-    install_name_tool ${prefix}/bin/fooifier -change ${prefix}/lib/libfoo.0.dylib @rpath/libfoo.0.dylib
-fi
-install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
-"""
-
-
-
 @testset "Building libfoo" begin
 	# Test building with both `make` and `cmake`, using directory and git repository
     for script in (libfoo_make_script, libfoo_cmake_script, libfoo_meson_script)
