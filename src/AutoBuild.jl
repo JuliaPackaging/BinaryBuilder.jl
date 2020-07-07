@@ -1122,7 +1122,7 @@ function build_jll_package(src_name::String,
 
             print(io, """
             # Inform that the wrapper is available for this platform
-            is_available() = tue
+            is_available() = true
 
             \"\"\"
             Open all libraries
