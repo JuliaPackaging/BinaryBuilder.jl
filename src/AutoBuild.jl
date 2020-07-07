@@ -1121,6 +1121,9 @@ function build_jll_package(src_name::String,
             end
 
             print(io, """
+            # Inform that the wrapper is available for this platform
+            is_available() = tue
+
             \"\"\"
             Open all libraries
             \"\"\"
@@ -1214,6 +1217,13 @@ function build_jll_package(src_name::String,
 
         using Pkg, Pkg.BinaryPlatforms, Pkg.Artifacts, Libdl
         import Base: UUID
+
+        \"\"\"
+            is_available()
+
+        Return whether the artifact is available for the current platform.
+        \"\"\"
+        is_available() = false
 
         # We put these inter-JLL-package API values here so that they are always defined, even if there
         # is no underlying wrapper held within this JLL package.
