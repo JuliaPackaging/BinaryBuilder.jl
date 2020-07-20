@@ -1,4 +1,4 @@
-using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, enable_apple_file, macos_sdk_already_installed
+using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, enable_apple_file, macos_sdk_already_installed, accept_apple_sdk
 using ProgressMeter
 const update! = ProgressMeter.update!
 
