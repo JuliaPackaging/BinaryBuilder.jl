@@ -1120,6 +1120,17 @@ function build_jll_package(src_name::String,
                 """)
             end
 
+            if !isempty(dependencies)
+                print(io,
+                      """
+                      # Initialize PATH and LIBPATH environment variable listings.
+                      # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
+                      # then append them to our own.
+                      foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
+                      foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
+                      """)
+            end
+
             print(io, """
             \"\"\"
             Open all libraries
@@ -1127,18 +1138,8 @@ function build_jll_package(src_name::String,
             function __init__()
                 global artifact_dir = abspath(artifact"$(src_name)")
 
-                # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
             """)
-
-            if !isempty(dependencies)
-                println(io, """
-                    # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
-                    # then append them to our own.
-                    foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
-                    foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
-                """)
-            end
 
             for (p, p_info) in sort(products_info)
                 vp = variable_name(p)
@@ -1173,7 +1174,7 @@ function build_jll_package(src_name::String,
                 init_libpath = string("Sys.BINDIR, ", init_libpath)
             end
 
-            println(io, """
+            print(io, """
                 # Filter out duplicate and empty entries in our PATH and LIBPATH entries
                 filter!(!isempty, unique!(PATH_list))
                 filter!(!isempty, unique!(LIBPATH_list))
