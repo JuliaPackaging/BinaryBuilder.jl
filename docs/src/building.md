@@ -317,7 +317,7 @@ specifies `dependencies` in the form of previously-built JLL packages:
 # Dependencies of Xorg_xkbcomp
 dependencies = [
     Dependency("Xorg_libxkbfile_jll"),
-    BuildDependency("Xorg_util_macros_jll)",
+    BuildDependency("Xorg_util_macros_jll"),
 ]
 ```
 
