@@ -1,4 +1,4 @@
-# Tricksy Gotchas
+# Tricky Gotchas
 
 There are a plethora of gotchas when it comes to binary compilation and distribution that must be appropriately addressed, or the binaries will only work on certain machines and not others.  Here is an incomplete list of things that `BinaryBuilder.jl` takes care of for you:
 
