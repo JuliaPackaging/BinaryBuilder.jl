@@ -860,7 +860,15 @@ function init_jll_package(name, code_dir, deploy_repo;
     else
         # Otherwise, hard-reset to latest master:
         repo = LibGit2.GitRepo(code_dir)
-        LibGit2.fetch(repo)
+        creds = LibGit2.UserPasswordCredential(
+            deepcopy(gh_username),
+            deepcopy(gh_auth.token),
+        )
+        try
+            LibGit2.fetch(repo; credentials=creds)
+        finally
+            Base.shred!(creds)
+        end
         origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
         LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
         if string(LibGit2.head_oid(repo)) != string(origin_master_oid)
