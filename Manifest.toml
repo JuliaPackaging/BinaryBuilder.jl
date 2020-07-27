@@ -110,6 +110,14 @@ git-tree-sha1 = "e03e697cf84c275ece9cbefd1eabaf49bf5e7254"
 uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 version = "0.1.13"
 
+[[JLLTools]]
+deps = ["BinaryBuilderBase", "Dates", "Pkg", "PkgLicenses", "RegistryTools", "SHA"]
+git-tree-sha1 = "d5210a12af5fc033539547590d2d41bd62fef022"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaPackaging/JLLTools.jl"
+uuid = "747adb2a-3e53-4aa9-acbb-b9a98b36579a"
+version = "0.1.0"
+
 [[JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
 git-tree-sha1 = "b34d7cef7b337321e97d22242c3c2b91f476748e"
