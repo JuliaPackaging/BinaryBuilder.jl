@@ -726,7 +726,57 @@ end
 # way to split them out from BinaryBuilder into, for instance, JLLTools.
 #
 # Perhaps we should move the GitHub pieces over as well?
-#
+function init_jll_package(name, code_dir, deploy_repo;
+                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
+                          gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+    try
+        # This throws if it does not exist
+        GitHub.repo(deploy_repo; auth=gh_auth)
+    catch e
+        # If it doesn't exist, create it.
+        # check whether gh_org might be a user, not an organization.
+        gh_org = dirname(deploy_repo)
+        isorg = GitHub.owner(gh_org; auth=gh_auth).typ == "Organization"
+        owner = GitHub.Owner(gh_org, isorg)
+        @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
+        try
+            GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit", "has_issues" => "false"); auth=gh_auth)
+        catch create_e
+            # If creation failed, it could be because the repo was created in the meantime.
+            # Check for that; if it still doesn't exist, then freak out.  Otherwise, continue on.
+            try
+                GitHub.repo(deploy_repo; auth=gh_auth)
+            catch
+                rethrow(create_e)
+            end
+        end
+    end
+
+    if !isdir(code_dir)
+        # If it does exist, clone it down:
+        @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
+        creds = LibGit2.UserPasswordCredential(
+            deepcopy(gh_username),
+            deepcopy(gh_auth.token),
+        )
+        try
+            LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+        finally
+            Base.shred!(creds)
+        end
+    else
+        # Otherwise, hard-reset to latest master:
+        repo = LibGit2.GitRepo(code_dir)
+        LibGit2.fetch(repo)
+        origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
+        LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
+        if string(LibGit2.head_oid(repo)) != string(origin_master_oid)
+            LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
+        end
+    end
+end
+
+
 # Note that rebuild_jll_package is not called from anywhere in BinaryBuilder,
 # but rather from JuliaPackaging/Yggdrasil/.ci/register_package.jl
 function rebuild_jll_package(obj::Dict;
