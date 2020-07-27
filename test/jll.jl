@@ -134,6 +134,7 @@ end
             Pkg.develop(PackageSpec(path=code_dir))
             @eval TestJLL using libfoo_jll
             @test 6.08 ≈ @eval TestJLL ccall((:foo, libfoo), Cdouble, (Cdouble, Cdouble), 2.3, 4.5)
+            @test @eval TestJLL libfoo_jll.is_available()
         end
     end
 end
