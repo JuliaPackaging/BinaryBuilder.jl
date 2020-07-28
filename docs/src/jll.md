@@ -209,3 +209,15 @@ defined for it are:
 
 * `data_txt_path`: this unexported variable is actually equal to `data_txt`, but
   is kept for consistency with all other product types.
+
+
+## Overriding `dev`'ed JLL packages
+
+In the event that a user wishes to override the binaries within a JLL package with
+their own binaries, the user may use the `dev_jll()` method inside of JLL packages
+to check out a mutable copy of the package to their `~/.julia/dev` directory.  An
+`override` directory will be created within the package directory, providing a
+convenient location for the user to copy in their own libraries over the typical
+artifact-sourced ones.  See the segment on "Building and testing JLL packages
+locally" in the [Building Packages](./building.md) section of this documentation
+for more information on this capability.
