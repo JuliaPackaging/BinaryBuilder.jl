@@ -254,3 +254,25 @@ function print_wizard_logo(outs)
     )
     println(outs)
 end
+
+"""
+    with_gitcreds(f, username::AbstractString, password::AbstractString)
+
+Calls `f` with an `LibGit2.UserPasswordCredential` object as an argument, constructed from
+the `username` and `password` values. `with_gitcreds` ensures that the credentials object
+gets properly shredded after it's no longer necessary. E.g.:
+
+```julia
+with_gitcreds(user, token) do creds
+    LibGit2.clone("https://github.com/foo/bar.git", "bar"; credentials=creds)
+end
+````
+"""
+function with_gitcreds(f, username::AbstractString, password::AbstractString)
+    creds = LibGit2.UserPasswordCredential(deepcopy(username), deepcopy(password))
+    try
+        f(creds)
+    finally
+        Base.shred!(creds)
+    end
+end

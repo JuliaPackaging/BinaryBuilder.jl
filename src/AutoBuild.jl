@@ -848,26 +848,14 @@ function init_jll_package(name, code_dir, deploy_repo;
     if !isdir(code_dir)
         # If it does exist, clone it down:
         @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
-        creds = LibGit2.UserPasswordCredential(
-            deepcopy(gh_username),
-            deepcopy(gh_auth.token),
-        )
-        try
+        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
             LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
-        finally
-            Base.shred!(creds)
         end
     else
         # Otherwise, hard-reset to latest master:
         repo = LibGit2.GitRepo(code_dir)
-        creds = LibGit2.UserPasswordCredential(
-            deepcopy(gh_username),
-            deepcopy(gh_auth.token),
-        )
-        try
+        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
             LibGit2.fetch(repo; credentials=creds)
-        finally
-            Base.shred!(creds)
         end
         origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
         LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
