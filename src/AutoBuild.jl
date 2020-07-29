@@ -1382,19 +1382,13 @@ function push_jll_package(name, build_version;
     wrapper_repo = LibGit2.GitRepo(code_dir)
     LibGit2.add!(wrapper_repo, ".")
     LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
-    creds = LibGit2.UserPasswordCredential(
-        deepcopy(gh_username),
-        deepcopy(gh_auth.token),
-    )
-    try
+    Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
         LibGit2.push(
             wrapper_repo;
             refspecs=["refs/heads/master"],
             remoteurl="https://github.com/$(deploy_repo).git",
             credentials=creds,
         )
-    finally
-        Base.shred!(creds)
     end
 end
 
