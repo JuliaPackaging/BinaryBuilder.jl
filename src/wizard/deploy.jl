@@ -174,11 +174,7 @@ function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_p
         @info("Committing and pushing to $(fork.full_name)#$(branch_name)...")
         LibGit2.add!(repo, rel_bt_path)
         LibGit2.commit(repo, "New Recipe: $(name) v$(version)")
-        creds = LibGit2.UserPasswordCredential(
-            dirname(fork.full_name),
-            deepcopy(gh_auth.token)
-        )
-        try
+        with_gitcreds(gh_username, gh_auth.token) do creds
             LibGit2.push(
                 repo,
                 refspecs=["+HEAD:refs/heads/$(branch_name)"],
@@ -188,8 +184,6 @@ function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_p
                 # refspec: https://github.com/JuliaLang/julia/issues/23057
                 #force=true,
             )
-        finally
-            Base.shred!(creds)
         end
 
         if open_pr

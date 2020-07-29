@@ -127,8 +127,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         deploy_bin_repo = deploy_repo
         deploy_jll_repo = deploy_repo
     elseif deploy_bin # make sure bin repo and jll repo match
-        deploy_jll_repo = deploy_bin_repo 
-    elseif deploy_jll 
+        deploy_jll_repo = deploy_bin_repo
+    elseif deploy_jll
         deploy_bin_repo = deploy_jll_repo
     elseif deploy_bin && deploy_jll
         if deploy_bin_repo != deploy_jll_repo
@@ -326,7 +326,7 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
-function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false), 
+function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
                                    attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
@@ -848,19 +848,15 @@ function init_jll_package(name, code_dir, deploy_repo;
     if !isdir(code_dir)
         # If it does exist, clone it down:
         @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
-        creds = LibGit2.UserPasswordCredential(
-            deepcopy(gh_username),
-            deepcopy(gh_auth.token),
-        )
-        try
+        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
             LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
-        finally
-            Base.shred!(creds)
         end
     else
         # Otherwise, hard-reset to latest master:
         repo = LibGit2.GitRepo(code_dir)
-        LibGit2.fetch(repo)
+        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
+            LibGit2.fetch(repo; credentials=creds)
+        end
         origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
         LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
         if string(LibGit2.head_oid(repo)) != string(origin_master_oid)
@@ -1193,11 +1189,11 @@ function build_jll_package(src_name::String,
     # Generate target-demuxing main source file.
     jll_jl = """
         module $(src_name)_jll
-        
+
         if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
             @eval Base.Experimental.@optlevel 0
-        end                    
-                                
+        end
+
         if VERSION < v"1.3.0-rc4"
             # We lie a bit in the registry that JLL packages are usable on Julia 1.0-1.2.
             # This is to allow packages that might want to support Julia 1.0 to get the
@@ -1396,19 +1392,13 @@ function push_jll_package(name, build_version;
     wrapper_repo = LibGit2.GitRepo(code_dir)
     LibGit2.add!(wrapper_repo, ".")
     LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
-    creds = LibGit2.UserPasswordCredential(
-        deepcopy(gh_username),
-        deepcopy(gh_auth.token),
-    )
-    try
+    Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
         LibGit2.push(
             wrapper_repo;
             refspecs=["refs/heads/master"],
             remoteurl="https://github.com/$(deploy_repo).git",
             credentials=creds,
         )
-    finally
-        Base.shred!(creds)
     end
 end
 
