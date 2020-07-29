@@ -108,6 +108,32 @@ end
     @test Wizard.normalize_name("foo/libfoo.tar.gz") == "libfoo"
     @test Wizard.normalize_name("foo/libfoo-2.dll") == "libfoo"
     @test Wizard.normalize_name("libfoo") == "libfoo"
+
+    # with_gitcreds
+    local creds_outer = nothing
+    Wizard.with_gitcreds("user", "password") do creds
+        @test creds isa LibGit2.UserPasswordCredential
+        @test hasproperty(creds, :user)
+        @test hasproperty(creds, :pass)
+        creds_outer = creds # assign to parent scope, so that we can check on it later
+        @test creds.user == "user"
+        @test String(read(creds.pass)) == "password"
+        @test !Base.isshredded(creds.pass)
+    end
+    @test creds_outer isa LibGit2.UserPasswordCredential
+    @test creds_outer.user == ""
+    @test Base.isshredded(creds_outer.pass)
+    @test eof(creds_outer.pass)
+    # in case it throws:
+    creds_outer = nothing
+    @test_throws ErrorException Wizard.with_gitcreds("user", "password") do creds
+        creds_outer = creds
+        error("...")
+    end
+    @test creds_outer isa LibGit2.UserPasswordCredential
+    @test creds_outer.user == ""
+    @test Base.isshredded(creds_outer.pass)
+    @test eof(creds_outer.pass)
 end
 
 @testset "State serialization" begin
