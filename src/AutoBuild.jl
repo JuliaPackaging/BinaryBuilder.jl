@@ -143,7 +143,12 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     if deploy_bin || deploy_jll
-        code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
+        devdir, devdir_path = extract_flag!(ARGS, "--devdir", Pkg.devdir())
+        if devdir
+            # if set by user, it's probably a relative path we need to resolve
+            devdir_path = abspath(joinpath(pwd(), devdir_path))
+        end
+        code_dir = joinpath(devdir_path, "$(src_name)_jll")
 
         # Shove them into `kwargs` so that we are conditionally passing them along
         kwargs = (; kwargs..., code_dir = code_dir)
