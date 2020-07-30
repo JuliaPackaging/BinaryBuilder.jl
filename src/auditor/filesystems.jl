@@ -34,9 +34,12 @@ function check_absolute_paths(prefix::Prefix, all_files::Vector; silent::Bool = 
                     @warn("$(relpath(f, prefix.path)) contains an absolute path")
                 end
             end
-        catch
+        catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             if !silent
-                @warn("Skipping abspath scanning of $(f), as we can't open it")
+                @warn("Skipping abspath scanning of $(f), as we can't open it", exception=(e, catch_backtrace()))
             end
         end
     end

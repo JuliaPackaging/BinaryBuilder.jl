@@ -221,6 +221,9 @@ function bb_add(client, state::WizardState, prefix::Prefix, platform::Platform, 
         setup_dependencies(prefix, getpkg.([state.dependencies; new_dep]), concrete_platform)
         push!(state.dependencies, new_dep)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         showerror(client, e)
     end
 end
@@ -278,6 +281,9 @@ function setup_bb_service(state::WizardState, prefix, platform)
                         end
                     end
                 catch e
+                    if isa(e, InterruptException)
+                        rethrow(e)
+                    end
                     showerror(stderr, e)
                     close(client)
                 end

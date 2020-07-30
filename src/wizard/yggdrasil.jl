@@ -131,7 +131,10 @@ function test_yggdrasil_pr(pr_number::Integer)
                 # Exit the `while` loop
                 @info("Build successful!")
                 break
-            catch
+            catch e
+                if isa(e, InterruptException)
+                    rethrow(e)
+                end
             end
 
             what_do = request(terminal,

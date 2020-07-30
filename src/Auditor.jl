@@ -147,7 +147,10 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 if p.exitcode != 0
                     throw("Invalid exit code!")
                 end
-            catch
+            catch e
+                if isa(e, InterruptException)
+                    rethrow(e)
+                end
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
                 if !silent
@@ -178,7 +181,10 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     rm(f; force=true)
                     cp(src_path, f, follow_symlinks = true)
                 end
-            catch
+            catch e
+                if isa(e, InterruptException)
+                    rethrow(e)
+                end
             end
         end
 
@@ -453,6 +459,9 @@ function collapse_symlinks(files::Vector{String})
         try
             push!(abs_files, realpath(f))
         catch
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
         end
     end
 
@@ -461,6 +470,9 @@ function collapse_symlinks(files::Vector{String})
         try
             return !(islink(f) && realpath(f) in abs_files)
         catch
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             return false
         end
     end

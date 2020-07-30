@@ -54,7 +54,10 @@ function get_bb_version()
         repo = LibGit2.GitRepo(dirname(@__DIR__))
         gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
         return VersionNumber("$(version)-git-$(gitsha[1:10])")
-    catch
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         # Settle for the treehash otherwise
         env = Pkg.Types.Context().env
         bb_uuid = Pkg.Types.UUID("12aac903-9f7c-5d81-afc2-d9565ea332ae")

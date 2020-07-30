@@ -108,6 +108,9 @@ function download_source(state::WizardState)
             HTTP.URIs.parse_uri(new_entered_url; strict=true)
             entered_url = new_entered_url
         catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             printstyled(state.outs, e.msg, color=:red, bold=true)
             println(state.outs)
             println(state.outs)
@@ -145,7 +148,10 @@ function download_source(state::WizardState)
 
         obj = try
             LibGit2.GitObject(repo, treeish)
-        catch
+        catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             LibGit2.GitObject(repo, "origin/$treeish")
         end
         source_hash = LibGit2.string(LibGit2.GitHash(obj))
@@ -174,7 +180,10 @@ function download_source(state::WizardState)
             if !wait(oc)
                 error()
             end
-        catch
+        catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
             error("Could not download $(url) to $(state.workspace)")
         end
 
