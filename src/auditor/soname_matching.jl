@@ -6,6 +6,9 @@ function get_soname(path::AbstractString)
     try
         readmeta(get_soname, path)
     catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
         @warn "Could not probe $(path) for an SONAME!" exception=(e, catch_backtrace())
         return nothing
     end
