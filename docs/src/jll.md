@@ -83,7 +83,7 @@ These are the main ingredients of a JLL package:
   `src/wrappers/` directory will be included;
 * the `wrappers/` directory contains a file for each of the supported
   platforms.  They are actually mostly identical, with some small differences
-  due to platfomr-specific details.  The wrappers are analyzed in more details
+  due to platform-specific details.  The wrappers are analyzed in more details
   in the following section.
 
 ## The wrappers
