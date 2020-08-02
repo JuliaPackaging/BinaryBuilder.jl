@@ -73,9 +73,12 @@ This should be the top-level function called from a `build_tarballs.jl` file.
 It takes in the information baked into a `build_tarballs.jl` file such as the
 `sources` to download, the `products` to build, etc... and will automatically
 download, build and package the tarballs, generating a `build.jl` file when
-appropriate.  Note that `ARGS` should be the top-level Julia `ARGS` command-
-line arguments object.  This function does some rudimentary parsing of the
-`ARGS`, call it with `--help` in the `ARGS` to see what it can do.
+appropriate.
+
+Generally, `ARGS` should be the top-level Julia `ARGS` command-line arguments
+object.  `build_tarballs` does some rudimentary parsing of the arguments. To
+see what it can do, you can call it with `--help` in the `ARGS` or see the
+[Command Line](@ref) section in the manual.
 
 The `kwargs` are passed on to [`autobuild`](@ref), see there for a list of
 supported ones. In addition, the keyword argument `init_block` may be set to
