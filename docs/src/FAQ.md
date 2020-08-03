@@ -32,7 +32,7 @@ Remember also that you should use the standard environment variables like `CC`, 
 
 ### I love the wizard, but now I want to break free: can I build the tarballs without it?
 
-The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script with
+The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script in the [Command Line](@ref) section or by running
 ```
 julia build_tarballs.jl --help
 ```
