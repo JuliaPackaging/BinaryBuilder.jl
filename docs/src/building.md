@@ -348,36 +348,41 @@ Examples of builders that depend on other binaries include:
 # Building and testing JLL packages locally
 
 As a package developer, you may want to test JLL packages locally, or as a binary dependency
-developer you may want to easily use custom binaries.  In both cases, the new `dev` and
-`overrides` directory support make it easy to get complete control over the local JLL package
-state.
+developer you may want to easily use custom binaries.  Through a combination of `dev`'ing out
+the JLL package and creating an `overrides` directory, it is easy to get complete control over
+the local JLL package state.
 
 ## Overriding a prebuilt JLL package's binaries
 
 After running `pkg> dev LibFoo_jll`, a local JLL package will be checked out to your depot's
-`dev` directory, (on most installations this is `~/.julia/dev`) and by default it will make
-use of binaries within your depot's `artifacts` directory.  However, if an `override`
-directory is present within that package directory, it will look within that directory for
-binaries, rather than in any artifact directory.  There is no mixing and matching of binaries
-within a single JLL package; if an `override` directory is present, all products defined within
-that JLL package must be found within the `override` directory, none will be sourced from an
-artifact.  Dependencies (e.g. found within another JLL package) may still be loaded from their
-respective artifacts, so dependency JLLs must themselves be `dev`'ed and have `override`
-directories created with files or symlinks created within them.
+`dev` directory (on most installations this is `~/.julia/dev`) and by default the JLL package
+will make use of binaries within your depot's `artifacts` directory.  If an `override`
+directory is present within the JLL package directory, the JLL package will look within that
+`override` directory for binaries, rather than in any artifact directory.  Note that there is
+no mixing and matching of binaries within a single JLL package; if an `override` directory is
+present, all products defined within that JLL package must be found within the `override`
+directory, none will be sourced from an artifact.  Dependencies (e.g. found within another
+JLL package) may still be loaded from their respective artifacts, so dependency JLLs must
+themselves be `dev`'ed and have `override` directories created with files or symlinks
+created within them.
 
-### Auto-populating `override` directory
+### Auto-populating the `override` directory
 
-To ease creation of an `override` directory, JLL packages now contain a `dev_jll()` function,
+To ease creation of an `override` directory, JLL packages contain a `dev_jll()` function,
 that will ensure that a `~/.julia/dev/<jll name>` package is `dev`'ed out, and will copy the
 normal artifact contents into the appropriate `override` directory.  This will result in no
 functional difference from simply using the artifact directory, but provides a template of
 files that can be replaced by custom-built binaries.
 
+Note that this feature is rolling out to new JLL packages as they are rebuilt; if a JLL
+package does not have a `dev_jll()` function, [open an issue on Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/issues/new)
+and a new JLL version will be generated to provide the function.
+
 ## Building a custom JLL package locally
 
 When building a new version of a JLL package, if `--deploy` is passed to `build_tarballs.jl`
-then a JLL package will be deployed to a GitHub repository.  (Read the documentation given
-by passing `--help` to a `build_tarballs.jl` script for more on `--deploy` options)  If
-`--deploy=local` is passed, the JLL package will still be built in the `~/.julia/dev/`
-directory, but it will not be uploaded anywhere.  This is useful for local testing and
-validation that the built artifacts are working with your package.
+then a newly-built JLL package will be deployed to a GitHub repository.  (Read the
+documentation given by passing `--help` to a `build_tarballs.jl` script for more on
+`--deploy` options).  If `--deploy=local` is passed, the JLL package will still be built
+in the `~/.julia/dev/` directory, but it will not be uploaded anywhere.  This is useful
+for local testing and validation that the built artifacts are working with your package.
