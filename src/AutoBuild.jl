@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, print_artifacts_toml, build
+export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using Pkg.TOML, Dates, UUIDs
@@ -81,10 +81,14 @@ see what it can do, you can call it with `--help` in the `ARGS` or see the
 [Command Line](@ref) section in the manual.
 
 The `kwargs` are passed on to [`autobuild`](@ref), see there for a list of
-supported ones. In addition, the keyword argument `init_block` may be set to
-a string containing Julia code; if present, this code will be inserted into
-the initialization path of the generated JLL package. This can for example be
-used to invoke an initialization API of a shared library.
+supported ones. A few additional keyword arguments are accept:
+
+* `lazy_artifacts` sets whether the artifacts should be lazy.
+
+* `init_block` may be set to a string containing Julia code; if present, this
+  code will be inserted into the initialization path of the generated JLL
+  package. This can for example be used to invoke an initialization API of a
+  shared library.
 
 !!! note
 
@@ -195,11 +199,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         init_jll_package(src_name, code_dir, deploy_jll_repo)
     end
 
-    # Build the given platforms using the given sources
-    build_output_meta = autobuild(
-        # Controls output product placement, mount directory placement, etc...
-        pwd(),
-
+    args = (
         # Source information
         src_name,
         src_version,
@@ -215,17 +215,34 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         products,
 
         # Dependencies that must be downloaded
-        dependencies;
-
-        # Flags
-        verbose=verbose,
-        debug=debug,
-        meta_json_stream=meta_json_stream,
-        kwargs...,
+        dependencies,
     )
 
-    if meta_json_stream !== nothing && meta_json_stream !== stdout
-        close(meta_json_stream)
+    if meta_json_stream !== nothing
+        # If they've asked for the JSON metadata, by all means, give it to them!
+        dict = get_meta_json(args...;
+                             lazy_artifacts = lazy_artifacts,
+                             init_block = init_block)
+        println(meta_json_stream, JSON.json(dict))
+
+        if meta_json_stream !== stdout
+            close(meta_json_stream)
+        end
+
+        build_output_meta = Dict()
+    else
+        # Build the given platforms using the given sources
+        build_output_meta = autobuild(
+            # Controls output product placement, mount directory placement, etc...
+            pwd(),
+
+            args...;
+
+            # Flags
+            verbose=verbose,
+            debug=debug,
+            kwargs...,
+        )
     end
 
     if deploy_jll
@@ -459,6 +476,34 @@ function register_jll(name, build_version, dependencies;
     end
 end
 
+function get_meta_json(
+                   src_name::AbstractString,
+                   src_version::VersionNumber,
+                   sources::Vector{<:AbstractSource},
+                   script::AbstractString,
+                   platforms::Vector,
+                   products::Vector{<:Product},
+                   dependencies::Vector{<:AbstractDependency};
+                   lazy_artifacts::Bool = false,
+                   init_block::String = "")
+
+    dict = Dict(
+        "name" => src_name,
+        "version" => "v$(src_version)",
+        "sources" => sources,
+        "script" => script,
+        "products" => products,
+        "dependencies" => dependencies,
+        "lazy_artifacts" => lazy_artifacts,
+        "init_block" => init_block,
+    )
+    # Do not write the list of platforms when building only for `AnyPlatform`
+    if platforms != [AnyPlatform()]
+        dict["platforms"] = triplet.(platforms)
+    end
+    return dict
+end
+
 """
     autobuild(dir::AbstractString, src_name::AbstractString,
               src_version::VersionNumber, sources::Vector,
@@ -509,11 +554,6 @@ here are the relevant actors, broken down in brief:
 
 * `require_license` enables a special audit pass that requires licenses to be
    installed by all packages.
-
-* `lazy_artifacts` sets whether the artifacts should be lazy.
-
-* `meta_json_stream`: If this is set to an IOStream, do not actually build, just
-   output a JSON representation of all the metadata about this build to the stream.
 """
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
@@ -530,30 +570,8 @@ function autobuild(dir::AbstractString,
                    autofix::Bool = true,
                    code_dir::Union{String,Nothing} = nothing,
                    require_license::Bool = true,
-                   lazy_artifacts::Bool = false,
-                   init_block::String = "",
-                   meta_json_stream = nothing,
                    kwargs...)
     @nospecialize
-    # If they've asked for the JSON metadata, by all means, give it to them!
-    if meta_json_stream !== nothing
-        dict = Dict(
-            "name" => src_name,
-            "version" => "v$(src_version)",
-            "sources" => sources,
-            "script" => script,
-            "products" => products,
-            "dependencies" => dependencies,
-            "lazy_artifacts" => lazy_artifacts,
-            "init_block" => init_block,
-        )
-        # Do not write the list of platforms when building only for `AnyPlatform`
-        if platforms != [AnyPlatform()]
-            dict["platforms"] = triplet.(platforms)
-        end
-        println(meta_json_stream, JSON.json(dict))
-        return Dict()
-    end
 
     # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds
     if (haskey(ENV, "TRAVIS") || haskey(ENV, "CI")) && !verbose
