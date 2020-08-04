@@ -36,7 +36,9 @@ const BUILD_HELP = (
                             default, unless `<repo>` is set, in which case it
                             should be set as `<owner>/<name>_jll.jl`.  Setting
                             this option is equivalent to setting `--deploy-bin`
-                            and `--deploy-jll`.
+                            and `--deploy-jll`.  If `<repo>` is set to "local"
+                            then nothing will be uploaded, but JLL packages
+                            will still be written out to `~/.julia/dev/`.
 
         --deploy-bin=<repo> Deploy just the built binaries
 
@@ -144,6 +146,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     if register && !deploy_jll
         error("Cannot register without deploying!")
     end
+    if register && deploy_jll_repo == "local"
+        error("Cannot register with a local deployment!")
+    end
 
     if deploy_bin || deploy_jll
         code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
@@ -186,13 +191,15 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # choose a version number that is greater than anything else existent.
         build_version = get_next_wrapper_version(src_name, src_version)
         if verbose
-            @info("Building and deploying version $(build_version) to $(deploy_repo)")
+            @info("Building and deploying version $(build_version) to $(deploy_jll_repo)")
         end
         tag = "$(src_name)-v$(build_version)"
 
         # We need to make sure that the JLL repo at least exists, so that we can deploy binaries to it
         # even if we're not planning to register things to it today.
-        init_jll_package(src_name, code_dir, deploy_jll_repo)
+        if deploy_jll_repo != "local"
+            init_jll_package(src_name, code_dir, deploy_jll_repo)
+        end
     end
 
     # Build the given platforms using the given sources
@@ -243,7 +250,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                           dependencies, bin_path; verbose=verbose,
                           extract_kwargs(kwargs, (:lazy_artifacts, :init_block))...,
                           )
-        push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_repo)
+        if deploy_jll_repo != "local"
+            push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
+        end
         if register
             if verbose
                 @info("Registering new wrapper code version $(build_version)...")
@@ -254,7 +263,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         end
     end
 
-    if deploy_bin
+    if deploy_bin && deploy_bin_repo != "local"
         # Upload the binaries
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
@@ -1120,25 +1129,25 @@ function build_jll_package(src_name::String,
             end
 
             if !isempty(dependencies)
-                print(io,
-                      """
-                      # Initialize PATH and LIBPATH environment variable listings.
-                      # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
-                      # then append them to our own.
-                      foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
-                      foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
-                      """)
+                print(io, """
+                # Initialize PATH and LIBPATH environment variable listings.
+                # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
+                # then append them to our own.
+                foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
+                foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
+                """)
             end
 
             print(io, """
             # Inform that the wrapper is available for this platform
-            is_available() = true
+            wrapper_available = true
 
             \"\"\"
             Open all libraries
             \"\"\"
             function __init__()
-                global artifact_dir = abspath(artifact"$(src_name)")
+                # This either calls `@artifact_str()`, or returns a constant string if we're overridden.
+                global artifact_dir = find_artifact_dir()
 
                 global PATH_list, LIBPATH_list
             """)
@@ -1218,18 +1227,55 @@ function build_jll_package(src_name::String,
         using Pkg, Pkg.BinaryPlatforms, Pkg.Artifacts, Libdl
         import Base: UUID
 
+        wrapper_available = false
         \"\"\"
             is_available()
 
         Return whether the artifact is available for the current platform.
         \"\"\"
-        is_available() = false
+        is_available() = wrapper_available
 
         # We put these inter-JLL-package API values here so that they are always defined, even if there
         # is no underlying wrapper held within this JLL package.
         const PATH_list = String[]
         const LIBPATH_list = String[]
 
+        # We determine, here, at compile-time, whether our JLL package has been dev'ed and overridden
+        override_dir = joinpath(dirname(@__DIR__), "override")
+        if isdir(override_dir)
+            function find_artifact_dir()
+                return override_dir
+            end
+        else
+            function find_artifact_dir()
+                return artifact"$(src_name)"
+            end
+
+            \"\"\"
+                dev_jll()
+            
+            Check this package out to the dev package directory (usually ~/.julia/dev),
+            copying the artifact over to a local `override` directory, allowing package
+            developers to experiment with a locally-built binary.
+            \"\"\"
+            function dev_jll()
+                # First, `dev` out the package, but don't effect the current project
+                mktempdir() do temp_env
+                    Pkg.activate(temp_env) do
+                        Pkg.develop("$(src_name)_jll")
+                    end
+                end
+                # Create the override directory
+                override_dir = joinpath(Pkg.devdir(), "$(src_name)_jll", "override")
+                # Copy the current artifact contents into that directory
+                if !isdir(override_dir)
+                    cp(artifact"$(src_name)", override_dir)
+                end
+                # Force recompilation of that package, just in case it wasn't dev'ed before
+                touch(joinpath(Pkg.devdir(), "$(src_name)_jll", "src", "$(src_name)_jll.jl"))
+                @info("$(src_name)_ll dev'ed out to $(joinpath(Pkg.devdir(), "$(src_name)_jll")) with pre-populated override directory")
+            end
+        end
         """
     if Set(platforms) == Set([AnyPlatform()])
         # We know directly the wrapper we want to include
@@ -1383,6 +1429,11 @@ function build_jll_package(src_name::String,
     project = build_project_dict(src_name, build_version, dependencies)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         Pkg.TOML.print(io, project)
+    end
+
+    # Add a `.gitignore`
+    open(joinpath(code_dir, ".gitignore"), "w") do io
+        println(io, "override/")
     end
 end
 
