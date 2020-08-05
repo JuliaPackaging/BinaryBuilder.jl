@@ -25,7 +25,7 @@ function print_build_tarballs(io::IO, state::WizardState)
         """
     end
 
-    if state.files === nothing || state.file_kinds === nothing || state.file_varnames === nothing
+    if any(isnothing, (state.files, state.file_kinds, state.file_varnames))
         products_string = "Product[\n]"
     else
         stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
