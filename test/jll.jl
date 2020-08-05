@@ -1,3 +1,4 @@
+using JSON
 using UUIDs
 using BinaryBuilder: jll_uuid, build_project_dict
 
@@ -32,12 +33,11 @@ end
         # The buffer where we'll write the JSON meta data
         buff = IOBuffer()
 
-        # First: call `autobuild` twice, one for each platform, and write the
+        # First: call `get_meta_json` twice, once for each platform, and write the
         # JSON meta data.  In this way we can test that merging multiple JSON
         # objects work correctly.
         for p in platforms
-            autobuild(
-                build_path,
+            dict = get_meta_json(
                 name,
                 version,
                 sources,
@@ -47,13 +47,13 @@ end
                 # The products we expect to be build
                 libfoo_products,
                 dependencies;
-                # Generate the JSON file
-                meta_json_stream = buff,
             )
+            # Generate the JSON file
+            println(buff, JSON.json(dict))
         end
 
         # Now build for real
-        build_output_meta = autobuild(
+        autobuild(
             build_path,
             name,
             version,
