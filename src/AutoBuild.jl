@@ -224,12 +224,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Dependencies that must be downloaded
         dependencies,
     )
+    extra_kwargs = extract_kwargs(kwargs, (:lazy_artifacts, :init_block))
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
-        dict = get_meta_json(args...;
-                             lazy_artifacts = lazy_artifacts,
-                             init_block = init_block)
+        dict = get_meta_json(args...; extra_kwargs...)
         println(meta_json_stream, JSON.json(dict))
 
         if meta_json_stream !== stdout
@@ -264,9 +263,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
         build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
-                          dependencies, bin_path; verbose=verbose,
-                          extract_kwargs(kwargs, (:lazy_artifacts, :init_block))...,
-                          )
+                          dependencies, bin_path; verbose=verbose, extra_kwargs...)
         if deploy_jll_repo != "local"
             push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
         end
