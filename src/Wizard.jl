@@ -3,6 +3,7 @@ module Wizard
 using BinaryBuilderBase, OutputCollectors, ..Auditor
 using Random
 using GitHub, LibGit2, Pkg, Sockets, ObjectFile
+using JSON
 import SHA: sha256
 using REPL
 using REPL.Terminals
