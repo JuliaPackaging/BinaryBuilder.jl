@@ -6,6 +6,8 @@ using RegistryTools, Registrator
 import LibGit2
 import PkgLicenses
 
+const DEFAULT_JULIA_VERSION_SPEC = "1.0"
+
 const BUILD_HELP = (
     """
     Usage: build_tarballs.jl [target1,target2,...] [--help]
@@ -84,6 +86,10 @@ see what it can do, you can call it with `--help` in the `ARGS` or see the
 
 The `kwargs` are passed on to [`autobuild`](@ref), see there for a list of
 supported ones. A few additional keyword arguments are accept:
+
+* `julia_compat` can be set to a version string which is used to set the
+  supported Julia version in the `[compat]` section of the `Project.toml` of
+  the generated JLL package. The default value is `"1.0"`.
 
 * `lazy_artifacts` sets whether the artifacts should be lazy.
 
@@ -224,7 +230,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Dependencies that must be downloaded
         dependencies,
     )
-    extra_kwargs = extract_kwargs(kwargs, (:lazy_artifacts, :init_block))
+    extra_kwargs = extract_kwargs(kwargs, (:julia_compat, :lazy_artifacts, :init_block))
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
@@ -272,7 +278,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                 @info("Registering new wrapper code version $(build_version)...")
             end
 
-            register_jll(src_name, build_version, dependencies;
+            register_jll(src_name, build_version, dependencies, julia_compat;
                             deploy_repo=deploy_jll_repo, code_dir=code_dir)
         end
     end
@@ -427,7 +433,7 @@ function _package_is_registered(registry_url::AbstractString,
     return package in registered_packages
 end
 
-function register_jll(name, build_version, dependencies;
+function register_jll(name, build_version, dependencies, julia_compat;
                       deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
                       code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
@@ -443,7 +449,7 @@ function register_jll(name, build_version, dependencies;
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
-    project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies))
+    project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat))
     errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
     reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
@@ -490,6 +496,7 @@ function get_meta_json(
                    platforms::Vector,
                    products::Vector{<:Product},
                    dependencies::Vector{<:AbstractDependency};
+                   julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                    lazy_artifacts::Bool = false,
                    init_block::String = "")
 
@@ -500,6 +507,7 @@ function get_meta_json(
         "script" => script,
         "products" => products,
         "dependencies" => dependencies,
+        "julia_compat" => julia_compat,
         "lazy_artifacts" => lazy_artifacts,
         "init_block" => init_block,
     )
@@ -926,6 +934,7 @@ function rebuild_jll_package(obj::Dict;
         upload_prefix;
         verbose=verbose,
         lazy_artifacts = lazy_artifacts,
+        julia_compat = get(obj, "julia_compat", DEFAULT_JULIA_VERSION_SPEC),
         init_block = get(obj, "init_block", ""),
         from_scratch = from_scratch,
     )
@@ -935,8 +944,8 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
                              code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
-                             verbose::Bool = false, lazy_artifacts::Bool = false,
-                             init_block::String = "", from_scratch::Bool = true)
+                             verbose::Bool = false, from_scratch::Bool = true,
+                             kwargs...)
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
 
@@ -999,7 +1008,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         # Finally, generate the full JLL package
         build_jll_package(name, build_version, sources, code_dir, build_output_meta,
                           dependencies, upload_prefix; verbose=verbose,
-                          lazy_artifacts=lazy_artifacts, init_block=init_block)
+                          kwargs...)
     end
 end
 
@@ -1011,6 +1020,7 @@ function build_jll_package(src_name::String,
                            dependencies::Vector,
                            bin_path::String;
                            verbose::Bool = false,
+                           julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                            lazy_artifacts::Bool = false,
                            init_block = "")
     if !Base.isidentifier(src_name)
@@ -1444,7 +1454,7 @@ function build_jll_package(src_name::String,
     rm(joinpath(code_dir, "LICENSE.md"); force=true)
 
     # Add a Project.toml
-    project = build_project_dict(src_name, build_version, dependencies)
+    project = build_project_dict(src_name, build_version, dependencies, julia_compat)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         Pkg.TOML.print(io, project)
     end
@@ -1486,7 +1496,7 @@ const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # For even more interesting historical reasons, we append an extra
 # "_jll" to the name of the new package before computing its UUID.
 jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
-function build_project_dict(name, version, dependencies::Array{Dependency})
+function build_project_dict(name, version, dependencies::Array{Dependency}, julia_compat::String=DEFAULT_JULIA_VERSION_SPEC)
     function has_compat_info(d::Dependency)
         r = Pkg.Types.VersionRange()
         return isa(d.pkg.version, VersionNumber) ||
@@ -1504,14 +1514,15 @@ function build_project_dict(name, version, dependencies::Array{Dependency})
        return string(v)
     end
     exactly_this_version(v) = v
+    Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(
         "name" => "$(name)_jll",
         "uuid" => string(jll_uuid("$(name)_jll")),
         "version" => string(version),
         "deps" => Dict{String,Any}(),
         # We require at least Julia 1.3+, for Pkg.Artifacts support, but we only claim
-        # Julia 1.0+ so that empty JLLs can be installed on older versions.
-        "compat" => Dict{String,Any}("julia" => "1.0")
+        # Julia 1.0+ by default so that empty JLLs can be installed on older versions.
+        "compat" => Dict{String,Any}("julia" => "$(julia_compat)")
     )
     for dep in dependencies
         depname = getname(dep)

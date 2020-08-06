@@ -210,6 +210,15 @@ end
     @test next_version.minor == version.minor
     @test next_version.patch == version.patch
 
+    # Ensure passing a Julia dependency bound works
+    dict = build_project_dict(name, version, dependencies, "1.4")
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.4")
+
+    dict = build_project_dict(name, version, dependencies, "~1.4")
+    @test dict["compat"] == Dict{String,Any}("julia" => "~1.4")
+
+    @test_throws ErrorException build_project_dict(name, version, dependencies, "nonsense")
+
     # Ensure passing compat bounds works
     dependencies = [
         Dependency(PackageSpec(name="libLLVM_jll", version=v"9")),
