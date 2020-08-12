@@ -933,8 +933,8 @@ function rebuild_jll_package(obj::Dict;
     end
     if download_dir === nothing
         download_dir = mktempdir()
-        repo = "$(gh_org)/$(name)_jll.jl"
-        tag = "$(name)-v$(build_version)"
+        repo = "$(gh_org)/$(obj["name"])_jll.jl"
+        tag = "$(obj["name"])-v$(build_version)"
         download_github_release(download_dir, repo, tag; verbose=verbose)
         upload_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
     elseif upload_prefix === nothing
@@ -1015,19 +1015,19 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 products_info,
             )
         end
-
-        # If `from_scratch` is set (the default) we clear out any old crusty code
-        # before generating our new, pristine, JLL package within it.  :)
-        if from_scratch
-            rm(joinpath(code_dir, "src"); recursive=true, force=true)
-            rm(joinpath(code_dir, "Artifacts.toml"); force=true)
-        end
-
-        # Finally, generate the full JLL package
-        build_jll_package(name, build_version, sources, code_dir, build_output_meta,
-                          dependencies, upload_prefix; verbose=verbose,
-                          kwargs...)
     end
+
+    # If `from_scratch` is set (the default) we clear out any old crusty code
+    # before generating our new, pristine, JLL package within it.  :)
+    if from_scratch
+        rm(joinpath(code_dir, "src"); recursive=true, force=true)
+        rm(joinpath(code_dir, "Artifacts.toml"); force=true)
+    end
+
+    # Finally, generate the full JLL package
+    build_jll_package(name, build_version, sources, code_dir, build_output_meta,
+                      dependencies, upload_prefix; verbose=verbose,
+                      kwargs...)
 end
 
 function build_jll_package(src_name::String,
@@ -1046,6 +1046,9 @@ function build_jll_package(src_name::String,
     end
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
+
+    # Drop BuildDependency objects
+    dependencies = Dependency[d for d in dependencies if !isa(d, BuildDependency)]
 
     platforms = keys(build_output_meta)
     products_info = Dict{Product,Any}
@@ -1123,28 +1126,8 @@ function build_jll_package(src_name::String,
                 vp = variable_name(p)
                 # An executable product's public interface is a do-block wrapper function
                 return """
-                function $(vp)(f::Function; adjust_PATH::Bool = true, adjust_LIBPATH::Bool = true)
-                    global PATH, LIBPATH
-                    env_mapping = Dict{String,String}()
-                    if adjust_PATH
-                        if !isempty(get(ENV, "PATH", ""))
-                            env_mapping["PATH"] = string(PATH, $(repr(pathsep)), ENV["PATH"])
-                        else
-                            env_mapping["PATH"] = PATH
-                        end
-                    end
-                    if adjust_LIBPATH
-                        LIBPATH_base = get(ENV, LIBPATH_env, expanduser(LIBPATH_default))
-                        if !isempty(LIBPATH_base)
-                            env_mapping[LIBPATH_env] = string(LIBPATH, $(repr(pathsep)), LIBPATH_base)
-                        else
-                            env_mapping[LIBPATH_env] = LIBPATH
-                        end
-                    end
-                    withenv(env_mapping...) do
-                        f($(vp)_path)
-                    end
-                end
+                $(vp)(f::Function; adjust_PATH::Bool = true, adjust_LIBPATH::Bool = true) =
+                    executable_wrapper(f, $(vp)_path, PATH, LIBPATH, LIBPATH_env, LIBPATH_default, adjust_PATH, adjust_LIBPATH, ':')
                 """
             end
 
@@ -1162,6 +1145,7 @@ function build_jll_package(src_name::String,
                 println(io, """
                 # Relative path to `$(vp)`
                 const $(vp)_splitpath = $(repr(splitpath(p_info["path"])))
+                const $(vp)_joinpath = joinpath($(vp)_splitpath...)
 
                 # This will be filled out by __init__() for all products, as it must be done at runtime
                 $(vp)_path = ""
@@ -1184,6 +1168,18 @@ function build_jll_package(src_name::String,
 
                 global PATH_list, LIBPATH_list
             """)
+            if !isempty(dependencies)
+                print(io, """
+                # Initialize PATH and LIBPATH environment variable listings.
+                # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
+                # then append them to our own.
+                foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
+                foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
+                """)
+            end
+            #println(io, "    initialize_path_list!(PATH_list, $(repr(tuple(["$(getname(dep)).PATH_list" for dep in dependencies]))))")
+            #println(io, "    initialize_path_list!(LIBPATH_list, $(repr(tuple(["$(getname(dep)).LIBPATH_list" for dep in dependencies]))))")
+
 
             if !isempty(dependencies)
                 # Note: this needs to be done at init time, because the path
@@ -1200,48 +1196,81 @@ function build_jll_package(src_name::String,
 
             for (p, p_info) in sort(products_info)
                 vp = variable_name(p)
-
-                # Initialize $(vp)_path
-                println(io, """
-                    global $(vp)_path = normpath(joinpath(artifact_dir, $(vp)_splitpath...))
-                """)
-
-                # If `p` is a `LibraryProduct`, dlopen() it right now!
                 if p isa LibraryProduct || p isa FrameworkProduct
                     println(io, """
-                        # Manually `dlopen()` this right now so that future invocations
-                        # of `ccall` with its `SONAME` will find this path immediately.
-                        global $(vp)_handle = dlopen($(vp)_path, $(BinaryBuilderBase.dlopen_flags_str(p)))
-                        push!(LIBPATH_list, dirname($(vp)_path))
+                        global $(vp)_path, $(vp)_handle
+                        $(vp)_path, $(vp)_handle = get_lib_path_handle!(LIBPATH_list, artifact_dir, $(vp)_joinpath, $(BinaryBuilderBase.dlopen_flags_str(p)))
                     """)
+                    # println(io, """
+                    #     global $(vp)_path = normpath(joinpath(artifact_dir, $(vp)_joinpath))
+                    #     global $(vp)_handle = dlopen($(vp)_path, $(BinaryBuilderBase.dlopen_flags_str(p)))
+                    #     push!(LIBPATH_list, dirname($(vp)_path))
+                    # """)
                 elseif p isa ExecutableProduct
-                    println(io, "    push!(PATH_list, dirname($(vp)_path))")
+                    println(io, """
+                        global $(vp)_path = get_exe_path!(PATH_list, artifact_dir, $(vp)_joinpath)
+                    """)
                 elseif p isa FileProduct
                     println(io, "    global $(vp) = $(vp)_path")
                 end
             end
+
+            # Final calculation of PATH/LIBPATH from PATH_list and LIBPATH_list
+            print(io, """
+                # Filter out duplicate and empty entries in our PATH and LIBPATH entries
+                global PATH, LIBPATH
+                PATH, LIBPATH = cleanup_path_libpath!(PATH_list, LIBPATH_list, $(repr(pathsep)))
+            """)
 
             # Libraries shipped by Julia can be found in different directories,
             # depending on the operating system and whether Julia has been built
             # from source or it's a pre-built binary. For all OSes libraries can
             # be found in Base.LIBDIR or Base.LIBDIR/julia, on Windows they are
             # in Sys.BINDIR, so we just add everything.
-            init_libpath = "joinpath(Sys.BINDIR, Base.LIBDIR, \"julia\"), joinpath(Sys.BINDIR, Base.LIBDIR)"
-            if isa(platform, Windows)
-                init_libpath = string("Sys.BINDIR, ", init_libpath)
+            # init_libpath = "JLLWrappers.get_julia_libpaths()"
+            # if isa(platform, Windows)
+            #     init_libpath = string("Sys.BINDIR, ", init_libpath)
+            # end
+            # print(io, """
+            #     # Filter out duplicate and empty entries in our PATH and LIBPATH entries
+            #     filter!(!isempty, unique!(PATH_list))
+            #     filter!(!isempty, unique!(LIBPATH_list))
+            #     global PATH = join(PATH_list, $(repr(pathsep)))
+            #     global LIBPATH = join(vcat(LIBPATH_list, $(init_libpath)), $(repr(pathsep)))
+            # """)
+            if !isempty(init_block)
+                print(io, """
+
+                    $(init_block)
+                """)
             end
 
-            print(io, """
-                # Filter out duplicate and empty entries in our PATH and LIBPATH entries
-                filter!(!isempty, unique!(PATH_list))
-                filter!(!isempty, unique!(LIBPATH_list))
-                global PATH = join(PATH_list, $(repr(pathsep)))
-                global LIBPATH = join(vcat(LIBPATH_list, [$(init_libpath)]), $(repr(pathsep)))
-
-                $(init_block)
+            print(io, """ 
             end  # __init__()
             """)
         end
+    end
+
+    # Generate the script that dev's a JLL package out for local binary development work
+    open(joinpath(code_dir, "src", "dev.jl"), "w") do io
+        print(io, """
+        using Pkg, Pkg.Artifacts
+        # First, `dev` out the package, but don't effect the current project
+        mktempdir() do temp_env
+            Pkg.activate(temp_env) do
+                Pkg.develop("$(src_name)_jll")
+            end
+        end
+        # Create the override directory
+        override_dir = joinpath(Pkg.devdir(), "$(src_name)_jll", "override")
+        # Copy the current artifact contents into that directory
+        if !isdir(override_dir)
+            cp(artifact"$(src_name)", override_dir)
+        end
+        # Force recompilation of that package, just in case it wasn't dev'ed before
+        touch(joinpath(Pkg.devdir(), "$(src_name)_jll", "src", "$(src_name)_jll.jl"))
+        @info("$(src_name)_ll dev'ed out to $(joinpath(Pkg.devdir(), "$(src_name)_jll")) with pre-populated override directory")
+        """)
     end
 
     # Generate target-demuxing main source file.
@@ -1252,7 +1281,7 @@ function build_jll_package(src_name::String,
             @eval Base.Experimental.@optlevel 0
         end
 
-        if VERSION < v"1.3.0-rc4"
+        if VERSION < v"1.6.0-DEV"
             # We lie a bit in the registry that JLL packages are usable on Julia 1.0-1.2.
             # This is to allow packages that might want to support Julia 1.0 to get the
             # benefits of a JLL package on 1.3 (requiring them to declare a dependence on
@@ -1267,10 +1296,10 @@ function build_jll_package(src_name::String,
             # the deprecated `build.jl` mechanism to download the binaries through e.g.
             # `BinaryProvider.jl`.  This should work well for the simplest packages, and
             # require greater and greater heroics for more and more complex packages.
-            error("Unable to import $(src_name)_jll on Julia versions older than 1.3!")
+            error("Unable to import $(src_name)_jll on Julia versions older than 1.6!")
         end
 
-        using Pkg, Pkg.BinaryPlatforms, Pkg.Artifacts, Libdl
+        using Base.BinaryPlatforms, Artifacts, Libdl, JLLWrappers
         import Base: UUID
 
         wrapper_available = false
@@ -1305,21 +1334,8 @@ function build_jll_package(src_name::String,
             developers to experiment with a locally-built binary.
             \"\"\"
             function dev_jll()
-                # First, `dev` out the package, but don't effect the current project
-                mktempdir() do temp_env
-                    Pkg.activate(temp_env) do
-                        Pkg.develop("$(src_name)_jll")
-                    end
-                end
-                # Create the override directory
-                override_dir = joinpath(Pkg.devdir(), "$(src_name)_jll", "override")
-                # Copy the current artifact contents into that directory
-                if !isdir(override_dir)
-                    cp(artifact"$(src_name)", override_dir)
-                end
-                # Force recompilation of that package, just in case it wasn't dev'ed before
-                touch(joinpath(Pkg.devdir(), "$(src_name)_jll", "src", "$(src_name)_jll.jl"))
-                @info("$(src_name)_ll dev'ed out to $(joinpath(Pkg.devdir(), "$(src_name)_jll")) with pre-populated override directory")
+                # We do this in an external process to avoid having to load `Pkg`.
+                run(`\$(Base.julia_cmd()) $(joinpath(@__DIR__, "dev.jl"))`)
             end
         end
         """
@@ -1334,14 +1350,14 @@ function build_jll_package(src_name::String,
             artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
 
             # Extract all platforms
-            artifacts = Pkg.Artifacts.load_artifacts_toml(artifacts_toml; pkg_uuid=$(repr(jll_uuid("$(src_name)_jll"))))
-            platforms = [Pkg.Artifacts.unpack_platform(e, $(repr(src_name)), artifacts_toml) for e in artifacts[$(repr(src_name))]]
+            artifacts = get_artifacts(artifacts_toml, $(repr(jll_uuid("$(src_name)_jll"))))
+            platforms = get_platforms($(repr(src_name)), artifacts_toml, artifacts)
 
             # Filter platforms based on what wrappers we've generated on-disk
-            filter!(p -> isfile(joinpath(@__DIR__, "wrappers", replace(triplet(p), "arm-" => "armv7l-") * ".jl")), platforms)
+            cleanup_platforms!(@__DIR__, platforms)
 
             # From the available options, choose the best platform
-            best_platform = select_platform(Dict(p => triplet(p) for p in platforms))
+            best_platform = select_best_platform(platforms)
 
             # Silently fail if there's no binaries for this platform
             if best_platform === nothing
@@ -1350,7 +1366,7 @@ function build_jll_package(src_name::String,
                 # Load the appropriate wrapper.  Note that on older Julia versions, we still
                 # say "arm-linux-gnueabihf" instead of the more correct "armv7l-linux-gnueabihf",
                 # so we manually correct for that here:
-                best_platform = replace(best_platform, "arm-" => "armv7l-")
+                best_platform = cleanup_best_platform(best_platform)
                 include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
             end
             """
@@ -1551,8 +1567,9 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     end
     # Always add Libdl and Pkg as dependencies
     stdlibs = isdefined(Pkg.Types, :stdlib) ? Pkg.Types.stdlib : Pkg.Types.stdlibs
-    project["deps"]["Libdl"] = first([string(u) for (u, n) in stdlibs() if n == "Libdl"])
-    project["deps"]["Pkg"] = first([string(u) for (u, n) in stdlibs() if n == "Pkg"])
+    project["deps"]["Libdl"] = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
+    project["deps"]["Artifacts"] = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
+    project["deps"]["JLLWrappers"] = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
 
     return project
 end
