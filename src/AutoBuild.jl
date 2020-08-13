@@ -1143,16 +1143,6 @@ function build_jll_package(src_name::String,
                 """)
             end
 
-            if !isempty(dependencies)
-                print(io, """
-                # Initialize PATH and LIBPATH environment variable listings.
-                # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
-                # then append them to our own.
-                foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
-                foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
-                """)
-            end
-
             print(io, """
             # Inform that the wrapper is available for this platform
             wrapper_available = true
@@ -1166,6 +1156,19 @@ function build_jll_package(src_name::String,
 
                 global PATH_list, LIBPATH_list
             """)
+
+            if !isempty(dependencies)
+                # Note: this needs to be done at init time, because the path
+                # lists can change after precompile-time if we move the
+                # artifacts depot.
+                println(io, """
+                    # Initialize PATH and LIBPATH environment variable listings
+                    # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
+                    # then append them to our own.
+                    foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
+                    foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
+                """)
+            end
 
             for (p, p_info) in sort(products_info)
                 vp = variable_name(p)
