@@ -1336,7 +1336,7 @@ function build_jll_package(src_name::String,
     if Set(platforms) == Set([AnyPlatform()])
         # We know directly the wrapper we want to include
         jll_jl *= """
-            Core.include(@__MODULE__, joinpath(@__DIR__, "wrappers", "any.jl"))
+            Base.include(@__MODULE__, joinpath(@__DIR__, "wrappers", "any.jl"))
             """
     else
         jll_jl *= """
@@ -1352,7 +1352,7 @@ function build_jll_package(src_name::String,
             if best_wrapper === nothing
                 @debug("Unable to load $(src_name); unsupported platform \$(triplet(platform_key_abi()))")
             else
-                Core.include($(src_name)_jll, best_wrapper)
+                Base.include($(src_name)_jll, best_wrapper)
             end
             """
     end
