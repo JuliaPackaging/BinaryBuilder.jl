@@ -1126,10 +1126,6 @@ function build_jll_package(src_name::String,
             for (p, p_info) in sort(products_info)
                 vp = variable_name(p)
                 println(io, """
-                # Relative path to `$(vp)`
-                const $(vp)_splitpath = $(repr(splitpath(p_info["path"])))
-                const $(vp)_joinpath = joinpath($(vp)_splitpath...)
-
                 # This will be filled out by __init__() for all products, as it must be done at runtime
                 $(vp)_path = ""
 
@@ -1182,7 +1178,13 @@ function build_jll_package(src_name::String,
                 if p isa LibraryProduct || p isa FrameworkProduct
                     println(io, """
                         global $(vp)_path, $(vp)_handle
-                        $(vp)_path, $(vp)_handle = get_lib_path_handle!(LIBPATH_list, artifact_dir, $(vp)_joinpath, $(BinaryBuilderBase.dlopen_flags_str(p)))
+                        $(vp)_path, $(vp)_handle = get_lib_path_handle!(
+                            LIBPATH_list,
+                            artifact_dir,
+                            $(repr(p_info["path"])),
+                            $(repr(dirname(p_info["path"]))),
+                            $(BinaryBuilderBase.dlopen_flags_str(p)),
+                        )
                     """)
                     # println(io, """
                     #     global $(vp)_path = normpath(joinpath(artifact_dir, $(vp)_joinpath))
@@ -1191,7 +1193,12 @@ function build_jll_package(src_name::String,
                     # """)
                 elseif p isa ExecutableProduct
                     println(io, """
-                        global $(vp)_path = get_exe_path!(PATH_list, artifact_dir, $(vp)_joinpath)
+                        global $(vp)_path = get_exe_path!(
+                            PATH_list,
+                            artifact_dir,
+                            $(repr(p_info["path"])),
+                            $(repr(dirname(p_info["path"]))),
+                        )
                     """)
                 elseif p isa FileProduct
                     println(io, "    global $(vp) = $(vp)_path")
@@ -1258,12 +1265,9 @@ function build_jll_package(src_name::String,
 
     # Generate target-demuxing main source file.
     jll_jl = """
-        module $(src_name)_jll
-
-        if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
-            @eval Base.Experimental.@optlevel 0
-        end
-
+        # Use baremodule to shave a few pieces of data off
+        baremodule $(src_name)_jll
+        using Base
         if VERSION < v"1.6.0-DEV"
             # We lie a bit in the registry that JLL packages are usable on Julia 1.0-1.2.
             # This is to allow packages that might want to support Julia 1.0 to get the
@@ -1283,15 +1287,19 @@ function build_jll_package(src_name::String,
         end
 
         using Base.BinaryPlatforms, Artifacts, Libdl, JLLWrappers
-        import Base: UUID
+        using Base: UUID
 
-        wrapper_available = false
+        if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
+            Core.eval($(src_name)_jll, :(Base.Experimental.@optlevel 0))
+        end
+
         \"\"\"
             is_available()
 
         Return whether the artifact is available for the current platform.
         \"\"\"
-        is_available() = wrapper_available
+        function is_available end
+
 
         # We put these inter-JLL-package API values here so that they are always defined, even if there
         # is no underlying wrapper held within this JLL package.
@@ -1351,8 +1359,10 @@ function build_jll_package(src_name::String,
             # Silently fail if there's no binaries for this platform
             if best_wrapper === nothing
                 @debug("Unable to load $(src_name); unsupported platform \$(triplet(platform_key_abi()))")
+                is_available() = false
             else
                 Base.include($(src_name)_jll, best_wrapper)
+                is_available() = true
             end
             """
     end
