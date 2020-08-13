@@ -1151,15 +1151,15 @@ function build_jll_package(src_name::String,
 
                 global PATH_list, LIBPATH_list
             """)
-            if !isempty(dependencies)
-                print(io, """
-                # Initialize PATH and LIBPATH environment variable listings.
-                # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
-                # then append them to our own.
-                foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
-                foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
-                """)
-            end
+            # if !isempty(dependencies)
+            #     print(io, """
+            #     # Initialize PATH and LIBPATH environment variable listings.
+            #     # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
+            #     # then append them to our own.
+            #     foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
+            #     foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
+            #     """)
+            # end
             #println(io, "    initialize_path_list!(PATH_list, $(repr(tuple(["$(getname(dep)).PATH_list" for dep in dependencies]))))")
             #println(io, "    initialize_path_list!(LIBPATH_list, $(repr(tuple(["$(getname(dep)).LIBPATH_list" for dep in dependencies]))))")
 
@@ -1298,17 +1298,16 @@ function build_jll_package(src_name::String,
         const PATH_list = String[]
         const LIBPATH_list = String[]
 
-        # We determine, here, at compile-time, whether our JLL package has been dev'ed and overridden
-        override_dir = joinpath(dirname(@__DIR__), "override")
-        if isdir(override_dir)
-            function find_artifact_dir()
-                return override_dir
-            end
-        else
-            function find_artifact_dir()
+        function find_artifact_dir()
+            # We determine at compile-time whether our JLL package has been dev'ed and overridden
+            @static if isdir(joinpath(dirname(@__DIR__), "override"))
+                return joinpath(dirname(@__DIR__), "override")
+            else
                 return artifact"$(src_name)"
             end
+        end
 
+<<<<<<< HEAD
             \"\"\"
                 dev_jll()
 
@@ -1320,37 +1319,40 @@ function build_jll_package(src_name::String,
                 # We do this in an external process to avoid having to load `Pkg`.
                 run(`\$(Base.julia_cmd()) $(joinpath(@__DIR__, "dev.jl"))`)
             end
+=======
+        \"\"\"
+            dev_jll()
+        
+        Check this package out to the dev package directory (usually ~/.julia/dev),
+        copying the artifact over to a local `override` directory, allowing package
+        developers to experiment with a locally-built binary.
+        \"\"\"
+        function dev_jll()
+            # We do this in an external process to avoid having to load `Pkg`.
+            run(`\$(Base.julia_cmd()) \$(joinpath(@__DIR__, "dev.jl"))`)
+>>>>>>> Optimize for backedges
         end
         """
     if Set(platforms) == Set([AnyPlatform()])
         # We know directly the wrapper we want to include
         jll_jl *= """
-            include(joinpath(@__DIR__, "wrappers", "any.jl"))
+            Core.include(@__MODULE__, joinpath(@__DIR__, "wrappers", "any.jl"))
             """
     else
         jll_jl *= """
-            # Load Artifacts.toml file
-            artifacts_toml = joinpath(@__DIR__, "..", "Artifacts.toml")
-
-            # Extract all platforms
-            artifacts = get_artifacts(artifacts_toml, $(repr(jll_uuid("$(src_name)_jll"))))
-            platforms = get_platforms($(repr(src_name)), artifacts_toml, artifacts)
-
-            # Filter platforms based on what wrappers we've generated on-disk
-            cleanup_platforms!(@__DIR__, platforms)
-
-            # From the available options, choose the best platform
-            best_platform = select_best_platform(platforms)
+            # Load Artifacts.toml file and choose best wrapper
+            best_wrapper = select_best_wrapper(
+                joinpath(@__DIR__, "..", "Artifacts.toml"),
+                $(repr(jll_uuid("$(src_name)_jll"))),
+                $(repr(src_name)),
+                @__DIR__,
+            )
 
             # Silently fail if there's no binaries for this platform
-            if best_platform === nothing
+            if best_wrapper === nothing
                 @debug("Unable to load $(src_name); unsupported platform \$(triplet(platform_key_abi()))")
             else
-                # Load the appropriate wrapper.  Note that on older Julia versions, we still
-                # say "arm-linux-gnueabihf" instead of the more correct "armv7l-linux-gnueabihf",
-                # so we manually correct for that here:
-                best_platform = cleanup_best_platform(best_platform)
-                include(joinpath(@__DIR__, "wrappers", "\$(best_platform).jl"))
+                Core.include($(src_name)_jll, best_wrapper)
             end
             """
     end
