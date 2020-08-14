@@ -1152,9 +1152,6 @@ function build_jll_package(src_name::String,
             end
 
             print(io, """
-            # Inform that the wrapper is available for this platform
-            wrapper_available = true
-
             \"\"\"
             Open all libraries
             \"\"\"
@@ -1164,18 +1161,6 @@ function build_jll_package(src_name::String,
 
                 global PATH_list, LIBPATH_list
             """)
-            # if !isempty(dependencies)
-            #     print(io, """
-            #     # Initialize PATH and LIBPATH environment variable listings.
-            #     # From the list of our dependencies, generate a tuple of all the PATH and LIBPATH lists,
-            #     # then append them to our own.
-            #     foreach(p -> append!(PATH_list, p), ($(join(["$(getname(dep)).PATH_list" for dep in dependencies], ", ")),))
-            #     foreach(p -> append!(LIBPATH_list, p), ($(join(["$(getname(dep)).LIBPATH_list" for dep in dependencies], ", ")),))
-            #     """)
-            # end
-            #println(io, "    initialize_path_list!(PATH_list, $(repr(tuple(["$(getname(dep)).PATH_list" for dep in dependencies]))))")
-            #println(io, "    initialize_path_list!(LIBPATH_list, $(repr(tuple(["$(getname(dep)).LIBPATH_list" for dep in dependencies]))))")
-
 
             if !isempty(dependencies)
                 # Note: this needs to be done at init time, because the path
@@ -1203,11 +1188,6 @@ function build_jll_package(src_name::String,
                             $(BinaryBuilderBase.dlopen_flags_str(p)),
                         )
                     """)
-                    # println(io, """
-                    #     global $(vp)_path = normpath(joinpath(artifact_dir, $(vp)_joinpath))
-                    #     global $(vp)_handle = dlopen($(vp)_path, $(BinaryBuilderBase.dlopen_flags_str(p)))
-                    #     push!(LIBPATH_list, dirname($(vp)_path))
-                    # """)
                 elseif p isa ExecutableProduct
                     println(io, """
                         global $(vp)_path = get_exe_path!(
@@ -1229,22 +1209,6 @@ function build_jll_package(src_name::String,
                 PATH, LIBPATH = cleanup_path_libpath!(PATH_list, LIBPATH_list, $(repr(pathsep)))
             """)
 
-            # Libraries shipped by Julia can be found in different directories,
-            # depending on the operating system and whether Julia has been built
-            # from source or it's a pre-built binary. For all OSes libraries can
-            # be found in Base.LIBDIR or Base.LIBDIR/julia, on Windows they are
-            # in Sys.BINDIR, so we just add everything.
-            # init_libpath = "JLLWrappers.get_julia_libpaths()"
-            # if isa(platform, Windows)
-            #     init_libpath = string("Sys.BINDIR, ", init_libpath)
-            # end
-            # print(io, """
-            #     # Filter out duplicate and empty entries in our PATH and LIBPATH entries
-            #     filter!(!isempty, unique!(PATH_list))
-            #     filter!(!isempty, unique!(LIBPATH_list))
-            #     global PATH = join(PATH_list, $(repr(pathsep)))
-            #     global LIBPATH = join(vcat(LIBPATH_list, $(init_libpath)), $(repr(pathsep)))
-            # """)
             if !isempty(init_block)
                 print(io, """
 
