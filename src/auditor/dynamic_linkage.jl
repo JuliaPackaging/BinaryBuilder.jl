@@ -169,6 +169,7 @@ function should_ignore_lib(lib, ::MachOHandle)
         "libsystem.b.dylib",
         # This is not built by clang or GCC, so we leave it as a system library
         "libc++.1.dylib",
+        "libresolv.9.dylib",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
