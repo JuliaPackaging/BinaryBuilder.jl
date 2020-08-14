@@ -249,6 +249,16 @@ function is_default_lib(lib, ::ELFHandle)
     return lowercase(basename(lib)) in default_libs
 end
 
+function valid_library_path(f::AbstractString, p::Platform)
+    if Sys.iswindows(p)
+        return endswith(f, ".dll")
+    elseif Sys.isapple(p)
+        return endswith(f, ".dylib")
+    else
+        return ismatch(r".*.so(\.[\d]+)*", f)
+    end
+end
+
 function patchelf_flags(p::Platform)
     flags = []
 

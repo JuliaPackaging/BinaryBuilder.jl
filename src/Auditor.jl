@@ -64,7 +64,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     translate_symlinks(prefix.path; verbose=verbose)
 
     # Inspect binary files, looking for improper linkage
-    predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
+    predicate = f -> (filemode(f) & 0o111) != 0 || valid_library_path(f, platform)
     bin_files = collect_files(prefix, predicate; exclude_externalities=false)
     for f in collapse_symlinks(bin_files)
         # If `f` is outside of our prefix, ignore it.  This happens with files from our dependencies
@@ -115,7 +115,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     end
 
     # Find all dynamic libraries
-    shlib_files = filter(f -> valid_dl_path(f, platform), bin_files)
+    shlib_files = filter(f -> startswith(f, prefix.path) && valid_library_path(f, platform), collapse_symlinks(bin_files))
 
     for f in shlib_files
         # Inspect all shared library files for our platform (but only if we're
@@ -185,7 +185,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # If we're targeting a windows platform, check to make sure no .dll
         # files are sitting in `$prefix/lib`, as that's a no-no.  This is
         # not a fatal offense, but we'll yell about it.
-        lib_dll_files =  filter(f -> valid_dl_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
+        lib_dll_files =  filter(f -> valid_library_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
         for f in lib_dll_files
             if !silent
                 @warn("$(relpath(f, prefix.path)) should be in `bin`!")
