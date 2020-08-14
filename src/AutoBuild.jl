@@ -1271,7 +1271,7 @@ function build_jll_package(src_name::String,
         using Base: UUID
 
         if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
-            Core.eval($(src_name)_jll, :(Base.Experimental.@optlevel 0))
+            Core.eval($(src_name)_jll, :(Base.Experimental.@options compile=min optimize=0 infer=false))
         end
 
         \"\"\"
