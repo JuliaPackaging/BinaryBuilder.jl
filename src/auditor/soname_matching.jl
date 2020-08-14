@@ -67,7 +67,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
     set_soname_cmd = ``
     
     if Sys.isapple(platform)
-        install_name_tool = "/opt/x86_64-apple-darwin14/bin/install_name_tool"
+        install_name_tool = "/opt/bin/install_name_tool"
         set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
         patchelf = "/usr/bin/patchelf"
