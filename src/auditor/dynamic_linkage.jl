@@ -243,6 +243,7 @@ function is_default_lib(lib, ::ELFHandle)
         "libgfortran.so.3",
         "libgfortran.so.4",
         "libgfortran.so.5",
+        "libquadmath.so.0",
         "libgomp.so.1",
         "libstdc++.so.6",
         "libc++.so.1",
