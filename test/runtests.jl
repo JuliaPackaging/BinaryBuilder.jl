@@ -47,7 +47,7 @@ install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 libfoo_meson_script = raw"""
 mkdir ${WORKSPACE}/srcdir/libfoo/build && cd ${WORKSPACE}/srcdir/libfoo/build
 meson .. -Dprefix=${prefix} --cross-file="${MESON_TARGET_TOOLCHAIN}"
-ninja install -v
+meson install
 
 # grumble grumble meson!  Why do you go to all the trouble to build it properly
 # in `build`, then screw it up when you `install` it?!  Silly willy.
