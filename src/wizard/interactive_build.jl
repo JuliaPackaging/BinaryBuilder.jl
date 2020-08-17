@@ -518,7 +518,7 @@ function step34(state::WizardState)
                                               preferred_gcc_version = state.preferred_gcc_version,
                                               preferred_llvm_version = state.preferred_llvm_version,
                                               compilers = state.compilers)
-    artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
+    artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
 
     provide_hints(state, joinpath(prefix, "srcdir"))
 
@@ -566,7 +566,7 @@ function step5_internal(state::WizardState, platform::Platform)
                                                       preferred_gcc_version = state.preferred_gcc_version,
                                                       preferred_llvm_version = state.preferred_llvm_version,
                                                       compilers = state.compilers)
-            artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
+            artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
             # Record newly added artifacts for this prefix
             prefix_artifacts[prefix] = artifact_paths
             ur = preferred_runner()(
@@ -644,7 +644,7 @@ function step5_internal(state::WizardState, platform::Platform)
                                                                   preferred_gcc_version = state.preferred_gcc_version,
                                                                   preferred_llvm_version = state.preferred_llvm_version,
                                                                   compilers = state.compilers)
-                        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform)
+                        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform; verbose=true)
                         # Record newly added artifacts for this prefix
                         prefix_artifacts[prefix] = artifact_paths
 
@@ -779,7 +779,7 @@ function step5c(state::WizardState)
                                                   preferred_gcc_version = state.preferred_gcc_version,
                                                   preferred_llvm_version = state.preferred_llvm_version,
                                                   compilers = state.compilers)
-        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
+        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=false)
         ur = preferred_runner()(
             prefix.path;
             cwd="/workspace/srcdir",
