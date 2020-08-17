@@ -382,7 +382,7 @@ function get_next_wrapper_version(src_name, src_version)
     ctx = Pkg.Types.Context()
 
     # Force-update the registry here, since we may have pushed a new version recently
-    update_registry(ctx)
+    update_registry(ctx, devnull)
 
     # If it does, we need to bump the build number up to the next value
     build_number = 0
@@ -597,7 +597,7 @@ function autobuild(dir::AbstractString,
     build_output_meta = Dict()
 
     # Resolve dependencies into PackageSpecs now, ensuring we have UUIDs for all deps
-    all_resolved, dependencies = resolve_jlls(dependencies)
+    all_resolved, dependencies = resolve_jlls(dependencies, outs=(verbose ? stdout : devnull))
     if !all_resolved
         error("Invalid dependency specifications!")
     end
@@ -627,7 +627,7 @@ function autobuild(dir::AbstractString,
             source_files;
             verbose=verbose,
         )
-        artifact_paths = setup_dependencies(prefix, getpkg.(dependencies), concrete_platform)
+        artifact_paths = setup_dependencies(prefix, getpkg.(dependencies), concrete_platform; verbose=verbose)
 
         # Create a runner to work inside this workspace with the nonce built-in
         ur = preferred_runner()(
