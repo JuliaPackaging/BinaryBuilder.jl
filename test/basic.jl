@@ -53,22 +53,37 @@ end
 
 @testset "environment and history saving" begin
     mktempdir() do temp_path
-        @test_throws ErrorException autobuild(
+        # This is a litmus test, to catch any errors before we do a `@test_throws`
+        autobuild(
             temp_path,
-            "this_will_fail",
+            "this_will_pass",
             v"1.0.0",
             # No sources to speak of
             FileSource[],
-            # Simple script that just sets an environment variable
+            # Just exit with code 0
             """
-            MARKER=1
-            exit 1
+            exit 0
             """,
             # Build for this platform
             [platform],
             # No products
             Product[],
             # No depenedencies
+            Dependency[],
+        )
+
+        @test_throws ErrorException autobuild(
+            temp_path,
+            "this_will_fail",
+            v"1.0.0",
+            FileSource[],
+            # Simple script that just sets an environment variable
+            """
+            MARKER=1
+            exit 1
+            """,
+            [platform],
+            Product[],
             Dependency[],
         )
 
