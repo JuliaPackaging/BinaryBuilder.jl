@@ -379,6 +379,41 @@ end
     @test isempty(state.platforms)
 end
 
+function step7_state()
+    state = step5_state("""
+    cd libfoo
+    make install
+    exit 1
+    """)
+    state.patches = [PatchSource("foo.patch", "this is a patch")]
+    return state
+end
+
+@testset "Wizard - Deployment" begin
+    state = step7_state()
+    # First, test local deployment
+    mktempdir() do out_dir
+        with_wizard_output(state, state->Wizard._deploy(state)) do ins, outs
+            call_response(ins, outs, "How should we deploy this build recipe?", "\e[B\r")
+            call_response(ins, outs, "Enter directory to write build_tarballs.jl to:", "$(out_dir)\r")
+        end
+        @test isfile(joinpath(out_dir, "build_tarballs.jl"))
+        @test isfile(joinpath(out_dir, "bundled", "patches", "foo.patch"))
+    end
+
+    # Next, test writing out to stdout
+    state = step7_state()
+    with_wizard_output(state, state->Wizard._deploy(state)) do ins, outs
+        call_response(ins, outs, "How should we deploy this build recipe?", "\e[B\e[B\r")
+        @test readuntil_sift(outs, "Your generated build_tarballs.jl:")
+        @test readuntil_sift(outs, "name = \"libfoo\"")
+        @test readuntil_sift(outs, "make install")
+        @test readuntil_sift(outs, "LibraryProduct(\"libfoo\", :libfoo)")
+        @test readuntil_sift(outs, "ExecutableProduct(\"fooifier\", :fooifier)")
+        @test readuntil_sift(outs, "dependencies = Dependency[")
+    end
+end
+
 @testset "GitHub - authentication" begin
     withenv("GITHUB_TOKEN" => "") do
         @test Wizard.github_auth(allow_anonymous=true) isa GitHub.AnonymousAuth
