@@ -126,8 +126,8 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             # Build for ALL the platforms
             shards_to_test,
             products,
-            # No dependencies
-            Dependency[];
+            # Express a dependency on CSL to silence warning for fortran code
+            [Dependency("CompilerSupportLibraries_jll")];
             # We need to be able to build go and rust and whatnot
             compilers=[:c, :go, :rust],
         )
@@ -190,13 +190,36 @@ end
                     Windows(:i686; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
                 ],
                 [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
-                # No dependencies
-                Dependency[];
+                # Express a dependency on CSL to silence warning for fortran code
+                [Dependency("CompilerSupportLibraries_jll")];
                 preferred_gcc_version=gcc_version,
             )
 
             # Just a simple test to ensure that it worked.
             @test length(keys(build_output_meta)) == 6
+        end
+    end
+
+    # Test that building something that links against gfortran suggests depending on CSL
+    @test_logs (:warn, r"CompilerSupportLibraries_jll") match_mode=:any begin
+        mktempdir() do build_path
+            build_output_meta = autobuild(
+                build_path,
+                "csl_dependency",
+                v"1.0.0",
+                # No sources
+                FileSource[],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                # Build testsuite
+                make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
+                # Install fake license just to silence the warning
+                install_license /usr/share/licenses/libuv/LICENSE
+                """,
+                [Linux(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3"))],
+                [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
+                Dependency[],
+            )
         end
     end
 end
