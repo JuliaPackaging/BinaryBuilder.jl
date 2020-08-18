@@ -4,10 +4,6 @@ os:
   - linux
   # We don't have docker on OSX on travis at the moment... :(
   #- osx
-julia:
-  - 1.4
-  - 1.5
-  - nightly
 notifications:
   email: false
 git:
@@ -16,28 +12,34 @@ git:
 env:
   global:
     - BINARYBUILDER_AUTOMATIC_APPLE=true
-# cache:
-#   directories:
-#     - deps
 
 jobs:
   allow_failures:
     julia: nightly
   include:
     # Add a job that uses the privileged builder with squashfs shards
+    # Test this configuration on all Julia versions
     - julia: 1.4
+      env:
+        - BINARYBUILDER_RUNNER=privileged
+        - BINARYBUILDER_USE_SQUASHFS=true
+    - julia: 1.5
+      env:
+        - BINARYBUILDER_RUNNER=privileged
+        - BINARYBUILDER_USE_SQUASHFS=true
+    - julia: nightly
       env:
         - BINARYBUILDER_RUNNER=privileged
         - BINARYBUILDER_USE_SQUASHFS=true
 
     # Add a job that uses the unprivileged builder with unpacked shards
-    - julia: 1.4
+    - julia: 1.5
       env:
         - BINARYBUILDER_RUNNER=unprivileged
         - BINARYBUILDER_USE_SQUASHFS=false
 
     # Add a job that uses the docker builder with unpacked shards
-    - julia: 1.4
+    - julia: 1.5
       env:
         - BINARYBUILDER_RUNNER=docker
         - BINARYBUILDER_USE_SQUASHFS=false
