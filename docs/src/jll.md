@@ -96,7 +96,8 @@ current JLL package.  Among others, they also define the following unexported
 variables:
 
 * `artifact_dir`: the absolute path to where the artifact for the current
-  platform has been installed;
+  platform has been installed.  This is the "prefix" where the
+  binaries/libraries/files are placed;
 * `PATH`: the value of the
   [`PATH`](https://en.wikipedia.org/wiki/PATH_(variable)) environment variable
   needed to run executables in the current JLL package, if any;
@@ -210,14 +211,60 @@ defined for it are:
 * `data_txt_path`: this unexported variable is actually equal to `data_txt`, but
   is kept for consistency with all other product types.
 
+## Overriding the artifacts in JLL packages
 
-## Overriding `dev`'ed JLL packages
+As explained above, JLL packages use the [Artifacts
+system](https://julialang.github.io/Pkg.jl/v1/artifacts) to provide the files.
+If you wish to override the content of an artifact with their own
+binaries/libraries/files, you can use the [`Overrides.toml`
+file](https://julialang.github.io/Pkg.jl/v1/artifacts/#Overriding-artifact-locations-1).
 
-In the event that a user wishes to override the content within a JLL package with
-their own binaries/libraries/files, the user may use the `dev_jll()` method provided
-by JLL packages to check out a mutable copy of the package to their `~/.julia/dev`
-directory.  An `override` directory will be created within that package directory,
-providing a convenient location for the user to copy in their own files over the
-typically artifact-sourced ones.  See the segment on "Building and testing JLL
-packages locally" in the [Building Packages](./building.md) section of this
-documentation for more information on this capability.
+We detail below a couple of different ways to override the artifact of a JLL
+package, depending on whether the package is `dev`'ed or not.  The second method
+is particularly recommended to system administrator who wants to use system
+libraries in place of the libraries in JLL packages.
+
+### `dev`'ed JLL packages
+
+In the event that a user wishes to override the content within a `dev`'ed JLL
+package, the user may use the `dev_jll()` method provided by JLL packages to
+check out a mutable copy of the package to their `~/.julia/dev` directory.  An
+`override` directory will be created within that package directory, providing a
+convenient location for the user to copy in their own files over the typically
+artifact-sourced ones.  See the segment on "Building and testing JLL packages
+locally" in the [Building Packages](./building.md) section of this documentation
+for more information on this capability.
+
+### Non-`dev`'ed JLL packages
+
+As an example, in a Linux system you can override the Zlib library provided by
+[`Zlib_jll.jl`](https://github.com/JuliaBinaryWrappers/Zlib_jll.jl) and the
+Bzip2 library provided by
+[`Bzip2_jll.jl`](https://github.com/JuliaBinaryWrappers/Bzip2_jll.jl)
+respectively with `/usr/lib/libz.so` and `/usr/local/lib/libbz2.so` with the
+following `Overrides.toml`:
+```toml
+[83775a58-1f1d-513f-b197-d71354ab007a]
+Zlib = "/usr"
+
+[6e34b625-4abd-537c-b88f-471c36dfa7a0]
+Bzip2 = "/usr/local"
+```
+Some comments about how to write this file:
+* The UUIDs are those of the JLL packages,
+  `83775a58-1f1d-513f-b197-d71354ab007a` for `Zlib_jll.jl` and
+  `6e34b625-4abd-537c-b88f-471c36dfa7a0` for `Bzip2_jll.jl`.  You can either
+  find them in the `Project.toml` files of the packages (e.g., see [the
+  `Project.toml` file of
+  `Zlib_jll`](https://github.com/JuliaBinaryWrappers/Zlib_jll.jl/blob/5c4fb6dc1eaa812eb0d464cb5cb4450877dfeaf1/Project.toml#L2))
+  or look it up in the registry (e.g., see [the entry for `Zlib_jll` in the
+  General
+  registry](https://github.com/JuliaRegistries/General/blob/13c47161711549e3cd20160194ada4a7cca5102a/Z/Zlib_jll/Package.toml#L2)).
+* The artifact provided by JLL packages has the same name as the package,
+  without the trailing `_jll`, `Zlib` and `Bzip2` in this case.
+* The artifact location is held in the `artifact_dir` variable mentioned above,
+  which is the "prefix" of the installation of the package.  Recall the paths of
+  the products in the JLL package is relative to `artifact_dir` and the files
+  you want to use to override the products of the JLL package must have the same
+  tree structure as the artifact.  In our example we need to use `/usr` to
+  override Zlib and `/usr/local` for Bzip2.
