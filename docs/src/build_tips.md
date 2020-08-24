@@ -6,6 +6,10 @@ If your build fails with some errors, look at the [Build Troubleshooting](@ref) 
 
 *If you have additional tips, please submit a PR with suggestions.*
 
+## Build strategy
+
+What BinaryBuilder does is to create a tarball containing all files that are found inside the `${prefix}` directory at the end of the build and which don't come from the dependencies listed in the build recipe.  Thus, what you want to do in a build script is to install the relevant files under the appropriate directories in `${prefix}` (see the [Automatic environment variables](@ref) section): the libraries in `${libdir}`, the binary executables in `${bindir}`, etc...  Most packages come with a build system to automate this process (GNU Autoconf, CMake, Meson, a plain Makefile, etc...), but sometimes you may need to manually move the files as appropriate.
+
 ## Initiating different shell commands based on target
 
 Sometimes, you need to adapt build scripts based on the target platform. This can be done within the shell script. Here is an example from [`OpenBLAS`](https://github.com/JuliaPackaging/Yggdrasil/blob/685cdcec9f0f0a16f7b90a1671af88326dcf5ab1/O/OpenBLAS/build_tarballs.jl):

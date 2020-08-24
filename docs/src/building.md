@@ -380,9 +380,11 @@ and a new JLL version will be generated to provide the function.
 
 ## Building a custom JLL package locally
 
-When building a new version of a JLL package, if `--deploy` is passed to `build_tarballs.jl`
-then a newly-built JLL package will be deployed to a GitHub repository.  (Read the
-documentation given by passing `--help` to a `build_tarballs.jl` script for more on
-`--deploy` options).  If `--deploy=local` is passed, the JLL package will still be built
-in the `~/.julia/dev/` directory, but it will not be uploaded anywhere.  This is useful
-for local testing and validation that the built artifacts are working with your package.
+When building a new version of a JLL package, if `--deploy` is passed to
+`build_tarballs.jl` then a newly-built JLL package will be deployed to a GitHub
+repository.  (Read the documentation in the [Command Line](@ref) section or
+given by passing `--help` to a `build_tarballs.jl` script for more on `--deploy`
+options).  If `--deploy=local` is passed, the JLL package will still be built in
+the `~/.julia/dev/` directory, but it will not be uploaded anywhere.  This is
+useful for local testing and validation that the built artifacts are working
+with your package.

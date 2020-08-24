@@ -237,34 +237,34 @@ for more information on this capability.
 
 ### Non-`dev`'ed JLL packages
 
-As an example, in a Linux system you can override the Zlib library provided by
-[`Zlib_jll.jl`](https://github.com/JuliaBinaryWrappers/Zlib_jll.jl) and the
+As an example, in a Linux system you can override the Fontconfig library provided by
+[`Fontconfig_jll.jl`](https://github.com/JuliaBinaryWrappers/Fontconfig_jll.jl) and the
 Bzip2 library provided by
 [`Bzip2_jll.jl`](https://github.com/JuliaBinaryWrappers/Bzip2_jll.jl)
-respectively with `/usr/lib/libz.so` and `/usr/local/lib/libbz2.so` with the
+respectively with `/usr/lib/libfontconfig.so` and `/usr/local/lib/libbz2.so` with the
 following `Overrides.toml`:
 ```toml
-[83775a58-1f1d-513f-b197-d71354ab007a]
-Zlib = "/usr"
+[a3f928ae-7b40-5064-980b-68af3947d34b]
+Fontconfig = "/usr"
 
 [6e34b625-4abd-537c-b88f-471c36dfa7a0]
 Bzip2 = "/usr/local"
 ```
 Some comments about how to write this file:
 * The UUIDs are those of the JLL packages,
-  `83775a58-1f1d-513f-b197-d71354ab007a` for `Zlib_jll.jl` and
+  `a3f928ae-7b40-5064-980b-68af3947d34b` for `Fontconfig_jll.jl` and
   `6e34b625-4abd-537c-b88f-471c36dfa7a0` for `Bzip2_jll.jl`.  You can either
   find them in the `Project.toml` files of the packages (e.g., see [the
   `Project.toml` file of
-  `Zlib_jll`](https://github.com/JuliaBinaryWrappers/Zlib_jll.jl/blob/5c4fb6dc1eaa812eb0d464cb5cb4450877dfeaf1/Project.toml#L2))
-  or look it up in the registry (e.g., see [the entry for `Zlib_jll` in the
-  General
-  registry](https://github.com/JuliaRegistries/General/blob/13c47161711549e3cd20160194ada4a7cca5102a/Z/Zlib_jll/Package.toml#L2)).
-* The artifact provided by JLL packages has the same name as the package,
-  without the trailing `_jll`, `Zlib` and `Bzip2` in this case.
+  `Fontconfig_jll`](https://github.com/JuliaBinaryWrappers/Fontconfig_jll.jl/blob/8904cd195ea4131b89cafd7042fd55e6d5dea241/Project.toml#L2))
+  or look it up in the registry (e.g., see [the entry for `Fontconfig_jll` in
+  the General
+  registry](https://github.com/JuliaRegistries/General/blob/caddd31e7878276f6e052f998eac9f41cdf16b89/F/Fontconfig_jll/Package.toml#L2)).
+* The artifacts provided by JLL packages have the same name as the packages,
+  without the trailing `_jll`, `Fontconfig` and `Bzip2` in this case.
 * The artifact location is held in the `artifact_dir` variable mentioned above,
   which is the "prefix" of the installation of the package.  Recall the paths of
   the products in the JLL package is relative to `artifact_dir` and the files
   you want to use to override the products of the JLL package must have the same
   tree structure as the artifact.  In our example we need to use `/usr` to
-  override Zlib and `/usr/local` for Bzip2.
+  override Fontconfig and `/usr/local` for Bzip2.
