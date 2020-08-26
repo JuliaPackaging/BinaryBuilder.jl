@@ -133,9 +133,12 @@ function yggdrasil_deploy(state::WizardState, open_pr::Bool = true)
     )
 end
 
-function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_pr::Bool=false, branch_name=nothing)
+function yggdrasil_deploy(name, version, patches, build_tarballs_content;
+                          open_pr::Bool=false,
+                          branch_name=nothing,
+                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     # First, fork Yggdrasil (this just does nothing if it already exists)
-    gh_auth = github_auth(;allow_anonymous=false)
     fork = GitHub.create_fork("JuliaPackaging/Yggdrasil"; auth=gh_auth)
 
     mktempdir() do tmp

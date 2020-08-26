@@ -3,6 +3,7 @@ module Wizard
 using BinaryBuilderBase, OutputCollectors, ..Auditor
 using Random
 using GitHub, LibGit2, Pkg, Sockets, ObjectFile
+import GitHub: gh_get_json, DEFAULT_API
 using JSON
 import SHA: sha256
 using REPL

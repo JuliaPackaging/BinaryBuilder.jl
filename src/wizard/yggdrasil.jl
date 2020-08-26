@@ -170,7 +170,7 @@ function test_yggdrasil_pr(pr_number::Integer)
             if what_do == 1
                 dummy_name = basename(dirname(build_tarballs_path))
                 dummy_version = v"1.33.7"
-                yggdrasil_deploy(dummy_name, dummy_version, read(build_tarballs_path))
+                yggdrasil_deploy(dummy_name, dummy_version, [], read(build_tarballs_path))
             elseif what_do == 2
                 cd(dirname(build_tarballs_path))
                 run(`git diff`)
