@@ -15,7 +15,7 @@ env:
 
 jobs:
   test:
-    runs-on: [self-hosted, arctic3]
+    runs-on: [self-hosted]
     strategy:
       fail-fast: false
         arch:
