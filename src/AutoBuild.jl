@@ -1164,6 +1164,7 @@ function build_jll_package(src_name::String,
                 # This either calls `@artifact_str()`, or returns a constant string if we're overridden.
                 global artifact_dir = find_artifact_dir()
 
+                # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
             """)
 
@@ -1281,7 +1282,7 @@ function build_jll_package(src_name::String,
 
             \"\"\"
                 dev_jll()
-            
+
             Check this package out to the dev package directory (usually ~/.julia/dev),
             copying the artifact over to a local `override` directory, allowing package
             developers to experiment with a locally-built binary.
