@@ -484,7 +484,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
             * Version: v$(build_version)
             """
         )
-        create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth)
+        Wizard.create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth)
     end
 end
 
