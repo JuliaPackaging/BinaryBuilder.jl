@@ -1164,7 +1164,6 @@ function build_jll_package(src_name::String,
                 # This either calls `@artifact_str()`, or returns a constant string if we're overridden.
                 global artifact_dir = find_artifact_dir()
 
-                # Initialize PATH and LIBPATH environment variable listings
                 global PATH_list, LIBPATH_list
             """)
 
