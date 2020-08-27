@@ -14,8 +14,7 @@ jobs:
     runs-on: [self-hosted]
     strategy:
       fail-fast: false
-        arch:
-          - x64
+      matrix:
         include:
           # Add a job that uses the privileged builder with squashfs shards
           - env:
