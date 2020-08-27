@@ -58,11 +58,16 @@ function get_bb_version()
         gitsha = string(LibGit2.GitHash(LibGit2.GitCommit(repo, "HEAD")))
         return VersionNumber("$(version)-git-$(gitsha[1:10])")
     catch
-        # Settle for the treehash otherwise
-        env = Pkg.Types.Context().env
-        bb_uuid = Pkg.Types.UUID("12aac903-9f7c-5d81-afc2-d9565ea332ae")
-        treehash = bytes2hex(env.manifest[bb_uuid].tree_hash.bytes)
-        return VersionNumber("$(version)-tree-$(treehash[1:10])")
+        try
+            # Settle for the treehash otherwise
+            env = Pkg.Types.Context().env
+            bb_uuid = Pkg.Types.UUID("12aac903-9f7c-5d81-afc2-d9565ea332ae")
+            treehash = bytes2hex(env.manifest[bb_uuid].tree_hash.bytes)
+            return VersionNumber("$(version)-tree-$(treehash[1:10])")
+        catch
+            # Something went so wrong, we can't get any of that.
+            return VersionNumber(version)
+        end
     end
 end
 
