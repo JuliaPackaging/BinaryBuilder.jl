@@ -32,12 +32,10 @@ jobs:
               - BINARYBUILDER_USE_SQUASHFS: false
     steps:
       - uses: actions/checkout@v2
-      - uses: julia-actions/julia-buildpkg@latest
+      - uses: julia-actions/julia-buildpkg@@v1.0.0
       # - name: Setup git user
       #   run: |
       #     git config --global user.name "Binary Builder"
       #     git config --global user.email "binary.builder@julialang.org"
-      - uses: julia-actions/julia-runtest@latest
-      - uses: julia-actions/julia-uploadcodecov@latest
-        env:
-          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+      - uses: julia-actions/julia-runtest@v1.0.0
+      - uses: julia-actions/julia-processcoverage@v1.1.0
