@@ -18,21 +18,21 @@ jobs:
         include:
           # Add a job that uses the privileged builder with squashfs shards
           - env:
-              - BINARYBUILDER_RUNNER: privileged
-              - BINARYBUILDER_USE_SQUASHFS: true
+              BINARYBUILDER_RUNNER: privileged
+              BINARYBUILDER_USE_SQUASHFS: true
 
           # Add a job that uses the unprivileged builder with unpacked shards
           - env:
-              - BINARYBUILDER_RUNNER: unprivileged
-              - BINARYBUILDER_USE_SQUASHFS: false
+              BINARYBUILDER_RUNNER: unprivileged
+              BINARYBUILDER_USE_SQUASHFS: false
 
           # Add a job that uses the docker builder with unpacked shards
           - env:
-              - BINARYBUILDER_RUNNER: docker
-              - BINARYBUILDER_USE_SQUASHFS: false
+              BINARYBUILDER_RUNNER: docker
+              BINARYBUILDER_USE_SQUASHFS: false
     steps:
       - uses: actions/checkout@v2
-      - uses: julia-actions/julia-buildpkg@@v1.0.0
+      - uses: julia-actions/julia-buildpkg@v1.0.0
       # - name: Setup git user
       #   run: |
       #     git config --global user.name "Binary Builder"
