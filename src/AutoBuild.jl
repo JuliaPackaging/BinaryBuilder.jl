@@ -1230,8 +1230,14 @@ function build_jll_package(src_name::String,
     jll_jl = """
         module $(src_name)_jll
 
+        # for Julia 1.5:
         if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@optlevel"))
             @eval Base.Experimental.@optlevel 0
+        end
+
+        # for Julia 1.6:
+        if isdefined(Base, :Experimental) && isdefined(Base.Experimental, Symbol("@compiler_options"))
+            @eval Base.Experimental.@compiler_options compile=min optimize=0 infer=false
         end
 
         if VERSION < v"1.3.0-rc4"
