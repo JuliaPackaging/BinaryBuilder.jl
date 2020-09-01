@@ -33,7 +33,15 @@ function platform_for_object(oh::ObjectHandle)
             error("Unknown ELF OSABI $(oh.ei.osabi)")
         end
     elseif oh isa MachOHandle
-        return MacOS()
+        mach_to_arch = Dict(
+            MachO.CPU_TYPE_X86_64 => :x86_64,
+            MachO.CPU_TYPE_ARM64 => :aarch64,
+        )
+        mach = oh.header.cputype
+        if !haskey(mach_to_arch, mach)
+            error("Unknown MachO architecture $(mach)")
+        end
+        return MacOS(mach_to_arch[mach])
     elseif oh isa COFFHandle
         if is64bit(oh)
             return Windows(:x86_64)
