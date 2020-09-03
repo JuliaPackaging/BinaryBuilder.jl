@@ -2,7 +2,7 @@ export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using Pkg.TOML, Dates, UUIDs
-using RegistryTools, Registrator
+using RegistryTools, LocalRegistry
 import LibGit2
 import PkgLicenses
 
@@ -13,7 +13,7 @@ const BUILD_HELP = (
     Usage: build_tarballs.jl [target1,target2,...] [--help]
                              [--verbose] [--debug]
                              [--deploy] [--deploy-bin] [--deploy-jll]
-                             [--register] [--meta-json]
+                             [--register] [--meta-json] [--universe=<universe>]
 
     Options:
         targets             By default `build_tarballs.jl` will build a tarball
@@ -56,6 +56,14 @@ const BUILD_HELP = (
                             instead of actually building.  Note that this can
                             (and often does) output multiple JSON objects for
                             multiple platforms, multi-stage builds, etc...
+
+        --universe=<name>   A "universe" is an implicit depot, keyed on a name.
+                            Universes are implicitly created upon first use of
+                            the name. Subsequent uses of the same name will re-use
+                            the universe. Use `--deploy=universe` to deploy the
+                            package into the selected universe (otherwise the
+                            universe is used only for dependencies). This option
+                            is useful to build nested dependency trees locally.
 
         --help              Print out this message.
 
@@ -134,6 +142,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     deploy, deploy_repo = extract_flag!(ARGS, "--deploy", "JuliaBinaryWrappers/$(src_name)_jll.jl")
     deploy_bin, deploy_bin_repo = extract_flag!(ARGS, "--deploy-bin", "JuliaBinaryWrappers/$(src_name)_jll.jl")
     deploy_jll, deploy_jll_repo = extract_flag!(ARGS, "--deploy-jll", "JuliaBinaryWrappers/$(src_name)_jll.jl")
+    deploy_universe = false
+
+    # This sets which universe to use for dependencies
+    universe, universe_name = extract_flag!(ARGS, "--universe", nothing)
 
     # Resolve deploy settings
     if deploy
@@ -160,8 +172,57 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         error("Cannot register with a local deployment!")
     end
 
+    universe_path = nothing
+    if universe
+        if deploy
+            if deploy_repo != "universe"
+                error("When deploying from a universe, must use --deploy=universe")
+            end
+            deploy_universe = true
+            deploy_bin_repo = deploy_jll_repo = "JuliaBinaryWrappers/$(src_name)_jll.jl"
+        end
+
+        # Find the universe directory by ascending from pwd() until we find a "universes" directory
+        dir = pwd()
+        while !isdir(joinpath(dir, "universes"))
+            dir = dirname(dir)
+            if dir == "/"
+                error("Could not find `universes` diretory in any parent of pwd")
+            end
+        end
+        universe_path = joinpath(dir, "universes", universe_name)
+
+        if !isdir(universe_path)
+            if deploy_universe
+                mkpath(universe_path)
+
+                # Symlink the `packages`, `logs` and `artifacts` directories to the
+                # currently active repo
+                active_depot = first(Base.DEPOT_PATH)
+                for folder in ("packages", "logs", "artifacts")
+                    symlink(joinpath(active_depot, folder), joinpath(universe_path, folder))
+                end
+
+                # Create new `registries` and `clones` folders local to this registry
+                mkpath(joinpath(universe_path, "registries"))
+                mkpath(joinpath(universe_path, "clones"))
+
+                ctx = Pkg.Types.Context()
+                Pkg.GitTools.clone(ctx, "https://github.com/JuliaRegistries/General",
+                    joinpath(universe_path, "registries", "General"); header = "General registry to new universe")
+            else
+                @warn "Universe does not exist, but deploy not specified. Skipping Universe creation."
+                universe_path = nothing
+            end
+        end
+    end
+
     if deploy_bin || deploy_jll
-        code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
+        if universe
+            code_dir = joinpath(universe_path, "clones", string(jll_uuid("$(src_name)_jll")))
+        else
+            code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
+        end
 
         # Shove them into `kwargs` so that we are conditionally passing them along
         kwargs = (; kwargs..., code_dir = code_dir)
@@ -196,10 +257,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     # Check to make sure we have the necessary environment stuff
-    if deploy_bin || deploy_jll
+    if deploy_bin || deploy_jll || deploy_universe
         # Check to see if we've already got a wrapper package within the Registry,
         # choose a version number that is greater than anything else existent.
-        build_version = get_next_wrapper_version(src_name, src_version)
+        build_version = get_next_wrapper_version(src_name, src_version; universe = universe ? universe_path : nothing)
         if verbose
             @info("Building and deploying version $(build_version) to $(deploy_jll_repo)")
         end
@@ -208,7 +269,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # We need to make sure that the JLL repo at least exists, so that we can deploy binaries to it
         # even if we're not planning to register things to it today.
         if deploy_jll_repo != "local"
-            init_jll_package(src_name, code_dir, deploy_jll_repo)
+            init_jll_package(src_name, code_dir, deploy_jll_repo; gh_create = !deploy_universe)
         end
     end
 
@@ -243,21 +304,23 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         build_output_meta = Dict()
     else
-        # Build the given platforms using the given sources
-        build_output_meta = autobuild(
-            # Controls output product placement, mount directory placement, etc...
-            pwd(),
+        in_universe(universe_path) do ctx
+            # Build the given platforms using the given sources
+            build_output_meta = autobuild(
+                # Controls output product placement, mount directory placement, etc...
+                pwd(),
 
-            args...;
+                args...;
 
-            # Flags
-            verbose=verbose,
-            debug=debug,
-            kwargs...,
-        )
+                # Flags
+                verbose=verbose,
+                debug=debug,
+                kwargs...,
+            )
+        end
     end
 
-    if deploy_jll
+    if deploy_jll || deploy_universe
         if verbose
             @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
         end
@@ -270,7 +333,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
         build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
                           dependencies, bin_path; verbose=verbose, extra_kwargs...)
-        if deploy_jll_repo != "local"
+        if deploy_jll_repo != "local" && !deploy_universe
             push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
         end
         if register
@@ -281,9 +344,14 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             register_jll(src_name, build_version, dependencies, julia_compat;
                             deploy_repo=deploy_jll_repo, code_dir=code_dir)
         end
+        if deploy_universe
+            @info("Registering package in local universe")
+            commit_jll_package(src_name, code_dir, build_version)
+            LocalRegistry.register(code_dir, joinpath(universe_path, "registries", "General"))
+        end
     end
 
-    if deploy_bin && deploy_bin_repo != "local"
+    if deploy_bin && deploy_bin_repo != "local" && !deploy_universe
         # Upload the binaries
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
@@ -380,37 +448,57 @@ if VERSION < v"1.4-"
     Pkg.Operations.registered_paths(ctx::Pkg.Types.Context, uuid::UUID) = Pkg.Operations.registered_paths(ctx.env, uuid)
 end
 
-function get_next_wrapper_version(src_name, src_version)
+function in_universe(f, universe; update = false)
+    if universe === nothing
+        ctx = Pkg.Types.Context()
+        # Force-update the registry here, since we may have pushed a new version recently
+        update && update_registry(ctx, devnull)
+    else
+        old_depot_path = copy(Base.DEPOT_PATH)
+        empty!(Base.DEPOT_PATH)
+        push!(Base.DEPOT_PATH, universe)
+        ctx = Pkg.Types.Context()
+    end
+
+    try
+        f(ctx)
+    finally
+        if universe !== nothing
+            empty!(Base.DEPOT_PATH)
+            append!(Base.DEPOT_PATH, old_depot_path)
+        end
+    end
+end
+
+function get_next_wrapper_version(src_name, src_version; universe=nothing)
     # If src_version already has a build_number, just return it immediately
     if src_version.build != ()
         return src_version
     end
-    ctx = Pkg.Types.Context()
 
-    # Force-update the registry here, since we may have pushed a new version recently
-    update_registry(ctx, devnull)
+    in_universe(universe) do ctx
+        # If it does, we need to bump the build number up to the next value
+        build_number = 0
+        if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll")))
+            # Find largest version number that matches ours in the registered paths
+            versions = VersionNumber[]
+            for path in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll"))
+                append!(versions, RegistryTools.Compress.load_versions(joinpath(path, "Versions.toml")))
+            end
+            versions = filter(v -> (v.major == src_version.major) &&
+                                (v.minor == src_version.minor) &&
+                                (v.patch == src_version.patch) &&
+                                (v.build isa Tuple{<:UInt}), versions)
+            # Our build number must be larger than the maximum already present in the registry
+            if !isempty(versions)
+                build_number = first(maximum(versions).build) + 1
+            end
+        end
 
-    # If it does, we need to bump the build number up to the next value
-    build_number = 0
-    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll")))
-        # Find largest version number that matches ours in the registered paths
-        versions = VersionNumber[]
-        for path in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll"))
-            append!(versions, RegistryTools.Compress.load_versions(joinpath(path, "Versions.toml")))
-        end
-        versions = filter(v -> (v.major == src_version.major) &&
-                            (v.minor == src_version.minor) &&
-                            (v.patch == src_version.patch) &&
-                            (v.build isa Tuple{<:UInt}), versions)
-        # Our build number must be larger than the maximum already present in the registry
-        if !isempty(versions)
-            build_number = first(maximum(versions).build) + 1
-        end
+        # Construct build_version (src_version + build_number)
+        build_version = VersionNumber(src_version.major, src_version.minor,
+                             src_version.patch, src_version.prerelease, (build_number,))
     end
-
-    # Construct build_version (src_version + build_number)
-    build_version = VersionNumber(src_version.major, src_version.minor,
-                         src_version.patch, src_version.prerelease, (build_number,))
 end
 
 function _registered_packages(registry_url::AbstractString)
@@ -856,47 +944,61 @@ end
 
 
 function init_jll_package(name, code_dir, deploy_repo;
-                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
-                          gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+                          gh_create = false,
+                          gh_auth = gh_create ? Wizard.github_auth(;allow_anonymous=false) : nothing,
+                          gh_username = gh_create ? gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"] : nothing)
+    gh_repo = nothing
     try
         # This throws if it does not exist
-        GitHub.repo(deploy_repo; auth=gh_auth)
+        gh_repo = GitHub.repo(deploy_repo; auth=gh_auth)
     catch e
-        # If it doesn't exist, create it.
-        # check whether gh_org might be a user, not an organization.
-        gh_org = dirname(deploy_repo)
-        isorg = GitHub.owner(gh_org; auth=gh_auth).typ == "Organization"
-        owner = GitHub.Owner(gh_org, isorg)
-        @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
-        try
-            GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit", "has_issues" => "false"); auth=gh_auth)
-        catch create_e
-            # If creation failed, it could be because the repo was created in the meantime.
-            # Check for that; if it still doesn't exist, then freak out.  Otherwise, continue on.
+        if gh_create
+            # If it doesn't exist, create it.
+            # check whether gh_org might be a user, not an organization.
+            gh_org = dirname(deploy_repo)
+            isorg = GitHub.owner(gh_org; auth=gh_auth).typ == "Organization"
+            owner = GitHub.Owner(gh_org, isorg)
+            @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
             try
-                GitHub.repo(deploy_repo; auth=gh_auth)
-            catch
-                rethrow(create_e)
+                GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit", "has_issues" => "false"); auth=gh_auth)
+            catch create_e
+                # If creation failed, it could be because the repo was created in the meantime.
+                # Check for that; if it still doesn't exist, then freak out.  Otherwise, continue on.
+                try
+                    gh_repo = GitHub.repo(deploy_repo; auth=gh_auth)
+                catch
+                    rethrow(create_e)
+                end
             end
         end
     end
 
     if !isdir(code_dir)
-        # If it does exist, clone it down:
-        @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
-        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
-            LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+        if gh_repo === nothing
+            # The gh repo didn't exist and we didn't want to create it. Initialize an empty repository
+            mkpath(code_dir)
+            repo = LibGit2.init(code_dir)
+            LibGit2.commit(repo, "Initial empty commit")
+        else
+            # If it does exist, clone it down:
+            @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
+            Wizard.with_gitcreds(gh_auth) do creds
+                LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+            end
         end
     else
         # Otherwise, hard-reset to latest master:
         repo = LibGit2.GitRepo(code_dir)
-        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
-            LibGit2.fetch(repo; credentials=creds)
-        end
-        origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
-        LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
-        if string(LibGit2.head_oid(repo)) != string(origin_master_oid)
-            LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
+        # ... but only if this repo actually has an upstream
+        if LibGit2.lookup_branch(repo, "origin/master", true) !== nothing
+            Wizard.with_gitcreds(gh_auth) do creds
+                LibGit2.fetch(repo; credentials=creds)
+            end
+            origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
+            LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
+            if string(LibGit2.head_oid(repo)) != string(origin_master_oid)
+                LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
+            end
         end
     end
 end
@@ -1466,15 +1568,20 @@ function build_jll_package(src_name::String,
     end
 end
 
+function commit_jll_package(name, code_dir, build_version)
+    wrapper_repo = LibGit2.GitRepo(code_dir)
+    LibGit2.add!(wrapper_repo, ".")
+    LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
+    return wrapper_repo
+end
+
 function push_jll_package(name, build_version;
                           code_dir = joinpath(Pkg.devdir(), "$(name)_jll"),
                           deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
                           gh_auth = Wizard.github_auth(;allow_anonymous=false),
                           gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+    wrapper_repo = commit_jll_package(name, code_dir, build_version)
     # Next, push up the wrapper code repository
-    wrapper_repo = LibGit2.GitRepo(code_dir)
-    LibGit2.add!(wrapper_repo, ".")
-    LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
     Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
         LibGit2.push(
             wrapper_repo;
