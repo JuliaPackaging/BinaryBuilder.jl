@@ -187,7 +187,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         while !isdir(joinpath(dir, "universes"))
             dir = dirname(dir)
             if dir == "/"
-                error("Could not find `universes` diretory in any parent of pwd")
+                error("Could not find `universes` directory in any parent of pwd")
             end
         end
         universe_path = joinpath(dir, "universes", universe_name)
