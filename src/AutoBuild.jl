@@ -197,10 +197,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                 mkpath(universe_path)
 
                 # Symlink the `packages`, `logs` and `artifacts` directories to the
-                # currently active repo
-                active_depot = first(Base.DEPOT_PATH)
+                # user depot to take advantage of packages already installed there
+                user_depot = first(Base.DEPOT_PATH)
                 for folder in ("packages", "logs", "artifacts")
-                    symlink(joinpath(active_depot, folder), joinpath(universe_path, folder))
+                    symlink(joinpath(user_depot, folder), joinpath(universe_path, folder))
                 end
 
                 # Create new `registries` and `clones` folders local to this registry
