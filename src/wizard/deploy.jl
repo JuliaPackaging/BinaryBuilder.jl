@@ -55,7 +55,14 @@ function print_build_tarballs(io::IO, state::WizardState)
     end
 
     if length(state.dependencies) >= 1
-        psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\", uuid=\"$(getpkg(ps).uuid)\"))"
+        function psrepr(ps)
+            s = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\""
+            if !isnothing(getpkg(ps).uuid)
+                s *= ", uuid=\"$(getpkg(ps).uuid)\""
+            end
+            s *= "))"
+            return s
+        end
         dependencies_string = "[" * join(map(psrepr, state.dependencies)) * "\n]"
     else
         dependencies_string = "Dependency[\n]"

@@ -17,7 +17,7 @@ using Pkg.BinaryPlatforms
 using Dates
 
 # It's Magic (TM)!
-export run_wizard
+export run_wizard, deploy
 
 include("wizard/state.jl")
 include("wizard/github.jl")
