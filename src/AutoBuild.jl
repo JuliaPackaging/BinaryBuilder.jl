@@ -1147,7 +1147,7 @@ function build_jll_package(src_name::String,
                 """)
             end
 
-            print(io, """ 
+            print(io, """
             end  # __init__()
             """)
         end
