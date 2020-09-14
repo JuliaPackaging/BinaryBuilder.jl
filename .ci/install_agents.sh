@@ -31,12 +31,9 @@ if [[ ! -d "${STORAGE_DIR}/rootfs" ]]; then
     curl -# -L "$JULIA_URL" | tar --strip-components=1 -zx -C "${STORAGE_DIR}/rootfs/usr"
 fi
 
-# Install `run_agent.sh`
-cp -a "${SRC_DIR}/run_agent.sh" "${STORAGE_DIR}/rootfs/run_agent.sh"
-
-if [[ ! -d "${STORAGE_DIR}/agent" ]]; then
+if [[ ! -d "${STORAGE_DIR}/rootfs/agent" ]]; then
     # Install agent executable
-    AGENT_VERSION=2.273.0
+    AGENT_VERSION=2.273.1
     AGENT_URL=https://github.com/actions/runner/releases/download/v${AGENT_VERSION}/actions-runner-linux-x64-${AGENT_VERSION}.tar.gz
 
     echo "Installing GHA agent..."
@@ -46,9 +43,13 @@ if [[ ! -d "${STORAGE_DIR}/agent" ]]; then
 fi
 
 for AGENT_IDX in $(seq 1 $NUM_AGENTS); do
-    export SRC_DIR STORAGE_DIR AGENT_IDX
+    export SRC_DIR STORAGE_DIR AGENT_IDX AGENT_ALLOW_RUNASROOT
     envsubst "\$SRC_DIR \$STORAGE_DIR \$AGENT_IDX \$USER"  <"agent_startup.conf" >"${HOME}/.config/systemd/user/bb_gha_agent_${AGENT_IDX}.service"
 done
+
+if [[ ! -f "${STORAGE_DIR}/rootfs/agent/.credentials" ]]; then
+    /bin/bash -c "cd ${STORAGE_DIR}/rootfs//agent; ./config.sh --name ${HOSTNAME}.${AGENT_IDX} --url ${GHA_URL} --replace"
+fi
 
 # Reload systemd user daemon
 systemctl --user daemon-reload
