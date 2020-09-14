@@ -22,7 +22,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilderBase]]
 deps = ["CodecZlib", "JSON", "LibGit2", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "UUIDs"]
-git-tree-sha1 = "97cd717e1e3453db6211214b3041f120dc8d0816"
+git-tree-sha1 = "9f94fe7279ee3565d793f2a157ac369fb1da62e2"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaPackaging/BinaryBuilderBase.jl.git"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
@@ -140,6 +140,12 @@ uuid = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
 [[LinearAlgebra]]
 deps = ["Libdl"]
 uuid = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+
+[[LocalRegistry]]
+deps = ["Pkg", "Random", "RegistryTools", "UUIDs"]
+git-tree-sha1 = "995d6f723eb3b89b62ae65cc0ca8a8063ebfa8ad"
+uuid = "89398ba2-070a-4b16-a995-9893c55d93cf"
+version = "0.3.0"
 
 [[Logging]]
 uuid = "56ddb016-857b-54e1-b83d-db4d58db5568"
