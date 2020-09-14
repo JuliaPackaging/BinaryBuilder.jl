@@ -392,11 +392,6 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
     error("Unable to upload $(path) to GitHub repo $(repo) on tag $(tag)")
 end
 
-# Julia 1.3- needs a compat shim here
-if VERSION < v"1.4-"
-    Pkg.Operations.registered_paths(ctx::Pkg.Types.Context, uuid::UUID) = Pkg.Operations.registered_paths(ctx.env, uuid)
-end
-
 function get_next_wrapper_version(src_name, src_version)
     # If src_version already has a build_number, just return it immediately
     if src_version.build != ()
