@@ -1009,6 +1009,9 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 git_hash,
                 products_info,
             )
+
+            # Override read-only permissions before cleaning-up the directory
+            chmod(dest_prefix, filemode(dest_prefix) | 0o200; recursive=true)
         end
     end
 
