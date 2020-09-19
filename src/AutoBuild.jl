@@ -1080,6 +1080,9 @@ function build_jll_package(src_name::String,
                 println(io, "using $(getname(dep))")
             end
 
+            # Generate header definitions like `find_artifact_dir()`
+            println(io, "JLLWrappers.@generate_wrapper_header($(repr(src_name)))")
+
             # Next, begin placing products
             function global_declaration(p::LibraryProduct, p_info::Dict)
                 return "JLLWrappers.@declare_library_product($(variable_name(p)), $(repr(p_info["soname"])))"
