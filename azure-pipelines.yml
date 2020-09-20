@@ -1,0 +1,42 @@
+# Trigger on pushes to `master`
+trigger:
+- master
+
+# Trigger on PRs against `master`
+pr:
+- master
+
+# By default, use the `Native` pool of agents
+pool: BinaryBuilder
+
+variables:
+  JULIA: unbuffer julia --project=$(Build.SourcesDirectory)/.ci --color=yes
+  BINARYBUILDER_AUTOMATIC_APPLE: true
+
+jobs:
+- job: Build
+  steps:
+  - checkout: self
+    fetchDepth: 99999
+    clean: true
+  - bash: |
+      $(JULIA) --project -e 'using Pkg; Pkg.build(verbose=true)'
+    name: Build
+
+- job: Test
+  strategy:
+    matrix:
+      Privileged_SquashFS:
+        BINARYBUILDER_RUNNER: privileged
+        BINARYBUILDER_USE_SQUASHFS: true
+      Unprivileged_Unpacked:
+        BINARYBUILDER_RUNNER: unprivileged
+        BINARYBUILDER_USE_SQUASHFS: false
+      Docker_Unpacked:
+        BINARYBUILDER_RUNNER: docker
+        BINARYBUILDER_USE_SQUASHFS: false
+
+  steps:
+  - bash: |
+      $(JULIA) --check-bounds=yes --inline=yes --project -e 'using Pkg; Pkg.test(coverage=true)'
+    name: Test
