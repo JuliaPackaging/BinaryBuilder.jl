@@ -1341,7 +1341,8 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
         "deps" => Dict{String,Any}(),
         # We require at least Julia 1.3+, for Pkg.Artifacts support, but we only claim
         # Julia 1.0+ by default so that empty JLLs can be installed on older versions.
-        "compat" => Dict{String,Any}("julia" => "$(julia_compat)")
+        "compat" => Dict{String,Any}("JLLWrappers" => "1.1.0",
+                                     "julia" => "$(julia_compat)")
     )
     for dep in dependencies
         depname = getname(dep)
