@@ -1136,11 +1136,11 @@ function build_jll_package(src_name::String,
                     """)
                 end
             end
+            println(io, "    JLLWrappers.@generate_init_footer()")
+
 
             if !isempty(init_block)
                 print(io, """
-                    JLLWrappers.@generate_init_footer()
-
                     $(init_block)
                 """)
             end
