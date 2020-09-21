@@ -14,13 +14,14 @@ variables:
   BINARYBUILDER_AUTOMATIC_APPLE: true
 
 jobs:
-- job: Build
+- job: Info
   steps:
   - checkout: self
     fetchDepth: 99999
     clean: true
   - bash: |
-      $(JULIA) --project -e 'using Pkg; Pkg.build(verbose=true)'
+      $(JULIA) --project -e 'using InteractiveUtils; versioninfo()'
+      $(JULIA) --project -e 'using Pkg; Pkg.status()'
     name: Build
 
 - job: Test
