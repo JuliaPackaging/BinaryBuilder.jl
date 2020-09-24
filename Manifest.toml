@@ -30,9 +30,11 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilderBase]]
 deps = ["Artifacts", "CodecZlib", "Downloads", "JSON", "LibGit2", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "SimpleBufferStream", "Tar", "UUIDs", "p7zip_jll"]
-path = "/home/sabae/.julia/dev/BinaryBuilderBase"
+git-tree-sha1 = "722ec95681abd28e25ee65e0a7ac9ca45b1dd350"
+repo-rev = "master"
+repo-url = "https://github.com/JuliaPackaging/BinaryBuilderBase.jl.git"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
-version = "0.4.1"
+version = "0.5.0"
 
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -320,9 +322,9 @@ version = "1.0.5"
 
 [[Tar]]
 deps = ["ArgTools", "Logging", "SHA"]
-git-tree-sha1 = "76fe95a829d0ad9ccdc1b5468ca5329e72ca388b"
+git-tree-sha1 = "83da81284c449b31c85dd4b0b3a3e1930e4fa195"
 uuid = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
-version = "1.6.1"
+version = "1.7.0"
 
 [[Test]]
 deps = ["Distributed", "InteractiveUtils", "Logging", "Random"]
