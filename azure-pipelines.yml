@@ -21,7 +21,7 @@ jobs:
     clean: true
   - bash: |
       $(JULIA) --project -e 'using InteractiveUtils; versioninfo()'
-      $(JULIA) --project -e 'using Pkg; Pkg.status()'
+      $(JULIA) --project -e 'using Pkg; Pkg.Registry.update(); Pkg.status()'
     name: SystemInfo
 
 - job: Test
