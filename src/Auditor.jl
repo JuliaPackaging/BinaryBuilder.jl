@@ -245,7 +245,7 @@ function compatible_marchs(platform::AbstractPlatform)
 
     # Fast-path a `march()` of `nothing`, which defaults to only the most compatible microarchitecture
     if march(platform) === nothing
-        return march_list[1:1]
+        return march_list[begin:begin]
     end
 
     # Search for this platform's march in the march list
@@ -255,7 +255,7 @@ function compatible_marchs(platform::AbstractPlatform)
     end
 
     # Return all up to that index
-    return march_list[1:idx]
+    return march_list[begin:idx]
 end
 
 function check_isa(oh, platform, prefix;
