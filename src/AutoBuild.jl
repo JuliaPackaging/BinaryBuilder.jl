@@ -815,7 +815,7 @@ function autobuild(dir::AbstractString,
 
         # Destroy the workspace, taking care to make sure that we don't run into any
         # permissions errors while we do so.
-        prepare_for_deletion(prefix.path)
+        Base.Filesystem.prepare_for_deletion(prefix.path)
         rm(prefix.path; recursive=true)
 
         # If the whole build_path is empty, then remove it too.  If it's not, it's probably
@@ -834,23 +834,6 @@ function autobuild(dir::AbstractString,
 
     # Return our product hashes
     return build_output_meta
-end
-
-function prepare_for_deletion(prefix::String)
-    # Temporarily work around walkdir bug with endless symlinks: https://github.com/JuliaLang/julia/pull/35006
-    try
-        for (root, dirs, files) in walkdir(prefix; follow_symlinks=false)
-            for d in dirs
-                # Ensure that each directory is writable by by the owning user (should be us)
-                path = joinpath(root, d)
-                try
-                    chmod(path, stat(path).mode | Base.Filesystem.S_IWUSR)
-                catch
-                end
-            end
-        end
-    catch
-    end
 end
 
 function download_github_release(download_dir, repo, tag; gh_auth=Wizard.github_auth(), verbose::Bool=false)
@@ -1011,7 +994,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
             )
 
             # Override read-only permissions before cleaning-up the directory
-            chmod(dest_prefix, filemode(dest_prefix) | 0o200; recursive=true)
+            Base.Filesystem.prepare_for_deletion(dest_prefix)
         end
     end
 
