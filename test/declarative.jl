@@ -11,7 +11,7 @@ import BinaryBuilder.BinaryBuilderBase: sourcify, dependencify, major, minor, pa
         v"1.0.0",
         [FileSource("https://julialang.org", "123123"), DirectorySource("./bundled")],
         "exit 1",
-        [Linux(:x86_64)],
+        [Platform("x86_64", "linux")],
         Product[LibraryProduct("libfoo", :libfoo), FrameworkProduct("fooFramework", :libfooFramework)],
         [Dependency("Zlib_jll")];
     )
@@ -22,7 +22,7 @@ import BinaryBuilder.BinaryBuilderBase: sourcify, dependencify, major, minor, pa
         v"1.0.0",
         [GitSource("https://github.com/JuliaLang/julia.git", "5d4eaca0c9fa3d555c79dbacdccb9169fdf64b65")],
         "exit 0",
-        [Linux(:x86_64), Windows(:x86_64)],
+        [Platform("x86_64", "linux"), Platform("x86_64", "windows")],
         Product[ExecutableProduct("julia", :julia), LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL])],
         Dependency[];
     )
@@ -47,7 +47,9 @@ import BinaryBuilder.BinaryBuilderBase: sourcify, dependencify, major, minor, pa
     @test all(haskey.(Ref(meta), ("name", "version", "script", "platforms", "products", "dependencies")))
     @test meta["name"] == "libfoo"
     @test meta["version"] == v"1.0.0"
-    @test Set(meta["platforms"]) == Set([Linux(:x86_64, libc=:glibc), Windows(:x86_64)])
+    @test length(meta["platforms"]) == 2
+    @test Platform("x86_64", "linux"; libc="glibc") ∈ meta["platforms"]
+    @test Platform("x86_64", "windows") ∈ meta["platforms"]
     @test length(meta["sources"]) == 3
     @test all(in.(
           (

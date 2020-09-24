@@ -4,15 +4,14 @@ using BinaryBuilderBase
 using ObjectFile
 using GitHub
 import InteractiveUtils
-using Pkg, Pkg.BinaryPlatforms, Pkg.PlatformEngines, Pkg.Artifacts
+using Pkg, Base.BinaryPlatforms, Pkg.Artifacts
 using ghr_jll
 
 # Re-export useful stuff from Pkg:
-export platform_key_abi, platform_dlext, valid_dl_path, arch, libc, compiler_abi,
-       libgfortran_version, libstdcxx_version, cxxstring_abi, parse_dl_name_version,
-       detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi,
-       call_abi, wordsize, triplet, select_platform, platforms_match,
-       CompilerABI, Platform, UnknownPlatform, Linux, MacOS, Windows, FreeBSD
+export HostPlatform, platform_dlext, valid_dl_path, arch, libc,
+       libgfortran_version, libstdcxx_version, cxxstring_abi, detect_libgfortran_version,
+       detect_libstdcxx_version, detect_cxxstring_abi, call_abi, wordsize, triplet,
+       select_platform, platforms_match, AbstractPlatform, Platform
 # BinaryBuilderBase/src/Prefix.jl
 export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
        isinstalled, install, uninstall, list_tarball_files, verify, temp_prefix
@@ -127,7 +126,7 @@ function versioninfo()
     runner = preferred_runner()(
         pwd();
         cwd="/workspace/",
-        platform=Linux(:x86_64),
+        platform=Platform("x86_64", "linux"),
         verbose=true
     )
     run_interactive(runner, `/bin/bash -c "echo hello julia"`)
@@ -138,7 +137,7 @@ function versioninfo()
         runner = preferred_runner()(
             pwd();
             cwd="/workspace/",
-            platform=Linux(:x86_64),
+            platform=Platform("x86_64", "linux"),
         )
         run_interactive(runner, `/usr/bin/ccache -s`)
     end
@@ -147,7 +146,7 @@ end
 
 
 # Precompilation ahoy!
-include("../deps/SnoopCompile/precompile/precompile_BinaryBuilder.jl")
-_precompile_()
+# include("../deps/SnoopCompile/precompile/precompile_BinaryBuilder.jl")
+# _precompile_()
 
 end # module

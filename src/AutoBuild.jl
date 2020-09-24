@@ -199,7 +199,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # If the user passed in a platform (or a few, comma-separated) on the
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
-        _platform_key_abi(p::AbstractString) = p == "any" ? AnyPlatform() : platform_key_abi(p)
+        _platform_key_abi(p::AbstractString) = p == "any" ? AnyPlatform() : HostPlatform(p)
         platforms = _platform_key_abi.(split(ARGS[1], ","))
     end
 
@@ -979,7 +979,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
 
         # Unpack the tarball into a new location, calculate the git hash and locate() each product;
         mktempdir() do dest_prefix
-            unpack(tarball_path, dest_prefix; verbose=verbose)
+            unpack(tarball_path, dest_prefix)
 
             git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
             if verbose

@@ -6,17 +6,17 @@ import ObjectFile: rpaths, canonical_rpaths
 
 Returns the platform the given `ObjectHandle` should run on.  E.g.
 if the given `ObjectHandle` is an `x86_64` Linux ELF object, this function
-will return `Linux(:x86_64)`.  This function does not yet distinguish
+will return `Platform("x86_64", "linux")`.  This function does not yet distinguish
 between different libc's such as `:glibc` and `:musl`.
 """
 function platform_for_object(oh::ObjectHandle)
     if oh isa ELFHandle
         mach_to_arch = Dict(
-            ELF.EM_386 => :i686,
-            ELF.EM_X86_64 => :x86_64,
-            ELF.EM_AARCH64 => :aarch64,
-            ELF.EM_PPC64 => :powerpc64le,
-            ELF.EM_ARM => :armv7l,
+            ELF.EM_386 => "i686",
+            ELF.EM_X86_64 => "x86_64",
+            ELF.EM_AARCH64 => "aarch64",
+            ELF.EM_PPC64 => "powerpc64le",
+            ELF.EM_ARM => "arm",
         )
         mach = oh.header.e_machine
         if !haskey(mach_to_arch, mach)
@@ -25,28 +25,43 @@ function platform_for_object(oh::ObjectHandle)
 
         arch = mach_to_arch[mach]
 
+        if arch == "arm"
+            # See if we can find an `.ARM.attributes` section
+            attr = try
+                findfirst(Sections(oh), ".ARM.attributes")
+            catch
+                nothing
+            end
+
+            if attr !== nothing
+                attr_data = read(attr)
+                error("Elliot, you need to parse out the ARM version here!")
+                # Parse out the .ARM.attributes section to find ARM version
+            end
+        end
+
         if oh.ei.osabi == ELF.ELFOSABI_LINUX || oh.ei.osabi == ELF.ELFOSABI_NONE
-            return Linux(arch)
+            return Platform(arch, "linux")
         elseif oh.ei.osabi == ELF.ELFOSABI_FREEBSD
-            return FreeBSD(arch)
+            return Platform(arch, "freebsd")
         else
             error("Unknown ELF OSABI $(oh.ei.osabi)")
         end
     elseif oh isa MachOHandle
         mach_to_arch = Dict(
-            MachO.CPU_TYPE_X86_64 => :x86_64,
-            MachO.CPU_TYPE_ARM64 => :aarch64,
+            MachO.CPU_TYPE_X86_64 => "x86_64",
+            MachO.CPU_TYPE_ARM64 => "aarch64",
         )
         mach = oh.header.cputype
         if !haskey(mach_to_arch, mach)
             error("Unknown MachO architecture $(mach)")
         end
-        return MacOS(mach_to_arch[mach])
+        return Platform(mach_to_arch[mach], "macos")
     elseif oh isa COFFHandle
         if is64bit(oh)
-            return Windows(:x86_64)
+            return Platform("x86_64", "windows")
         else
-            return Windows(:i686)
+            return Platform("i686", "windows")
         end
     else
         error("Unknown ObjectHandle type $(typeof(oh))")
@@ -66,7 +81,7 @@ function canonical_rpaths(file::AbstractString)
 end
 
 """
-    is_for_platform(h::ObjectHandle, platform::Platform)
+    is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
 
 Returns `true` if the given `ObjectHandle` refers to an object of the given
 `platform`; E.g. if the given `platform` is for AArch64 Linux, then `h` must
@@ -75,63 +90,62 @@ be an `ELFHandle` with `h.header.e_machine` set to `ELF.EM_AARCH64`.
 In particular, this method and [`platform_for_object()`](@ref) both exist
 because the latter is not smart enough to deal with `:glibc` and `:musl` yet.
 """
-function is_for_platform(h::ObjectHandle, platform::Platform)
-    bp = base_platform(platform)
-    if bp isa Linux || bp isa FreeBSD
+function is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
+    if Sys.islinux(platform) || Sys.isfreebsd(platform)
         # First off, if h isn't an ELF object, quit out
         if !(h isa ELFHandle)
             return false
         end
         # If the ELF object has an OSABI, check it matches platform
         if h.ei.osabi != ELF.ELF.ELFOSABI_NONE
-            if bp isa Linux
+            if Sys.islinux(platform)
                 if h.ei.osabi != ELF.ELFOSABI_LINUX
                     return false
                 end
-            elseif bp isa FreeBSD
+            elseif Sys.isfreebsd(platform)
                 if h.ei.osabi != ELF.ELFOSABI_FREEBSD
                     return false
                 end
             else
-                error("Unknown OS ABI type $(typeof(bp))")
+                error("Unknown OS ABI type $(typeof(platform))")
             end
         end
         # Check that the ELF arch matches our own
         m = h.header.e_machine
-        if arch(platform) == :i686
+        if arch(platform) == "i686"
             return m == ELF.EM_386
-        elseif arch(platform) == :x86_64
+        elseif arch(platform) == "x86_64"
             # Allow i686 on x86_64, because that's technically ok
             return m == ELF.EM_386 || m == ELF.EM_X86_64
-        elseif arch(platform) == :aarch64
+        elseif arch(platform) == "aarch64"
             return m == ELF.EM_AARCH64
-        elseif arch(platform) == :powerpc64le
+        elseif arch(platform) == "powerpc64le"
             return m == ELF.EM_PPC64
-        elseif arch(platform) == :armv7l
+        elseif arch(platform) == "armv7l"
             return m == ELF.EM_ARM
         else
-            error("Unknown $(typeof(bp)) architecture $(arch(platform))")
+            error("Unknown $(os(platform)) architecture $(arch(platform))")
         end
-    elseif bp isa Windows
+    elseif Sys.iswindows(platform)
         if !(h isa COFFHandle)
             return false
         end
 
-        if arch(platform) == :x86_64
+        if arch(platform) == "x86_64"
             return true
-        elseif arch(platform) == :i686
+        elseif arch(platform) == "i686"
             return !is64bit(h)
         else
-            error("Unknown $(typeof(bp)) architecture $(arch(platform))")
+            error("Unknown $(os(platform)) architecture $(arch(platform))")
         end
-    elseif bp isa MacOS
+    elseif Sys.isapple(platform)
         # We'll take any old Mach-O handle
         if !(h isa MachOHandle)
             return false
         end
         return true
     else
-        error("Unkown platform $(typeof(bp))")
+        error("Unkown platform $(os(platform))")
     end
 end
 
@@ -259,7 +273,7 @@ function is_default_lib(lib, ::ELFHandle)
     return lowercase(basename(lib)) in default_libs
 end
 
-function valid_library_path(f::AbstractString, p::Platform)
+function valid_library_path(f::AbstractString, p::AbstractPlatform)
     if Sys.iswindows(p)
         return endswith(f, ".dll")
     elseif Sys.isapple(p)
@@ -269,11 +283,11 @@ function valid_library_path(f::AbstractString, p::Platform)
     end
 end
 
-function patchelf_flags(p::Platform)
+function patchelf_flags(p::AbstractPlatform)
     flags = []
 
     # ppc64le and aarch64 have 64KB page sizes, don't muck up the ELF section load alignment
-    if arch(p) in (:powerpc64le, :aarch64)
+    if arch(p) in ("powerpc64le", "aarch64")
         append!(flags, ["--page-size", "65536"])
     end
 
@@ -281,7 +295,7 @@ function patchelf_flags(p::Platform)
     return flags
 end
 
-function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractString,
+function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
                          old_libpath::AbstractString; verbose::Bool = false)
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
@@ -302,10 +316,12 @@ function relink_to_rpath(prefix::Prefix, platform::Platform, path::AbstractStrin
     end
 end
 
-# Only macOS needs to fix identity mismatches
-fix_identity_mismatch(prefix, platform, path, oh; kwargs...) = nothing
-function fix_identity_mismatch(prefix::Prefix, platform::MacOS, path::AbstractString,
-                               oh::MachOHandle; verbose::Bool = false)
+function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
+                               oh::ObjectHandle; verbose::Bool = false)
+    # Only macOS needs to fix identity mismatches
+    if !Sys.isapple(platform)
+        return nothing
+    end
     id_lc = [lc for lc in MachOLoadCmds(oh) if typeof(lc) <: MachOIdDylibCmd]
     if isempty(id_lc)
         return nothing
@@ -335,7 +351,7 @@ end
 
 
 """
-    update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
+    update_linkage(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
                    old_libpath, new_libpath; verbose::Bool = false)
 
 Given a binary object located at `path` within `prefix`, update its dynamic
@@ -344,7 +360,7 @@ a tool within the cross-compilation environment such as `install_name_tool` on
 MacOS or `patchelf` on Linux.  Windows platforms are completely skipped, as
 they do not encode paths or RPaths within their executables.
 """
-function update_linkage(prefix::Prefix, platform::Platform, path::AbstractString,
+function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
                         old_libpath, new_libpath; verbose::Bool = false)
     # Windows doesn't do updating of linkage
     if Sys.iswindows(platform)
@@ -433,17 +449,21 @@ end
 
 
 """
-    is_troublesome_library_link(libname::AbstractString, platform::Platform)
+    is_troublesome_library_link(libname::AbstractString, platform::AbstractPlatform)
 
 Return `true` if depending on `libname` is known to cause problems at runtime, `false` otherwise.
 """
-is_troublesome_library_link(libname::AbstractString, platform::Platform) = false
-
-# In https://github.com/JuliaGtk/GtkSourceWidget.jl/pull/9 we found that
-# depending on this libraries is an indication that system copies of libxml and
-# libiconv has been picked up during compilation.  At runtime, the system copies
-# will be loaded, which are very likely to be incompatible with those provided
-# by JLL packages.  The solution is to make sure that JLL copies of these
-# libraries are used.
-is_troublesome_library_link(libname::AbstractString, ::MacOS) =
-    libname in ("/usr/lib/libxml2.2.dylib", "/usr/lib/libiconv.2.dylib")
+function is_troublesome_library_link(libname::AbstractString, platform::AbstractPlatform)
+    if Sys.isapple(platform)
+        # In https://github.com/JuliaGtk/GtkSourceWidget.jl/pull/9 we found that
+        # depending on these libraries is an indication that system copies of libxml and
+        # libiconv has been picked up during compilation.  At runtime, the system copies
+        # will be loaded, which are very likely to be incompatible with those provided
+        # by JLL packages.  The solution is to make sure that JLL copies of these
+        # libraries are used.
+        if libname in ("/usr/lib/libxml2.2.dylib", "/usr/lib/libiconv.2.dylib")
+            return true
+        end
+    end
+    return false
+end

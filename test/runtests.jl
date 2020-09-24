@@ -1,12 +1,12 @@
 using Pkg
 using BinaryBuilder, BinaryBuilder.BinaryBuilderBase
-using BinaryBuilder.BinaryBuilderBase: preferred_runner, exeext, dlext
-using Pkg.PlatformEngines, Pkg.BinaryPlatforms
+using BinaryBuilder.BinaryBuilderBase: preferred_runner, platform_dlext, platform_exeext
+using Base.BinaryPlatforms
 using Random, LibGit2, Test, ObjectFile, SHA
 import Libdl
 
 # The platform we're running on
-const platform = platform_key_abi()
+const platform = HostPlatform()
 const build_tests_dir = joinpath(@__DIR__, "build_tests")
 
 # Helper function to run fortran code with the path to libgfortran/libquadmath

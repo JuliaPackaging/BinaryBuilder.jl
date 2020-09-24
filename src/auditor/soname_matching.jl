@@ -38,10 +38,10 @@ function get_soname(oh::MachOHandle)
 end
 
 
-function ensure_soname(prefix::Prefix, path::AbstractString, platform::Platform;
+function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractPlatform;
                        verbose::Bool = false, autofix::Bool = false)
     # Skip any kind of Windows platforms
-    if platform isa Windows
+    if Sys.iswindows(platform)
         return true
     end
 

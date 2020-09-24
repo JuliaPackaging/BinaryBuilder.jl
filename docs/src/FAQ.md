@@ -54,7 +54,7 @@ If you decide to use this workflow, however, you will need to manually open pull
 
 Yes!  You can use [`BinaryBuilder.runshell(platform)`](@ref BinaryBuilderBase.runshell) to quickly start a shell in the current directory, without having to set up a working `build_tarballs.jl` script.  For example,
 ```
-julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Windows(:i686))'
+julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Platform("i686", "windows")'
 ```
 will open a shell in a Windows 32-bit build environment, without any source loaded.  The current working directory of your system will be mounted on `${WORKSPACE}` within this BinaryBuilder environment.
 

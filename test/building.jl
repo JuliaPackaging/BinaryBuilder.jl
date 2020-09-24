@@ -54,19 +54,20 @@
 
                 # Ensure that the file contains what we expect
                 contents = list_tarball_files(tarball_path)
-                @test "bin/fooifier$(exeext(platform))" in contents
-                @test "lib/libfoo.$(dlext(platform))" in contents
+                @test "bin/fooifier$(platform_exeext(platform))" in contents
+                @test "lib/libfoo.$(platform_dlext(platform))" in contents
 
                 # Unpack it somewhere else
                 @test verify(tarball_path, tarball_hash)
                 testdir = joinpath(build_path, "testdir")
+                rm(testdir, recursive=true, force=true)
                 mkpath(testdir)
                 unpack(tarball_path, testdir)
 
                 # Ensure we can use it
                 prefix = Prefix(testdir)
-                fooifier_path = joinpath(bindir(prefix), "fooifier$(exeext(platform))")
-                libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(dlext(platform))")))
+                fooifier_path = joinpath(bindir(prefix), "fooifier$(platform_exeext(platform))")
+                libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(platform_dlext(platform))")))
 
                 # We know that foo(a, b) returns 2*a^2 - b
                 result = 2*2.2^2 - 1.1
@@ -182,12 +183,12 @@ end
                 """,
                 # Build for a few troublesome platforms
                 [
-                    Linux(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Linux(:powerpc64le; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Linux(:armv7l; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Linux(:aarch64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    MacOS(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Windows(:i686; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                    Platform("x86_64", "linux"; libgfortran_version=v"3"),
+                    Platform("powerpc64le", "linux"; libgfortran_version=v"3"),
+                    Platform("armv7l", "linux"; libgfortran_version=v"3"),
+                    Platform("aarch64", "linux"; libgfortran_version=v"3"),
+                    Platform("x86_64", "macos"; libgfortran_version=v"3"),
+                    Platform("i686", "windows"; libgfortran_version=v"3"),
                 ],
                 [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
                 # Express a dependency on CSL to silence warning for fortran code
@@ -216,7 +217,7 @@ end
                 # Install fake license just to silence the warning
                 install_license /usr/share/licenses/libuv/LICENSE
                 """,
-                [Linux(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3"))],
+                [Platform("x86_64", "linux"; libgfortran_version=v"3")],
                 [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
                 Dependency[],
             )
@@ -235,7 +236,7 @@ end
                 # No sources
                 FileSource[],
                 "true",
-                [platform_key_abi()],
+                [HostPlatform()],
                 Product[],
                 # Three dependencies; one good, two bad
                 [
@@ -254,7 +255,7 @@ end
             v"1.1.1+c",
             GitSource[],
             "true",
-            [platform_key_abi()],
+            [HostPlatform()],
             Product[],
             Dependency[],
         )
@@ -327,9 +328,9 @@ end
 end
 
 @testset "Building framework" begin
-    mac_shards = filter(p -> p isa MacOS, shards_to_test)
+    mac_shards = filter(p -> Sys.isapple(p), shards_to_test)
     if isempty(mac_shards)
-        mac_shards = [MacOS()] # Make sure to always also test this using MacOS
+        mac_shards = [Platform("x86_64", "macos")] # Make sure to always also test this using MacOS
     end
     # The framework is only built as a framework on Mac and using CMake, and a regular lib elsewhere
     script = libfoo_cmake_script

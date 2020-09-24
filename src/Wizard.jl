@@ -13,7 +13,7 @@ using ObjectFile.ELF
 using HTTP
 import PkgLicenses
 using JLD2
-using Pkg.BinaryPlatforms
+using Base.BinaryPlatforms
 using Dates
 
 # It's Magic (TM)!
