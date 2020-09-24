@@ -20,8 +20,8 @@ jobs:
     fetchDepth: 99999
     clean: true
   - bash: |
-      $(JULIA) --project -e 'using InteractiveUtils; versioninfo()'
-      $(JULIA) --project -e 'using Pkg; Pkg.Registry.update(); Pkg.status()'
+      $(JULIA) -e 'using InteractiveUtils; versioninfo()'
+      $(JULIA) -e 'using Pkg; Pkg.status()'
     name: SystemInfo
 
 - job: Test
@@ -39,5 +39,5 @@ jobs:
 
   steps:
   - bash: |
-      $(JULIA) --check-bounds=yes --inline=yes --project -e 'using Pkg; Pkg.test(coverage=true)'
+      $(JULIA) --check-bounds=yes --inline=yes -e 'using Pkg; Pkg.Registry.update(); Pkg.test(coverage=true)'
     name: Test
