@@ -1,4 +1,4 @@
-import Pkg.BinaryPlatforms: detect_libgfortran_version, detect_libstdcxx_version, detect_cxxstring_abi
+import Base.BinaryPlatforms: detect_libstdcxx_version, detect_cxxstring_abi
 using ObjectFile
 
 csl_warning(lib) = @warn(
@@ -9,13 +9,13 @@ csl_warning(lib) = @warn(
     """)
 
 """
-    detect_libgfortran_version(oh::ObjectHandle, platform::Platform)
+    detect_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform)
 
 Given an ObjectFile, examine its dynamic linkage to discover which (if any)
 `libgfortran` it's linked against.  The major SOVERSION will determine which
 GCC version we're restricted to.
 """
-function detect_libgfortran_version(oh::ObjectHandle, platform::Platform)
+function detect_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform)
     # We look for linkage to libgfortran
     libs = basename.(path.(DynamicLinks(oh)))
     fortran_libs = filter(l -> occursin("libgfortran", l), libs)
@@ -23,15 +23,16 @@ function detect_libgfortran_version(oh::ObjectHandle, platform::Platform)
         return nothing
     end
 
-    # If we find one, pass it off to Pkg.detect_libgfortran_version()
-    return detect_libgfortran_version(first(fortran_libs), platform)
+    # If we find one, pass it off to `parse_dl_name_version`
+    name, version = parse_dl_name_version(first(fortran_libs), os(platform))
+    return version
 end
 
-function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose::Bool = false,
+function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool = false,
                                    has_csl::Bool = true)
-    libgfortran_version = nothing
+    version = nothing
     try
-        libgfortran_version = detect_libgfortran_version(oh, platform)
+        version = detect_libgfortran_version(oh, platform)
     catch e
         if isa(e, InterruptException)
             rethrow(e)
@@ -40,15 +41,15 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
         return true
     end
 
-    if verbose && libgfortran_version != nothing
-        @info("$(path(oh)) locks us to libgfortran v$(libgfortran_version)")
+    if verbose && version != nothing
+        @info("$(path(oh)) locks us to libgfortran v$(version)")
     end
 
-    if !has_csl && libgfortran_version !== nothing
+    if !has_csl && version !== nothing
         csl_warning("libgfortran")
     end
 
-    if compiler_abi(platform).libgfortran_version === nothing && libgfortran_version != nothing
+    if libgfortran_version(platform) === nothing && version != nothing
         msg = strip(replace("""
         $(path(oh)) links to libgfortran!  This causes incompatibilities across
         major versions of GCC.  To remedy this, you must build a tarball for
@@ -62,7 +63,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::Platform; verbose
     return true
 end
 
-function check_libgomp(oh::ObjectHandle, platform::Platform; verbose::Bool = false,
+function check_libgomp(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool = false,
                        has_csl::Bool = true)
     has_libgomp = false
     try
@@ -84,13 +85,13 @@ function check_libgomp(oh::ObjectHandle, platform::Platform; verbose::Bool = fal
 end
 
 """
-    detect_libstdcxx_version(oh::ObjectHandle, platform::Platform)
+    detect_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform)
 
 Given an ObjectFile, examine its dynamic linkage to discover which (if any)
 `libgfortran` it's linked against.  The major SOVERSION will determine which
 GCC version we're restricted to.
 """
-function detect_libstdcxx_version(oh::ObjectHandle, platform::Platform)
+function detect_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform)
     # We look for linkage to libstdc++
     libs = basename.(path.(DynamicLinks(oh)))
     libstdcxx_libs = filter(l -> occursin("libstdc++", l), libs)
@@ -111,7 +112,7 @@ function detect_libstdcxx_version(oh::ObjectHandle, platform::Platform)
     return maximum([VersionNumber(split(v, "_")[2]) for v in version_symbols])
 end
 
-function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
+function check_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool = false)
     libstdcxx_version = nothing
 
     try
@@ -129,7 +130,7 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; verbose::
     end
 
     # This actually isn't critical, so we don't complain.  Yet.
-    # if compiler_abi(platform).libstdcxx_version === nothing && libstdcxx_version != nothing
+    # if libstdcxx_version(platform) === nothing && libstdcxx_version != nothing
     #     msg = strip(replace("""
     #     $(path(oh)) links to libstdc++!  This causes incompatibilities across
     #     major versions of GCC.  To remedy this, you must build a tarball for
@@ -143,7 +144,7 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::Platform; verbose::
     return true
 end
 
-function cppfilt(symbol_names::Vector, platform::Platform)
+function cppfilt(symbol_names::Vector, platform::AbstractPlatform)
     input = IOBuffer()
     for name in symbol_names
         println(input, name)
@@ -160,14 +161,14 @@ function cppfilt(symbol_names::Vector, platform::Platform)
 end
 
 """
-    detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
+    detect_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform)
 
 Given an ObjectFile, examine its symbols to discover which (if any) C++11
 std::string ABI it's using.  We do this by scanning the list of exported
 symbols, triggering off of instances of `St7__cxx11` or `_ZNSs` to give
 evidence toward a constraint on `cxx11`, `cxx03` or neither.
 """
-function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
+function detect_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform)
     try
         # First, if this object doesn't link against `libstdc++`, it's a `:cxxany`
         if !any(occursin("libstdc++", l) for l in ObjectFile.path.(DynamicLinks(oh)))
@@ -179,13 +180,13 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
         # reimplement the parsing logic in Julia).  If anything has `cxx11` tags,
         # then mark it as such.
         if any(occursin("[abi:cxx11]", c) || occursin("std::__cxx11", c) for c in symbol_names)
-            return :cxx11
+            return "cxx11"
         end
         # Otherwise, if we still have `std::string`'s or `std::list`'s in there, it's implicitly a
         # `cxx03` binary, even though we don't have a __cxx03 namespace or something.  Mark it.
         if any(occursin("std::string", c) || occursin("std::basic_string", c) ||
                occursin("std::list", c) for c in symbol_names)
-            return :cxx03
+            return "cxx03"
         end
     catch e
         if isa(e, InterruptException)
@@ -197,7 +198,7 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::Platform)
 end
 
 
-function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdout, verbose::Bool = false)
+function check_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform; io::IO = stdout, verbose::Bool = false)
     # First, check the stdlibc++ string ABI to see if it is a superset of `platform`.  If it's
     # not, then we have a problem!
     cxx_abi = detect_cxxstring_abi(oh, platform)
@@ -211,7 +212,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         @info("$(path(oh)) locks us to $(cxx_abi)")
     end
 
-    if compiler_abi(platform).cxxstring_abi == nothing && cxx_abi != nothing
+    if cxxstring_abi(platform) == nothing && cxx_abi != nothing
         msg = strip(replace("""
         $(path(oh)) contains std::string values!  This causes incompatibilities across
         the GCC 4/5 version boundary.  To remedy this, you must build a tarball for
@@ -223,10 +224,10 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::Platform; io::IO = stdo
         return false
     end
 
-    if compiler_abi(platform).cxxstring_abi != cxx_abi
+    if cxxstring_abi(platform) != cxx_abi
         msg = strip(replace("""
         $(path(oh)) contains $(cxx_abi) ABI std::string values within its public interface,
-        but we are supposedly building for $(compiler_abi(platform).cxxstring_abi) ABI. This usually
+        but we are supposedly building for $(cxxstring_abi(platform)) ABI. This usually
         indicates that the build system is somehow ignoring our choice of compiler, as we manually
         insert the correct compiler flags for this ABI choice!
         """, '\n' => ' '))

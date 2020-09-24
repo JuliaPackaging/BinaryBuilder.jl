@@ -190,9 +190,9 @@ You should be aware of two incompatibilities in particular:
   ```jldoctest
   julia> using BinaryBuilder
 
-  julia> platforms = [Linux(:x86_64)]
+  julia> platforms = [Platform("x86_64", "linux")]
   1-element Array{Linux,1}:
-   Linux(:x86_64, libc=:glibc)
+   Platform("x86_64", "linux"; libc="glibc")
 
   julia> expand_cxxstring_abis(platforms)
   2-element Array{Platform,1}:
@@ -221,9 +221,9 @@ You should be aware of two incompatibilities in particular:
   ```jldoctest
   julia> using BinaryBuilder
 
-  julia> platforms = [Linux(:x86_64)]
+  julia> platforms = [Platform("x86_64", "linux")]
   1-element Array{Linux,1}:
-   Linux(:x86_64, libc=:glibc)
+   Platform("x86_64", "linux"; libc="glibc")
 
   julia> expand_gfortran_versions(platforms)
   3-element Array{Platform,1}:

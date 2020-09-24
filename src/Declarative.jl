@@ -53,7 +53,7 @@ function cleanup_merged_object!(meta::Dict)
 
     if haskey(meta, "platforms")
         # Convert platforms back to actual Platform objects
-        meta["platforms"] = [platform_key_abi(p) for p in meta["platforms"]]
+        meta["platforms"] = [parse(Platform, p) for p in meta["platforms"]]
     else
         # If the key isn't there it's because this is a platform-independent
         # build, so use `AnyPlatform()`.

@@ -119,7 +119,7 @@ end
 function step2_state()
     state = Wizard.WizardState()
     state.step = :step2
-    state.platforms = [Linux(:x86_64)]
+    state.platforms = [Platform("x86_64", "linux")]
 
     return state
 end
@@ -230,7 +230,7 @@ open(f -> write(f, libfoo_tarball_data), libfoo_tarball_path, "w")
 function step3_state()
     state = Wizard.WizardState()
     state.step = :step34
-    state.platforms = [Linux(:x86_64)]
+    state.platforms = [Platform("x86_64", "linux")]
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
     state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}(libfoo_tarball_path, libfoo_tarball_hash, "")]
     state.name = "libfoo"

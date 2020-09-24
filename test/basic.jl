@@ -154,7 +154,7 @@ end
 @testset "State serialization" begin
     state = Wizard.WizardState()
     state.step = :step34
-    state.platforms = [Linux(:x86_64)]
+    state.platforms = [Platform("x86_64", "linux")]
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
     state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}("/tmp/source.tar.gz", bytes2hex(sha256("a")), "")]
     state.name = "libfoo"

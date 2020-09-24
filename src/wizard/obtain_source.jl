@@ -251,7 +251,7 @@ function step1(state::WizardState)
         error("Somehow platform_select was not a valid choice!")
     end
 
-    if any(p -> p isa MacOS, state.platforms) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
+    if any(p -> Sys.isapple(p), state.platforms) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
         # Ask the user if they accept to download the macOS SDK
         if accept_apple_sdk(state.ins, state.outs)
             touch(enable_apple_file())
@@ -259,7 +259,7 @@ function step1(state::WizardState)
             # The user refused to download the macOS SDK
             println(state.outs)
             printstyled(state.outs, "Removing MacOS from the list of platforms...\n", bold=true)
-            filter!(p -> !isa(p, MacOS), state.platforms)
+            filter!(p -> !Sys.isapple(p), state.platforms)
         end
     end
     if isempty(state.platforms)

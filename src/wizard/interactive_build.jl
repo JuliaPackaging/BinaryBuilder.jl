@@ -8,12 +8,12 @@ full_wizard_script(state::WizardState) =
     "set -e\n" * state.history * "\n/bin/bash -lc auto_install_license"
 
 """
-    step4(state::WizardState, ur::Runner, platform::Platform,
+    step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
           build_path::AbstractString, prefix::Prefix)
 
 The fourth step selects build products after the first build is done
 """
-function step4(state::WizardState, ur::Runner, platform::Platform,
+function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
                build_path::AbstractString, prefix::Prefix)
     printstyled(state.outs, "\t\t\t# Step 4: Select build products\n\n", bold=true)
 
@@ -148,11 +148,11 @@ function step4(state::WizardState, ur::Runner, platform::Platform,
 end
 
 """
-    step3_audit(state::WizardState, platform::Platform, prefix::Prefix)
+    step3_audit(state::WizardState, platform::AbstractPlatform, prefix::Prefix)
 
 Audit the `prefix`.
 """
-function step3_audit(state::WizardState, platform::Platform, destdir::String)
+function step3_audit(state::WizardState, platform::AbstractPlatform, destdir::String)
     printstyled(state.outs, "\n\t\t\tAnalyzing...\n\n", bold=true)
 
     audit(Prefix(destdir); io=state.outs, platform=platform,
@@ -206,7 +206,7 @@ function diff_srcdir(state::WizardState, prefix::Prefix, ur::Runner)
     return false
 end
 
-function bb_add(client, state::WizardState, prefix::Prefix, platform::Platform, jll::AbstractString)
+function bb_add(client, state::WizardState, prefix::Prefix, platform::AbstractPlatform, jll::AbstractString)
     if any(dep->getpkg(dep).name == jll, state.dependencies)
         println(client, "ERROR: Package was already added")
         return
@@ -296,7 +296,7 @@ end
 """
 function interactive_build(state::WizardState, prefix::Prefix,
                            ur::Runner, build_path::AbstractString,
-                           platform::Platform;
+                           platform::AbstractPlatform;
                            hist_modify = string, srcdir_overlay = true)
     histfile = joinpath(prefix, "metadir", ".bash_history")
     cmd = `/bin/bash -l`
@@ -388,14 +388,14 @@ function interactive_build(state::WizardState, prefix::Prefix,
 end
 
 """
-    step3_interactive(state::WizardState, prefix::Prefix, platform::Platform,
+    step3_interactive(state::WizardState, prefix::Prefix, platform::AbstractPlatform,
                       ur::Runner, build_path::AbstractString)
 
 The interactive portion of step3, moving on to either rebuild with an edited
 script or proceed to step 4.
 """
 function step3_interactive(state::WizardState, prefix::Prefix,
-                           platform::Platform,
+                           platform::AbstractPlatform,
                            ur::Runner, build_path::AbstractString, artifact_paths::Vector{String})
 
     if interactive_build(state, prefix, ur, build_path, platform)
@@ -460,22 +460,22 @@ go by the following preferences:
 * The first remaining after this selection
 """
 function pick_preferred_platform(platforms)
-    if Linux(:x86_64) in platforms
-        return Linux(:x86_64)
+    if Platform("x86_64", "linux") in platforms
+        return Platform("x86_64", "linux")
     end
-    for os in (Linux, Windows, MacOS)
-        plats = filter(p->p isa os, platforms)
+    for o in ("linux", "windows", "macos")
+        plats = filter(p-> os(p) == o, platforms)
         if !isempty(plats)
             platforms = plats
         end
     end
-    for a in (:x86_64, :i686, :aarch64, :powerpc64le, :armv7l)
+    for a in ("x86_64", "i686", "aarch64", "powerpc64le", "armv7l")
         plats = filter(p->arch(p) == a, platforms)
         if !isempty(plats)
             platforms = plats
         end
     end
-    first(platforms)
+    return first(platforms)
 end
 
 """
@@ -537,7 +537,7 @@ function step34(state::WizardState)
     return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
 end
 
-function step5_internal(state::WizardState, platform::Platform)
+function step5_internal(state::WizardState, platform::AbstractPlatform)
     print(state.outs, "Your next build target will be ")
     printstyled(state.outs, triplet(platform), bold=true)
     println(state.outs)
@@ -734,8 +734,8 @@ function step5b(state::WizardState)
         !(any(state.visited_platforms) do p
             arch(plat) == arch(p) ||
             # Treat the x86 variants equivalently
-            (arch(p) in (:x86_64, :i686) &&
-             arch(plat) in (:x86_64, :i686))
+            (arch(p) in ("x86_64", "i686") &&
+             arch(plat) in ("x86_64", "i686"))
         end)
     end
     if isempty(possible_platforms)

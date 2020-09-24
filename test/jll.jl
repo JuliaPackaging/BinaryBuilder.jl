@@ -30,7 +30,7 @@ end
         sources = [DirectorySource(build_tests_dir)]
         # Build for this platform and a platform that isn't this one for sure:
         # FreeBSD.
-        platforms = [platform, FreeBSD(:x86_64)]
+        platforms = [platform, Platform("x86_64", "freebsd")]
         dependencies = [Dependency("Zlib_jll")]
         # The buffer where we'll write the JSON meta data
         buff = IOBuffer()
@@ -44,7 +44,7 @@ end
                 version,
                 sources,
                 # Use a build script depending on the target platform.
-                p isa FreeBSD ? libfoo_make_script : libfoo_meson_script,
+                Sys.isfreebsd(p) ? libfoo_make_script : libfoo_meson_script,
                 [p],
                 # The products we expect to be build
                 libfoo_products,
@@ -121,7 +121,7 @@ end
 
                 # A test to make sure merging objects and reading them back work
                 # as expected.
-                if json_obj["platforms"] == [FreeBSD(:x86_64)]
+                if json_obj["platforms"] == [Platform("x86_64", "freebsd")]
                     @test occursin("make install", json_obj["script"])
                 else
                     @test occursin("MESON_TARGET_TOOLCHAIN", json_obj["script"])
