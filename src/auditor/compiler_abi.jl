@@ -152,8 +152,8 @@ function cppfilt(symbol_names::Vector, platform::AbstractPlatform)
     seekstart(input)
 
     output = IOBuffer()
-    mktemp() do t, io
-        ur = preferred_runner()(dirname(t); cwd="/workspace/", platform=platform)
+    mktempdir() do dir
+        ur = preferred_runner()(dir; cwd="/workspace/", platform=platform)
         run_interactive(ur, `/opt/bin/c++filt`; stdin=input, stdout=output)
     end
 
