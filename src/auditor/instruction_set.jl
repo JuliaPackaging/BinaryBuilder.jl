@@ -41,7 +41,9 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     else
         objdump_cmd = "\${target}-objdump -d $(basename(path))"
     end
+    @info("Fetching mnemonics for $(path)")
     run_interactive(ur, `/bin/bash -c "$(objdump_cmd)"`; stdout=output, stderr=devnull)
+    @info("done!", readdir(dirname(path)))
     seekstart(output)
 
     for line in eachline(output)
@@ -161,4 +163,3 @@ function analyze_instruction_set(oh::ObjectHandle, platform::AbstractPlatform; v
     # Otherwise, return `min_march` and let 'em know!
     return min_march
 end
-
