@@ -44,6 +44,9 @@ jobs:
     name: Test
 
   - bash: |
-      rm -rf ${TMPDIR}/jl_*
+      for dir in $(find ${TMPDIR} -name .mounts); do
+          sudo umount ${dir}/* || true
+      done
+      rm -rf ${TMPDIR}/jl_* || true
     name: Cleanup
     condition: always()
