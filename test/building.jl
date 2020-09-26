@@ -102,63 +102,67 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
 # Perform a sanity test on each and every shard.
 @testset "Shard testsuites" begin
-    mktempdir() do build_path
-        products = Product[
-            ExecutableProduct("hello_world_c", :hello_world_c),
-            ExecutableProduct("hello_world_cxx", :hello_world_cxx),
-            ExecutableProduct("hello_world_fortran", :hello_world_fortran),
-            ExecutableProduct("hello_world_go", :hello_world_go),
-            ExecutableProduct("hello_world_rust", :hello_world_rust),
-        ]
+    @testset "$(shard)" for shard in shards_to_test
+        platforms = [shard]
+        mktempdir() do build_path
+            products = Product[
+                ExecutableProduct("hello_world_c", :hello_world_c),
+                ExecutableProduct("hello_world_cxx", :hello_world_cxx),
+                ExecutableProduct("hello_world_fortran", :hello_world_fortran),
+                ExecutableProduct("hello_world_go", :hello_world_go),
+                ExecutableProduct("hello_world_rust", :hello_world_rust),
+            ]
 
-        build_output_meta = autobuild(
-            build_path,
-            "testsuite",
-            v"1.0.0",
-            # No sources
-            DirectorySource[],
-            # Build the test suite, install the binaries into our prefix's `bin`
-            raw"""
-            # Build testsuite
-            make -j${nproc} -sC /usr/share/testsuite install
-            # Install fake license just to silence the warning
-            install_license /usr/share/licenses/libuv/LICENSE
-            """,
-            # Build for ALL the platforms
-            shards_to_test,
-            products,
-            # Express a dependency on CSL to silence warning for fortran code
-            [Dependency("CompilerSupportLibraries_jll")];
-            # We need to be able to build go and rust and whatnot
-            compilers=[:c, :go, :rust],
-        )
+            build_output_meta = autobuild(
+                build_path,
+                "testsuite",
+                v"1.0.0",
+                # No sources
+                DirectorySource[],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                # Build testsuite
+                make -j${nproc} -sC /usr/share/testsuite install
+                # Install fake license just to silence the warning
+                install_license /usr/share/licenses/libuv/LICENSE
+                """,
+                # Build for ALL the platforms
+                platforms,
+                products,
+                # Express a dependency on CSL to silence warning for fortran code
+                [Dependency("CompilerSupportLibraries_jll")];
+                # We need to be able to build go and rust and whatnot
+                compilers=[:c, :go, :rust],
+            )
 
-        # Test that we built everything (I'm not entirely sure how I expect
-        # this to fail without some kind of error being thrown earlier on,
-        # to be honest I just like seeing lots of large green numbers.)
-        @test length(keys(shards_to_test)) == length(keys(build_output_meta))
+            # Test that we built everything (I'm not entirely sure how I expect
+            # this to fail without some kind of error being thrown earlier on,
+            # to be honest I just like seeing lots of large green numbers.)
+            @test length(keys(platforms)) == length(keys(build_output_meta))
 
-        # Extract our platform's build, run the hello_world tests:
-        output_meta = select_platform(build_output_meta, platform)
-        @test output_meta != nothing
-        tarball_path, tarball_hash = output_meta[1:2]
+            # Extract our platform's build, run the hello_world tests:
+            output_meta = select_platform(build_output_meta, platform)
+            if !isnothing(output_meta)
+                tarball_path, tarball_hash = output_meta[1:2]
 
-        # Ensure the build products were created
-        @test isfile(tarball_path)
+                # Ensure the build products were created
+                @test isfile(tarball_path)
 
-        # Unpack it somewhere else
-        @test verify(tarball_path, tarball_hash)
-        testdir = joinpath(build_path, "testdir")
-        mkdir(testdir)
-        unpack(tarball_path, testdir)
+                # Unpack it somewhere else
+                @test verify(tarball_path, tarball_hash)
+                testdir = joinpath(build_path, "testdir")
+                mkdir(testdir)
+                unpack(tarball_path, testdir)
 
-        prefix = Prefix(testdir)
-        for product in products
-            hw_path = locate(product, prefix)
-            @test hw_path !== nothing && isfile(hw_path)
+                prefix = Prefix(testdir)
+                for product in products
+                    hw_path = locate(product, prefix)
+                    @test hw_path !== nothing && isfile(hw_path)
 
-            with_libgfortran() do
-                @test strip(String(read(`$hw_path`))) == "Hello, World!"
+                    with_libgfortran() do
+                        @test readchomp(`$hw_path`) == "Hello, World!"
+                    end
+                end
             end
         end
     end
