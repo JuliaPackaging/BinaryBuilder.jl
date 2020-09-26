@@ -168,6 +168,8 @@ function download_source(state::WizardState)
             source_path = joinpath(state.workspace, "$(name)_$n$ext")
         end
 
+        # Initialise `gen_download_cmd`
+        Pkg.probe_platform_engines!()
         download_cmd = Pkg.PlatformEngines.gen_download_cmd(url, source_path)
         oc = OutputCollector(download_cmd; verbose=true, tee_stream=state.outs)
         try
@@ -210,7 +212,7 @@ function step1(state::WizardState)
             "All Supported Platforms",
             "Select by Operating System",
             "Fully Custom Platform Choice",
-        ])
+        ]; charset=:ascii)
     )
     println(state.outs)
 
@@ -219,11 +221,11 @@ function step1(state::WizardState)
     if platform_select == 1
         state.platforms = supported_platforms()
     elseif platform_select == 2
-        oses = sort(unique(map(typeof, supported_platforms())), by = repr)
+        oses = sort(unique(map(os, supported_platforms())))
         while true
             result = request(terminal,
                 "Select operating systems",
-                MultiSelectMenu(map(repr, oses))
+                MultiSelectMenu(oses; charset=:ascii)
             )
             result = map(x->oses[x], collect(result))
             if isempty(result)
@@ -232,13 +234,13 @@ function step1(state::WizardState)
                 break
             end
         end
-        state.platforms = collect(filter(x->typeof(x) in result, supported_platforms()))
+        state.platforms = collect(filter(x->os(x) in result, supported_platforms()))
     elseif platform_select == 3
         platfs = supported_platforms()
         while true
             result = request(terminal,
                 "Select platforms",
-                MultiSelectMenu(map(repr, platfs))
+                MultiSelectMenu(map(repr, platfs); charset=:ascii)
             )
             if isempty(result)
                 println("Must select at least one platform")
@@ -385,7 +387,7 @@ function get_compilers(state::WizardState)
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         result = nothing
         while true
-            select_menu = MultiSelectMenu([compiler_descriptions[i] for i in instances(Compilers)])
+            select_menu = MultiSelectMenu([compiler_descriptions[i] for i in instances(Compilers)]; charset=:ascii)
             select_menu.selected = Set([Int(C)])
             result = request(terminal,
                              "Select compilers for the project",
@@ -405,7 +407,7 @@ function get_preferred_version(state::WizardState, compiler::AbstractString,
                                available_versions=Vector{Integer})
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
     message = "Select the preferred $(compiler) version (default: $(first(available_versions)))"
-    version_selected = request(terminal, message, RadioMenu(string.(available_versions)))
+    version_selected = request(terminal, message, RadioMenu(string.(available_versions); charset=:ascii))
     if compiler == "GCC"
         state.preferred_gcc_version = available_versions[version_selected]
     elseif compiler == "LLVM"

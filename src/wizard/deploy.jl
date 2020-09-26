@@ -230,7 +230,7 @@ function _deploy(state::WizardState)
             "Prepare a pull request against the community buildtree, Yggdrasil",
             "Write to a local file",
             "Print to stdout",
-        ])
+        ]; charset=:ascii)
     )
     println(state.outs)
 
@@ -240,7 +240,7 @@ function _deploy(state::WizardState)
             RadioMenu([
                 "Go ahead, open it",
                 "No, just prepare it and let me look at it first",
-            ])
+            ]; charset=:ascii)
         )
         yggdrasil_deploy(state, yggdrasil_select == 1)
     elseif deploy_select == 2

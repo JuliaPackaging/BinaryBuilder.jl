@@ -58,7 +58,7 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
                 "Return to build environment",
                 "Retry with a clean build environment",
                 "Edit the script"
-            ]))
+            ]; charset=:ascii))
         println(state.outs)
 
         if choice == 1
@@ -89,7 +89,7 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
             selected = collect(request(
                 terminal,
                 "",
-                MultiSelectMenu(state.files))
+                MultiSelectMenu(state.files; charset=:ascii))
             )
             selected_file_kinds = map(x->state.file_kinds[x], selected)
             selected_files = map(x->state.files[x], selected)
@@ -611,7 +611,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
                             "Open a clean session for this platform",
                             "Disable this platform",
                             "Edit build script",
-                        ])
+                        ]; charset=:ascii)
                     )
 
                     if choice == 1
@@ -860,7 +860,7 @@ function step6(state::WizardState)
             "Disable these platforms",
             "Revisit manually",
             "Edit script and retry all",
-        ])
+        ]; charset=:ascii)
     )
 
     println(state.outs)
@@ -873,7 +873,7 @@ function step6(state::WizardState)
         if length(plats) > 1
             choice = request(terminal,
                 "Which platform would you like to revisit?",
-                RadioMenu(map(repr, plats)))
+                RadioMenu(map(repr, plats); charset=:ascii))
             println(state.outs)
         else
             choice = 1
