@@ -34,6 +34,8 @@ if [[ ! -f "${STORAGE_DIR}/rootfs/usr/local/bin/julia" ]]; then
 fi
 
 for AGENT_IDX in $(seq 1 $NUM_AGENTS); do
+    AGENT_DIR="${STORAGE_DIR}/rootfs/agent_${AGENT_IDX}"
+
     if [[ ! -d "${STORAGE_DIR}/rootfs/agent_${AGENT_IDX}" ]]; then
         echo "Installing AZP agent..."
         # Install agent executable
@@ -49,14 +51,13 @@ for AGENT_IDX in $(seq 1 $NUM_AGENTS); do
             exit 1
         fi
 
-        AGENT_DIR="${STORAGE_DIR}/rootfs/agent_${AGENT_IDX}"
         mkdir -p "${AGENT_DIR}"
         curl -LsS "$AZP_AGENTPACKAGE_URL" | tar -xz -C "${AGENT_DIR}"
         ln -s "$(pwd)/run_agent.sh" "${AGENT_DIR}/run_agent.sh"
     fi
 
     export SRC_DIR STORAGE_DIR AGENT_IDX AGENT_ALLOW_RUNASROOT
-    envsubst "\$SRC_DIR \$STORAGE_DIR \$AGENT_IDX \$USER"  <"agent_startup.conf" >"${HOME}/.config/systemd/user/bb_azp_agent_${AGENT_IDX}.service"
+    envsubst "\$SRC_DIR \$STORAGE_DIR \$AGENT_IDX \$USER \$AGENT_DIR"  <"agent_startup.conf" >"${HOME}/.config/systemd/user/bb_azp_agent_${AGENT_IDX}.service"
 done
 
 # Reload systemd user daemon
