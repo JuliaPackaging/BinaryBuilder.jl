@@ -25,6 +25,7 @@ jobs:
     name: SystemInfo
 
 - job: Test
+  timeoutInMinutes: 90
   strategy:
     matrix:
       Privileged_SquashFS:
