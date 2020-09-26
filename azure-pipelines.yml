@@ -45,5 +45,5 @@ jobs:
 
   - bash: |
       rm -rf ${TMPDIR}/jl_*
-    name: Cleanup temporary directory
+    name: Cleanup
     condition: always()
