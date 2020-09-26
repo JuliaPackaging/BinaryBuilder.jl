@@ -42,3 +42,8 @@ jobs:
   - bash: |
       $(JULIA) --check-bounds=yes --inline=yes -e 'using Pkg; Pkg.Registry.update(); Pkg.test(coverage=true)'
     name: Test
+
+  - bash: |
+      rm -rf ${TMPDIR}/jl_*
+    name: Cleanup temporary directory
+    condition: always()
