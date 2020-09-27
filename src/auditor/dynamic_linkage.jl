@@ -121,7 +121,7 @@ function is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
             return m == ELF.EM_AARCH64
         elseif arch(platform) == "powerpc64le"
             return m == ELF.EM_PPC64
-        elseif arch(platform) == "armv7l"
+        elseif arch(platform) in ("armv6l", "armv7l")
             return m == ELF.EM_ARM
         else
             error("Unknown $(os(platform)) architecture $(arch(platform))")
