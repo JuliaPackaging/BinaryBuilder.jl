@@ -199,8 +199,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # If the user passed in a platform (or a few, comma-separated) on the
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
-        _platform_key_abi(p::AbstractString) = p == "any" ? AnyPlatform() : HostPlatform(p)
-        platforms = _platform_key_abi.(split(ARGS[1], ","))
+        parse_platform(p::AbstractString) = p == "any" ? AnyPlatform() : parse(Platform, p; validate_strict=true)
+        platforms = parse_platform.(split(ARGS[1], ","))
     end
 
     # Check to make sure we have the necessary environment stuff
