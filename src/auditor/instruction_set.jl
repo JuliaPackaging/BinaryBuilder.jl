@@ -151,7 +151,7 @@ function analyze_instruction_set(oh::ObjectHandle, platform::AbstractPlatform; v
             $(basename(path(oh))) contains a `cpuid` instruction; refusing to
             analyze for minimum instruction set, as it may dynamically select
             the proper instruction set internally.  Would have chosen
-            $(min_march), instead choosing $(generic_march(p)).
+            $(min_march), instead choosing $(generic_march(platform)).
             """, '\n' => ' ')
             @warn(strip(msg))
         end
