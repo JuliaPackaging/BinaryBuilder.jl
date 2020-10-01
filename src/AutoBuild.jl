@@ -893,10 +893,13 @@ function init_jll_package(name, code_dir, deploy_repo;
         # main branch of a repository, but it used to use `master`
         if isnothing(main_branch)
             main_branch = LibGit2.lookup_branch(repo, "origin/master", true)
+            remote_branch = "master"
+        else
+            remote_branch = "main"
         end
         origin_main_oid = LibGit2.GitHash(main_branch)
         LibGit2.reset!(repo, origin_main_oid, LibGit2.Consts.RESET_HARD)
-        if string(LibGit2.head_oid(repo)) != string(origin_main_oid)
+        if string(LibGit2.head_oid(repo)) != string(origin_main_oid) || remote_branch == "master"
             LibGit2.branch!(repo, "main", string(origin_main_oid); force=true)
         end
     end
