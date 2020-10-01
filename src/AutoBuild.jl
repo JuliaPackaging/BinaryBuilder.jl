@@ -883,15 +883,21 @@ function init_jll_package(name, code_dir, deploy_repo;
             LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
         end
     else
-        # Otherwise, hard-reset to latest master:
+        # Otherwise, hard-reset to latest main:
         repo = LibGit2.GitRepo(code_dir)
         Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
             LibGit2.fetch(repo; credentials=creds)
         end
-        origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
-        LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_HARD)
-        if string(LibGit2.head_oid(repo)) != string(origin_master_oid)
-            LibGit2.branch!(repo, "master", string(origin_master_oid); force=true)
+        main_branch = LibGit2.lookup_branch(repo, "origin/main", true)
+        # Starting from 2020-10-01 GitHub uses `main` as the default name of the
+        # main branch of a repository, but it used to use `master`
+        if isnothing(main_branch)
+            main_branch = LibGit2.lookup_branch(repo, "origin/master", true)
+        end
+        origin_main_oid = LibGit2.GitHash(main_branch)
+        LibGit2.reset!(repo, origin_main_oid, LibGit2.Consts.RESET_HARD)
+        if string(LibGit2.head_oid(repo)) != string(origin_main_oid)
+            LibGit2.branch!(repo, "main", string(origin_main_oid); force=true)
         end
     end
 end
@@ -1282,7 +1288,7 @@ function push_jll_package(name, build_version;
     Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
         LibGit2.push(
             wrapper_repo;
-            refspecs=["refs/heads/master"],
+            refspecs=["refs/heads/main"],
             remoteurl="https://github.com/$(deploy_repo).git",
             credentials=creds,
         )
