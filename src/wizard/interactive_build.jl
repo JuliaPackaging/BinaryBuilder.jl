@@ -218,6 +218,11 @@ function bb_add(client, state::WizardState, prefix::Prefix, platform::AbstractPl
                                                   preferred_gcc_version = state.preferred_gcc_version,
                                                   preferred_llvm_version = state.preferred_llvm_version,
                                                   compilers = state.compilers)
+        # Clear out the prefix artifacts directory in case this change caused
+        # any previous dependencies to change
+        let artifacts_dir = joinpath(prefix, "artifacts")
+            isdir(artifacts_dir) && rm(artifacts_dir; recursive=true)
+        end
         setup_dependencies(prefix, getpkg.([state.dependencies; new_dep]), concrete_platform)
         push!(state.dependencies, new_dep)
     catch e
