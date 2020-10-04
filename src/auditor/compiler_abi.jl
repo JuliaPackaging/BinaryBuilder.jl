@@ -236,3 +236,38 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform; io::I
     end
     return true
 end
+
+"""
+    detect_glibcxx_version(oh::ObjectHandle, platform::AbstractPlatform)
+
+Given an ObjectFile, examine its symbols to discover which version of GLIBCXX it
+requires, if any.
+"""
+function detect_glibcxx_version(oh::ObjectHandle, platform::AbstractPlatform)
+    symbol_names = try
+        # First, if this object doesn't link against `libstdc++`, it won't require GLIBCXX
+        if !any(occursin("libstdc++", l) for l in ObjectFile.path.(DynamicLinks(oh)))
+            return nothing
+        end
+
+        cppfilt(symbol_name.(Symbols(oh)), platform)
+    catch e
+        if isa(e, InterruptException)
+            rethrow(e)
+        end
+        @warn "$(path(oh)) could not be scanned for GLIBCXX version!" exception=(e, catch_backtrace())
+        return nothing
+    end
+
+    max_glibcxx = nothing
+    for symbol in symbol_names
+        m = match(r"GLIBCXX_3\.4\.(\d+)", symbol)
+        if !isnothing(m)
+            v = VersionNumber(3, 4, parse(Int, m.captures[1]))
+            if isnothing(max_glibcxx) || v > max_glibcxx
+                max_glibcxx = v
+            end
+        end
+    end
+    return max_glibcxx
+end
