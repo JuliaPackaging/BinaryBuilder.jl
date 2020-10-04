@@ -63,24 +63,33 @@ function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform;
     return true
 end
 
-function check_libgomp(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool = false,
-                       has_csl::Bool = true)
-    has_libgomp = false
-    try
-        libs = basename.(path.(DynamicLinks(oh)))
-        has_libgomp = length(filter(l -> occursin("libgomp", l), libs)) >= 1
+function check_csl_libs(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool=false,
+                        has_csl::Bool=true, csl_libs::Vector{String}=["libgomp", "libatomic"])
+    if has_csl
+        # No need to do any check, CompilerSupportLibraries_jll si already a dependency
+        return true
+    end
+
+    # Collect list of dependencies
+    libs = try
+        basename.(path.(DynamicLinks(oh)))
     catch e
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn "$(path(oh)) could not be scanned for libgomp dependency!" exception=(e, catch_backtrace())
+        @warn "$(path(oh)) could not be scanned for $(lib) dependency!" exception=(e, catch_backtrace())
         return true
     end
 
-    if !has_csl && has_libgomp
-        csl_warning("libgomp")
-        return false
+    # If any of the libs is a library provided by
+    # `CompilerSupportLibraries_jll`, suggest to add the package as dependency
+    for lib in csl_libs
+        if length(filter(l -> occursin(lib, l), libs)) >= 1
+            csl_warning(lib)
+            return false
+        end
     end
+
     return true
 end
 

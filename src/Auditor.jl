@@ -90,8 +90,9 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     if isdynamic(oh)
                         # Check that the libgfortran version matches
                         all_ok &= check_libgfortran_version(oh, platform; verbose=verbose, has_csl = has_csl)
-                        # Check whether the library depends on libgomp
-                        all_ok &= check_libgomp(oh, platform; verbose=verbose, has_csl = has_csl)
+                        # Check whether the library depends on any of the most common
+                        # libraries provided by `CompilerSupportLibraries_jll`.
+                        all_ok &= check_csl_libs(oh, platform; verbose=verbose, has_csl=has_csl)
                         # Check that the libstdcxx string ABI matches
                         all_ok &= check_cxxstring_abi(oh, platform; verbose=verbose)
                         # Check that this binary file's dynamic linkage works properly.  Note to always
