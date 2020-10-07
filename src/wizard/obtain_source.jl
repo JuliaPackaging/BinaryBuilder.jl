@@ -132,7 +132,7 @@ function download_source(state::WizardState)
     source_path = joinpath(state.workspace, basename(url))
     local source_hash
 
-    if endswith(url, ".git")
+    if endswith(url, ".git") || startswith(url, "git://")
         # Clone the URL, record the current gitsha for the given branch
         repo = clone(url, source_path)
 
