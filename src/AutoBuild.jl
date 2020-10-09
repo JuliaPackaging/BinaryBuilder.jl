@@ -959,6 +959,22 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
     for platform in sort(collect(platforms), by = triplet)
         # Find the corresponding tarball:
         tarball_idx = findfirst([occursin(".$(triplet(platform)).", f) for f in downloaded_files])
+
+        # No tarball matching the given platform...
+        if tarball_idx === nothing
+            # ..but wait, maybe the tarball still uses the os version number for
+            # FreeBSD or macOS?
+            for (isos, try_os_version) in ((Sys.isfreebsd, "11.1"), (Sys.isapple, "14"))
+                if isos(platform) && os_version(platform) === nothing
+                    tmp_platform = deepcopy(platform)
+                    tmp_platform["os_version"] = try_os_version
+                    @show triplet(tmp_platform)
+                    tarball_idx = findfirst([occursin(".$(triplet(tmp_platform)).", f) for f in downloaded_files])
+                end
+            end
+        end
+
+        # Ok, really no tarball matching the given platform
         if tarball_idx === nothing
             error("Incomplete JLL release!  Could not find tarball for $(triplet(platform))")
         end
