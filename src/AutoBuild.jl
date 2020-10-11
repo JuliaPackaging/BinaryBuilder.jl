@@ -968,7 +968,6 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 if isos(platform) && os_version(platform) === nothing
                     tmp_platform = deepcopy(platform)
                     tmp_platform["os_version"] = try_os_version
-                    @show triplet(tmp_platform)
                     tarball_idx = findfirst([occursin(".$(triplet(tmp_platform)).", f) for f in downloaded_files])
                 end
             end
@@ -1123,6 +1122,16 @@ function build_jll_package(src_name::String,
 
             for (p, p_info) in sort(products_info)
                 vp = variable_name(p)
+
+                if Sys.iswindows(platform)
+                    # `dlopen` on Windows isn't occasionally happy to see
+                    # forward slashes in the path:
+                    # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/941.
+                    # Workaround the issue by normalising the path separator to
+                    # the backslash.
+                    p_info["path"] = replace(p_info["path"], "/" => "\\")
+                end
+
                 if p isa LibraryProduct || p isa FrameworkProduct
                     println(io, """
                         JLLWrappers.@init_library_product(
