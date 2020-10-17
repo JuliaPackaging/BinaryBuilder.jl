@@ -20,7 +20,7 @@ function print_build_tarballs(io::IO, state::WizardState)
     else
         platforms_string = """
         [
-            $(strip(join(state.platforms,",\n    ")))
+            $(strip(join(repr.(state.platforms),",\n    ")))
         ]
         """
     end
