@@ -66,7 +66,7 @@ end
 function check_csl_libs(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool=false,
                         has_csl::Bool=true, csl_libs::Vector{String}=["libgomp", "libatomic"])
     if has_csl
-        # No need to do any check, CompilerSupportLibraries_jll si already a dependency
+        # No need to do any check, CompilerSupportLibraries_jll is already a dependency
         return true
     end
 
