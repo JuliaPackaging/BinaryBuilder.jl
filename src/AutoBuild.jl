@@ -1312,7 +1312,7 @@ function push_jll_package(name, build_version;
     # Next, push up the wrapper code repository
     wrapper_repo = LibGit2.GitRepo(code_dir)
     LibGit2.add!(wrapper_repo, ".")
-    LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
+    commit = LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
     Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
         refspecs = ["refs/heads/main"]
         # Fetch the remote repository, to have the relevant refspecs up to date.
@@ -1321,6 +1321,7 @@ function push_jll_package(name, build_version;
             refspecs=refspecs,
             credentials=creds,
         )
+        LibGit2.branch!(wrapper_repo, "main", commit; track="main")
         LibGit2.push(
             wrapper_repo;
             refspecs=refspecs,
