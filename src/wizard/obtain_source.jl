@@ -1,5 +1,6 @@
 using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, enable_apple_file, macos_sdk_already_installed, accept_apple_sdk
 using ProgressMeter
+import Downloads
 const update! = ProgressMeter.update!
 
 """
@@ -168,17 +169,7 @@ function download_source(state::WizardState)
             source_path = joinpath(state.workspace, "$(name)_$n$ext")
         end
 
-        # Initialise `gen_download_cmd`
-        Pkg.probe_platform_engines!()
-        download_cmd = Pkg.PlatformEngines.gen_download_cmd(url, source_path)
-        oc = OutputCollector(download_cmd; verbose=true, tee_stream=state.outs)
-        try
-            if !wait(oc)
-                error()
-            end
-        catch
-            error("Could not download $(url) to $(state.workspace)")
-        end
+        Downloads.download(url, source_path)
 
         # Save the source hash
         open(source_path) do file
