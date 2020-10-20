@@ -43,6 +43,7 @@ jobs:
 
   steps:
   - bash: |
+      set -e
       $(JULIA) --check-bounds=yes --inline=yes -e 'using Pkg; Pkg.Registry.update(); Pkg.test(coverage=true)'
     name: Test
 
