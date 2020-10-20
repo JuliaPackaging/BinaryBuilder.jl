@@ -1354,6 +1354,7 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     end
     function exactly_this_version(v::Pkg.Types.VersionSpec)
         if length(v.ranges) == 1 &&
+           v.ranges[1].lower.n == 3 &&
            v.ranges[1].lower == v.ranges[1].upper
            return string("=", v)
        end
