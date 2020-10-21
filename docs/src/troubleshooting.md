@@ -91,8 +91,8 @@ This is one of worst cases when cross-compiling, and there isn't a simple soluti
 Since some projects use different libnames for different platforms, when passing multiple libnames to `LibraryProduct`, you can use `parse_dl_name_version` to query the libname, for example:  
 
 ```
-julia> using Pkg.BinaryPlatforms
-julia> parse_dl_name_version("xxx-2.dll", Windows(:x86_64))[1]
+julia> using Base.BinaryPlatforms
+julia> parse_dl_name_version("xxx-2.dll", "windows")[1]
 "xxx"
 ```
 
