@@ -1321,7 +1321,7 @@ function push_jll_package(name, build_version;
             refspecs=refspecs,
             credentials=creds,
         )
-        LibGit2.branch!(wrapper_repo, "main", commit; track="main")
+        LibGit2.branch!(wrapper_repo, "main", string(LibGit2.GitHash(commit)); track="main")
         LibGit2.push(
             wrapper_repo;
             refspecs=refspecs,
