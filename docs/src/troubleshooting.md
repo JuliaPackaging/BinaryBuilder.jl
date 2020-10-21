@@ -92,8 +92,9 @@ Since some projects use different libnames for different platforms, when passing
 
 ```
 julia> using Base.BinaryPlatforms
-julia> parse_dl_name_version("xxx-2.dll", "windows")[1]
-"xxx"
+
+julia> parse_dl_name_version("sfml-audio-2.dll", "windows")[1]
+"sfml-audio"
 ```
 
 ## PowerPC Linux
