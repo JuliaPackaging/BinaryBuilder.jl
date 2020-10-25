@@ -46,8 +46,8 @@ function obtain_token(; ins=stdin, outs=stdout, github_api=GitHub.DEFAULT_API)
     reply = JSON.parse(HTTP.payload(resp, String))
 
     println(outs, """
-    To continue, we need to authenticate you with GitHub. Please nagivate to
-    the following page in our browser and enter below code:
+    To continue, we need to authenticate you with GitHub. Please navigate to
+    the following page in your browser and enter the code below:
 
          $(HTTP.URIs.unescapeuri(reply["verification_uri"]))
 
@@ -97,12 +97,12 @@ function obtain_token(; ins=stdin, outs=stdout, github_api=GitHub.DEFAULT_API)
         Successfully obtained GitHub authorization token!
         This token will be used for the rest of this BB session.
         You will have to re-authenticate for any future session.
-        However, if you wish to bypass this step, you may crate a
+        However, if you wish to bypass this step, you may create a
         personal access token at """))
         printstyled("https://github.com/settings/tokens"; bold=true)
         println("\n and add the token to the")
         printstyled(outs, "~/.julia/config/startup.jl"; bold=true)
-        println(outs, "file as:")
+        println(outs, " file as:")
         println(outs)
 
         printstyled(outs, "    ENV[\"GITHUB_TOKEN\"] = <token>"; bold=true)
