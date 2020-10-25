@@ -32,13 +32,16 @@ export ArchiveSource, FileSource, GitSource, DirectorySource
 # Auditor.jl
 export audit, collect_files, collapse_symlinks
 
-# Import some useful stuff from BinaryBuilderBase
-import BinaryBuilderBase: runshell
+# Autocomplete BinaryBuilder.runshell
+const runshell = BinaryBuilderBase.runshell
 
 include("Auditor.jl")
 include("Wizard.jl")
 
 using OutputCollectors, BinaryBuilderBase, .Auditor, .Wizard
+
+# Autocomplete BinaryBuilder.run_wizard
+const run_wizard = Wizard.run_wizard
 
 include("AutoBuild.jl")
 include("Declarative.jl")
