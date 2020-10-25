@@ -1,7 +1,6 @@
 # BinaryBuilder
 
-[![Build Status](https://dev.azure.com/JuliaPackaging/BinaryBuilder.jl/_apis/build/status/JuliaPackaging.BinaryBuilder.jl?branchName=master)](https://dev.azure.com/JuliaPackaging/BinaryBuilder.jl/_build/latest?definitionId=2&branchName=master)
-(http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl?branch=master)
+[![Build Status](https://dev.azure.com/JuliaPackaging/BinaryBuilder.jl/_apis/build/status/JuliaPackaging.BinaryBuilder.jl?branchName=master)](https://dev.azure.com/JuliaPackaging/BinaryBuilder.jl/_build/latest?definitionId=2&branchName=master) [![codecov.io](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl?branch=master) 
 
 [![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliapackaging.github.io/BinaryBuilder.jl/stable)
 [![](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliapackaging.github.io/BinaryBuilder.jl/latest)
