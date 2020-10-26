@@ -103,7 +103,10 @@ function minimum_march(counts::Dict, p::AbstractPlatform)
             return "avx"
         end
     elseif arch(p) == "i686"
-        if counts["sse3"] > 0
+        prescott_instruction_categories = (
+            "mmx", "sse", "sse2", "sse3",
+        )
+        if any(get.(Ref(counts), prescott_instruction_categories, 0) .> 0)
             return "prescott"
         end
     elseif arch(p) == "aarch64"
