@@ -415,7 +415,7 @@ end
 end
 
 @testset "Wizard - state serialization" begin
-    for state_generator in (WizardState, step2_state, step3_state, step7_state)
+    for state_generator in (Wizard.WizardState, step2_state, step3_state, step7_state)
         mktempdir() do dir
             state = state_generator()
 
