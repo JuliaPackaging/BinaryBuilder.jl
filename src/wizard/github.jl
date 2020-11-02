@@ -27,7 +27,7 @@ function github_auth(;allow_anonymous::Bool=true)
     return _github_auth[]
 end
 
-function obtain_token(; ins=stdin, outs=stdout, github_api=GitHub.DEFAULT_API)
+function obtain_token(; outs=stdout, github_api=GitHub.DEFAULT_API)
     println(outs)
     printstyled(outs, "Authenticating with GitHub\n", bold=true)
 
