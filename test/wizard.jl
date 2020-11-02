@@ -414,6 +414,18 @@ end
     end
 end
 
+@testset "Wizard - state serialization" begin
+    for state_generator in (WizardState, step2_state, step3_state, step7_state)
+        mktempdir() do dir
+            state = state_generator()
+
+            Wizard.save_wizard_state(state, dir)
+            @test Wizard.load_wizard_state(dir) == state
+        end
+    end
+end
+
+
 @testset "GitHub - authentication" begin
     withenv("GITHUB_TOKEN" => "") do
         @test Wizard.github_auth(allow_anonymous=true) isa GitHub.AnonymousAuth
