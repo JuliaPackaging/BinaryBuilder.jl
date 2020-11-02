@@ -417,8 +417,5 @@ end
 @testset "GitHub - authentication" begin
     withenv("GITHUB_TOKEN" => "") do
         @test Wizard.github_auth(allow_anonymous=true) isa GitHub.AnonymousAuth
-        input_stream = IOBuffer()
-        close(input_stream)
-        @test_throws ErrorException Wizard.obtain_token(ins=input_stream)
     end
 end
