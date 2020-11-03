@@ -93,6 +93,16 @@ function unserialize(io)
     return x
 end
 
+# Compare only serializeable fields when checking ==
+function Base.:(==)(x::WizardState, y::WizardState)
+    for field in serializeable_fields(x)
+        if getproperty(x, field) != getproperty(y, field)
+            return false
+        end
+    end
+    return true
+end
+
 function show(io::IO, x::WizardState)
     print(io, "WizardState [$(x.step)]")
 end
