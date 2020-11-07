@@ -112,7 +112,9 @@ supported ones. A few additional keyword arguments are accept:
     in a future version of this package. Please use it sparingly.
 """
 function build_tarballs(ARGS, src_name, src_version, sources, script,
-                        platforms, products, dependencies; kwargs...)
+                        platforms, products, dependencies;
+                        julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
+                        kwargs...)
     @nospecialize
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
@@ -247,11 +249,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Dependencies that must be downloaded
         dependencies,
     )
-    extra_kwargs = extract_kwargs(kwargs, (:julia_compat, :lazy_artifacts, :init_block))
+    extra_kwargs = extract_kwargs(kwargs, (:lazy_artifacts, :init_block))
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
-        dict = get_meta_json(args...; extra_kwargs...)
+        dict = get_meta_json(args...; extra_kwargs..., julia_compat=julia_compat)
         println(meta_json_stream, JSON.json(dict))
 
         if meta_json_stream !== stdout
