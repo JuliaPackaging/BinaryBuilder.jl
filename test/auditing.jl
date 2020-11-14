@@ -450,13 +450,25 @@ end
         # Attempt to run the executable, we expect it to work since it's our platform:
         hello_world_path = locate(hello_world, Prefix(testdir); platform=platform)
         with_libgfortran() do
-            @test strip(String(read(`$hello_world_path`))) == "Hello, World!"
+            @test readchomp(`$hello_world_path`) == "Hello, World!"
         end
 
         # If we audit the testdir, pretending that we're trying to build an ABI-agnostic
         # tarball, make sure it warns us about it.
         @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
-            Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(platform), autofix=false)
+            @test !Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(platform), autofix=false)
+            # Make sure audit is otherwise happy with the executable
+            @test Auditor.audit(Prefix(testdir); platform=platform, autofix=false)
+        end
+
+        # Let's pretend that we're building for a different libgfortran version:
+        # audit should warn us.
+        libgfortran_versions = (3, 4, 5)
+        other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
+        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) readmeta(hello_world_path) do oh
+            p = deepcopy(platform)
+            p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
+            @test !Auditor.audit(Prefix(testdir); platform=p, autofix=false)
         end
     end
 end
