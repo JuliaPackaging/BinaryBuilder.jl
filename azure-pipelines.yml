@@ -22,7 +22,8 @@ jobs:
     fetchDepth: 99999
     clean: true
   - bash: |
-      $(JULIA) -e 'using InteractiveUtils; versioninfo()'
+      set -e
+      $(JULIA) -e 'using BinaryBuilder; BinaryBuilder.versioninfo()'
       $(JULIA) -e 'using Pkg; Pkg.status()'
     name: SystemInfo
 
