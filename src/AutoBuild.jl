@@ -274,7 +274,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Build the given platforms using the given sources
         build_output_meta = autobuild(
             # Controls output product placement, mount directory placement, etc...
-            pwd(),
+            output_path,
 
             args...;
             products_dir = output_bin_path,
