@@ -11,7 +11,7 @@ mnemonics_by_category = Dict(
 
 
 """
-    instruction_mnemonics(path::AbstractString, platform::Platform)
+    instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
 
 Dump a binary object with `objdump`, returning a list of instruction mnemonics
 for further analysis with `analyze_instruction_set()`.
@@ -22,7 +22,7 @@ run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
 This function returns the list of mnemonics as well as the counts of each,
 binned by the mapping defined within `instruction_categories`.
 """
-function instruction_mnemonics(path::AbstractString, platform::Platform)
+function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     # The outputs we are calculating
     counts = Dict(k => 0 for k in keys(instruction_categories))
     mnemonics = String[]
@@ -36,7 +36,7 @@ function instruction_mnemonics(path::AbstractString, platform::Platform)
     output = IOBuffer()
 
     # Run objdump to disassemble the input binary
-    if platform isa MacOS || platform isa FreeBSD
+    if Sys.isbsd(platform)
         objdump_cmd = "llvm-objdump -d $(basename(path))"
     else
         objdump_cmd = "\${target}-objdump -d $(basename(path))"
@@ -68,41 +68,59 @@ function instruction_mnemonics(path::AbstractString, platform::Platform)
     return mnemonics, counts
 end
 
+function generic_march(p::AbstractPlatform)
+    return first(first(Base.BinaryPlatforms.arch_march_isa_mapping[arch(p)]))
+end
+
 """
-    minimum_instruction_set(counts::Dict, is_64bit::Bool)
+    minimum_march(counts::Dict, p::AbstractPlatform)
 
 This function returns the minimum instruction set required, depending on
 whether the object file being pointed to is a 32-bit or 64-bit one:
 
-* For 32-bit object files, this returns one of [:pentium4, :prescott]
+* For 32-bit object files, this returns one of ["i686", "prescott"]
 
-* For 64-bit object files, this returns one of [:x86_64, :sandybridge, :haswell, :skylake_avx512]
+* For 64-bit object files, this returns one of ["x86_64", "avx", "avx2", "avx512"]
 """
-function minimum_instruction_set(counts::Dict, is_64bit::Bool)
-    if is_64bit
-        avx512_instruction_categories = ("pku", "rdseed", "adcx", "clflush", "xsavec", "xsaves", "clwb", "avx512evex", "avex512vex")
-        avx2_instruction_categories = ("movbe", "avx2", "rdwrfsgs", "fma", "bmi1", "bmi2", "f16c")
+function minimum_march(counts::Dict, p::AbstractPlatform)
+    if arch(p) == "x86_64"
+        avx512_instruction_categories = (
+            "pku", "rdseed", "adcx", "clflush", "xsavec",
+            "xsaves", "clwb", "avx512evex", "avex512vex",
+        )
+        avx2_instruction_categories = (
+            "movbe", "avx2", "rdwrfsgs", "fma", "bmi1", "bmi2", "f16c",
+        )
         # note that the extensions mmx, sse, and sse2 are part of the generic x86-64 architecture
-        avx_instruction_categories = ("sse3", "ssse3", "sse4", "avx", "aes", "pclmulqdq")
+        avx_instruction_categories = (
+            "sse3", "ssse3", "sse4", "avx", "aes", "pclmulqdq",
+        )
         if any(get.(Ref(counts), avx512_instruction_categories, 0) .> 0)
-            return :skylake_avx512
+            return "avx512"
         elseif any(get.(Ref(counts), avx2_instruction_categories, 0) .> 0)
-            return :haswell
+            return "avx2"
         elseif any(get.(Ref(counts), avx_instruction_categories, 0) .> 0)
-            return :sandybridge
+            return "avx"
         end
-        return :x86_64
-    else
+    elseif arch(p) == "i686"
         if counts["sse3"] > 0
-            return :prescott
+            return "prescott"
         end
-        return :pentium4
+    elseif arch(p) == "aarch64"
+        # TODO: Detect instructions for aarch64 extensions
+    elseif arch(p) == "armv6l"
+        # We're just always going to assume we're running the single armv6l that Julia runs on.
+    elseif arch(p) == "armv7l"
+        # TODO: Detect NEON and vfpv4 instructions
+    elseif arch(p) == "powerpc64le"
+        # TODO Detect POWER9/10 instructions
     end
+    return generic_march(p)
 end
 
 
 """
-    analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
+    analyze_instruction_set(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool = false)
 
 Analyze the instructions within the binary located at the given path for which
 minimum instruction set it requires, taking note of groups of instruction sets
@@ -118,30 +136,28 @@ if `verbose` is set to `true`.
 Note that this function only really makes sense for x86/x64 binaries.  Don't
 run this on armv7l, aarch64, ppc64le etc... binaries and expect it to work.
 """
-function analyze_instruction_set(oh::ObjectHandle, platform::Platform; verbose::Bool = false)
+function analyze_instruction_set(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool = false)
     # Get list of mnemonics
     mnemonics, counts = instruction_mnemonics(path(oh), platform)
 
     # Analyze for minimum instruction set
-    min_isa = minimum_instruction_set(counts, is64bit(oh))
+    min_march = minimum_march(counts, platform)
 
     # If the binary uses `cpuid`, we can't know what it's doing, so just
     # return the most conservative ISA and warn the user if `verbose` is set.
     if counts["cpuid"] > 0
-        new_min_isa = is64bit(oh) ? :x86_64 : :pentium4
-        if verbose && new_min_isa != min_isa
+        if verbose && generic_march(platform) != min_march
             msg = replace("""
             $(basename(path(oh))) contains a `cpuid` instruction; refusing to
             analyze for minimum instruction set, as it may dynamically select
             the proper instruction set internally.  Would have chosen
-            $(min_isa), instead choosing $(new_min_isa).
+            $(min_march), instead choosing $(generic_march(platform)).
             """, '\n' => ' ')
             @warn(strip(msg))
         end
-        return new_min_isa
+        return generic_march(platform)
     end
 
-    # Otherwise, return `min_isa` and let 'em know!
-    return min_isa
+    # Otherwise, return `min_march` and let 'em know!
+    return min_march
 end
-

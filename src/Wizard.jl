@@ -3,6 +3,8 @@ module Wizard
 using BinaryBuilderBase, OutputCollectors, ..Auditor
 using Random
 using GitHub, LibGit2, Pkg, Sockets, ObjectFile
+import GitHub: gh_get_json, DEFAULT_API
+using JSON
 import SHA: sha256
 using REPL
 using REPL.Terminals
@@ -11,11 +13,11 @@ using ObjectFile.ELF
 using HTTP
 import PkgLicenses
 using JLD2
-using Pkg.BinaryPlatforms
+using Base.BinaryPlatforms
 using Dates
 
 # It's Magic (TM)!
-export run_wizard
+export run_wizard, deploy
 
 include("wizard/state.jl")
 include("wizard/github.jl")

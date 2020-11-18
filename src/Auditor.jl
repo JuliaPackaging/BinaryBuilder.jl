@@ -1,7 +1,8 @@
 module Auditor
 
 using BinaryBuilderBase
-using Pkg, Pkg.BinaryPlatforms
+using Base.BinaryPlatforms
+using Pkg
 using ObjectFile
 
 using BinaryBuilderBase: march
@@ -22,7 +23,7 @@ include("auditor/extra_checks.jl")
 #   something can't be opened.  Possibly use that within BinaryProvider too?
 
 """
-    audit(prefix::Prefix; platform::Platform = platform_key_abi();
+    audit(prefix::Prefix; platform::AbstractPlatform = HostPlatform();
                           verbose::Bool = false,
                           silent::Bool = false,
                           autofix::Bool = false,
@@ -40,7 +41,7 @@ and is not currently in the realm of fantasy.
 """
 function audit(prefix::Prefix, src_name::AbstractString = "";
                                io=stderr,
-                               platform::Platform = platform_key_abi(),
+                               platform::AbstractPlatform = HostPlatform(),
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = false,
@@ -64,7 +65,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     translate_symlinks(prefix.path; verbose=verbose)
 
     # Inspect binary files, looking for improper linkage
-    predicate = f -> (filemode(f) & 0o111) != 0 || valid_dl_path(f, platform)
+    predicate = f -> (filemode(f) & 0o111) != 0 || valid_library_path(f, platform)
     bin_files = collect_files(prefix, predicate; exclude_externalities=false)
     for f in collapse_symlinks(bin_files)
         # If `f` is outside of our prefix, ignore it.  This happens with files from our dependencies
@@ -89,8 +90,9 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     if isdynamic(oh)
                         # Check that the libgfortran version matches
                         all_ok &= check_libgfortran_version(oh, platform; verbose=verbose, has_csl = has_csl)
-                        # Check whether the library depends on libgomp
-                        all_ok &= check_libgomp(oh, platform; verbose=verbose, has_csl = has_csl)
+                        # Check whether the library depends on any of the most common
+                        # libraries provided by `CompilerSupportLibraries_jll`.
+                        all_ok &= check_csl_libs(oh, platform; verbose=verbose, has_csl=has_csl)
                         # Check that the libstdcxx string ABI matches
                         all_ok &= check_cxxstring_abi(oh, platform; verbose=verbose)
                         # Check that this binary file's dynamic linkage works properly.  Note to always
@@ -115,12 +117,12 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     end
 
     # Find all dynamic libraries
-    shlib_files = filter(f -> valid_dl_path(f, platform), bin_files)
+    shlib_files = filter(f -> startswith(f, prefix.path) && valid_library_path(f, platform), collapse_symlinks(bin_files))
 
     for f in shlib_files
         # Inspect all shared library files for our platform (but only if we're
         # running native, don't try to load library files from other platforms)
-        if Pkg.BinaryPlatforms.platforms_match(platform, platform_key_abi())
+        if platforms_match(platform, HostPlatform())
             if verbose
                 @info("Checking shared library $(relpath(f, prefix.path))")
             end
@@ -159,7 +161,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
         # Ensure that all libraries have at least some kind of SONAME, if we're
         # on that kind of platform
-        if !(platform isa Windows)
+        if !Sys.iswindows(platform)
             all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
         end
 
@@ -167,7 +169,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
     end
 
-    if platform isa Windows
+    if Sys.iswindows(platform)
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
         symlinks = collect_files(prefix, islink, exclude_dirs = false)
@@ -185,7 +187,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # If we're targeting a windows platform, check to make sure no .dll
         # files are sitting in `$prefix/lib`, as that's a no-no.  This is
         # not a fatal offense, but we'll yell about it.
-        lib_dll_files =  filter(f -> valid_dl_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
+        lib_dll_files =  filter(f -> valid_library_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
         for f in lib_dll_files
             if !silent
                 @warn("$(relpath(f, prefix.path)) should be in `bin`!")
@@ -226,79 +228,72 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     return all_ok
 end
 
-# Return the list of microarchitectures of an object file that would be
-# compatible with the given platform.  The last element is the "highest"
-# platform, the desired one.
-function compatible_x86_64_archs(platform::Platform)
-    if arch(platform) != :x86_64
-        throw(ArgumentError("Only x86-64 platforms are acceptable"))
+
+"""
+    compatible_marchs(p::AbstractPlatform)
+
+Return a (sorted) list of compatible microarchitectures, starting from the most
+compatible to the most highly specialized.  If no microarchitecture is specified within
+`p`, returns the most generic microarchitecture possible for the given architecture.
+"""
+function compatible_marchs(platform::AbstractPlatform)
+    if !haskey(BinaryPlatforms.arch_march_isa_mapping, arch(platform))
+        throw(ArgumentError("Architecture \"$(arch(platform))\" does not contain any known microarchitectures!"))
     end
-    # In `ExtendedPlatforms` we use a specific feature as name, here we use the
-    # Intel names.  This is the list of the Intel names.
-    list = [:x86_64, :sandybridge, :haswell, :skylake_avx512]
-    # We loop over all microarchitectures, as named in `ExtendedPlatform`, from
-    # the highest to the second lowest one, popping the last element if the
-    # microarchitecture doesn't match that of the given platform
-    if march(platform) !== nothing
-        for m in ("avx512", "avx2", "avx")
-            if march(platform) == m
-                return list
-            end
-            pop!(list)
-        end
+
+    # This is the list of microarchitecture names for this architecture
+    march_list = String[march for (march, features) in BinaryPlatforms.arch_march_isa_mapping[arch(platform)]]
+
+    # Fast-path a `march()` of `nothing`, which defaults to only the most compatible microarchitecture
+    if march(platform) === nothing
+        return march_list[begin:begin]
     end
-    return [first(list)]
+
+    # Search for this platform's march in the march list
+    idx = findfirst(m -> m == march(platform), march_list)
+    if idx === nothing
+        throw(ArgumentError("Microarchitecture \"$(march(platform))\" not valid for architecture \"$(arch(platform))\""))
+    end
+
+    # Return all up to that index
+    return march_list[begin:idx]
 end
 
 function check_isa(oh, platform, prefix;
                    verbose::Bool = false,
                    silent::Bool = false)
-    # If it's an x86/x64 binary, check its instruction set for SSE, AVX, etc...
-    if arch(platform_for_object(oh)) in [:x86_64, :i686]
-        instruction_set = analyze_instruction_set(oh, platform; verbose=verbose)
-        if is64bit(oh)
-            compatible_archs = compatible_x86_64_archs(platform)
-            if instruction_set ∉ compatible_archs
-                # The object file is for a microarchitecture not compatible with
-                # the desired one
-                if !silent
-                    msg = replace("""
-                    Minimum instruction set detected for $(relpath(path(oh), prefix.path)) is
-                    $(instruction_set), not $(last(compatible_archs)) as desired.
-                    """, '\n' => ' ')
-                    @warn(strip(msg))
-                end
-                return false
-            elseif instruction_set != last(compatible_archs)
-                # The object file is compatible with the desired
-                # microarchitecture, but using a lower instruction set: inform
-                # the user that they may be missing some optimisation, but the
-                # there is incompatibility, so return true.
-                if !silent
-                    msg = replace("""
-                    Minimum instruction set detected for $(relpath(path(oh), prefix.path)) is
-                    $(instruction_set), not $(last(compatible_archs)) as desired.
-                    You may be missing some optimization flags during compilation.
-                    """, '\n' => ' ')
-                    @warn(strip(msg))
-                end
-            end
-        elseif !is64bit(oh) && instruction_set != :pentium4
-            if !silent
-                msg = replace("""
-                Minimum instruction set for $(relpath(path(oh), prefix.path)) is
-                $(instruction_set), not pentium4 as desired.
-                """, '\n' => ' ')
-                @warn(strip(msg))
-            end
-            return false
+    detected_march = analyze_instruction_set(oh, platform; verbose=verbose)
+    platform_marchs = compatible_marchs(platform)
+    if detected_march ∉ platform_marchs
+        # The object file is for a microarchitecture not compatible with
+        # the desired one
+        if !silent
+            msg = replace("""
+            Minimum instruction set detected for $(relpath(path(oh), prefix.path)) is
+            $(detected_march), not $(last(platform_marchs)) as desired.
+            """, '\n' => ' ')
+            @warn(strip(msg))
+        end
+        return false
+    elseif detected_march != last(platform_marchs)
+        # The object file is compatible with the desired
+        # microarchitecture, but using a lower instruction set: inform
+        # the user that they may be missing some optimisation, but there
+        # is no incompatibility, so return true.
+        if !silent
+            msg = replace("""
+            Minimum instruction set detected for $(relpath(path(oh), prefix.path)) is
+            $(detected_march), not $(last(platform_marchs)) as desired.
+            You may be missing some optimization flags during compilation.
+            """, '\n' => ' ')
+            @warn(strip(msg))
         end
     end
     return true
 end
 
 function check_dynamic_linkage(oh, prefix, bin_files;
-                               platform::Platform = platform_key_abi(),
+                               platform::AbstractPlatform = HostPlatform(),
                                verbose::Bool = false,
                                silent::Bool = false,
                                autofix::Bool = true)

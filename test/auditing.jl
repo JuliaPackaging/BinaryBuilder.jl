@@ -1,5 +1,5 @@
 using BinaryBuilder.Auditor
-using BinaryBuilder.Auditor: compatible_x86_64_archs
+using BinaryBuilder.Auditor: compatible_marchs
 
 # Tests for our auditing infrastructure
 
@@ -11,7 +11,7 @@ using BinaryBuilder.Auditor: compatible_x86_64_archs
         "_Z10my_listlenNSt7__cxx114listIiSaIiEEE",
         "_ZNKSt7__cxx114listIiSaIiEE4sizeEv",
     ]
-    unmangled_symbol_names = Auditor.cppfilt(mangled_symbol_names, Linux(:x86_64))
+    unmangled_symbol_names = Auditor.cppfilt(mangled_symbol_names, Platform("x86_64", "linux"))
     @test all(unmangled_symbol_names .== [
         "std::__cxx11::_List_base<int, std::allocator<int> >::_M_node_count() const",
         "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::length() const@@GLIBCXX_3.4.21",
@@ -21,20 +21,22 @@ using BinaryBuilder.Auditor: compatible_x86_64_archs
 end
 
 @testset "Auditor - ISA tests" begin
-    @test compatible_x86_64_archs(Linux(:x86_64)) == [:x86_64]
-    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="x86_64")) == [:x86_64]
-    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx")) == [:x86_64, :sandybridge]
-    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx2")) == [:x86_64, :sandybridge, :haswell]
-    @test compatible_x86_64_archs(ExtendedPlatform(Linux(:x86_64); march="avx512")) == [:x86_64, :sandybridge, :haswell, :skylake_avx512]
-    @test_throws ArgumentError compatible_x86_64_archs(Linux(:aarch64))
+    @test compatible_marchs(Platform("x86_64", "linux")) == ["x86_64"]
+    @test compatible_marchs(Platform("x86_64", "linux"; march="x86_64")) == ["x86_64"]
+    @test compatible_marchs(Platform("x86_64", "linux"; march="avx")) == ["x86_64", "avx"]
+    @test compatible_marchs(Platform("x86_64", "linux"; march="avx2")) == ["x86_64", "avx", "avx2"]
+    @test compatible_marchs(Platform("x86_64", "linux"; march="avx512")) == ["x86_64", "avx", "avx2", "avx512"]
+    @test compatible_marchs(Platform("armv7l", "linux")) == ["armv7l"]
+    @test compatible_marchs(Platform("i686", "linux"; march="prescott")) == ["i686", "prescott"]
+    @test compatible_marchs(Platform("aarch64", "linux"; march="armv8_1")) == ["armv8_0", "armv8_1"]
 
     product = ExecutableProduct("main", :main)
 
     # The microarchitecture of the product doesn't match the target architecture: complain!
     mktempdir() do build_path
-        platform = ExtendedPlatform(Linux(:x86_64); march="avx")
+        platform = Platform("x86_64", "linux"; march="avx")
         build_output_meta = nothing
-        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is skylake_avx512, not sandybridge as desired.$") match_mode=:any begin
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is avx512, not avx as desired.$") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
@@ -71,7 +73,7 @@ end
             # Run ISA test
             readmeta(locate(product, prefix)) do oh
                 detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
-                @test detected_isa == :skylake_avx512
+                @test detected_isa == "avx512"
             end
         end
     end
@@ -79,9 +81,9 @@ end
     # The instruction set of the product is compatible with the target
     # architecture, but it's lower than desired: issue a gentle warning
     mktempdir() do build_path
-        platform = ExtendedPlatform(Linux(:x86_64); march="avx512")
+        platform = Platform("x86_64", "linux"; march="avx512")
         build_output_meta = nothing
-        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is sandybridge, not skylake_avx512 as desired. You may be missing some optimization flags during compilation.$") match_mode=:any begin
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is avx, not avx512 as desired. You may be missing some optimization flags during compilation.$") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
@@ -117,16 +119,16 @@ end
 
             # Run ISA test
             readmeta(locate(product, prefix)) do oh
-                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
-                @test detected_isa == :sandybridge
+                detected_march = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                @test detected_march == "avx"
             end
         end
     end
 
     # The microarchitecture of the product matches the target architecture: no warnings!
-    for (march, isa) in (("x86_64", "x86_64"), ("avx", "sandybridge"), ("avx2", "haswell"), ("avx512", "skylake_avx512"))
+    for march in ("x86_64", "avx", "avx2", "avx512")
         mktempdir() do build_path
-            platform = ExtendedPlatform(Linux(:x86_64); march=march)
+            platform = Platform("x86_64", "linux"; march=march)
             build_output_meta = nothing
             @test_logs (:info, "Building for x86_64-linux-gnu-march+$(march)") match_mode=:any begin
                 build_output_meta = autobuild(
@@ -166,13 +168,13 @@ end
 
             # Run ISA test
             readmeta(locate(product, prefix)) do oh
-                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
-                if isa == "haswell"
+                detected_march = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                if march == "avx2"
                     # Detecting the ISA isn't 100% reliable and it's even less
                     # accurate when looking for AVX2 features
-                    @test_broken detected_isa == Symbol(isa)
+                    @test_broken march == detected_march
                 else
-                    @test detected_isa == Symbol(isa)
+                    @test march == detected_march
                 end
             end
         end
@@ -201,8 +203,8 @@ end
         )
     end
 
-    for platform in (Linux(:x86_64; compiler_abi=CompilerABI(;cxxstring_abi=:cxx03)),
-                     Linux(:x86_64; compiler_abi=CompilerABI(;cxxstring_abi=:cxx11)))
+    for platform in (Platform("x86_64", "linux"; cxxstring_abi="cxx03"),
+                     Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
         # Look across multiple gcc versions; there can be tricksy interactions here
         for gcc_version in (v"4", v"6", v"9")
             # Do each build within a separate temporary directory
@@ -236,7 +238,7 @@ end
                     script = """
                         mkdir -p \${libdir}
                         /opt/\${target}/bin/\${target}-g++ -fPIC \\
-                            -D_GLIBCXX_USE_CXX11_ABI=$(cxxstring_abi(platform) == :cxx03 ? "1" : "0") \\
+                            -D_GLIBCXX_USE_CXX11_ABI=$(cxxstring_abi(platform) == "cxx03" ? "1" : "0") \\
                             -o \${libdir}/libcxxstringabi_test.\${dlext} \\
                             -shared \${WORKSPACE}/srcdir/cxxstringabi_tests/lib.cc
                         install_license /usr/share/licenses/libuv/LICENSE
@@ -255,7 +257,7 @@ end
         make install
         install_license /usr/share/licenses/libuv/LICENSE
     """
-    platform = Linux(:x86_64)
+    platform = Platform("x86_64", "linux")
     mktempdir() do build_path
         @test_logs (:warn, r"contains std::string values") match_mode=:any begin
             do_build(build_path, script, platform, v"6")
@@ -265,7 +267,7 @@ end
 
 
 @testset "Auditor - .dll moving" begin
-    for platform in [Windows(:x86_64)]
+    for platform in [Platform("x86_64", "windows")]
         mktempdir() do build_path
             build_output_meta = nothing
             @test_logs (:warn, r"lib/libfoo.dll should be in `bin`") (:warn, r"Simple buildsystem detected") match_mode=:any begin
@@ -295,7 +297,7 @@ end
 
             # Test that `libfoo.dll` gets moved to `bin` if it's a windows
             contents = list_tarball_files(tarball_path)
-            @test "bin/libfoo.$(dlext(platform))" in contents
+            @test "bin/libfoo.$(platform_dlext(platform))" in contents
         end
     end
 end
@@ -306,7 +308,7 @@ end
         abs_id = LibraryProduct("abs_id", :wrong_id)
         wrong_id = LibraryProduct("wrong_id", :wrong_id)
         right_id = LibraryProduct("right_id", :wrong_id)
-        platform = MacOS()
+        platform = Platform("x86_64", "macos")
 
         build_output_meta = autobuild(
             build_path,
@@ -403,7 +405,7 @@ end
 
 @testset "Auditor - gcc version" begin
     # These tests assume our gcc version is concrete (e.g. that Julia is linked against libgfortran)
-    our_libgfortran_version = libgfortran_version(compiler_abi(platform))
+    our_libgfortran_version = libgfortran_version(platform)
     @test our_libgfortran_version != nothing
 
     mktempdir() do build_path
@@ -462,7 +464,7 @@ end
 @testset "Auditor - soname matching" begin
     mktempdir() do build_path
         build_output_meta = nothing
-        linux_platform = Linux(:x86_64)
+        linux_platform = Platform("x86_64", "linux")
         @test_logs (:info, r"creating link to libfoo\.so\.1\.0\.0") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,

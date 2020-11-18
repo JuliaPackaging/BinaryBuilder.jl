@@ -1,5 +1,6 @@
 using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, enable_apple_file, macos_sdk_already_installed, accept_apple_sdk
 using ProgressMeter
+import Downloads
 const update! = ProgressMeter.update!
 
 """
@@ -132,7 +133,7 @@ function download_source(state::WizardState)
     source_path = joinpath(state.workspace, basename(url))
     local source_hash
 
-    if endswith(url, ".git")
+    if endswith(url, ".git") || startswith(url, "git://")
         # Clone the URL, record the current gitsha for the given branch
         repo = clone(url, source_path)
 
@@ -168,15 +169,7 @@ function download_source(state::WizardState)
             source_path = joinpath(state.workspace, "$(name)_$n$ext")
         end
 
-        download_cmd = Pkg.PlatformEngines.gen_download_cmd(url, source_path)
-        oc = OutputCollector(download_cmd; verbose=true, tee_stream=state.outs)
-        try
-            if !wait(oc)
-                error()
-            end
-        catch
-            error("Could not download $(url) to $(state.workspace)")
-        end
+        Downloads.download(url, source_path)
 
         # Save the source hash
         open(source_path) do file
@@ -210,7 +203,7 @@ function step1(state::WizardState)
             "All Supported Platforms",
             "Select by Operating System",
             "Fully Custom Platform Choice",
-        ])
+        ]; charset=:ascii)
     )
     println(state.outs)
 
@@ -219,11 +212,11 @@ function step1(state::WizardState)
     if platform_select == 1
         state.platforms = supported_platforms()
     elseif platform_select == 2
-        oses = sort(unique(map(typeof, supported_platforms())), by = repr)
+        oses = sort(unique(map(os, supported_platforms())))
         while true
             result = request(terminal,
                 "Select operating systems",
-                MultiSelectMenu(map(repr, oses))
+                MultiSelectMenu(oses; charset=:ascii)
             )
             result = map(x->oses[x], collect(result))
             if isempty(result)
@@ -232,13 +225,13 @@ function step1(state::WizardState)
                 break
             end
         end
-        state.platforms = collect(filter(x->typeof(x) in result, supported_platforms()))
+        state.platforms = collect(filter(x->os(x) in result, supported_platforms()))
     elseif platform_select == 3
         platfs = supported_platforms()
         while true
             result = request(terminal,
                 "Select platforms",
-                MultiSelectMenu(map(repr, platfs))
+                MultiSelectMenu(map(repr, platfs); charset=:ascii)
             )
             if isempty(result)
                 println("Must select at least one platform")
@@ -251,7 +244,7 @@ function step1(state::WizardState)
         error("Somehow platform_select was not a valid choice!")
     end
 
-    if any(p -> p isa MacOS, state.platforms) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
+    if any(p -> Sys.isapple(p), state.platforms) && !isfile(enable_apple_file()) && !macos_sdk_already_installed()
         # Ask the user if they accept to download the macOS SDK
         if accept_apple_sdk(state.ins, state.outs)
             touch(enable_apple_file())
@@ -259,7 +252,7 @@ function step1(state::WizardState)
             # The user refused to download the macOS SDK
             println(state.outs)
             printstyled(state.outs, "Removing MacOS from the list of platforms...\n", bold=true)
-            filter!(p -> !isa(p, MacOS), state.platforms)
+            filter!(p -> !Sys.isapple(p), state.platforms)
         end
     end
     if isempty(state.platforms)
@@ -385,7 +378,7 @@ function get_compilers(state::WizardState)
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         result = nothing
         while true
-            select_menu = MultiSelectMenu([compiler_descriptions[i] for i in instances(Compilers)])
+            select_menu = MultiSelectMenu([compiler_descriptions[i] for i in instances(Compilers)]; charset=:ascii)
             select_menu.selected = Set([Int(C)])
             result = request(terminal,
                              "Select compilers for the project",
@@ -405,7 +398,7 @@ function get_preferred_version(state::WizardState, compiler::AbstractString,
                                available_versions=Vector{Integer})
     terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
     message = "Select the preferred $(compiler) version (default: $(first(available_versions)))"
-    version_selected = request(terminal, message, RadioMenu(string.(available_versions)))
+    version_selected = request(terminal, message, RadioMenu(string.(available_versions); charset=:ascii))
     if compiler == "GCC"
         state.preferred_gcc_version = available_versions[version_selected]
     elseif compiler == "LLVM"

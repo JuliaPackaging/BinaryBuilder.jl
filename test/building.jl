@@ -54,19 +54,20 @@
 
                 # Ensure that the file contains what we expect
                 contents = list_tarball_files(tarball_path)
-                @test "bin/fooifier$(exeext(platform))" in contents
-                @test "lib/libfoo.$(dlext(platform))" in contents
+                @test "bin/fooifier$(platform_exeext(platform))" in contents
+                @test "lib/libfoo.$(platform_dlext(platform))" in contents
 
                 # Unpack it somewhere else
                 @test verify(tarball_path, tarball_hash)
                 testdir = joinpath(build_path, "testdir")
+                rm(testdir, recursive=true, force=true)
                 mkpath(testdir)
                 unpack(tarball_path, testdir)
 
                 # Ensure we can use it
                 prefix = Prefix(testdir)
-                fooifier_path = joinpath(bindir(prefix), "fooifier$(exeext(platform))")
-                libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(dlext(platform))")))
+                fooifier_path = joinpath(bindir(prefix), "fooifier$(platform_exeext(platform))")
+                libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(platform_dlext(platform))")))
 
                 # We know that foo(a, b) returns 2*a^2 - b
                 result = 2*2.2^2 - 1.1
@@ -101,63 +102,67 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
 # Perform a sanity test on each and every shard.
 @testset "Shard testsuites" begin
-    mktempdir() do build_path
-        products = Product[
-            ExecutableProduct("hello_world_c", :hello_world_c),
-            ExecutableProduct("hello_world_cxx", :hello_world_cxx),
-            ExecutableProduct("hello_world_fortran", :hello_world_fortran),
-            ExecutableProduct("hello_world_go", :hello_world_go),
-            ExecutableProduct("hello_world_rust", :hello_world_rust),
-        ]
+    @testset "$(shard)" for shard in shards_to_test
+        platforms = [shard]
+        mktempdir() do build_path
+            products = Product[
+                ExecutableProduct("hello_world_c", :hello_world_c),
+                ExecutableProduct("hello_world_cxx", :hello_world_cxx),
+                ExecutableProduct("hello_world_fortran", :hello_world_fortran),
+                ExecutableProduct("hello_world_go", :hello_world_go),
+                ExecutableProduct("hello_world_rust", :hello_world_rust),
+            ]
 
-        build_output_meta = autobuild(
-            build_path,
-            "testsuite",
-            v"1.0.0",
-            # No sources
-            DirectorySource[],
-            # Build the test suite, install the binaries into our prefix's `bin`
-            raw"""
-            # Build testsuite
-            make -j${nproc} -sC /usr/share/testsuite install
-            # Install fake license just to silence the warning
-            install_license /usr/share/licenses/libuv/LICENSE
-            """,
-            # Build for ALL the platforms
-            shards_to_test,
-            products,
-            # No dependencies
-            Dependency[];
-            # We need to be able to build go and rust and whatnot
-            compilers=[:c, :go, :rust],
-        )
+            build_output_meta = autobuild(
+                build_path,
+                "testsuite",
+                v"1.0.0",
+                # No sources
+                DirectorySource[],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                # Build testsuite
+                make -j${nproc} -sC /usr/share/testsuite install
+                # Install fake license just to silence the warning
+                install_license /usr/share/licenses/libuv/LICENSE
+                """,
+                # Build for ALL the platforms
+                platforms,
+                products,
+                # Express a dependency on CSL to silence warning for fortran code
+                [Dependency("CompilerSupportLibraries_jll")];
+                # We need to be able to build go and rust and whatnot
+                compilers=[:c, :go, :rust],
+            )
 
-        # Test that we built everything (I'm not entirely sure how I expect
-        # this to fail without some kind of error being thrown earlier on,
-        # to be honest I just like seeing lots of large green numbers.)
-        @test length(keys(shards_to_test)) == length(keys(build_output_meta))
+            # Test that we built everything (I'm not entirely sure how I expect
+            # this to fail without some kind of error being thrown earlier on,
+            # to be honest I just like seeing lots of large green numbers.)
+            @test length(keys(platforms)) == length(keys(build_output_meta))
 
-        # Extract our platform's build, run the hello_world tests:
-        output_meta = select_platform(build_output_meta, platform)
-        @test output_meta != nothing
-        tarball_path, tarball_hash = output_meta[1:2]
+            # Extract our platform's build, run the hello_world tests:
+            output_meta = select_platform(build_output_meta, platform)
+            if !isnothing(output_meta)
+                tarball_path, tarball_hash = output_meta[1:2]
 
-        # Ensure the build products were created
-        @test isfile(tarball_path)
+                # Ensure the build products were created
+                @test isfile(tarball_path)
 
-        # Unpack it somewhere else
-        @test verify(tarball_path, tarball_hash)
-        testdir = joinpath(build_path, "testdir")
-        mkdir(testdir)
-        unpack(tarball_path, testdir)
+                # Unpack it somewhere else
+                @test verify(tarball_path, tarball_hash)
+                testdir = joinpath(build_path, "testdir")
+                mkdir(testdir)
+                unpack(tarball_path, testdir)
 
-        prefix = Prefix(testdir)
-        for product in products
-            hw_path = locate(product, prefix)
-            @test hw_path !== nothing && isfile(hw_path)
+                prefix = Prefix(testdir)
+                for product in products
+                    hw_path = locate(product, prefix)
+                    @test hw_path !== nothing && isfile(hw_path)
 
-            with_libgfortran() do
-                @test strip(String(read(`$hw_path`))) == "Hello, World!"
+                    with_libgfortran() do
+                        @test readchomp(`$hw_path`) == "Hello, World!"
+                    end
+                end
             end
         end
     end
@@ -182,21 +187,44 @@ end
                 """,
                 # Build for a few troublesome platforms
                 [
-                    Linux(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Linux(:powerpc64le; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Linux(:armv7l; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Linux(:aarch64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    MacOS(:x86_64; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
-                    Windows(:i686; compiler_abi=CompilerABI(;libgfortran_version=v"3")),
+                    Platform("x86_64", "linux"; libgfortran_version=v"3"),
+                    Platform("powerpc64le", "linux"; libgfortran_version=v"3"),
+                    Platform("armv7l", "linux"; libgfortran_version=v"3"),
+                    Platform("aarch64", "linux"; libgfortran_version=v"3"),
+                    Platform("x86_64", "macos"; libgfortran_version=v"3"),
+                    Platform("i686", "windows"; libgfortran_version=v"3"),
                 ],
                 [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
-                # No dependencies
-                Dependency[];
+                # Express a dependency on CSL to silence warning for fortran code
+                [Dependency("CompilerSupportLibraries_jll")];
                 preferred_gcc_version=gcc_version,
             )
 
             # Just a simple test to ensure that it worked.
             @test length(keys(build_output_meta)) == 6
+        end
+    end
+
+    # Test that building something that links against gfortran suggests depending on CSL
+    @test_logs (:warn, r"CompilerSupportLibraries_jll") match_mode=:any begin
+        mktempdir() do build_path
+            build_output_meta = autobuild(
+                build_path,
+                "csl_dependency",
+                v"1.0.0",
+                # No sources
+                FileSource[],
+                # Build the test suite, install the binaries into our prefix's `bin`
+                raw"""
+                # Build testsuite
+                make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
+                # Install fake license just to silence the warning
+                install_license /usr/share/licenses/libuv/LICENSE
+                """,
+                [Platform("x86_64", "linux"; libgfortran_version=v"3")],
+                [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
+                Dependency[],
+            )
         end
     end
 end
@@ -212,7 +240,7 @@ end
                 # No sources
                 FileSource[],
                 "true",
-                [platform_key_abi()],
+                [HostPlatform()],
                 Product[],
                 # Three dependencies; one good, two bad
                 [
@@ -231,7 +259,7 @@ end
             v"1.1.1+c",
             GitSource[],
             "true",
-            [platform_key_abi()],
+            [HostPlatform()],
             Product[],
             Dependency[],
         )
@@ -304,9 +332,9 @@ end
 end
 
 @testset "Building framework" begin
-    mac_shards = filter(p -> p isa MacOS, shards_to_test)
+    mac_shards = filter(p -> Sys.isapple(p), shards_to_test)
     if isempty(mac_shards)
-        mac_shards = [MacOS()] # Make sure to always also test this using MacOS
+        mac_shards = [Platform("x86_64", "macos")] # Make sure to always also test this using MacOS
     end
     # The framework is only built as a framework on Mac and using CMake, and a regular lib elsewhere
     script = libfoo_cmake_script

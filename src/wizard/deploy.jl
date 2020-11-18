@@ -5,7 +5,7 @@ function print_build_tarballs(io::IO, state::WizardState)
         url_string = repr(x[1])
         if endswith(x[1], ".git")
             "GitSource($(url_string), $(repr(x[2].hash)))"
-        elseif any(endswith(x[1], ext) for ext in archive_extensions)
+        elseif any(endswith(x[1], ext) for ext in BinaryBuilderBase.archive_extensions)
             "ArchiveSource($(url_string), $(repr(x[2].hash)))"
         else
             "FileSource($(url_string), $(repr(x[2].hash)))"
@@ -20,12 +20,12 @@ function print_build_tarballs(io::IO, state::WizardState)
     else
         platforms_string = """
         [
-            $(strip(join(state.platforms,",\n    ")))
+            $(strip(join(repr.(state.platforms),",\n    ")))
         ]
         """
     end
 
-    if state.files === nothing
+    if any(isnothing, (state.files, state.file_kinds, state.file_varnames))
         products_string = "Product[\n]"
     else
         stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
@@ -55,7 +55,14 @@ function print_build_tarballs(io::IO, state::WizardState)
     end
 
     if length(state.dependencies) >= 1
-        psrepr(ps) = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\", uuid=\"$(getpkg(ps).uuid)\"))"
+        function psrepr(ps)
+            s = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\""
+            if !isnothing(getpkg(ps).uuid)
+                s *= ", uuid=\"$(getpkg(ps).uuid)\""
+            end
+            s *= "))"
+            return s
+        end
         dependencies_string = "[" * join(map(psrepr, state.dependencies)) * "\n]"
     else
         dependencies_string = "Dependency[\n]"
@@ -133,9 +140,12 @@ function yggdrasil_deploy(state::WizardState, open_pr::Bool = true)
     )
 end
 
-function yggdrasil_deploy(name, version, patches, build_tarballs_content; open_pr::Bool=false, branch_name=nothing)
+function yggdrasil_deploy(name, version, patches, build_tarballs_content;
+                          open_pr::Bool=false,
+                          branch_name=nothing,
+                          gh_auth = github_auth(;allow_anonymous=false),
+                          gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
     # First, fork Yggdrasil (this just does nothing if it already exists)
-    gh_auth = github_auth(;allow_anonymous=false)
     fork = GitHub.create_fork("JuliaPackaging/Yggdrasil"; auth=gh_auth)
 
     mktempdir() do tmp
@@ -220,7 +230,7 @@ function _deploy(state::WizardState)
             "Prepare a pull request against the community buildtree, Yggdrasil",
             "Write to a local file",
             "Print to stdout",
-        ])
+        ]; charset=:ascii)
     )
     println(state.outs)
 
@@ -230,19 +240,26 @@ function _deploy(state::WizardState)
             RadioMenu([
                 "Go ahead, open it",
                 "No, just prepare it and let me look at it first",
-            ])
+            ]; charset=:ascii)
         )
         yggdrasil_deploy(state, yggdrasil_select == 1)
     elseif deploy_select == 2
         directory = nonempty_line_prompt(
             "filename",
-            "Enter directory where to write build_tarballs.jl to:";
+            "Enter directory to write build_tarballs.jl to:";
             ins=state.ins,
             outs=state.outs,
         )
         mkpath(directory)
         open(joinpath(directory, "build_tarballs.jl"), "w") do io
             print_build_tarballs(io, state)
+        end
+        if !isempty(state.patches)
+            mkpath(joinpath(directory, "bundled", "patches"))
+            for patch in state.patches
+                patch_path = joinpath(directory, "bundled", "patches", patch.name)
+                open(f->write(f, patch.patch), patch_path, "w")
+            end
         end
     else
         println(state.outs, "Your generated build_tarballs.jl:")

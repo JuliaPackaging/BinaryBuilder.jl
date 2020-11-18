@@ -1,3 +1,4 @@
+using JSON
 using UUIDs
 using BinaryBuilder: jll_uuid, build_project_dict
 
@@ -8,13 +9,15 @@ module TestJLL end
     @test jll_uuid("FFMPEG_jll") == UUID("b22a6f82-2f65-5046-a5b2-351ab43fb4e5")
 
     project = build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), Dependency(PackageSpec(name = "XZ_jll", version = v"2.4.6"))])
-    @test project["deps"] == Dict("Pkg"      => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
-                                  "Zlib_jll" => "83775a58-1f1d-513f-b197-d71354ab007a",
-                                  "Libdl"    => "8f399da3-3557-5675-b5ff-fb832c97cbdb",
-                                  "XZ_jll"   => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800")
+    @test project["deps"] == Dict("JLLWrappers" => "692b3bcd-3c85-4b1f-b108-f13ce0eb3210",
+                                  "Artifacts"   => "56f22d72-fd6d-98f1-02f0-08ddc0907c33",
+                                  "Pkg"         => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
+                                  "Zlib_jll"    => "83775a58-1f1d-513f-b197-d71354ab007a",
+                                  "Libdl"       => "8f399da3-3557-5675-b5ff-fb832c97cbdb",
+                                  "XZ_jll"      => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800")
     @test project["name"] == "LibFoo_jll"
     @test project["uuid"] == "b250f842-3251-58d3-8ee4-9a24ab2bab3f"
-    @test project["compat"] == Dict("julia" => "1.0", "XZ_jll" => "=2.4.6")
+    @test project["compat"] == Dict("julia" => "1.0", "XZ_jll" => "=2.4.6", "JLLWrappers" => "1.1.0")
     @test project["version"] == "1.3.5"
     # Make sure BuildDependency's don't find their way to the project
     @test_throws MethodError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
@@ -27,33 +30,32 @@ end
         sources = [DirectorySource(build_tests_dir)]
         # Build for this platform and a platform that isn't this one for sure:
         # FreeBSD.
-        platforms = [platform, FreeBSD(:x86_64)]
+        platforms = [platform, Platform("x86_64", "freebsd")]
         dependencies = [Dependency("Zlib_jll")]
         # The buffer where we'll write the JSON meta data
         buff = IOBuffer()
 
-        # First: call `autobuild` twice, one for each platform, and write the
+        # First: call `get_meta_json` twice, once for each platform, and write the
         # JSON meta data.  In this way we can test that merging multiple JSON
         # objects work correctly.
         for p in platforms
-            autobuild(
-                build_path,
+            dict = get_meta_json(
                 name,
                 version,
                 sources,
                 # Use a build script depending on the target platform.
-                p isa FreeBSD ? libfoo_make_script : libfoo_meson_script,
+                Sys.isfreebsd(p) ? libfoo_make_script : libfoo_meson_script,
                 [p],
                 # The products we expect to be build
                 libfoo_products,
                 dependencies;
-                # Generate the JSON file
-                meta_json_stream = buff,
             )
+            # Generate the JSON file
+            println(buff, JSON.json(dict))
         end
 
         # Now build for real
-        build_output_meta = autobuild(
+        autobuild(
             build_path,
             name,
             version,
@@ -119,7 +121,7 @@ end
 
                 # A test to make sure merging objects and reading them back work
                 # as expected.
-                if json_obj["platforms"] == [FreeBSD(:x86_64)]
+                if json_obj["platforms"] == [Platform("x86_64", "freebsd")]
                     @test occursin("make install", json_obj["script"])
                 else
                     @test occursin("MESON_TARGET_TOOLCHAIN", json_obj["script"])

@@ -53,22 +53,37 @@ end
 
 @testset "environment and history saving" begin
     mktempdir() do temp_path
-        @test_throws ErrorException autobuild(
+        # This is a litmus test, to catch any errors before we do a `@test_throws`
+        @test_logs (:error, r"^Unable to find valid license file") match_mode=:any autobuild(
             temp_path,
-            "this_will_fail",
+            "this_will_pass",
             v"1.0.0",
             # No sources to speak of
             FileSource[],
-            # Simple script that just sets an environment variable
+            # Just exit with code 0
             """
-            MARKER=1
-            exit 1
+            exit 0
             """,
             # Build for this platform
             [platform],
             # No products
             Product[],
             # No depenedencies
+            Dependency[],
+        )
+
+        @test_throws ErrorException autobuild(
+            temp_path,
+            "this_will_fail",
+            v"1.0.0",
+            FileSource[],
+            # Simple script that just sets an environment variable
+            """
+            MARKER=1
+            exit 1
+            """,
+            [platform],
+            Product[],
             Dependency[],
         )
 
@@ -139,7 +154,7 @@ end
 @testset "State serialization" begin
     state = Wizard.WizardState()
     state.step = :step34
-    state.platforms = [Linux(:x86_64)]
+    state.platforms = [Platform("x86_64", "linux")]
     state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
     state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}("/tmp/source.tar.gz", bytes2hex(sha256("a")), "")]
     state.name = "libfoo"
@@ -172,7 +187,7 @@ end
     @test dict["name"] == "$(name)_jll"
     @test dict["version"] == "1.0.0"
     @test dict["uuid"] == "8fcd9439-76b0-55f4-a525-bad0597c05d8"
-    @test dict["compat"] == Dict{String,Any}("julia" => "1.0")
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.0", "JLLWrappers" => "1.1.0")
     @test all(in.(
         (
             "Pkg"       => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
@@ -195,6 +210,15 @@ end
     @test next_version.minor == version.minor
     @test next_version.patch == version.patch
 
+    # Ensure passing a Julia dependency bound works
+    dict = build_project_dict(name, version, dependencies, "1.4")
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.4", "JLLWrappers" => "1.1.0")
+
+    dict = build_project_dict(name, version, dependencies, "~1.4")
+    @test dict["compat"] == Dict{String,Any}("julia" => "~1.4", "JLLWrappers" => "1.1.0")
+
+    @test_throws ErrorException build_project_dict(name, version, dependencies, "nonsense")
+
     # Ensure passing compat bounds works
     dependencies = [
         Dependency(PackageSpec(name="libLLVM_jll", version=v"9")),
@@ -209,4 +233,10 @@ end
     dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
     @test dict["compat"]["julia"] == "1.0"
     @test dict["compat"]["libLLVM_jll"] == "8.3-10"
+
+    dependencies = [
+        Dependency(PackageSpec(name="libLLVM_jll", version="8.3.0-8.3")),
+    ]
+    dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
+    @test dict["compat"]["libLLVM_jll"] == "8.3"
 end

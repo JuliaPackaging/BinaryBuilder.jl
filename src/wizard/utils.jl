@@ -107,7 +107,7 @@ end
 
 """
     match_files(state::WizardState, prefix::Prefix,
-                platform::Platform, files::Vector; silent::Bool = false)
+                platform::AbstractPlatform, files::Vector; silent::Bool = false)
 
 Inspects all binary files within a prefix, matching them with a given list of
 `files`, complaining if there are any files that are not properly matched and
@@ -115,7 +115,7 @@ returning the set of normalized names that were not matched, or an empty set if
 all names were properly matched.
 """
 function match_files(state::WizardState, prefix::Prefix,
-                     platform::Platform, files::Vector; silent::Bool = false)
+                     platform::AbstractPlatform, files::Vector; silent::Bool = false)
     # Collect all executable/library files
     prefix_files = collapse_symlinks(collect_files(prefix))
     prefix_files = filter_object_files(prefix_files)
@@ -166,7 +166,7 @@ function edit_script(file::AbstractString, ins, outs, errs)
     ur = preferred_runner()(
         dirname(file),
         cwd = "/workspace/",
-        platform = Linux(:x86_64),
+        platform = Platform("x86_64", "linux"),
     )
     run_interactive(ur,
        `/usr/bin/vim /workspace/$(basename(file))`;

@@ -109,7 +109,7 @@ function test_yggdrasil_pr(pr_number::Integer)
         if length(changed_files) > 1
             builder_idx = request(terminal,
                 "Multiple recipes modified, which to build?",
-                RadioMenu(basename.(dirname.(changed_files)))
+                RadioMenu(basename.(dirname.(changed_files)); charset=:ascii)
             )
             println()
 
@@ -141,7 +141,7 @@ function test_yggdrasil_pr(pr_number::Integer)
                     "Try again immediately",
                     "Edit build_tarball.jl file, then try again",
                     "Bail out",
-                ])
+                ]; charset=:ascii)
             )
             println()
 
@@ -163,14 +163,14 @@ function test_yggdrasil_pr(pr_number::Integer)
                     "Open a PR to the Yggdrasil PR",
                     "Display diff and quit",
                     "Discard",
-                ])
+                ]; charset=:ascii)
             )
             println()
 
             if what_do == 1
                 dummy_name = basename(dirname(build_tarballs_path))
                 dummy_version = v"1.33.7"
-                yggdrasil_deploy(dummy_name, dummy_version, read(build_tarballs_path))
+                yggdrasil_deploy(dummy_name, dummy_version, [], read(build_tarballs_path))
             elseif what_do == 2
                 cd(dirname(build_tarballs_path))
                 run(`git diff`)

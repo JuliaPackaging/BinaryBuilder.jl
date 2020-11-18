@@ -1,4 +1,4 @@
-FROM julia:1.3
+FROM julia:1.5
 
 # Install tools which get used by BinaryBuilder.
 RUN apt-get update && apt-get install -y xz-utils bzip2 sudo git unzip

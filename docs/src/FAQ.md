@@ -10,7 +10,7 @@ This package does not compile Julia code; it compiles C/C++/Fortran dependencies
 
 ### What is this I hear about the macOS SDK license agreement?
 
-Apple restricts distribution and usage of the macOS SDK, a necessary component to build software for macOS targets.  Please read the [Apple and Xcode SDK agreement](https://images.apple.com/legal/sla/docs/xcode.pdf) for more information on the restrictions and legal terms you agree to when using the SDK to build software for Apple operating systems.  As usual, you should not take legal advice from FAQs on the internet, but in an effort to distill that large document down a bit, it is a breach of the license agreement to use the SDK to compile macOS binaries on a machine that is itself not a macOS machine.  Although this toolkit is designed to primarily run on Linux machines, it would not be breaking the license agreement to run this toolkit within a virtualized environment on a macOS machine, whereas it would be breaking the license agreement to run this toolkit on, for example, an Amazon AWS machine running Linux.  The Docker runner implements the virtualization approach on macOS machines.  `BinaryBuilder.jl`, by default, will not automatically download or use the macOS SDK on non-apple host operating systems, unless the `BINARYBUILDER_AUTOMATIC_APPLE` environment variable is set to `true`.
+Apple restricts distribution and usage of the macOS SDK, a necessary component to build software for macOS targets.  Please read the [Apple and Xcode SDK agreement](https://images.apple.com/legal/sla/docs/xcode.pdf) for more information on the restrictions and legal terms you agree to when using the SDK to build software for Apple operating systems. Copyright law is a complex area and you should not take legal advice from FAQs on the internet. This toolkit is designed to primarily run on Linux, though it can of course be used within a virtualized environment on a macOS machine or directly by running Linux Apple hardware. The Docker runner implements the virtualization approach on macOS machines.  `BinaryBuilder.jl`, by default, will not automatically download or use the macOS SDK on non-apple host operating systems, unless the `BINARYBUILDER_AUTOMATIC_APPLE` environment variable is set to `true`.
 
 ### Are there other environment variables I can use?
 
@@ -32,7 +32,7 @@ Remember also that you should use the standard environment variables like `CC`, 
 
 ### I love the wizard, but now I want to break free: can I build the tarballs without it?
 
-The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script with
+The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script in the [Command Line](@ref) section or by running
 ```
 julia build_tarballs.jl --help
 ```
@@ -54,7 +54,7 @@ If you decide to use this workflow, however, you will need to manually open pull
 
 Yes!  You can use [`BinaryBuilder.runshell(platform)`](@ref BinaryBuilderBase.runshell) to quickly start a shell in the current directory, without having to set up a working `build_tarballs.jl` script.  For example,
 ```
-julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Windows(:i686))'
+julia -e 'using BinaryBuilder; BinaryBuilder.runshell(Platform("i686", "windows")'
 ```
 will open a shell in a Windows 32-bit build environment, without any source loaded.  The current working directory of your system will be mounted on `${WORKSPACE}` within this BinaryBuilder environment.
 

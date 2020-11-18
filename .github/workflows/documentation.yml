@@ -12,6 +12,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v2
+      - uses: julia-actions/setup-julia@latest
+        with:
+          version: nightly
       - name: Cache artifacts
         uses: actions/cache@v1
         env:
@@ -24,7 +27,7 @@ jobs:
             ${{ runner.os }}-test-
             ${{ runner.os }}-
       - name: Install dependencies
-        run: julia --project=docs/ -e 'using Pkg; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
+        run: julia --project=docs/ -e 'using Pkg; pkg"add BinaryBuilderBase#master"; Pkg.develop(PackageSpec(path=pwd())); Pkg.instantiate()'
       - uses: julia-actions/julia-docdeploy@releases/v1
         env:
           DOCUMENTER_KEY: ${{ secrets.DOCUMENTER_KEY }}

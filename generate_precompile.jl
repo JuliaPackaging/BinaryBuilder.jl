@@ -25,7 +25,7 @@ using SnoopCompile
         # Install fake license just to silence the warning
         install_license /usr/share/licenses/MIT
         """,
-        [platform_key_abi()],
+        [HostPlatform()],
         products,
         # No dependencies
         Dependency[];
@@ -49,7 +49,7 @@ using SnoopCompile
         # Install fake license just to silence the warning
         install_license /usr/share/licenses/MIT
         """,
-        [platform_key_abi()],
+        [HostPlatform()],
         products,
         # Add a dependency on Zlib_jll, our favorite scapegoat
         Dependency[
