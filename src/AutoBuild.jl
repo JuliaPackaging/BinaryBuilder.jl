@@ -149,7 +149,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     if output_bin
         output_bin_path = abspath(joinpath(pwd(), output_bin_path))
     end
-    output_jll, output_jll_path = extract_flag!(ARGS, "--output-jll", joinpath(output_path, "$(src_name)_jll"))
+    # TODO: change the default of output_jll_path to joinpath(output_path, "$(src_name)_jll")
+    output_jll, output_jll_path = extract_flag!(ARGS, "--output-jll", joinpath(Pkg.devdir(), "$(src_name)_jll"))
     if output_jll
         output_jll_path = abspath(joinpath(pwd(), output_jll_path))
     end
