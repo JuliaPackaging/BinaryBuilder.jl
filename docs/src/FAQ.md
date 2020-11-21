@@ -114,3 +114,11 @@ The list of sources is a vector of [`BinaryBuilder.AbstractSource`](@ref)s.  Wha
   replacing `http://example.org/file.tar.gz` with the actual URL of the file you want to download.
 
 * For a [`GitSource`](@ref), the hash is the 40-character SHA1 hash of the revision you want to checkout.  For reproducibility you must indicate a specific revision, and not a branch or tag name, which are moving targets.
+
+### How to authenticate with a github token when publishing locally?
+
+1. Get and copy a github token with access to public repositories (check in `public_repo`) 
+2. Set the `GITHUB_TOKEN` environment variable to the copied token and run the Julia command as normal ([see this section for more details about publishing locally](#can_i_publish_a_jll_package_locally_without_going_through_yggdrasil?)):
+```shell
+GITHUB_TOKEN="<40 characters of numbers and letters>" julia ... build_tarballs.jl ... --deploy=...
+```
