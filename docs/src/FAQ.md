@@ -118,7 +118,7 @@ The list of sources is a vector of [`BinaryBuilder.AbstractSource`](@ref)s.  Wha
 ### How to authenticate with a github token when publishing locally?
 
 1. Get and copy a github token with access to public repositories (check in `public_repo`) 
-2. Set the `GITHUB_TOKEN` environment variable to the copied token and run the Julia command as normal ([see this section for more details about publishing locally](#can_i_publish_a_jll_package_locally_without_going_through_yggdrasil?)):
+2. Set the `GITHUB_TOKEN` environment variable to the copied token and run the Julia command as normal ([see this section for more details about publishing locally](#Can-I-publish-a-JLL-package-locally-without-going-through-Yggdrasil?)):
 ```shell
 GITHUB_TOKEN="<40 characters of numbers and letters>" julia ... build_tarballs.jl ... --deploy=...
 ```
