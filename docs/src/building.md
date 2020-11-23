@@ -347,7 +347,7 @@ Examples of builders that depend on other binaries include:
 
 ### Version number of dependencies
 
-Dependencies can have two different ways to specify their versions, with two
+There are two different ways to specify the version of a dependency, with two
 different meanings:
 
 * `Dependency("Foo_jll", v"1.2.3")`: the second argument of `Dependency`
@@ -363,7 +363,7 @@ different meanings:
   this version of the package is used for the build *and* the generated JLL
   package will be compatible with the provided version of the package.  This
   should be used when your package is compatible only with a single version of
-  the dependency, condition that you want to reflect also in the project of the
+  the dependency, a condition that you want to reflect also in the project of the
   JLL package.
 
 # Building and testing JLL packages locally
