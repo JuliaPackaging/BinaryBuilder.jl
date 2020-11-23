@@ -41,7 +41,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform;
         return true
     end
 
-    if verbose && version != nothing
+    if verbose && version !== nothing
         @info("$(path(oh)) locks us to libgfortran v$(version)")
     end
 
@@ -49,7 +49,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform;
         csl_warning("libgfortran")
     end
 
-    if libgfortran_version(platform) === nothing && version != nothing
+    if libgfortran_version(platform) === nothing && version !== nothing
         msg = strip(replace("""
         $(path(oh)) links to libgfortran!  This causes incompatibilities across
         major versions of GCC.  To remedy this, you must build a tarball for
@@ -57,6 +57,16 @@ function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform;
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    platforms = expand_gfortran_versions(platforms)"
+        @warn(msg)
+        return false
+    end
+
+    if libgfortran_version(platform) !== nothing !== version && libgfortran_version(platform) != version
+        msg = strip(replace("""
+        $(path(oh)) links to libgfortran$(version.major), but we are supposedly building
+        for libgfortran$(libgfortran_version(platform).major). This usually indicates that
+        the build system is somehow ignoring our choice of compiler!
+        """, '\n' => ' '))
         @warn(msg)
         return false
     end
