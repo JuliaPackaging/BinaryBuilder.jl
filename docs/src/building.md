@@ -345,6 +345,27 @@ Examples of builders that depend on other binaries include:
   depends on `Xorg_libxcb_jll`, and `Xorg_xtrans_jll` at build- and run-time,
   and on `Xorg_xorgproto_jll` and `Xorg_util_macros_jll` only at build-time.
 
+### Version number of dependencies
+
+Dependencies can have two different ways to specify their versions, with two
+different meanings:
+
+* `Dependency("Foo_jll", v"1.2.3")`: the second argument of `Dependency`
+  specifies the version of the package to be used for building: this version *is
+  not* reflected into a compatibility bound in the project of the generated JLL
+  package.  This is useful when the package you want to build is compatible with
+  all the versions of the dependency starting from the given one (and then you
+  don't want to restrict compatibility bounds of the JLL package), but to
+  maximize compatibility you want to build against the oldest compatible
+  version.
+* `Dependency(PackageSpec(; name="Foo_jll", version=v"1.2.3"))`: if the package
+  is given as a `Pkg.PackageSpec` and the `version` keyword argument is given,
+  this version of the package is used for the build *and* the generated JLL
+  package will be compatible with the provided version of the package.  This
+  should be used when your package is compatible only with a single version of
+  the dependency, condition that you want to reflect also in the project of the
+  JLL package.
+
 # Building and testing JLL packages locally
 
 As a package developer, you may want to test JLL packages locally, or as a binary dependency
