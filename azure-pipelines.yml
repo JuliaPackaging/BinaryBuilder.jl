@@ -13,7 +13,7 @@ variables:
   JULIA: unbuffer julia --project=$(Build.SourcesDirectory) --color=yes
   BINARYBUILDER_AUTOMATIC_APPLE: true
   BINARYBUILDER_USE_CCACHE: true
-
+  JULIA_PKG_SERVER: ""
 
 jobs:
 - job: Info
