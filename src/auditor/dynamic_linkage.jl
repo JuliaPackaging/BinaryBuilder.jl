@@ -279,7 +279,7 @@ function valid_library_path(f::AbstractString, p::AbstractPlatform)
     elseif Sys.isapple(p)
         return endswith(f, ".dylib")
     else
-        return occursin(r".+\.so(\.[\d]+)*", f)
+        return occursin(r".+\.so(\.[\d]+)*$", f)
     end
 end
 
