@@ -1,5 +1,5 @@
 using BinaryBuilder.Auditor
-using BinaryBuilder.Auditor: compatible_marchs
+using BinaryBuilder.Auditor: compatible_marchs, valid_library_path
 
 # Tests for our auditing infrastructure
 
@@ -515,4 +515,29 @@ end
         unpack(tarball_path, testdir)
         @test readlink(joinpath(testdir, "lib", "libfoo.so")) == "libfoo.so.1.0.0"
     end
+end
+
+@testset "valid_library_path" begin
+    linux = Platform("x86_64", "linux")
+    macos = Platform("x86_64", "macos")
+    windows = Platform("x86_64", "windows")
+
+    @test valid_library_path("/usr/libc.dylib", macos)
+    @test !valid_library_path("/usr/libc.dylib.", macos)
+    @test !valid_library_path("/usr/libc.dylib.1", macos)
+    @test !valid_library_path("/usr/libc.dylib", linux)
+    @test !valid_library_path("/usr/libc.dylib", windows)
+
+    @test valid_library_path("libc.dll", windows)
+    @test !valid_library_path("libc.dll.1", windows)
+    @test !valid_library_path("libc.dll", linux)
+    @test !valid_library_path("libc.dll", macos)
+
+    @test valid_library_path("/usr/libc.so", linux)
+    @test valid_library_path("/usr/libc.so.1", linux)
+    @test valid_library_path("/usr/libc.so.1.2", linux)
+    @test !valid_library_path("/usr/libc.so.", linux)
+    @test !valid_library_path("/usr/libc.sot", linux)
+    @test !valid_library_path("/usr/libc.so", macos)
+    @test !valid_library_path("/usr/libc.so", windows)
 end
