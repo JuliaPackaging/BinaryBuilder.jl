@@ -173,7 +173,7 @@ function cppfilt(symbol_names::Vector, platform::AbstractPlatform)
     output = IOBuffer()
     mktempdir() do dir
         ur = preferred_runner()(dir; cwd="/workspace/", platform=platform)
-        run_interactive(ur, `/opt/bin/c++filt`; stdin=input, stdout=output)
+        run_interactive(ur, `/opt/bin/$(triplet(ur.platform))/c++filt`; stdin=input, stdout=output)
     end
 
     return filter!(s -> !isempty(s), split(String(take!(output)), "\n"))
