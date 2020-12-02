@@ -303,7 +303,7 @@ function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::Abstr
     relink_cmd = ``
 
     if Sys.isapple(platform)
-        install_name_tool = "/opt/bin/install_name_tool"
+        install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
         relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
         patchelf = "/usr/bin/patchelf"
@@ -340,7 +340,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
     end
     
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
-    install_name_tool = "/opt/bin/install_name_tool"
+    install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
     id_cmd = `$install_name_tool -id $(new_id) $(rel_path)`
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
@@ -374,7 +374,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     add_rpath = x -> ``
     relink = (x, y) -> ``
     patchelf = "/usr/bin/patchelf"
-    install_name_tool = "/opt/bin/install_name_tool"
+    install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
     if Sys.isapple(platform)
         normalize_rpath = rp -> begin
             if !startswith(rp, "@loader_path")
