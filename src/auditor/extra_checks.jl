@@ -9,9 +9,19 @@ function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::B
             if verbose
                 msg = replace("""
                 $(basename(path(oh))) has an ELF header OS/ABI value that is not set to FreeBSD
-                ($(ELF.ELFOSABI_FREEBSD)), this may be an issue at link time"
+                ($(ELF.ELFOSABI_FREEBSD)), this may be an issue at link time
                 """, '\n' => ' ')
                 @warn(strip(msg))
+            end
+            return false
+        end
+    elseif call_abi(p) == "eabihf"
+        # Make sure the object file has the hard-float ABI.  See Table 4-2 of
+        # "ELF for the ARM Architecture" document
+        # (https://developer.arm.com/documentation/ihi0044/e/).
+        if iszero(header(oh).e_flags & 0x400)
+            if verbose
+                @error("$(basename(path(oh))) does not match the hard-float ABI")
             end
             return false
         end

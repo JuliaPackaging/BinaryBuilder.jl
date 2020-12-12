@@ -284,8 +284,8 @@ end
                     """,
                     # Build for our platform
                     [platform],
-                    # Ensure our executable products are built
-                    Product[LibraryProduct("libfoo", :libfoo)],
+                    # Ensure our library product is built
+                    [LibraryProduct("libfoo", :libfoo)],
                     # No dependencies
                     Dependency[]
                 )
@@ -317,7 +317,7 @@ end
             FileSource[],
             # Intsall a .dll into lib
             raw"""
-            mkdir -p ${prefix}/lib
+            mkdir -p "${libdir}"
             SRC=/usr/share/testsuite/c/dyn_link/libfoo/libfoo.c
             cc -o ${libdir}/no_id.${dlext} -shared $SRC
             cc -o ${libdir}/abs_id.${dlext} -Wl,-install_name,${libdir}/abs_id.${dlext} -shared $SRC
@@ -486,14 +486,14 @@ end
                 FileSource[],
                 # Build the library only with the versioned name
                 raw"""
-                mkdir -p ${prefix}/lib
-                cc -o ${prefix}/lib/libfoo.${dlext}.1.0.0 -fPIC -shared /usr/share/testsuite/c/dyn_link/libfoo/libfoo.c
+                mkdir -p "${libdir}"
+                cc -o "${libdir}/libfoo.${dlext}.1.0.0" -fPIC -shared /usr/share/testsuite/c/dyn_link/libfoo/libfoo.c
                 # Set the soname to a non-existing file
-                patchelf --set-soname libfoo.so ${prefix}/lib/libfoo.${dlext}.1.0.0
+                patchelf --set-soname libfoo.so "${libdir}/libfoo.${dlext}.1.0.0"
                 """,
                 # Build for Linux
                 [linux_platform],
-                # Ensure our executable products are built
+                # Ensure our library product is built
                 [LibraryProduct("libfoo", :libfoo)],
                 # No dependencies
                 Dependency[];
@@ -514,6 +514,34 @@ end
         mkdir(testdir)
         unpack(tarball_path, testdir)
         @test readlink(joinpath(testdir, "lib", "libfoo.so")) == "libfoo.so.1.0.0"
+    end
+end
+
+@testset "Auditor - other checks" begin
+    mktempdir() do build_path
+        @test_logs (:error, r"does not match the hard-float ABI") match_mode=:any begin
+            autobuild(
+                build_path,
+                "hard_float_ABI",
+                v"1.0.0",
+                # No sources
+                FileSource[],
+                # Build a library which doesn't link to the standard library and
+                # forces the soft-float ABI
+                raw"""
+                mkdir -p "${libdir}"
+                echo 'int _start() { return 0; }' | /opt/${target}/bin/${target}-gcc -nostdlib -shared -mfloat-abi=soft -o "${libdir}/libfoo.${dlext}" -x c -
+                """,
+                # Build for Linux armv7l hard-float
+                [Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")],
+                # Ensure our library product is built
+                [LibraryProduct("libfoo", :libfoo)],
+                # No dependencies
+                Dependency[];
+                verbose = true,
+                require_license = false
+            )
+        end
     end
 end
 
