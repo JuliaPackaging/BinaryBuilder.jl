@@ -1,6 +1,6 @@
 using JSON, BinaryBuilder, Test
 
-import BinaryBuilder.BinaryBuilderBase: sourcify, dependencify, major, minor, patch, version
+import BinaryBuilder.BinaryBuilderBase: sourcify
 
 @testset "Meta JSON" begin
     meta_json_buff = IOBuffer()
@@ -61,25 +61,7 @@ import BinaryBuilder.BinaryBuilderBase: sourcify, dependencify, major, minor, pa
     @test sourcify(Dict("type" => "git", "url" => "https://github.com/JuliaLang/julia.git", "hash" => "12345")) == GitSource("https://github.com/JuliaLang/julia.git", "12345")
     @test sourcify(Dict("type" => "file", "url" => "https://julialang.org", "hash" => "98765")) == FileSource("https://julialang.org", "98765")
     @test_throws ErrorException sourcify(Dict("type" => "qux"))
-    # `PackageSpec(; name = "Foo") != PackageSpec(; name = "Foo")`, so we
-    # need to manually compare the fields we care about
-    d = dependencify(Dict("type" => "dependency", "name" => "Foo_jll", "uuid" => nothing,
-                          "version-major" => 0, "version-minor" => 0, "version-patch" => 0))
-    ref_d = Dependency(PackageSpec(; name = "Foo_jll"))
-    @test d.pkg.name == ref_d.pkg.name
-    @test d.pkg.uuid == ref_d.pkg.uuid
-    v = version(d)
-    ref_v = version(ref_d)
-    @test (major(v), minor(v), patch(v)) == (major(ref_v), minor(ref_v), patch(ref_v))
-    d = dependencify(Dict("type" => "builddependency", "name" => "Qux_jll", "uuid" => nothing,
-                          "version-major" => 1, "version-minor" => 2, "version-patch" => 3))
-    ref_d = Dependency(PackageSpec(; name = "Qux_jll", version = v"1.2.3"))
-    @test d.pkg.name == ref_d.pkg.name
-    @test d.pkg.uuid == ref_d.pkg.uuid
-    v = version(d)
-    ref_v = version(ref_d)
-    @test (major(v), minor(v), patch(v)) == (major(ref_v), minor(ref_v), patch(ref_v))
-    @test_throws ErrorException dependencify(Dict("type" => "bar"))
+
     @test length(meta["products"]) == 4
     @test all(in.((LibraryProduct("libfoo", :libfoo), ExecutableProduct("julia", :julia), LibraryProduct("libfoo2", :libfoo2; dlopen_flags=[:RTLD_GLOBAL]), FrameworkProduct("fooFramework", :libfooFramework)), Ref(meta["products"])))
     @test length(meta["script"]) == 2
