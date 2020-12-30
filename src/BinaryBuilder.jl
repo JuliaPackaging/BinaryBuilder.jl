@@ -7,7 +7,7 @@ using Pkg, Base.BinaryPlatforms, Pkg.Artifacts
 using ghr_jll
 
 # Re-export useful stuff from Pkg:
-export HostPlatform, platform_dlext, valid_dl_path, arch, libc,
+export HostPlatform, platform_dlext, valid_dl_path, arch, libc, nbits,
        libgfortran_version, libstdcxx_version, cxxstring_abi, detect_libgfortran_version,
        detect_libstdcxx_version, detect_cxxstring_abi, call_abi, wordsize, triplet,
        select_platform, platforms_match, AbstractPlatform, Platform
