@@ -87,16 +87,6 @@ The build environment provided by `BinaryBuilder` is a `x86_64-linux-musl`, and 
 
 This is one of worst cases when cross-compiling, and there isn't a simple solution.  You have to look into the build process to see if running the executable can be skipped (see for example the patch to not run `dot` in [#351](https://github.com/JuliaPackaging/Yggdrasil/pull/351)), or replaced by something else.  If the executable is a compile-time only utility, try to build it with the native compiler (see for example the patch to build a native `mkdefs` in [#351](https://github.com/JuliaPackaging/Yggdrasil/pull/351))
 
-### Multiple library names for different platforms
-Since some projects use different libnames for different platforms, when passing multiple libnames to `LibraryProduct`, you can use `parse_dl_name_version` to query the libname, for example:  
-
-```
-julia> using Base.BinaryPlatforms
-
-julia> parse_dl_name_version("sfml-audio-2.dll", "windows")[1]
-"sfml-audio"
-```
-
 ## PowerPC Linux
 
 ### Shared library not built

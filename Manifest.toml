@@ -2,9 +2,9 @@
 
 [[ArgParse]]
 deps = ["Logging", "TextWrap"]
-git-tree-sha1 = "a8fc2e149cd6db276c76faebe197ccd3a92fb9ff"
+git-tree-sha1 = "4a8f4df432fd8e8a96a142c53f9432b9022a92e6"
 uuid = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
-version = "1.1.0"
+version = "1.1.1"
 
 [[ArgTools]]
 uuid = "0dad84c5-d112-42e6-8d28-ef12dabb789f"
@@ -28,7 +28,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilderBase]]
 deps = ["CodecZlib", "Downloads", "InteractiveUtils", "JSON", "LibGit2", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "SimpleBufferStream", "TOML", "Tar", "UUIDs", "p7zip_jll"]
-git-tree-sha1 = "670fa00c09d08e4d78dd592cdfdf440161d5d951"
+git-tree-sha1 = "a4b358c4bafcf19a216946276a6ca1a4cd832a4d"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaPackaging/BinaryBuilderBase.jl.git"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
@@ -70,9 +70,9 @@ uuid = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 
 [[FileIO]]
 deps = ["Pkg"]
-git-tree-sha1 = "cad2e71389ecb2f4480e0de74faab04af13d7929"
+git-tree-sha1 = "fee8955b9dfa7bec67117ef48085fb2b559b9c22"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.4.4"
+version = "1.4.5"
 
 [[FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -84,10 +84,10 @@ uuid = "8f6bce27-0656-5410-875b-07a5572985df"
 version = "0.1.6"
 
 [[GitHub]]
-deps = ["Base64", "Dates", "HTTP", "JSON", "MbedTLS", "Sockets"]
-git-tree-sha1 = "599dec6adb9f1b73b9c31c9cd4302a01d2575d81"
+deps = ["Base64", "Dates", "HTTP", "JSON", "MbedTLS", "Sockets", "SodiumSeal"]
+git-tree-sha1 = "a4f61fc1b1724e6eec1d9333eac2d4b01d8fcc8f"
 uuid = "bc5e4493-9b4d-5f90-b8aa-2b2bcaad7a26"
-version = "5.2.0"
+version = "5.4.0"
 
 [[HTTP]]
 deps = ["Base64", "Dates", "IniFile", "MbedTLS", "Sockets"]
@@ -123,9 +123,9 @@ uuid = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 version = "0.1.14"
 
 [[JLLWrappers]]
-git-tree-sha1 = "c70593677bbf2c3ccab4f7500d0f4dacfff7b75c"
+git-tree-sha1 = "04b49c556240b62d5a799e94c63d5fc14d3c07cd"
 uuid = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-version = "1.1.3"
+version = "1.1.4"
 
 [[JSON]]
 deps = ["Dates", "Mmap", "Parsers", "Unicode"]
@@ -138,12 +138,6 @@ deps = ["Dates", "Parsers", "Test"]
 git-tree-sha1 = "66397cc6c08922f98a28ab05a8d3002f9853b129"
 uuid = "2535ab7d-5cd8-5a07-80ac-9b1792aadce3"
 version = "0.3.2"
-
-[[Lazy]]
-deps = ["MacroTools"]
-git-tree-sha1 = "1370f8202dac30758f3c345f9909b97f53d87d3f"
-uuid = "50d2b5c4-7a5e-59d5-8109-a42b560f39c0"
-version = "0.15.1"
 
 [[LibCURL]]
 deps = ["LibCURL_jll", "MozillaCACerts_jll"]
@@ -191,9 +185,9 @@ version = "1.0.3"
 
 [[MbedTLS_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "47e19f64fc939b86dea2b9b5e38c29c787f0d581"
+git-tree-sha1 = "bf50d4a1911612ee8f662d0038fc05dda1bea57d"
 uuid = "c8ffd9c3-330d-5841-b78e-0817d7145fa1"
-version = "2.24.0+1"
+version = "2.25.0+0"
 
 [[Mmap]]
 uuid = "a63ad114-7e13-5084-954f-fe012c677804"
@@ -203,15 +197,15 @@ uuid = "14a3606d-f60d-562e-9121-12d972cd8159"
 
 [[Mustache]]
 deps = ["Printf", "Tables"]
-git-tree-sha1 = "f5d718790ff475b5b8ab9c1599ed105f0f24f253"
+git-tree-sha1 = "36995ef0d532fe08119d70b2365b7b03d4e00f48"
 uuid = "ffc61752-8dc7-55ee-8c37-f3e9cdd09e70"
-version = "1.0.8"
+version = "1.0.10"
 
 [[Mux]]
-deps = ["AssetRegistry", "Base64", "HTTP", "Hiccup", "Lazy", "Pkg", "Sockets", "WebSockets"]
-git-tree-sha1 = "8e917fbe96da22628feae3f01b4f100e709ab746"
+deps = ["AssetRegistry", "Base64", "HTTP", "Hiccup", "Pkg", "Sockets", "WebSockets"]
+git-tree-sha1 = "2578b3cd03e4f568f213c7d51b2118f9e81c2617"
 uuid = "a975b10e-0019-58db-a62f-e48ff68538c9"
-version = "0.7.3"
+version = "0.7.5"
 
 [[ObjectFile]]
 deps = ["Reexport", "StructIO", "Test"]
@@ -231,9 +225,9 @@ version = "0.1.0"
 
 [[Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "b417be52e8be24e916e34b3d70ec2da7bdf56a68"
+git-tree-sha1 = "50c9a9ed8c714945e01cd53a21007ed3865ed714"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "1.0.12"
+version = "1.0.15"
 
 [[Pidfile]]
 deps = ["FileWatching", "Test"]
@@ -257,9 +251,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "4cff8da83f89e06eeae5b81307a08bb33a96a602"
+git-tree-sha1 = "45640774ee2efa24e52686dbdf895e88102e68fc"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.4.0"
+version = "1.4.1"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -301,6 +295,12 @@ version = "1.1.0"
 [[Sockets]]
 uuid = "6462fe0b-24de-5631-8697-dd941f90decc"
 
+[[SodiumSeal]]
+deps = ["Base64", "Libdl", "libsodium_jll"]
+git-tree-sha1 = "80cef67d2953e33935b41c6ab0a178b9987b1c99"
+uuid = "2133526b-2bfb-4018-ac12-889fb3908a75"
+version = "0.1.1"
+
 [[StructIO]]
 deps = ["Test"]
 git-tree-sha1 = "010dc73c7146869c042b49adcdb6bf528c12e859"
@@ -319,9 +319,9 @@ version = "1.0.0"
 
 [[Tables]]
 deps = ["DataAPI", "DataValueInterfaces", "IteratorInterfaceExtensions", "LinearAlgebra", "TableTraits", "Test"]
-git-tree-sha1 = "5131a624173d532299d1c7eb05341c18112b21b8"
+git-tree-sha1 = "240d19b8762006ff04b967bdd833269ad642d550"
 uuid = "bd369af6-aec1-5ad0-b16a-f7cc5008161c"
-version = "1.2.1"
+version = "1.2.2"
 
 [[Tar]]
 deps = ["ArgTools", "SHA"]
@@ -356,10 +356,10 @@ uuid = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 uuid = "4ec0a83e-493e-50e2-b9ac-8f72acf5a8f5"
 
 [[WebSockets]]
-deps = ["Base64", "Dates", "Distributed", "HTTP", "Logging", "Random", "Sockets", "Test"]
-git-tree-sha1 = "13f763d38c7a05688938808b49cb29b18b60c8c8"
+deps = ["Base64", "Dates", "HTTP", "Logging", "Sockets"]
+git-tree-sha1 = "a07c280e068acb96a7aeb0a6d35c801ba526e364"
 uuid = "104b5d7c-a370-577a-8038-80a2059c5097"
-version = "1.5.2"
+version = "1.5.7"
 
 [[ZMQ]]
 deps = ["FileWatching", "Sockets", "ZeroMQ_jll"]
@@ -384,6 +384,12 @@ deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
 git-tree-sha1 = "f5c8cb306d4fe2d1fff90443a088fc5ba536c134"
 uuid = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 version = "0.13.0+1"
+
+[[libsodium_jll]]
+deps = ["Libdl", "Pkg"]
+git-tree-sha1 = "7127f5f40332ccfa43ee07dcd0c4d81a27d9bb23"
+uuid = "a9144af2-ca23-56d9-984f-0d03f7b5ccf8"
+version = "1.0.18+1"
 
 [[p7zip_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
