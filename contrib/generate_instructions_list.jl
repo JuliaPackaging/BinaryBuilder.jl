@@ -60,7 +60,7 @@ function generate_dict()
         dict[name] = instructions
     end
     free(xml)
-    # We're basically converting an XML to a JSOn, funny isn't it?
+    # We're basically converting an XML to a JSON, funny isn't it?
     open(joinpath(@__DIR__, "..", "src", "auditor", "instructions.json"), "w") do io
         pyonprint(io, dict)
         # Be nice and add a newline at the end of the file
