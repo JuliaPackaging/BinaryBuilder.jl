@@ -298,7 +298,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             end
 
             register_jll(src_name, build_version, dependencies, julia_compat;
-                            deploy_repo=deploy_jll_repo, code_dir=code_dir)
+                         deploy_repo=deploy_jll_repo, code_dir=code_dir, extra_kwargs...)
         end
     end
 
@@ -451,7 +451,9 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
                       code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
-                      gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+                      gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
+                      lazy_artifacts::Bool=false,
+                      kwargs...)
     if !Base.isidentifier(name)
         error("Package name \"$(name)\" is not a valid identifier")
     end
@@ -463,7 +465,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
-    project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat))
+    project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; lazy_artifact=lazy_artifact))
     errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
     reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
@@ -1180,6 +1182,11 @@ function build_jll_package(src_name::String,
         baremodule $(src_name)_jll
         using Base
         using Base: UUID
+        """)
+        if lazy_artifacts
+            println(io, "using LazyArtifacts")
+        end
+        print(io, """
         import JLLWrappers
 
         JLLWrappers.@generate_main_file_header($(repr(src_name)))
@@ -1295,7 +1302,7 @@ function build_jll_package(src_name::String,
     rm(joinpath(code_dir, "LICENSE.md"); force=true)
 
     # Add a Project.toml
-    project = build_project_dict(src_name, build_version, dependencies, julia_compat)
+    project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts=lazy_artifacts)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         Pkg.TOML.print(io, project)
     end
@@ -1345,7 +1352,7 @@ const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # For even more interesting historical reasons, we append an extra
 # "_jll" to the name of the new package before computing its UUID.
 jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
-function build_project_dict(name, version, dependencies::Array{Dependency}, julia_compat::String=DEFAULT_JULIA_VERSION_SPEC)
+function build_project_dict(name, version, dependencies::Array{Dependency}, julia_compat::String=DEFAULT_JULIA_VERSION_SPEC; lazy_artifacts::Bool=false, kwargs...)
     function has_compat_info(d::Dependency)
         r = Pkg.Types.VersionRange()
         return isa(d.pkg.version, VersionNumber) ||
@@ -1389,6 +1396,9 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
     project["deps"]["Artifacts"] = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
     project["deps"]["JLLWrappers"] = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
+    if lazy_artifacts
+        project["deps"]["LazyArtifacts"] = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
+    end
 
     return project
 end
