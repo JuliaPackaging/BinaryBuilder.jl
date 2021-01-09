@@ -871,7 +871,6 @@ function step6(state::WizardState)
     println(state.outs)
 
     if choice == 1
-        # filter!(p->!(p in state.failed_platforms), state.platforms)
         state.step = :step7
     elseif choice == 2
         plats = collect(state.failed_platforms)
