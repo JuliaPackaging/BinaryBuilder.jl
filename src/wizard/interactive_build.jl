@@ -871,20 +871,20 @@ function step6(state::WizardState)
     println(state.outs)
 
     if choice == 1
-        filter!(p->!(p in state.failed_platforms), state.platforms)
+        # filter!(p->!(p in state.failed_platforms), state.platforms)
         state.step = :step7
     elseif choice == 2
         plats = collect(state.failed_platforms)
         if length(plats) > 1
-            choice = request(terminal,
+            plat_choice = request(terminal,
                 "Which platform would you like to revisit?",
                 RadioMenu(map(repr, plats); charset=:ascii))
             println(state.outs)
         else
-            choice = 1
+            plat_choice = 1
         end
-        if step5_internal(state, plats[choice])
-            delete!(state.failed_platforms, plats[choice])
+        if step5_internal(state, plats[plat_choice])
+            delete!(state.failed_platforms, plats[plat_choice])
         end
         # Will wrap back around to step 6
     elseif choice == 3
