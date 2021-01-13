@@ -1379,7 +1379,7 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
         "deps" => Dict{String,Any}(),
         # We require at least Julia 1.3+, for Pkg.Artifacts support, but we only claim
         # Julia 1.0+ by default so that empty JLLs can be installed on older versions.
-        "compat" => Dict{String,Any}("JLLWrappers" => "1.2.0",
+        "compat" => Dict{String,Any}("JLLWrappers" => "1.3.0",
                                      "julia" => "$(julia_compat)")
     )
     for dep in dependencies
@@ -1391,11 +1391,11 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     end
     # Always add Libdl, Pkg and Artifacts as dependencies
     # Once we stop supporting Julia 1.5-, we can drop the `Pkg` requirement.
-    stdlibs = isdefined(Pkg.Types, :stdlib) ? Pkg.Types.stdlib : Pkg.Types.stdlibs
     project["deps"]["Libdl"] = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
     project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
     project["deps"]["Artifacts"] = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
     project["deps"]["JLLWrappers"] = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
+    project["deps"]["Preferences"] = "21216c6a-2e73-6563-6e65-726566657250"
     if lazy_artifacts
         project["deps"]["LazyArtifacts"] = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
     end
