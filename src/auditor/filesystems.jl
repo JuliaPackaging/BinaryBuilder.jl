@@ -43,3 +43,27 @@ function check_absolute_paths(prefix::Prefix, all_files::Vector; silent::Bool = 
 
     return true
 end
+
+function ensure_executability(oh::ObjectHandle; verbose::Bool=false, silent::Bool=false)
+    old_mode = filemode(path(oh))
+    # Execution permissions only for users who can read the file
+    read_mask = (old_mode & 0o444) >> 2
+    # Check whether the file has executable permission for all
+    if old_mode & read_mask != read_mask
+        if verbose
+            @info "Making $(path(oh)) executable"
+        end
+        try
+            # Add executable permission for all users that can read the file
+            chmod(path(oh), old_mode | read_mask)
+        catch e
+            if isa(e, InterruptException)
+                rethrow(e)
+            end
+            if !silent
+                @warn "$(path(oh)) could not be made executable!" exception=(e, catch_backtrace())
+            end
+        end
+    end
+    return true
+end
