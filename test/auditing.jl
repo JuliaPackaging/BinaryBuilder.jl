@@ -517,6 +517,52 @@ end
     end
 end
 
+@testset "Auditor - execution permission" begin
+    mktempdir() do build_path
+        build_output_meta = nothing
+        product = LibraryProduct("libfoo", :libfoo)
+        @test_logs (:info, r"Making .*libfoo.* executable") match_mode=:any begin
+            build_output_meta = autobuild(
+                build_path,
+                "exec",
+                v"1.0.0",
+                # No sources
+                FileSource[],
+                # Build a library without execution permissions
+                raw"""
+                mkdir -p "${libdir}"
+                cc -o "${libdir}/libfoo.${dlext}" -fPIC -shared /usr/share/testsuite/c/dyn_link/libfoo/libfoo.c
+                chmod 640 "${libdir}/libfoo.${dlext}"
+                """,
+                # Build for our platform
+                [platform],
+                # Ensure our library product is built
+                [product],
+                # No dependencies
+                Dependency[];
+                verbose = true,
+                require_license = false
+            )
+        end
+
+        # Extract our platform's build
+        @test haskey(build_output_meta, platform)
+        tarball_path, tarball_hash = build_output_meta[platform][1:2]
+        @test isfile(tarball_path)
+
+        # Unpack it somewhere else
+        @test verify(tarball_path, tarball_hash)
+        testdir = joinpath(build_path, "testdir")
+        mkdir(testdir)
+        unpack(tarball_path, testdir)
+        libfoo_path = joinpath(testdir, build_output_meta[platform][4][product]["path"])
+        # Tar.jl normalizes permissions of executable files to 0o755, instead of
+        # recording exact original permissions:
+        # https://github.com/JuliaIO/Tar.jl/blob/37766a22f5a6ac9f07022d83debd5db7d7a4b896/README.md#permissions
+        @test_broken filemode(libfoo_path) & 0o777 == 0o750
+    end
+end
+
 @testset "Auditor - other checks" begin
     mktempdir() do build_path
         @test_logs (:error, r"does not match the hard-float ABI") match_mode=:any begin
