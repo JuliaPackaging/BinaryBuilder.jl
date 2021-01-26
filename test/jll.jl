@@ -99,7 +99,7 @@ end
             version = merged["version"]
             # Filter out build-time dependencies that will not go into the dependencies of
             # the JLL packages.
-            dependencies = Dependency[dep for dep in merged["dependencies"] if !isa(dep, BuildDependency)]
+            dependencies = Dependency[dep for dep in merged["dependencies"] if is_runtime_dependency(dep)]
             lazy_artifacts = merged["lazy_artifacts"]
             build_version = BinaryBuilder.get_next_wrapper_version(name, version)
             repo = "JuliaBinaryWrappers/$(name)_jll.jl"
@@ -109,7 +109,7 @@ end
             # Skip init of the remote repository
             # Filter out build-time dependencies also here
             for json_obj in [merged, objs_unmerged...]
-                json_obj["dependencies"] = Dependency[dep for dep in json_obj["dependencies"] if !isa(dep, BuildDependency)]
+                json_obj["dependencies"] = Dependency[dep for dep in json_obj["dependencies"] if is_runtime_dependency(dep)]
             end
 
             tag = "$(name)-v$(build_version)"
