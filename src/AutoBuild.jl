@@ -283,7 +283,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         # For deploy discard build-only dependencies
         # and make sure we get a `Vector{Dependency}`
-        dependencies = Dependency[dep for dep in dependencies if !isa(dep, BuildDependency)]
+        dependencies = Dependency[dep for dep in dependencies if is_runtime_dependency(dep)]
 
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
@@ -659,10 +659,13 @@ function autobuild(dir::AbstractString,
 
         prefix = setup_workspace(
             build_path,
-            source_files;
+            source_files,
+            concrete_platform,
+            default_host_platform;
             verbose=verbose,
         )
-        artifact_paths = setup_dependencies(prefix, getpkg.(dependencies), concrete_platform; verbose=verbose)
+        host_artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in dependencies if is_host_dependency(d)], default_host_platform; verbose=verbose)
+        target_artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in dependencies if is_target_dependency(d)], concrete_platform; verbose=verbose)
 
         # Create a runner to work inside this workspace with the nonce built-in
         ur = preferred_runner()(
@@ -718,7 +721,7 @@ function autobuild(dir::AbstractString,
         $(script)
         """
 
-        dest_prefix = Prefix(joinpath(prefix.path, "destdir"))
+        dest_prefix = Prefix(BinaryBuilderBase.destdir(prefix.path, concrete_platform))
         did_succeed = with_logfile(dest_prefix, "$(src_name).log") do io
             # Let's start the presentations with BinaryBuilder.jl
             write(io, "BinaryBuilder.jl version: $(get_bb_version())\n\n")
@@ -792,7 +795,8 @@ function autobuild(dir::AbstractString,
         end
 
         # Unsymlink all the deps from the dest_prefix
-        cleanup_dependencies(prefix, artifact_paths)
+        cleanup_dependencies(prefix, host_artifact_paths)
+        cleanup_dependencies(prefix, target_artifact_paths)
 
         # Search for dead links in dest_prefix; raise warnings about them.
         Auditor.warn_deadlinks(dest_prefix.path)
@@ -1067,7 +1071,7 @@ function build_jll_package(src_name::String,
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
     # Drop BuildDependency objects
-    dependencies = Dependency[d for d in dependencies if !isa(d, BuildDependency)]
+    dependencies = Dependency[d for d in dependencies if is_runtime_dependency(d)]
 
     platforms = keys(build_output_meta)
     products_info = Dict{Product,Any}

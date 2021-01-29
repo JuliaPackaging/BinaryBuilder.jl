@@ -229,6 +229,35 @@ end
     end
 end
 
+@testset "HostBuildDependency" begin
+    # A platform for which we certainly can't run executable
+    p = Platform("x86_64", "freebsd")
+    mktempdir() do build_path
+        build_output_meta = autobuild(
+            build_path,
+            "host_dep",
+            v"1.0.0",
+            # No sources
+            DirectorySource[],
+            # Script: run hello_world from the HostBuildDependency
+            raw"""
+            hello_world
+            """,
+            # Platform
+            [p],
+            Product[],
+            # Install `HelloWorldC_jll` for both the target and the host.
+            [
+                HostBuildDependency("HelloWorldC_jll"),
+                Dependency("HelloWorldC_jll"),
+            ];
+            # Don't do audit passes
+            skip_audit=true,
+        )
+        @test haskey(build_output_meta, p)
+    end
+end
+
 @testset "Invalid Arguments" begin
     mktempdir() do build_path
         # Test that invalid JLL names both @warn and error()
