@@ -18,8 +18,9 @@ function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::B
     elseif call_abi(p) == "eabihf"
         # Make sure the object file has the hard-float ABI.  See Table 4-2 of
         # "ELF for the ARM Architecture" document
-        # (https://developer.arm.com/documentation/ihi0044/e/).
-        if iszero(header(oh).e_flags & 0x400)
+        # (https://developer.arm.com/documentation/ihi0044/e/).  Note: `0x000`
+        # means "no specific float ABI", `0x400` == EF_ARM_ABI_FLOAT_HARD.
+        if header(oh).e_flags & 0xF00 ∉ (0x000, 0x400)
             if verbose
                 @error("$(basename(path(oh))) does not match the hard-float ABI")
             end
