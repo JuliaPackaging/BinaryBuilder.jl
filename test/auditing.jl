@@ -517,9 +517,56 @@ end
     end
 end
 
-@testset "Auditor - other checks" begin
+@testset "Auditor - execution permission" begin
     mktempdir() do build_path
-        @test_logs (:error, r"does not match the hard-float ABI") match_mode=:any begin
+        build_output_meta = nothing
+        product = LibraryProduct("libfoo", :libfoo)
+        @test_logs (:info, r"Making .*libfoo.* executable") match_mode=:any begin
+            build_output_meta = autobuild(
+                build_path,
+                "exec",
+                v"1.0.0",
+                # No sources
+                FileSource[],
+                # Build a library without execution permissions
+                raw"""
+                mkdir -p "${libdir}"
+                cc -o "${libdir}/libfoo.${dlext}" -fPIC -shared /usr/share/testsuite/c/dyn_link/libfoo/libfoo.c
+                chmod 640 "${libdir}/libfoo.${dlext}"
+                """,
+                # Build for our platform
+                [platform],
+                # Ensure our library product is built
+                [product],
+                # No dependencies
+                Dependency[];
+                verbose = true,
+                require_license = false
+            )
+        end
+
+        # Extract our platform's build
+        @test haskey(build_output_meta, platform)
+        tarball_path, tarball_hash = build_output_meta[platform][1:2]
+        @test isfile(tarball_path)
+
+        # Unpack it somewhere else
+        @test verify(tarball_path, tarball_hash)
+        testdir = joinpath(build_path, "testdir")
+        mkdir(testdir)
+        unpack(tarball_path, testdir)
+        libfoo_path = joinpath(testdir, build_output_meta[platform][4][product]["path"])
+        # Tar.jl normalizes permissions of executable files to 0o755, instead of
+        # recording exact original permissions:
+        # https://github.com/JuliaIO/Tar.jl/blob/37766a22f5a6ac9f07022d83debd5db7d7a4b896/README.md#permissions
+        @test_broken filemode(libfoo_path) & 0o777 == 0o750
+    end
+end
+
+@testset "Auditor - other checks" begin
+    platform = Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")
+    mktempdir() do build_path
+        build_output_meta = @test_logs (:error, r"libsoft.so does not match the hard-float ABI") match_mode=:any begin
             autobuild(
                 build_path,
                 "hard_float_ABI",
@@ -529,19 +576,45 @@ end
                 # Build a library which doesn't link to the standard library and
                 # forces the soft-float ABI
                 raw"""
-                mkdir -p "${libdir}"
-                echo 'int _start() { return 0; }' | /opt/${target}/bin/${target}-gcc -nostdlib -shared -mfloat-abi=soft -o "${libdir}/libfoo.${dlext}" -x c -
+                mkdir -p "${libdir}" "${bindir}"
+                # This library has hard-float ABI
+                echo 'int test() { return 0; }' | cc -shared -fPIC -o "${libdir}/libhard.${dlext}" -x c -
+                # This library has soft-float ABI
+                echo 'int _start() { return 0; }' | /opt/${target}/bin/${target}-gcc -nostdlib -shared -mfloat-abi=soft -o "${libdir}/libsoft.${dlext}" -x c -
+                # hello_world built by Go doesn't specify any float ABI
+                make -C /usr/share/testsuite/go/hello_world/
+                cp "/tmp/testsuite/${target}/go/hello_world/hello_world" "${bindir}/hello_world"
                 """,
                 # Build for Linux armv7l hard-float
-                [Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")],
+                [platform],
                 # Ensure our library product is built
-                [LibraryProduct("libfoo", :libfoo)],
+                [
+                    LibraryProduct("libhard", :libhard),
+                    LibraryProduct("libsoft", :libsoft),
+                    ExecutableProduct("hello_world", :hello_world),
+                ],
                 # No dependencies
                 Dependency[];
+                compilers = [:c, :go],
                 verbose = true,
                 require_license = false
             )
         end
+
+        @test haskey(build_output_meta, platform)
+        tarball_path, tarball_hash = build_output_meta[platform][1:2]
+        @test isfile(tarball_path)
+
+        # Unpack it somewhere else
+        @test verify(tarball_path, tarball_hash)
+        testdir = joinpath(build_path, "testdir")
+        mkdir(testdir)
+        unpack(tarball_path, testdir)
+        # Remove libsoft.so, we want to run audit only on the other products
+        rm(joinpath(testdir, "lib", "libsoft.so"))
+        # Make sure `hello_world` passes the float ABI check even if it doesn't
+        # set `EF_ARM_ABI_FLOAT_HARD`.
+        @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
     end
 end
 

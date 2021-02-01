@@ -85,6 +85,13 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     all_ok &= check_isa(oh, platform, prefix; verbose=verbose, silent=silent)
                     # Check that the OS ABI is set correctly (often indicates the wrong linker was used)
                     all_ok &= check_os_abi(oh, platform, verbose = verbose)
+                    # Make sure all binary files are executables, if libraries aren't
+                    # executables Julia may not be able to dlopen them:
+                    # https://github.com/JuliaLang/julia/issues/38993.  In principle this
+                    # should be done when autofix=true, but we have to run this fix on MKL
+                    # for Windows, for which however we have to set autofix=false:
+                    # https://github.com/JuliaPackaging/Yggdrasil/pull/922.
+                    all_ok &= ensure_executability(oh; verbose=verbose, silent=silent)
 
                     # If this is a dynamic object, do the dynamic checks
                     if isdynamic(oh)

@@ -1,6 +1,14 @@
-using BinaryBuilderBase: get_concrete_platform
+using BinaryBuilderBase: get_concrete_platform, destdir
 
 include("hints.jl")
+
+# Add new method to `get_concrete_platform`: this is a common pattern throughout
+# this file.
+BinaryBuilderBase.get_concrete_platform(platform::AbstractPlatform, state::WizardState) =
+    get_concrete_platform(platform;
+                          preferred_gcc_version = state.preferred_gcc_version,
+                          preferred_llvm_version = state.preferred_llvm_version,
+                          compilers = state.compilers)
 
 # When rerunning the script generated during the wizard we want to fail on error
 # and automatically install license at the end.
@@ -17,10 +25,11 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
                build_path::AbstractString, prefix::Prefix)
     printstyled(state.outs, "\t\t\t# Step 4: Select build products\n\n", bold=true)
 
+    concrete_platform = get_concrete_platform(platform, state)
     # Collect all executable/library files, explicitly exclude everything that is
     # a symlink to the artifacts directory, as usual.
-    destdir = joinpath(prefix, "destdir")
-    files = filter(f -> startswith(f, destdir), collapse_symlinks(collect_files(destdir)))
+    destdir_path = destdir(prefix, concrete_platform)
+    files = filter(f -> startswith(f, destdir_path), collapse_symlinks(collect_files(destdir_path)))
     files = filter_object_files(files)
 
     # Check if we can load them as an object file
@@ -31,7 +40,7 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
     end
 
     # Strip out the prefix from filenames
-    state.files = map(file->replace(file, "$(destdir)/" => ""), files)
+    state.files = map(file->replace(file, "$(destdir_path)/" => ""), files)
     state.file_kinds = map(files) do f
         readmeta(f) do oh
             if isexecutable(oh)
@@ -63,10 +72,7 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
 
         if choice == 1
             # Link dependencies into the prefix again
-            concrete_platform = get_concrete_platform(platform;
-                                                      preferred_gcc_version = state.preferred_gcc_version,
-                                                      preferred_llvm_version = state.preferred_llvm_version,
-                                                      compilers = state.compilers)
+            concrete_platform = get_concrete_platform(platform, state)
             artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
             return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
         elseif choice == 2
@@ -214,10 +220,7 @@ function bb_add(client, state::WizardState, prefix::Prefix, platform::AbstractPl
     new_dep = Dependency(jll)
     try
         # This will redo some work, but that may be ok
-        concrete_platform = get_concrete_platform(platform;
-                                                  preferred_gcc_version = state.preferred_gcc_version,
-                                                  preferred_llvm_version = state.preferred_llvm_version,
-                                                  compilers = state.compilers)
+        concrete_platform = get_concrete_platform(platform, state)
         # Clear out the prefix artifacts directory in case this change caused
         # any previous dependencies to change
         let artifacts_dir = joinpath(prefix, "artifacts")
@@ -408,7 +411,8 @@ function step3_interactive(state::WizardState, prefix::Prefix,
         cleanup_dependencies(prefix, artifact_paths)
         state.step = :step3_retry
     else
-        step3_audit(state, platform, joinpath(prefix, "destdir"))
+        concrete_platform = get_concrete_platform(platform, state)
+        step3_audit(state, platform, destdir(prefix, concrete_platform))
         # Unsymlink all the deps from the dest_prefix before moving to the next step
         cleanup_dependencies(prefix, artifact_paths)
         return step4(state, ur, platform, build_path, prefix)
@@ -429,11 +433,8 @@ function step3_retry(state::WizardState)
 
     build_path = tempname()
     mkpath(build_path)
-    prefix = setup_workspace(build_path, vcat(state.source_files, state.patches); verbose=false)
-    concrete_platform = get_concrete_platform(platform;
-                                              preferred_gcc_version = state.preferred_gcc_version,
-                                              preferred_llvm_version = state.preferred_llvm_version,
-                                              compilers = state.compilers)
+    concrete_platform = get_concrete_platform(platform, state)
+    prefix = setup_workspace(build_path, vcat(state.source_files, state.patches), concrete_platform; verbose=false)
     artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
 
     ur = preferred_runner()(
@@ -448,7 +449,7 @@ function step3_retry(state::WizardState)
     with_logfile(joinpath(build_path, "out.log")) do io
         run(ur, `/bin/bash -c $(full_wizard_script(state))`, io; verbose=true, tee_stream=state.outs)
     end
-    step3_audit(state, platform, joinpath(prefix, "destdir"))
+    step3_audit(state, platform, destdir(prefix, concrete_platform))
     # Unsymlink all the deps from the dest_prefix before moving to the next step
     cleanup_dependencies(prefix, artifact_paths)
 
@@ -514,15 +515,13 @@ function step34(state::WizardState)
     build_path = tempname()
     mkpath(build_path)
     state.history = ""
+    concrete_platform = get_concrete_platform(platform, state)
     prefix = setup_workspace(
         build_path,
-        vcat(state.source_files, state.patches);
+        vcat(state.source_files, state.patches),
+        concrete_platform;
         verbose=false
     )
-    concrete_platform = get_concrete_platform(platform;
-                                              preferred_gcc_version = state.preferred_gcc_version,
-                                              preferred_llvm_version = state.preferred_llvm_version,
-                                              compilers = state.compilers)
     artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
 
     provide_hints(state, joinpath(prefix, "srcdir"))
@@ -564,13 +563,10 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
     prefix_artifacts = Dict{Prefix,Vector{String}}()
     while !ok
         cd(build_path) do
-            prefix = setup_workspace(build_path, vcat(state.source_files, state.patches); verbose=true)
+            concrete_platform = get_concrete_platform(platform, state)
+            prefix = setup_workspace(build_path, vcat(state.source_files, state.patches), concrete_platform; verbose=true)
             # Clean up artifacts in case there are some
             cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
-            concrete_platform = get_concrete_platform(platform;
-                                                      preferred_gcc_version = state.preferred_gcc_version,
-                                                      preferred_llvm_version = state.preferred_llvm_version,
-                                                      compilers = state.compilers)
             artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
             # Record newly added artifacts for this prefix
             prefix_artifacts[prefix] = artifact_paths
@@ -597,7 +593,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
                     msg = "The build script failed (see above).\n"
                     println(state.outs, msg)
                 else
-                    audit(Prefix(joinpath(prefix, "destdir")); io=state.outs,
+                    audit(Prefix(destdir(prefix, concrete_platform)); io=state.outs,
                         platform=platform, verbose=true, autofix=true, require_license=true)
 
                     ok = isempty(match_files(state, prefix, platform, state.files))
@@ -638,17 +634,15 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
                     elseif choice == 2
                         rm(build_path; force=true, recursive=true)
                         mkpath(build_path)
+                        concrete_platform = get_concrete_platform(platform, state)
                         prefix = setup_workspace(
                             build_path,
-                            vcat(state.source_files, state.patches);
+                            vcat(state.source_files, state.patches),
+                            concrete_platform;
                             verbose=true,
                         )
                         # Clean up artifacts in case there are some
                         cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
-                        concrete_platform = get_concrete_platform(platform;
-                                                                  preferred_gcc_version = state.preferred_gcc_version,
-                                                                  preferred_llvm_version = state.preferred_llvm_version,
-                                                                  compilers = state.compilers)
                         artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform; verbose=true)
                         # Record newly added artifacts for this prefix
                         prefix_artifacts[prefix] = artifact_paths
@@ -775,15 +769,13 @@ function step5c(state::WizardState)
         mkpath(build_path)
         local ok = true
 
+        concrete_platform = get_concrete_platform(platform, state)
         prefix = setup_workspace(
             build_path,
-            vcat(state.source_files, state.patches);
+            vcat(state.source_files, state.patches),
+            concrete_platform;
             verbose=false,
         )
-        concrete_platform = get_concrete_platform(platform;
-                                                  preferred_gcc_version = state.preferred_gcc_version,
-                                                  preferred_llvm_version = state.preferred_llvm_version,
-                                                  compilers = state.compilers)
         artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=false)
         ur = preferred_runner()(
             prefix.path;
@@ -799,7 +791,7 @@ function step5c(state::WizardState)
         end
 
         if ok
-            audit(Prefix(joinpath(prefix, "destdir"));
+            audit(Prefix(destdir(prefix, concrete_platform));
                 io=state.outs,
                 platform=platform,
                 verbose=false,

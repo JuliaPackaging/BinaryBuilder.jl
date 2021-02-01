@@ -25,7 +25,7 @@ export AnyPlatform
 export Product, LibraryProduct, FileProduct, ExecutableProduct, FrameworkProduct, satisfied,
        locate, write_deps_file, variable_name
 # BinaryBuilderBase/src/Dependency.jl
-export Dependency, BuildDependency
+export Dependency, BuildDependency, HostBuildDependency
 # BinaryBuilderBase/src/Sources.jl
 export ArchiveSource, FileSource, GitSource, DirectorySource
 # Auditor.jl
