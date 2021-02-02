@@ -1,4 +1,6 @@
 export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json
+
+using BinaryBuilderBase: _package_fast
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using Pkg.TOML, Dates, UUIDs
@@ -815,7 +817,7 @@ function autobuild(dir::AbstractString,
         compress_dir(joinpath(dest_prefix.path, "logs"), verbose=verbose)
 
         # Once we're built up, go ahead and package this dest_prefix out
-        tarball_path, tarball_hash, git_hash = package(
+        tarball_path, tarball_hash, git_hash = _package_fast(
             dest_prefix,
             joinpath(out_path, src_name),
             src_version;
