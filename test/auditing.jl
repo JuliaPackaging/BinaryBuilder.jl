@@ -27,7 +27,7 @@ end
     @test compatible_marchs(Platform("x86_64", "linux"; march="avx2")) == ["x86_64", "avx", "avx2"]
     @test compatible_marchs(Platform("x86_64", "linux"; march="avx512")) == ["x86_64", "avx", "avx2", "avx512"]
     @test compatible_marchs(Platform("armv7l", "linux")) == ["armv7l"]
-    @test compatible_marchs(Platform("i686", "linux"; march="prescott")) == ["i686", "prescott"]
+    @test compatible_marchs(Platform("i686", "linux"; march="prescott")) == ["pentium4", "prescott"]
     @test compatible_marchs(Platform("aarch64", "linux"; march="armv8_1")) == ["armv8_0", "armv8_1"]
 
     product = ExecutableProduct("main", :main)
