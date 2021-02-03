@@ -23,7 +23,7 @@ jobs:
     clean: true
   - bash: |
       set -e
-      $(JULIA) -e 'using Pkg; Pkg.instantiate()'
+      $(JULIA) -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate()'
       $(JULIA) -e 'using BinaryBuilder; BinaryBuilder.versioninfo()'
       $(JULIA) -e 'using Pkg; Pkg.status(; mode=PKGMODE_MANIFEST)'
     name: SystemInfo

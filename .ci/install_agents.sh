@@ -29,7 +29,7 @@ if [[ ! -f "${STORAGE_DIR}/rootfs/usr/local/bin/julia" ]]; then
     # Install Julia
     echo "Installing Julia..."
     mkdir -p "${STORAGE_DIR}/rootfs/depot"
-    JULIA_URL="https://julialangnightlies-s3.julialang.org/bin/linux/x64/julia-latest-linux64.tar.gz"
+    JULIA_URL="https://julialangnightlies-s3.julialang.org/bin/linux/x64/1.6/julia-latest-linux64.tar.gz"
     curl -# -L "$JULIA_URL" | tar --strip-components=1 -zx -C "${STORAGE_DIR}/rootfs/usr/local"
 fi
 
