@@ -16,6 +16,7 @@ include("auditor/compiler_abi.jl")
 include("auditor/soname_matching.jl")
 include("auditor/filesystems.jl")
 include("auditor/extra_checks.jl")
+include("auditor/codesigning.jl")
 
 # AUDITOR TODO LIST:
 #
@@ -110,6 +111,9 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     end
                 end
             end
+
+            # Ensure this file is codesigned (currently only does something on Apple platforms)
+            all_ok &= ensure_codesigned(f, prefix, platform; verbose)
         catch e
             if !isa(e, ObjectFile.MagicMismatch)
                 rethrow(e)

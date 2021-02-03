@@ -368,6 +368,9 @@ end
         wrong_id_path = locate(wrong_id, prefix; platform=platform)
         @test any(startswith.(wrong_id_path, libdirs(prefix)))
         @test get_dylib_id(wrong_id_path) == "@rpath/totally_different.dylib"
+
+        # Ensure that this bianry is codesigned
+        @test BinaryBuilder.Auditor.check_codesigned(right_id_path, platform)
     end
 end
 
