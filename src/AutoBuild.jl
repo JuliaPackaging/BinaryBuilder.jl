@@ -1395,7 +1395,6 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
     project["deps"]["Artifacts"] = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
     project["deps"]["JLLWrappers"] = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
-    project["deps"]["Preferences"] = "21216c6a-2e73-6563-6e65-726566657250"
     if lazy_artifacts
         project["deps"]["LazyArtifacts"] = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
     end
