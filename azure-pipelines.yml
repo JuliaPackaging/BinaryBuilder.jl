@@ -13,7 +13,6 @@ variables:
   JULIA: unbuffer julia --project=$(Build.SourcesDirectory) --color=yes
   BINARYBUILDER_AUTOMATIC_APPLE: true
   BINARYBUILDER_USE_CCACHE: true
-  JULIA_PKG_SERVER: ""
 
 jobs:
 - job: Info
@@ -23,7 +22,7 @@ jobs:
     clean: true
   - bash: |
       set -e
-      $(JULIA) -e 'using Pkg; Pkg.instantiate()'
+      $(JULIA) -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate()'
       $(JULIA) -e 'using BinaryBuilder; BinaryBuilder.versioninfo()'
       $(JULIA) -e 'using Pkg; Pkg.status(; mode=PKGMODE_MANIFEST)'
     name: SystemInfo
