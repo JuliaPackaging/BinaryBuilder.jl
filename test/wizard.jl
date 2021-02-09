@@ -420,7 +420,7 @@ end
             state = state_generator()
 
             Wizard.save_wizard_state(state, dir)
-            @test Wizard.load_wizard_state(dir) == state
+            @test Wizard.load_wizard_state(dir; as_is=true) == state
         end
     end
 end
