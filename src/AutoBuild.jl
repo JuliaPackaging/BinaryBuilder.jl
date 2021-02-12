@@ -1053,6 +1053,28 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                       kwargs...)
 end
 
+function print_import(io::IO, pkg)
+    pkg = getpkg(pkg) # Pkg.PackageSpec
+    if pkg.uuid === nothing
+        # TODO: is it possible? should we just error out?
+        println(io, "using $(getname(pkg))")
+    else
+        # The script generaged for jll is directly included via JLLWrappers.jl at run-time.
+        # However, since there is no gurantee that the dependencies are in the top-level
+        # dependencies of `Project.toml` in the current load path, we cannot use the
+        # standard import mechanism.
+        # Ref: https://github.com/JuliaLang/julia/issues/39631
+        name = getname(pkg)
+        uuid = string(pkg.uuid)
+        println(
+            io,
+            """
+            const $name = Base.require(Base.PkgId(Base.UUID($(repr(uuid))), $(repr(name))))
+            using .$name
+            """)
+    end
+end
+
 function build_jll_package(src_name::String,
                            build_version::VersionNumber,
                            sources::Vector,
@@ -1105,7 +1127,7 @@ function build_jll_package(src_name::String,
                 """)
             end
             for dep in dependencies
-                println(io, "using $(getname(dep))")
+                print_import(io, dep)
             end
 
             # Generate header definitions like `find_artifact_dir()`
