@@ -144,7 +144,7 @@ function run_wizard(state::Union{Nothing,WizardState} = nothing)
     end
 
     # We did it!
-    save_last_wizard_state(state)
+    save_wizard_state(state)
 
     println(state.outs, "\nWizard Complete. Press Enter to exit...")
     read(state.ins, Char)
