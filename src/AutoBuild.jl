@@ -1402,7 +1402,6 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     end
     # Always add Libdl, Pkg and Artifacts as dependencies
     # Once we stop supporting Julia 1.5-, we can drop the `Pkg` requirement.
-    stdlibs = isdefined(Pkg.Types, :stdlib) ? Pkg.Types.stdlib : Pkg.Types.stdlibs
     project["deps"]["Libdl"] = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
     project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
     project["deps"]["Artifacts"] = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
