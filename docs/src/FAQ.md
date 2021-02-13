@@ -30,26 +30,6 @@ What BinaryBuilder needs is to find the relevant file (shared libraries, or exec
 When the script completes, BinaryBuilder expects to find at least one artifact _built for the expected architecture_ in either `${libdir}` or `${bindir}`.
 Remember also that you should use the standard environment variables like `CC`, `CXX`, `CFLAGS`, `LDFLAGS` as appropriate in order to cross compile.  See the list of variables in the [Tips for Building Packages](build_tips.md) section.
 
-### I love the wizard, but now I want to break free: can I build the tarballs without it?
-
-The `build_tarballs.jl` script can be used as a command line utility, it takes a few options and as argument the list of triplets of the targets.  You can find more information about the syntax of the script in the [Command Line](@ref) section or by running
-```
-julia build_tarballs.jl --help
-```
-Instead of using the wizard, you can adapt for a new library a `build_tarballs.jl` script originally written for another library.  Then, you can build the tarballs with
-```
-julia --color=yes build_tarballs.jl --debug --verbose
-```
-The `--debug` option will drop you into the BinaryBuilder interactive shell if an error occurs.  If the build fails, after finding out the steps needed to fix the build you have to manually update the script in `build_tarballs.jl`.  You should run again the above command to make sure that everything is actually working.
-
-Since `build_tarballs.jl` takes as argument the comma-separated list of targets for which to build the tarballs, you can select only a few of them.  For example, with
-```
-julia --color=yes build_tarballs.jl --debug --verbose aarch64-linux-musl,arm-linux-musleabihf
-```
-you'll run the build script only for the `aarch64-linux-musl` and `arm-linux-musleabihf` targets.
-
-If you decide to use this workflow, however, you will need to manually open pull requests for [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/).
-
 ### Can I open a shell in a particular build environment for doing some quick tests?
 
 Yes!  You can use [`BinaryBuilder.runshell(platform)`](@ref BinaryBuilderBase.runshell) to quickly start a shell in the current directory, without having to set up a working `build_tarballs.jl` script.  For example,
@@ -65,7 +45,7 @@ You can always build a JLL package on your machine with the `--deploy` flag to t
 A common use case is that you want to build a JLL package for, say, `Libfoo`, that will be used as dependency to build `Quxlib`, and you want to make sure that building both `Libfoo` and `Quxlib` will work before submitting all the pull requests to [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/).  You can prepare the `build_tarballs.jl` script for `Libfoo` and then build and deploy it with
 
 ```
-julia --color=yes build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Libfoo_jll.jl"
+julia build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Libfoo_jll.jl"
 ```
 
 replacing `MY_USERNAME` with your GitHub username: this will build the tarballs for all the platforms requested and upload them to a release of the `MY_USERNAME/Libfoo_jll.jl`, where the JLL package will also be created.  As explained above, you can pass argument the list of triplets of the platforms for you which you want to build the tarballs, in case you want to compile only some of them.  In the Julia REPL, you can install this package as any unregistered package with
@@ -89,7 +69,7 @@ Since this package is unregistered, you have to use the full [`PackageSpec`](htt
 You can of course in turn build and deply this package with
 
 ```
-julia --color=yes build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
+julia build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
 ```
 
 ### Can I install packages in the build environment?

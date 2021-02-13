@@ -149,7 +149,7 @@ supported_platforms()
 triplet.(supported_platforms())
 ```
 
-The triplet of the platform is used name of the tarball generated.
+The triplet of the platform is used in the name of the tarball generated.
 
 For some packages, (cross-)compilation may not be possible for all those
 platforms, or you have interested in building the package only for a subset of
@@ -191,13 +191,13 @@ You should be aware of two incompatibilities in particular:
   julia> using BinaryBuilder
 
   julia> platforms = [Platform("x86_64", "linux")]
-  1-element Array{Linux,1}:
-   Platform("x86_64", "linux"; libc="glibc")
+  1-element Vector{Platform}:
+   Linux x86_64 {libc=glibc}
 
   julia> expand_cxxstring_abis(platforms)
-  2-element Array{Platform,1}:
-   Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(cxxstring_abi=:cxx03))
-   Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(cxxstring_abi=:cxx11))
+  2-element Vector{Platform}:
+   Linux x86_64 {cxxstring_abi=cxx03, libc=glibc}
+   Linux x86_64 {cxxstring_abi=cxx11, libc=glibc}
   ```
 
   Example of packages dealing with the C++ `std::string` ABIs are:
@@ -222,14 +222,14 @@ You should be aware of two incompatibilities in particular:
   julia> using BinaryBuilder
 
   julia> platforms = [Platform("x86_64", "linux")]
-  1-element Array{Linux,1}:
-   Platform("x86_64", "linux"; libc="glibc")
+  1-element Vector{Platform}:
+   Linux x86_64 {libc=glibc}
 
   julia> expand_gfortran_versions(platforms)
-  3-element Array{Platform,1}:
-   Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"3.0.0"))
-   Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"4.0.0"))
-   Linux(:x86_64, libc=:glibc, compiler_abi=CompilerABI(libgfortran_version=v"5.0.0"))
+  3-element Vector{Platform}:
+   Linux x86_64 {libc=glibc, libgfortran_version=3.0.0}
+   Linux x86_64 {libc=glibc, libgfortran_version=4.0.0}
+   Linux x86_64 {libc=glibc, libgfortran_version=5.0.0}
   ```
 
   Example of packages expanding the `libgfortran` versions are:
