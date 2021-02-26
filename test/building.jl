@@ -293,6 +293,8 @@ end
             Dependency[],
         )
     end
+
+    @test_throws ErrorException build_tarballs(String[], "", v"1.0", GitSource[], "", supported_platforms(; experimental=true), LibraryProduct[], Dependency[])
 end
 
 @testset "AnyPlatform" begin

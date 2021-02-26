@@ -15,6 +15,7 @@ import PkgLicenses
 using JLD2
 using Base.BinaryPlatforms
 using Dates
+using Scratch
 
 # It's Magic (TM)!
 export run_wizard, deploy
@@ -27,17 +28,16 @@ include("wizard/obtain_source.jl")
 include("wizard/interactive_build.jl")
 include("wizard/deploy.jl")
 
-function save_last_wizard_state(state::WizardState)
-    BinaryBuilderBase.create_and_bind_mutable_artifact!("wizard_state") do dir
-        jldopen(joinpath(dir, "wizard.state"), "w") do f
-            serialize(f, state)
-        end
+function save_wizard_state(state::WizardState,
+                           wizard_state_dir::String = @get_scratch!("wizard_state"))
+    jldopen(joinpath(wizard_state_dir, "wizard.state"), "w") do f
+        serialize(f, state)
     end
     return state
 end
 
-function load_last_wizard_state(; as_is::Bool = false)
-    wizard_state_dir = BinaryBuilderBase.get_mutable_artifact_path("wizard_state")
+function load_wizard_state(wizard_state_dir::String = @get_scratch!("wizard_state");
+                           as_is::Bool = false)
 
     # If no state dir exists, early-exit
     if wizard_state_dir === nothing
@@ -89,7 +89,7 @@ function run_wizard(state::Union{Nothing,WizardState} = nothing)
     if state === nothing
         # If we weren't given a state, check to see if we'd like to resume a
         # previous run or start from scratch again.
-        state = load_last_wizard_state()
+        state = load_wizard_state()
     end
 
     try
@@ -119,11 +119,11 @@ function run_wizard(state::Union{Nothing,WizardState} = nothing)
             end
 
             # Save it every step along the way
-            save_last_wizard_state(state)
+            save_wizard_state(state)
         end
     catch err
         # If anything goes wrong, immediately save the current wizard state
-        save_last_wizard_state(state)
+        save_wizard_state(state)
         if isa(err, InterruptException)
             msg = "\n\nWizard stopped, use BinaryBuilder.run_wizard() to resume"
             if state.step in (:step3, :step3_retry, :step5a, :step5b, :step5c, :step6)
@@ -144,7 +144,7 @@ function run_wizard(state::Union{Nothing,WizardState} = nothing)
     end
 
     # We did it!
-    save_last_wizard_state(state)
+    save_wizard_state(state)
 
     println(state.outs, "\nWizard Complete. Press Enter to exit...")
     read(state.ins, Char)

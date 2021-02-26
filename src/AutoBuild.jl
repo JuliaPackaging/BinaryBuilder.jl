@@ -123,6 +123,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         return nothing
     end
 
+    # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
+    if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && !occursin(r"1\.[67]", julia_compat)
+        error("Experimental platforms cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
+    end
+
     # XXX: These are needed as long as we support old-style sources and
     # dependencies.  Raise a warning for now, deprecate in BB 0.3+
     sources = coerce_source.(sources)
@@ -1402,7 +1407,6 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     end
     # Always add Libdl, Pkg and Artifacts as dependencies
     # Once we stop supporting Julia 1.5-, we can drop the `Pkg` requirement.
-    stdlibs = isdefined(Pkg.Types, :stdlib) ? Pkg.Types.stdlib : Pkg.Types.stdlibs
     project["deps"]["Libdl"] = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
     project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
     project["deps"]["Artifacts"] = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
