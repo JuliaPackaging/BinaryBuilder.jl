@@ -93,12 +93,12 @@ function obtain_token(; outs=stdout, github_api=GitHub.DEFAULT_API)
 
         token = token_reply["access_token"]
 
-        print(outs, strip("""
+        print(outs, """
         Successfully obtained GitHub authorization token!
         This token will be used for the rest of this BB session.
         You will have to re-authenticate for any future session.
         However, if you wish to bypass this step, you may create a
-        personal access token at """))
+        personal access token at """)
         printstyled("https://github.com/settings/tokens"; bold=true)
         println("\n and add the token to the")
         printstyled(outs, "~/.julia/config/startup.jl"; bold=true)
