@@ -74,7 +74,15 @@ julia build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
 
 ### Can I install packages in the build environment?
 
-Yes, but it's unlikely that you'll need to.  The build environment is based on Alpine Linux (triplet: `x86_64-linux-musl`) so you can use [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management) to install packages in it.  However, if you need runtime libraries or programs for the target system these packages won't help you.  The package manager is useful only to install utilities, tools or libraries that are needed exclusively at compile time on the build system.
+Yes.  The build environment is based on Alpine Linux (triplet: `x86_64-linux-musl`) so you can use [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management) to install packages in it. There are two kinds of dependencies, host and target dependencies. Install host dependencies with `apk` and target dependencies as jlls. Sometimes you will need both the host and the target version of a dependency. See the table below for a comparison:
+
+| Comparison | Host dependency | Target dependency |
+|-|-|-|
+| Compiled for | Host | Target |
+| Time of use | Run during compile time | Linked to during compile time, run later by the user |
+| Usage | Called from the command line | Referenced in code |
+| Products used | Command line tool | C libraries and header files |
+| Install method | `apk` | jlls |
 
 ### What are those numbers in the list of sources?  How do I get them?
 
