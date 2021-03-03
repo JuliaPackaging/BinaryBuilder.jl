@@ -133,6 +133,18 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     sources = coerce_source.(sources)
     dependencies = coerce_dependency.(dependencies)
 
+    # Reject user supplied dependencies using a VersionSpec: these should
+    # either use compat, or build_version, or both (depending on what they are
+    # trying to achieve). We cannot check for this in the Dependency
+    # constructor, as there are several valid situations in which we *do* want
+    # to store versions here (e.g. after running the dependency through the
+    # package resolver).
+    for dep in dependencies
+        if dep isa Dependency && dep.pkg.version != Pkg.Types.VersionSpec("*")
+            error("Dependency $(dep.pkg.name) specifies a version, use build_version and/or compat instead")
+        end
+    end
+
     # Do not clobber caller's ARGS
     ARGS = deepcopy(ARGS)
 
@@ -1369,24 +1381,6 @@ const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # "_jll" to the name of the new package before computing its UUID.
 jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
 function build_project_dict(name, version, dependencies::Array{Dependency}, julia_compat::String=DEFAULT_JULIA_VERSION_SPEC; lazy_artifacts::Bool=false, kwargs...)
-    function has_compat_info(d::Dependency)
-        r = Pkg.Types.VersionRange()
-        return isa(d.pkg.version, VersionNumber) ||
-               length(d.pkg.version.ranges) != 1 ||
-               d.pkg.version.ranges[1] != r
-    end
-    function exactly_this_version(v::VersionNumber)
-        return string("=", VersionNumber(v.major, v.minor, v.patch))
-    end
-    function exactly_this_version(v::Pkg.Types.VersionSpec)
-        if length(v.ranges) == 1 &&
-           v.ranges[1].lower.n == 3 &&
-           v.ranges[1].lower == v.ranges[1].upper
-           return string("=", v)
-       end
-       return string(v)
-    end
-    exactly_this_version(v) = v
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(
         "name" => "$(name)_jll",
@@ -1401,8 +1395,9 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
     for dep in dependencies
         depname = getname(dep)
         project["deps"][depname] = string(jll_uuid(depname))
-        if has_compat_info(dep)
-            project["compat"][depname] = string(exactly_this_version(dep.pkg.version))
+        if dep isa Dependency && length(dep.compat) > 0
+            Pkg.Types.semver_spec(dep.compat) # verify dep.compat is valid
+            project["compat"][depname] = dep.compat
         end
     end
     # Always add Libdl, Pkg and Artifacts as dependencies

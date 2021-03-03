@@ -221,21 +221,21 @@ end
 
     # Ensure passing compat bounds works
     dependencies = [
-        Dependency(PackageSpec(name="libLLVM_jll", version=v"9")),
+        Dependency(PackageSpec(name="libLLVM_jll"), compat="=9.0.0"),
     ]
     dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
     @test dict["compat"]["julia"] == "1.0"
     @test dict["compat"]["libLLVM_jll"] == "=9.0.0"
 
     dependencies = [
-        Dependency(PackageSpec(name="libLLVM_jll", version="8.3-10")),
+        Dependency(PackageSpec(name="libLLVM_jll"), compat="8.3 - 10"),
     ]
     dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
     @test dict["compat"]["julia"] == "1.0"
-    @test dict["compat"]["libLLVM_jll"] == "8.3-10"
+    @test dict["compat"]["libLLVM_jll"] == "8.3 - 10"
 
     dependencies = [
-        Dependency(PackageSpec(name="libLLVM_jll", version="8.3.0-8.3")),
+        Dependency(PackageSpec(name="libLLVM_jll"), compat="8.3"),
     ]
     dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
     @test dict["compat"]["libLLVM_jll"] == "8.3"
