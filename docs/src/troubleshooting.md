@@ -25,8 +25,9 @@ If instead the project uses CMake you'll need to use a different environment var
 
 ### Libraries of the dependencies can't be found
 
-Like in the section above, it may happen that the build system fails to find the libraries of the dependencies, even when they're installed to the right place.  In these case, you have to inform the linker where the libraries are by setting the `LDFLAGS` environment variable:
+Like in the section above, it may happen that the build system fails to find the libraries of the dependencies, even when they're installed to the right place, i.e. in the `${libdir}` directory.  In these cases, you have to inform the linker where the libraries are by passing the option `-L${libdir}`.  The details of how to do that depend on the specific build system in use.
 
+For Autotools- and CMake-based builds, you can the set the `LDFLAGS` environment variable:
 ```sh
 export LDFLAGS="-L${libdir}"
 ./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target}
@@ -34,7 +35,7 @@ make -j${nprocs}
 make install
 ```
 
-See for example [libwebp](https://github.com/JuliaPackaging/Yggdrasil/blob/9a1ae803823e0dba7628bc71ff794d0c79e39c95/L/libwebp/build_tarballs.jl#L19-L21) build script (in this case this was needed only when building for FreeBSD).
+See for example [libwebp](https://github.com/JuliaPackaging/Yggdrasil/blob/dd1d1d0fbe6fee41806691e11b900961f9001a81/L/libwebp/build_tarballs.jl#L19-L21) build script (in this case this was needed only when building for FreeBSD).
 
 ### Old Autoconf helper scripts
 
