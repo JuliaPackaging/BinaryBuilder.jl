@@ -1,5 +1,5 @@
 using BinaryBuilder, BinaryBuilder.BinaryBuilderBase, BinaryBuilder.Wizard
-using GitHub, Test, VT100, Sockets, HTTP, SHA
+using GitHub, Test, VT100, Sockets, HTTP, SHA, Tar
 import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
@@ -47,8 +47,9 @@ end
 
 # Test the download stage
 r = HTTP.Router()
-build_tests_dir = joinpath(@__DIR__, "build_tests")
-libfoo_tarball_data = read(`tar czf - -C $(build_tests_dir) libfoo`)
+io = IOBuffer()
+Tar.create(joinpath(build_tests_dir, "libfoo"), pipeline(`gzip -9`, io))
+libfoo_tarball_data = take!(io)
 libfoo_tarball_hash = bytes2hex(sha256(libfoo_tarball_data))
 function serve_tgz(req)
     HTTP.Response(200, libfoo_tarball_data)
