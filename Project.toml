@@ -52,8 +52,9 @@ julia = "1.6"
 
 [extras]
 JLLWrappers = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
+Tar = "a4e569a6-e804-4fa4-b0f3-eef7a1d5b13e"
 Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
 VT100 = "7774df62-37c0-5c21-b34d-f6d7f98f54bc"
 
 [targets]
-test = ["JLLWrappers", "Test", "VT100"]
+test = ["JLLWrappers", "Tar", "Test", "VT100"]
