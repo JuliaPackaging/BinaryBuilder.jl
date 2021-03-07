@@ -54,7 +54,32 @@ function serve_tgz(req)
     HTTP.Response(200, libfoo_tarball_data)
 end
 HTTP.@register(r, "GET", "/*/source.tar.gz", serve_tgz)
-@async HTTP.serve(r, Sockets.localhost, 14444; verbose=false)
+port = -1
+server = Sockets.TCPServer()
+# Try to connect to different ports, in case one is busy.  Important in case we
+# have multiple parallel builds.
+available_ports = 14444:14544
+for i in available_ports
+    try
+        # Update the global server to shut it down when we are done with it.
+        global server = Sockets.listen(Sockets.InetAddr(Sockets.localhost, i))
+    catch e
+        if e isa Base.IOError
+            if i == last(available_ports)
+                # Oh no, this was our last attempt
+                error("No more ports available for the HTTP server")
+            end
+            # If the port is busy, try the next one
+            continue
+        else
+            rethrow(e)
+        end
+    end
+    # All looks good, update the global `port` and start the server
+    global port = i
+    @async HTTP.serve(r, Sockets.localhost, port; server=server, verbose=false)
+    break
+end
 
 function readuntil_sift(io::IO, needle)
     needle = codeunits(needle)
@@ -127,7 +152,7 @@ end
 @testset "Wizard - Downloading" begin
     state = step2_state()
     with_wizard_output(state, Wizard.step2) do ins, outs
-        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:$(port)/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "N")
 
@@ -144,7 +169,7 @@ end
         call_response(ins, outs, "Select the preferred LLVM version", "\e[B\e[B\e[B\r")
     end
     # Check that the state is modified appropriately
-    @test state.source_urls == ["http://127.0.0.1:14444/a/source.tar.gz"]
+    @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
     @test getfield.(state.source_files, :hash) == [libfoo_tarball_hash]
     @test Set(state.compilers) == Set([:c, :rust, :go])
     @test state.preferred_gcc_version == getversion(available_gcc_builds[1])
@@ -155,9 +180,9 @@ end
     # Test two tar.gz download
     state = step2_state()
     with_wizard_output(state, Wizard.step2) do ins, outs
-        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:$(port)/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "Y")
-        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/b/source.tar.gz")
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:$(port)/b/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "N")
 
@@ -168,8 +193,8 @@ end
     end
     # Check that the state is modified appropriately
     @test state.source_urls == [
-        "http://127.0.0.1:14444/a/source.tar.gz",
-        "http://127.0.0.1:14444/b/source.tar.gz",
+        "http://127.0.0.1:$(port)/a/source.tar.gz",
+        "http://127.0.0.1:$(port)/b/source.tar.gz",
     ]
     @test getfield.(state.source_files, :hash) == [
         libfoo_tarball_hash,
@@ -193,7 +218,7 @@ end
     # Test failure to resolve a dependency
     state = step2_state()
     @test_logs (:warn, r"Unable to resolve iso_codez_jll") match_mode=:any with_wizard_output(state, Wizard.step2) do ins, outs
-        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:14444/a/source.tar.gz")
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:$(port)/a/source.tar.gz")
         call_response(ins, outs, "Would you like to download additional sources", "N")
         call_response(ins, outs, "Do you require any (binary) dependencies", "Y")
 
@@ -231,7 +256,7 @@ function step3_state()
     state = Wizard.WizardState()
     state.step = :step34
     state.platforms = [Platform("x86_64", "linux")]
-    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
+    state.source_urls = ["http://127.0.0.1:$(port)/a/source.tar.gz"]
     state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}(libfoo_tarball_path, libfoo_tarball_hash, "")]
     state.name = "libfoo"
     state.version = v"1.0.0"
@@ -425,6 +450,7 @@ end
     end
 end
 
+close(server)
 
 @testset "GitHub - authentication" begin
     withenv("GITHUB_TOKEN" => "") do
