@@ -169,6 +169,7 @@ should run by the user in one the following ways:
 versions:
 
 ```julia
+# Only available in Julia v1.6+
 run(`$(mungify_exe()) $arguments`)
 ```
 
@@ -186,7 +187,7 @@ call the binary with
 [`run`](https://docs.julialang.org/en/v1/base/base/#Base.run).
 
 The former form is only available when using Julia v1.6, but should be
-preferable going forward, as it is thread-safe and generally more flexible.
+preferred going forward, as it is thread-safe and generally more flexible.
 
 A common point of confusion about `ExecutableProduct`s in JLL packages is why
 these function wrappers are needed: while in principle you could run the
