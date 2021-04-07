@@ -52,3 +52,12 @@ If you already have access to the [GitHub Codespaces](https://github.com/feature
 ## How does this all work?
 
 `BinaryBuilder.jl` wraps a [root filesystem](rootfs.md) that has been carefully constructed so as to provide the set of cross-compilers needed to support the wide array of platforms that Julia runs on.  This _RootFS_ is then used as the chroot jail for a sandboxed process which runs within the RootFS as if that were the whole world.  The workspace containing input source code and (eventually) output binaries is mounted within the RootFS and environment variables are setup such that the appropriate compilers for a particular target platform are used by build tools.
+
+## Videos and tutorials
+
+BinaryBuilder has been covered in some videos, you may want to check them out if you want to know more about the framework (the date is specified in parentheses, to make it clear how old/new the videos are):
+
+* [10 tips on how to build better binaries](https://www.youtube.com/watch?v=2e0PBGSaQaI): JuliaCon 2018 talk by Elliot Saba introducing an early version of BinaryBuilder (2018-08-09)
+* [Introduction to BinaryBuilder.jl](https://www.youtube.com/watch?v=d_h8C4iCzno): live building session by Mosè Giordano (2020-04-10)
+* [BinaryBuilder.jl - The Subtle Art of Binaries That Just Work](https://www.youtube.com/watch?v=3IyXsBwqll8): JuliaCon 2020 workshop by Elliot Saba and Mosè Giordano to guide users through the use of BinaryBuilder (2020-07-25)
+* [Your first BinaryBuilder.jl recipe with Julia](https://www.youtube.com/watch?v=7fkNcdbt4dg): live building by Miguel Raz Guzmán Macedo (2021-04-07)

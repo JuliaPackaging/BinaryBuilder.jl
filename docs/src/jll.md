@@ -105,11 +105,7 @@ variables:
 * `LIBPATH`: the value of the environment variable that holds the list of
   directories in which to search shared libraries.  This has the correct value
   for the libraries provided by the current JLL package;
-* `LIBPATH_list`: the list of directories in `LIBPATH` as a vector of `String`s;
-* `LIBPATH_env`: the name of the environment variable of the search paths of the
-  shared libraries for the current platform.  This is equal to `LD_LIBRARY_PATH`
-  on Linux and FreeBSD, `DYLD_FALLBACK_LIBRARY_PATH` on macOS, and `PATH` on
-  Windows;
+* `LIBPATH_list`: the list of directories in `LIBPATH` as a vector of `String`s.
 
 The wrapper files for each platform also define the
 [`__init__()`](https://docs.julialang.org/en/v1/manual/modules/index.html#Module-initialization-and-precompilation-1)
@@ -122,6 +118,15 @@ The rest of the code in the wrappers is specific to each of the products of the
 JLL package and detailed below.  If you want to see a concrete example of a
 package providing all the main three products, have a look at
 [`Fontconfig_jll.jl`](https://github.com/JuliaBinaryWrappers/Fontconfig_jll.jl/tree/785936d816d1ae65c2a6648f3a6acbfd72535e36).
+
+In addition to the variables defined above by each JLL wrapper, the package
+[`JLLWrappers`](https://github.com/JuliaPackaging/JLLWrappers.jl) defines an
+additional unexported variable:
+
+* `LIBPATH_env`: the name of the environment variable of the search paths of the
+  shared libraries for the current platform.  This is equal to `LD_LIBRARY_PATH`
+  on Linux and FreeBSD, `DYLD_FALLBACK_LIBRARY_PATH` on macOS, and `PATH` on
+  Windows.
 
 In what follows, we will use as an example a builder that has these products:
 
