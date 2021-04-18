@@ -127,6 +127,10 @@ make install
 
 See for example [#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354) and [#982](https://github.com/JuliaPackaging/Yggdrasil/pull/982).
 
+### ```undefined reference to `environ'```
+
+This problem is caused by the `-Wl,--no-undefined` flag. Removing this flag may also fix the above problem with backtrace, if the undefined references appear together.
+
 ## Windows
 
 ### Libtool refuses to build shared library because of undefined symbols
