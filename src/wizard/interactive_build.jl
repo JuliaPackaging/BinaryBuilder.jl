@@ -406,15 +406,15 @@ function step3_interactive(state::WizardState, prefix::Prefix,
                            platform::AbstractPlatform,
                            ur::Runner, build_path::AbstractString, artifact_paths::Vector{String})
 
+    concrete_platform = get_concrete_platform(platform, state)
     if interactive_build(state, prefix, ur, build_path, platform)
         # Unsymlink all the deps from the dest_prefix before moving to the next step
-        cleanup_dependencies(prefix, artifact_paths)
+        cleanup_dependencies(prefix, artifact_paths, concrete_platform)
         state.step = :step3_retry
     else
-        concrete_platform = get_concrete_platform(platform, state)
         step3_audit(state, platform, destdir(prefix, concrete_platform))
         # Unsymlink all the deps from the dest_prefix before moving to the next step
-        cleanup_dependencies(prefix, artifact_paths)
+        cleanup_dependencies(prefix, artifact_paths, concrete_platform)
         return step4(state, ur, platform, build_path, prefix)
     end
 end
@@ -451,7 +451,7 @@ function step3_retry(state::WizardState)
     end
     step3_audit(state, platform, destdir(prefix, concrete_platform))
     # Unsymlink all the deps from the dest_prefix before moving to the next step
-    cleanup_dependencies(prefix, artifact_paths)
+    cleanup_dependencies(prefix, artifact_paths, concrete_platform)
 
     return step4(state, ur, platform, build_path, prefix)
 end
@@ -566,7 +566,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
             concrete_platform = get_concrete_platform(platform, state)
             prefix = setup_workspace(build_path, vcat(state.source_files, state.patches), concrete_platform; verbose=true)
             # Clean up artifacts in case there are some
-            cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
+            cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
             artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
             # Record newly added artifacts for this prefix
             prefix_artifacts[prefix] = artifact_paths
@@ -642,7 +642,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
                             verbose=true,
                         )
                         # Clean up artifacts in case there are some
-                        cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]))
+                        cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
                         artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform; verbose=true)
                         # Record newly added artifacts for this prefix
                         prefix_artifacts[prefix] = artifact_paths
@@ -698,7 +698,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
     end
     # Unsymlink all the deps from the prefixes before moving to the next step
     for (prefix, paths) in prefix_artifacts
-        cleanup_dependencies(prefix, paths)
+        cleanup_dependencies(prefix, paths, get_concrete_platform(platform, state))
     end
     return ok
 end
@@ -810,7 +810,7 @@ function step5c(state::WizardState)
         end
 
         # Unsymlink all the deps from the prefix before moving to the next platform
-        cleanup_dependencies(prefix, artifact_paths)
+        cleanup_dependencies(prefix, artifact_paths, concrete_platform)
 
         print(state.outs, "[")
         if ok

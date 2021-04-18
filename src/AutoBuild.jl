@@ -811,8 +811,8 @@ function autobuild(dir::AbstractString,
         end
 
         # Unsymlink all the deps from the dest_prefix
-        cleanup_dependencies(prefix, host_artifact_paths)
-        cleanup_dependencies(prefix, target_artifact_paths)
+        cleanup_dependencies(prefix, host_artifact_paths, default_host_platform)
+        cleanup_dependencies(prefix, target_artifact_paths, concrete_platform)
 
         # Search for dead links in dest_prefix; raise warnings about them.
         Auditor.warn_deadlinks(dest_prefix.path)
