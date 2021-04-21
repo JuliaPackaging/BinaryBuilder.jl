@@ -233,7 +233,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             # even if we're not planning to register things to it today.
             init_jll_package(src_name, code_dir, deploy_jll_repo)
         else
-            @info("Building and deploying version $(build_version) to ~/.julia/dev/")
+            @info("Building and deploying version $(build_version) to $(code_dir)")
         end
         tag = "$(src_name)-v$(build_version)"
     end
