@@ -8,11 +8,15 @@ function github_auth(;allow_anonymous::Bool=true)
     if !isassigned(_github_auth) || !allow_anonymous && isa(_github_auth[], GitHub.AnonymousAuth)
         # If the user is feeding us a GITHUB_TOKEN token, use it!
         if length(get(ENV, "GITHUB_TOKEN", "")) == 40
-            try
+            try 
                 _github_auth[] = GitHub.authenticate(ENV["GITHUB_TOKEN"])
             catch e
-                    println(stdout, "The GitHub Token found in \"GITHUB_TOKEN\" has likely expired. We will now attempt to obtain a fresh token for this session.")
-                    _github_auth[] = GitHub.authenticate(obtain_token())
+                    println(stdout, "The GitHub token found in \"GITHUB_TOKEN\" is incorrect or has expired.")
+                    if yn_prompt("Would you like to attempt to obtain a new token from GitHub?") == :y
+                        _github_auth[] = GitHub.authenticate(obtain_token())
+                    else
+                        error("No GitHub token available. Please provide one in the \"GITHUB_TOKEN\" environment variable, or reply yes to the previous prompt.")
+                    end
             end
         else
             if allow_anonymous
@@ -20,7 +24,11 @@ function github_auth(;allow_anonymous::Bool=true)
             else
                 # If we're not allowed to return an anonymous authorization,
                 # then let's create a token.
-                _github_auth[] = GitHub.authenticate(obtain_token())
+                if yn_prompt("Would you like to attempt to obtain a new token from GitHub?") == :y
+                    _github_auth[] = GitHub.authenticate(obtain_token())
+                else
+                    error("No GitHub token available. Please provide one in the \"GITHUB_TOKEN\" environment variable, or reply yes to the previous prompt.")
+                end
             end
         end
     end

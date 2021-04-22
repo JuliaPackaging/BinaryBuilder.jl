@@ -200,7 +200,23 @@ function yn_prompt(state::WizardState, question::AbstractString, default = :y)
         end
     end
 end
-
+function yn_prompt(question::AbstractString, default= :y)
+    @assert default in (:y, :n)
+    ynstr = default == :y ? "[Y/n]" : "[y/N]"
+    while true
+        print(question, " ", ynstr, ": ")
+        answer = lowercase(strip(readline()))
+        if isempty(answer)
+            return default
+        elseif answer == "y" || answer == "yes"
+            return :y
+        elseif answer == "n" || answer == "no"
+            return :n
+        else
+            println( "Unrecognized answer. Answer `y` or `n`.")
+        end
+    end
+end
 """
     Change the script. This will invalidate all platforms to make sure we later
     verify that they still build with the new script.
