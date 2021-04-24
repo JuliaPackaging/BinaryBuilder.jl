@@ -11,7 +11,7 @@ function github_auth(;allow_anonymous::Bool=true)
             _github_auth[] = GitHub.authenticate(ENV["GITHUB_TOKEN"])
         catch e
             if occursin("401", e.msg)
-                @warn "GitHub was unable to authenticate using the token from ENV[\"GITHUB_TOKEN\"], it may be stale. We will now request a temporary token."
+                @warn "GitHub was unable to authenticate using the token from `ENV[\"GITHUB_TOKEN\"]`, it may be stale. Falling back on alternate authentication methods."
             else
                 rethrow()
             end
