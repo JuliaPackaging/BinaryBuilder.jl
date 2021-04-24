@@ -10,7 +10,7 @@ function github_auth(;allow_anonymous::Bool=true)
         try 
             _github_auth[] = GitHub.authenticate(ENV["GITHUB_TOKEN"])
         catch e
-            e isa ... || rethrow()
+            @warn "GitHub was unable to authenticate using the token from ENV[\"GITHUB_TOKEN\"], we will now request a temporary token."
         end
     end
     
