@@ -200,6 +200,7 @@ function yn_prompt(state::WizardState, question::AbstractString, default = :y)
         end
     end
 end
+
 """
     Change the script. This will invalidate all platforms to make sure we later
     verify that they still build with the new script.
