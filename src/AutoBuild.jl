@@ -227,16 +227,15 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Check to see if we've already got a wrapper package within the Registry,
         # choose a version number that is greater than anything else existent.
         build_version = get_next_wrapper_version(src_name, src_version)
-        if verbose
+        if deploy_jll_repo != "local"
             @info("Building and deploying version $(build_version) to $(deploy_jll_repo)")
+            # We need to make sure that the JLL repo at least exists, so that we can deploy binaries to it
+            # even if we're not planning to register things to it today.
+            init_jll_package(src_name, code_dir, deploy_jll_repo)
+        else
+            @info("Building and deploying version $(build_version) to $(code_dir)")
         end
         tag = "$(src_name)-v$(build_version)"
-
-        # We need to make sure that the JLL repo at least exists, so that we can deploy binaries to it
-        # even if we're not planning to register things to it today.
-        if deploy_jll_repo != "local"
-            init_jll_package(src_name, code_dir, deploy_jll_repo)
-        end
     end
 
     # Modify script for debugging
