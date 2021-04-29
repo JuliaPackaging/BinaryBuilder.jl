@@ -479,7 +479,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
     end
     # Calculate tree hash of wrapper code
     wrapper_tree_hash = bytes2hex(Pkg.GitTools.tree_hash(code_dir))
-    wrapper_commit_hash = strip(read(`git -C $(code_dir) rev-parse HEAD`, String))
+    wrapper_commit_hash = LibGit2.head(code_dir)
 
     # Use RegistryTools to push up a new `General` branch with this JLL package registered within it
     # TODO: Update our fork periodically from upstream `General`.
