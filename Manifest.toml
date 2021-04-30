@@ -28,9 +28,9 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilderBase]]
 deps = ["CodecZlib", "Downloads", "InteractiveUtils", "JSON", "LibGit2", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "Scratch", "SimpleBufferStream", "TOML", "Tar", "UUIDs", "p7zip_jll", "pigz_jll"]
-git-tree-sha1 = "6a35cbaf35be337bcd0a07c9726ddef7232e1062"
+git-tree-sha1 = "e3f4db24195c438d88e8753bab588a5385de2c6b"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
-version = "0.6.1"
+version = "0.6.3"
 
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -426,11 +426,11 @@ version = "4.3.2+6"
 deps = ["Libdl"]
 uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
 
-[[ghr_jll]]
+[[github_release_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "f5c8cb306d4fe2d1fff90443a088fc5ba536c134"
-uuid = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
-version = "0.13.0+1"
+git-tree-sha1 = "68c3621f39d84593ecf50813c3b5cedbacbaeae8"
+uuid = "b0520d53-158e-5a4f-b7bb-e0a5e0db8429"
+version = "0.10.0+0"
 
 [[libsodium_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]

@@ -4,7 +4,6 @@ using BinaryBuilderBase
 using ObjectFile
 using GitHub
 using Pkg, Base.BinaryPlatforms, Pkg.Artifacts
-using ghr_jll
 
 # Re-export useful stuff from Pkg:
 export HostPlatform, platform_dlext, valid_dl_path, arch, libc, nbits,

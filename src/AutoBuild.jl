@@ -5,6 +5,7 @@ using Pkg.TOML, Dates, UUIDs
 using RegistryTools
 import LibGit2
 import PkgLicenses
+using github_release_jll
 
 const DEFAULT_JULIA_VERSION_SPEC = "1.0"
 
@@ -320,9 +321,6 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
     if deploy_bin && deploy_bin_repo != "local"
         # Upload the binaries
-        if verbose
-            @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
-        end
         upload_to_github_releases(deploy_bin_repo, tag, joinpath(pwd(), "products"); verbose=verbose)
     end
 
@@ -395,19 +393,36 @@ end
 
 function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
                                    attempts::Int = 3, verbose::Bool = false)
-    for attempt in 1:attempts
-        try
-            ghr() do ghr_path
-                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) $(tag) $(path)`)
+
+    function upload_file(user, repo, token, tag, file, attempts; verbose::Bool=false)
+        for attempt in 1:attempts
+            try
+                run(`$(github_release()) release --user $(user) --repo $(repo) --tag $(tag) --security-token $(token) --file $(file) --name $(basename(file))`)
+                return
+            catch
+                if verbose
+                    @info("`github_release` upload step failed, beginning attempt #$(attempt)...")
+                end
             end
-            return
-        catch
-            if verbose
-                @info("`ghr` upload step failed, beginning attempt #$(attempt)...")
-            end
+            error("Unable to upload $(file) to GitHub repo $(repo) on tag $(tag)")
         end
     end
-    error("Unable to upload $(path) to GitHub repo $(repo) on tag $(tag)")
+
+    if verbose
+        @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `github_release`...")
+    end
+
+    # Create the tag
+    run(`$(github_release()) release --user $(dirname(repo)) --repo $(basename(repo)) --tag $(tag) --security-token $(gh_auth.token)`)
+
+    # Upload the file(s)
+    if isfile(path)
+        upload_file(dirname(repo), basename(repo), gh_auth.token, tag, path, attempts; verbose)
+    elseif isdir(path)
+        for file in readdir(path; join=true)
+            isfile(file) && upload_file(dirname(repo), basename(repo), gh_auth.token, tag, path, attempts; verbose)
+        end
+    end
 end
 
 function get_next_wrapper_version(src_name, src_version)
