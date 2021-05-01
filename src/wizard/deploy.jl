@@ -68,8 +68,10 @@ function print_build_tarballs(io::IO, state::WizardState)
         dependencies_string = "Dependency[\n]"
     end
 
-    # Keyword arguments to `build_tarballs()`
-    kwargs_vec = String[]
+    # Keyword arguments to `build_tarballs()`.
+    # All new recipes created by the wizard will require Julia v1.6, to make it
+    # easier to add support for new platforms, when possible.
+    kwargs_vec = ["julia_compat=\"1.6\""]
     if state.compilers != [:c] && length(state.compilers) >= 1
         push!(kwargs_vec, "compilers = [$(join(map(x -> ":$(x)", state.compilers), ", "))]")
     end
