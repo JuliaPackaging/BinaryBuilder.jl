@@ -28,9 +28,9 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilderBase]]
 deps = ["CodecZlib", "Downloads", "InteractiveUtils", "JSON", "LibGit2", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "Scratch", "SimpleBufferStream", "TOML", "Tar", "UUIDs", "p7zip_jll", "pigz_jll"]
-git-tree-sha1 = "6a35cbaf35be337bcd0a07c9726ddef7232e1062"
+git-tree-sha1 = "e3f4db24195c438d88e8753bab588a5385de2c6b"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
-version = "0.6.1"
+version = "0.6.3"
 
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -40,9 +40,9 @@ version = "0.7.0"
 
 [[Compat]]
 deps = ["Base64", "Dates", "DelimitedFiles", "Distributed", "InteractiveUtils", "LibGit2", "Libdl", "LinearAlgebra", "Markdown", "Mmap", "Pkg", "Printf", "REPL", "Random", "SHA", "Serialization", "SharedArrays", "Sockets", "SparseArrays", "Statistics", "Test", "UUIDs", "Unicode"]
-git-tree-sha1 = "ac4132ad78082518ec2037ae5770b6e796f7f956"
+git-tree-sha1 = "0a817fbe51c976de090aa8c997b7b719b786118d"
 uuid = "34da2185-b29b-5c13-b0c7-acf172513d20"
-version = "3.27.0"
+version = "3.28.0"
 
 [[DataAPI]]
 git-tree-sha1 = "dfb3b7e89e395be1e25c2ad6d7690dc29cc53b1d"
@@ -276,9 +276,9 @@ uuid = "de0858da-6303-5e67-8744-51eddeeeb8d7"
 
 [[ProgressMeter]]
 deps = ["Distributed", "Printf"]
-git-tree-sha1 = "6e9c89cba09f6ef134b00e10625590746ba1e036"
+git-tree-sha1 = "d85d8f0339a9937afac93e152c76f4745b386202"
 uuid = "92933f4c-e287-5a05-a399-4b506db050ca"
-version = "1.5.0"
+version = "1.6.0"
 
 [[REPL]]
 deps = ["InteractiveUtils", "Markdown", "Sockets", "Unicode"]
@@ -302,9 +302,9 @@ version = "1.2.3"
 
 [[RegistryTools]]
 deps = ["AutoHashEquals", "LibGit2", "Pkg", "UUIDs"]
-git-tree-sha1 = "60522125b10a3b71b07677302c3aedd0b4363835"
+git-tree-sha1 = "400c6c8b167d61c301c7a4a9059e26ceaa1cc847"
 uuid = "d1eb7eb1-105f-429d-abf5-b0f65cb9e2c4"
-version = "1.5.3"
+version = "1.5.4"
 
 [[Requires]]
 deps = ["UUIDs"]

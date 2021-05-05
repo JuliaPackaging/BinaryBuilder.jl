@@ -103,6 +103,15 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 # Perform a sanity test on each and every shard.
 @testset "Shard testsuites" begin
     @testset "$(shard)" for shard in shards_to_test
+
+        if Sys.isfreebsd(shard) && libgfortran_version(shard) == v"3"
+            # Skip test for this shard until
+            # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1053 is
+            # fixed.
+            @test_broken false
+            continue
+        end
+
         platforms = [shard]
         mktempdir() do build_path
             products = Product[
