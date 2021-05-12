@@ -517,9 +517,16 @@ function register_jll(name, build_version, dependencies, julia_compat;
         * Commit: $(wrapper_commit_hash)
         """
         if is_yggdrasil()
+            commit_hash = yggdrasil_head()
             body *= """
-                    * Revision on Yggdrasil: https://github.com/JuliaPackaging/Yggdrasil/commit/$(yggdrasil_head())
+                    * Revision on Yggdrasil: https://github.com/JuliaPackaging/Yggdrasil/commit/$commit_hash
                     """
+            commit_author_login = get_github_author_login("JuliaPackaging/Yggdrasil", commit_hash; gh_auth=gh_auth)
+            if commit_author_login !== nothing
+                body *= """
+                        * Created by: @$commit_author_login
+                        """
+            end
         end
         params = Dict(
             "base" => "master",
@@ -883,6 +890,15 @@ function download_github_release(download_dir, repo, tag; gh_auth=Wizard.github_
         download(asset["browser_download_url"], joinpath(download_dir, asset["name"]))
     end
     return assets
+end
+
+function get_github_author_login(repository, commit_hash; gh_auth=Wizard.github_auth())
+    try
+        commit = GitHub.commit(repository, commit_hash; auth=gh_auth)
+        commit.author.login
+    catch
+        nothing
+    end
 end
 
 

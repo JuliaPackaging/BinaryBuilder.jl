@@ -1,6 +1,7 @@
 using JSON
 using UUIDs
-using BinaryBuilder: jll_uuid, build_project_dict
+using GitHub
+using BinaryBuilder: jll_uuid, build_project_dict, get_github_author_login, Wizard
 
 module TestJLL end
 
@@ -21,6 +22,13 @@ module TestJLL end
     @test project["version"] == "1.3.5"
     # Make sure BuildDependency's don't find their way to the project
     @test_throws MethodError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
+
+    gh_auth = Wizard.github_auth(;allow_anonymous=true)
+    @test get_github_author_login("JuliaPackaging/Yggdrasil", "invalid_hash"; gh_auth) === nothing
+    @test get_github_author_login("JuliaPackaging/Yggdrasil", "815de56a4440f4e05333c5295d74f1dc9b73ebe3"; gh_auth) === nothing
+    if gh_auth != GitHub.AnonymousAuth()
+        @test get_github_author_login("JuliaPackaging/Yggdrasil", "dea7c3fadad16281ead2427f7ab9b32f1c8cb664"; gh_auth) === "Pangoraw"
+    end
 end
 
 @testset "JLLs - building" begin
