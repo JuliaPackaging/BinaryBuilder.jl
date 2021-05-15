@@ -10,12 +10,12 @@
 # Quickstart
 
 1. Install `BinaryBuilder`
-```
+```julia
 using Pkg; Pkg.add("BinaryBuilder")
 ```
 
 2. Run the wizard. 
-```
+```julia
 using BinaryBuilder
 BinaryBuilder.run_wizard()
 ```
