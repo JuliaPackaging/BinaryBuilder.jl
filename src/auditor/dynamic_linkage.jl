@@ -296,7 +296,7 @@ function patchelf_flags(p::AbstractPlatform)
 end
 
 function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
-                         old_libpath::AbstractString; verbose::Bool = false)
+                         old_libpath::AbstractString; verbose::Bool=false, subdir::AbstractString="")
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
     libname = basename(old_libpath)
@@ -311,13 +311,13 @@ function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::Abstr
     end
 
     # Create a new linkage that looks like @rpath/$lib on OSX
-    with_logfile(prefix, "relink_to_rpath_$(basename(rel_path)).log") do io
+    with_logfile(prefix, "relink_to_rpath_$(basename(rel_path)).log"; subdir) do io
         run(ur, relink_cmd, io; verbose=verbose)
     end
 end
 
 function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
-                               oh::ObjectHandle; verbose::Bool = false)
+                               oh::ObjectHandle; verbose::Bool=false, subdir::AbstractString="")
     # Only macOS needs to fix identity mismatches
     if !Sys.isapple(platform)
         return nothing
@@ -344,7 +344,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
     id_cmd = `$install_name_tool -id $(new_id) $(rel_path)`
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
-    with_logfile(prefix, "fix_identity_mismatch_$(basename(rel_path)).log") do io
+    with_logfile(prefix, "fix_identity_mismatch_$(basename(rel_path)).log"; subdir) do io
         run(ur, id_cmd, io; verbose=verbose)
     end
 end
@@ -361,7 +361,7 @@ MacOS or `patchelf` on Linux.  Windows platforms are completely skipped, as
 they do not encode paths or RPaths within their executables.
 """
 function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
-                        old_libpath, new_libpath; verbose::Bool = false)
+                        old_libpath, new_libpath; verbose::Bool=false, subdir::AbstractString="")
     # Windows doesn't do updating of linkage
     if Sys.iswindows(platform)
         return
@@ -421,7 +421,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     if !(new_libdir in canonical_rpaths(path))
         libname = basename(old_libpath)
         cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
-        with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log") do io
+        with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io
             run(ur, cmd, io; verbose=verbose)
         end
     end
@@ -440,7 +440,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         new_libpath = basename(new_libpath)
     end
     cmd = relink(old_libpath, new_libpath)
-    with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log") do io
+    with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log"; subdir) do io
         run(ur, cmd, io; verbose=verbose)
     end
 

@@ -747,7 +747,7 @@ function autobuild(dir::AbstractString,
         """
 
         dest_prefix = Prefix(BinaryBuilderBase.destdir(prefix.path, concrete_platform))
-        did_succeed = with_logfile(dest_prefix, "$(src_name).log") do io
+        did_succeed = with_logfile(dest_prefix, "$(src_name).log"; subdir=src_name) do io
             # Let's start the presentations with BinaryBuilder.jl
             write(io, "BinaryBuilder.jl version: $(get_bb_version())\n\n")
             # Get the list of compilers...
@@ -837,7 +837,7 @@ function autobuild(dir::AbstractString,
         end
 
         # Compress log files
-        compress_dir(joinpath(dest_prefix.path, "logs"), verbose=verbose)
+        compress_dir(logdir(dest_prefix; subdir=src_name); verbose)
 
         # Once we're built up, go ahead and package this dest_prefix out
         tarball_path, tarball_hash, git_hash = package(
