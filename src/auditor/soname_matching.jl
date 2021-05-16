@@ -39,7 +39,7 @@ end
 
 
 function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractPlatform;
-                       verbose::Bool = false, autofix::Bool = false)
+                       verbose::Bool = false, autofix::Bool = false, subdir::AbstractString="")
     # Skip any kind of Windows platforms
     if Sys.iswindows(platform)
         return true
@@ -75,7 +75,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
     end
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
-    retval = with_logfile(prefix, "set_soname_$(basename(rel_path))_$(soname).log") do io
+    retval = with_logfile(prefix, "set_soname_$(basename(rel_path))_$(soname).log"; subdir) do io
         run(ur, set_soname_cmd, io; verbose=verbose)
     end
 

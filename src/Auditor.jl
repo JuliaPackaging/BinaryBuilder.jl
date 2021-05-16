@@ -24,11 +24,15 @@ include("auditor/codesigning.jl")
 #   something can't be opened.  Possibly use that within BinaryProvider too?
 
 """
-    audit(prefix::Prefix; platform::AbstractPlatform = HostPlatform();
+    audit(prefix::Prefix, src_name::AbstractString = "";
+                          io=stderr,
+                          platform::AbstractPlatform = HostPlatform(),
                           verbose::Bool = false,
                           silent::Bool = false,
                           autofix::Bool = false,
-                          require_license::Bool = true)
+                          has_csl::Bool = true,
+                          require_license::Bool = true,
+          )
 
 Audits a prefix to attempt to find deployability issues with the binary objects
 that have been installed within.  This auditing will check for relocatability
@@ -47,7 +51,8 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                                silent::Bool = false,
                                autofix::Bool = false,
                                has_csl::Bool = true,
-                               require_license::Bool = true)
+                               require_license::Bool = true,
+               )
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
         verbose = false
@@ -107,13 +112,13 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                         # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
                         # checks to freak out a little bit.
                         all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
-                                                        platform, silent, verbose, autofix)
+                                                        platform, silent, verbose, autofix, src_name)
                     end
                 end
             end
 
             # Ensure this file is codesigned (currently only does something on Apple platforms)
-            all_ok &= ensure_codesigned(f, prefix, platform; verbose)
+            all_ok &= ensure_codesigned(f, prefix, platform; verbose, subdir=src_name)
         catch e
             if !isa(e, ObjectFile.MagicMismatch)
                 rethrow(e)
@@ -172,7 +177,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # Ensure that all libraries have at least some kind of SONAME, if we're
         # on that kind of platform
         if !Sys.iswindows(platform)
-            all_ok &= ensure_soname(prefix, f, platform; verbose=verbose, autofix=autofix)
+            all_ok &= ensure_soname(prefix, f, platform; verbose, autofix, subdir=src_name)
         end
 
         # Ensure that this library is available at its own SONAME
@@ -306,7 +311,9 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                                platform::AbstractPlatform = HostPlatform(),
                                verbose::Bool = false,
                                silent::Bool = false,
-                               autofix::Bool = true)
+                               autofix::Bool = true,
+                               src_name::AbstractString = "",
+                               )
     all_ok = true
     # If it's a dynamic binary, check its linkage
     if isdynamic(oh)
@@ -331,7 +338,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                     if verbose
                         @info("Rpathify'ing default library $(libname)")
                     end
-                    relink_to_rpath(prefix, platform, path(oh), libs[libname]; verbose=verbose)
+                    relink_to_rpath(prefix, platform, path(oh), libs[libname]; verbose, subdir=src_name)
                 end
                 continue
             end
@@ -345,7 +352,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                     kidx = findfirst(known_bins .== lowercase(basename(libname)))
                     if kidx !== nothing
                         # If it is, point to that file instead!
-                        new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose=verbose)
+                        new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose, subdir=src_name)
 
                         if verbose && new_link !== nothing
                             @info("Linked library $(libname) has been auto-mapped to $(new_link)")
@@ -379,7 +386,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
 
         # If there is an identity mismatch (which only happens on macOS) fix it
         if autofix
-            fix_identity_mismatch(prefix, platform, path(oh), oh; verbose=verbose)
+            fix_identity_mismatch(prefix, platform, path(oh), oh; verbose, subdir=src_name)
         end
     end
     return all_ok
