@@ -279,7 +279,7 @@ function step7(state::WizardState)
     _deploy(state)
 end
 
-function deploy(state::WizardState = load_last_wizard_state(; as_is = true))
+function deploy(state::WizardState = load_wizard_state(; as_is = true))
     if state.step == :done
         println(state.outs, "This state has been already deployed")
         return
