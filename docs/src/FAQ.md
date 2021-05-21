@@ -60,7 +60,7 @@ or develop it with
 ]dev https://github.com/MY_USERNAME/Libfoo_jll.jl.git
 ```
 
-Since this package is unregistered, you have to use the full [`PackageSpec`](https://julialang.github.io/Pkg.jl/stable/api/#Pkg.PackageSpec) specification to add it as dependency of the local builder for `Quxlib`:
+Since this package is unregistered, you have to use the full [`PackageSpec`](https://julialang.github.io/Pkg.jl/v1/api/#Pkg.PackageSpec) specification to add it as dependency of the local builder for `Quxlib`:
 
 ```julia
     Dependency(PackageSpec(; name = "Libfoo_jll",  uuid = "...", url = "https://github.com/MY_USERNAME/Libfoo_jll.jl.git"))
