@@ -163,7 +163,7 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform; v
     return true
 end
 
-function cppfilt(symbol_names::Vector, platform::AbstractPlatform)
+function cppfilt(symbol_names::Vector, platform::AbstractPlatform; strip_underscore::Bool=false)
     input = IOBuffer()
     for name in symbol_names
         println(input, name)
@@ -173,7 +173,11 @@ function cppfilt(symbol_names::Vector, platform::AbstractPlatform)
     output = IOBuffer()
     mktempdir() do dir
         ur = preferred_runner()(dir; cwd="/workspace/", platform=platform)
-        run_interactive(ur, `/opt/bin/$(triplet(ur.platform))/c++filt`; stdin=input, stdout=output)
+        cmd = `/opt/bin/$(triplet(ur.platform))/c++filt`
+        if strip_underscore
+            cmd = `$(cmd) --strip-underscore`
+        end
+        run_interactive(ur, cmd; stdin=input, stdout=output)
     end
 
     return filter!(s -> !isempty(s), split(String(take!(output)), "\n"))
@@ -194,7 +198,8 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform)
             return nothing
         end
 
-        symbol_names = cppfilt(symbol_name.(Symbols(oh)), platform)
+        # GCC on macOS prepends an underscore to symbols, strip it.
+        symbol_names = cppfilt(symbol_name.(Symbols(oh)), platform; strip_underscore=Sys.isapple(platform))
         # Shove the symbol names through c++filt (since we don't want to have to
         # reimplement the parsing logic in Julia).  If anything has `cxx11` tags,
         # then mark it as such.
