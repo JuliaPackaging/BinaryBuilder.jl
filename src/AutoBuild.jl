@@ -7,6 +7,7 @@ import LibGit2
 import PkgLicenses
 
 const DEFAULT_JULIA_VERSION_SPEC = "1.0"
+const PKG_VERSIONS = Base.VERSION >= v"1.7-" ? Pkg.Versions : Pkg.Types
 
 const BUILD_HELP = (
     """
@@ -124,7 +125,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
-    if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && !occursin(r"1\.[67]", julia_compat)
+    if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && minimum(VersionNumber(rng.lower.t) for rng in PKG_VERSIONS.semver_spec(julia_compat).ranges) < v"1.6"
         error("Experimental platforms cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
     end
 
