@@ -72,10 +72,6 @@ You can of course in turn build and deply this package with
 julia build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
 ```
 
-### Can I install packages in the build environment?
-
-Yes, but it's unlikely that you'll need to.  The build environment is based on Alpine Linux (triplet: `x86_64-linux-musl`) so you can use [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management) to install packages in it.  However, if you need runtime libraries or programs for the target system these packages won't help you.  The package manager is useful only to install utilities, tools or libraries that are needed exclusively at compile time on the build system.
-
 ### What are those numbers in the list of sources?  How do I get them?
 
 The list of sources is a vector of [`BinaryBuilder.AbstractSource`](@ref)s.  What the hash is depends on what the source is:
