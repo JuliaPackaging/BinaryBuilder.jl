@@ -322,19 +322,25 @@ dependencies = [
 ```
 
 * [`Dependency`](@ref) specify a JLL package that is necessary to build and load
-  the current builder;
+  the current builder.  Binaries for the target platform will be installed;
 * [`BuildDependency`](@ref) is a JLL package necessary only to build the current
-  package, but not to load it.  This dependency will not be added to the list of
-  the dependencies of the generated JLL package.
+  package, but not to load it.  This dependency will install binaries for the
+  target platforms and will not be added to the list of the dependencies of the
+  generated JLL package;
+* [`HostBuildDependency`](@ref): similar to `BuildDependency`, but it will
+  install binaries for the host system.  This kind of dependency is usually
+  added to provide some binary utilities to run during the build process.
 
-The argument of `Dependency` and `BuildDependency` can also be a
-`Pkg.PackageSpec`, with which you can specify more details about the dependency,
-like a version number, or also a non-registered package.  Note that in Yggdrasil
-only JLL packages in the [General
+The argument of `Dependency`, `BuildDependency`, and `HostBuildDependency` can
+also be a `Pkg.PackageSpec`, with which you can specify more details about the
+dependency, like a version number, or also a non-registered package.  Note that
+in Yggdrasil only JLL packages in the [General
 registry](https://github.com/JuliaRegistries/General) can be accepted.
 
-The dependencies will be installed under `${prefix}` within the build
-environment.
+The dependencies for the target system (`Dependency` and `BuildDependency`) will
+be installed under `${prefix}` within the build environment, while the
+dependencies for the host system (`HostBuildDependency`) will be installed under
+`${host_prefix}`.
 
 In the wizard, dependencies can be specified with the prompt: *Do you require
 any (binary) dependencies?  [y/N]*.

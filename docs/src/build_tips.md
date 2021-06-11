@@ -6,10 +6,6 @@ If your build fails with some errors, look at the [Build Troubleshooting](@ref) 
 
 *If you have additional tips, please submit a PR with suggestions.*
 
-## Build strategy
-
-What BinaryBuilder does is to create a tarball containing all files that are found inside the `${prefix}` directory at the end of the build and which don't come from the dependencies listed in the build recipe.  Thus, what you want to do in a build script is to install the relevant files under the appropriate directories in `${prefix}` (see the [Automatic environment variables](@ref) section): the libraries in `${libdir}`, the binary executables in `${bindir}`, etc...  Most packages come with a build system to automate this process (GNU Autoconf, CMake, Meson, a plain Makefile, etc...), but sometimes you may need to manually move the files as appropriate.
-
 ## Initiating different shell commands based on target
 
 Sometimes, you need to adapt build scripts based on the target platform. This can be done within the shell script. Here is an example from [`OpenBLAS`](https://github.com/JuliaPackaging/Yggdrasil/blob/685cdcec9f0f0a16f7b90a1671af88326dcf5ab1/O/OpenBLAS/build_tarballs.jl):
@@ -120,6 +116,7 @@ The following variables are useful to control the build script over different ta
 * `libdir`: the path to the directory where the shared libraries should be installed.  This is `${prefix}/bin` when building for Windows, `${prefix}/lib` for all other platforms
 * `bindir`: the path to the directory where the executables should be installed.  This is equivalent to `${prefix}/bin`
 * `includedir`: the path to the directory where the header files should be installed.  This is equivalent to `${prefix}/include`
+* similar variables, with analogous meaning, exist for the host prefix (where [`HostBuildDependency`](@ref) are installed): `${host_prefix}`, `${host_bindir}`, `${host_libdir}`, `${host_includedir}`
 * `target`: the target platform
 * `bb_full_target`: the full target platform, containing things like libstdc++ string ABI platform tags, and libgfortran version
 * `MACHTYPE`: the triplet of the host platform
@@ -136,13 +133,30 @@ For these target systems Clang is the default compiler, however some programs ma
 
 For programs built with CMake (see the [CMake build](#CMake-builds-1) section) you can use the GCC toolchain file that is in `${CMAKE_TARGET_TOOLCHAIN%.*}_gcc.cmake`.
 
-If the project that you want to build uses the GNU Build System (also knows as the Autotools), there isn't an automatic switch to use GCC, but you have to set the appropriate variables.  For example, this setting can be used to build most C/C++ programs with GCC for FreeBSD and macOS:
+If the project that you want to build uses the GNU Build System (also known as the Autotools), there isn't an automatic switch to use GCC, but you have to set the appropriate variables.  For example, this setting can be used to build most C/C++ programs with GCC for FreeBSD and macOS:
 ```sh
 if [[ "${target}" == *-freebsd* ]] || [[ "${target}" == *-apple-* ]]; then
     CC=gcc
     CXX=g++
 fi
 ```
+
+## Dependencies for the target system vs host system
+
+BinaryBuilder provides a cross-compilation environment, which means that in general there is a distinction between the target platform (where the build binaries will eventually run) and the host platform (where compilation is currently happening).  In particular, inside the build environment in general you cannot run binary executables built for the target platform.
+
+For a build to work there may be different kinds of dependencies, for example:
+
+* binary libraries that the final product of the current build (binary executables or other libraries) will need to link to.  These libraries must have been built for the target platform.  You can install this type of dependency as [`Dependency`](@ref), which will also be a dependency of the generated JLL package.  This is the most common class of dependencies;
+* binary libraries or non-binary executables (usually shell scripts that can actually be run inside the build environment) for the target platform that are exclusively needed during the build process, but not for the final product of the build to run on the target system.  You can install this type of dependency as [`BuildDependency`](@ref).  Remember they will _not_ be added as dependency of the generated JLL package;
+* binary executables that are exclusively needed to be run during the build process.  They cannot generally have been built for the target platform, so they cannot be installed as `Dependency` or `BuildDependency`.  However you have two options:
+
+  * if they are available in a JLL package for the `x86_64-linux-musl` platform, you can install them as [`HostBuildDependency`](@ref).  In order to keep binaries for the target platform separated from those for the host system, these dependencies will be installed under `${host_prefix}`, in particular executables will be present under `${host_bindir}` which is automatically added to the `${PATH}` environment variable;
+  * if they are present in Alpine Linux repositories, you can install them with the system package manager [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management).
+
+  Remember that this class of dependencies is built for the host platform: if the library you want to build for the target platform requires another binary library to link to, installing it as `HostBuildDepency` or with `apk` will not help.
+
+You need to understand the build process of package you want to compile in order to know what of these classes a dependency belongs to.
 
 ## Installing the license file
 
