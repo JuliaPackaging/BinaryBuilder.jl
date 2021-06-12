@@ -240,6 +240,13 @@ You should be aware of two incompatibilities in particular:
     builds the package only for some platforms and expands the `libgfortran`
     versions.
 
+Note that whether you need to build for different C++ string ABIs or libgfortran
+versions depends exclusively on whether the products of the current build expose
+the `std::string` ABI or directly link to `libgfortran`.  The fact that some of
+the dependencies need to expand the C++ string ABIs or libgfortran versions is
+not relevant for the current build recipe and BinaryBuilder will take care of
+installing libraries with matching ABI.
+
 Don't worry if you don't know whether you need to expand the list of platforms
 for the C++ `std::string` ABIs or the libgfortran versions: this is often not
 possible to know in advance without thoroughly reading the source code or
