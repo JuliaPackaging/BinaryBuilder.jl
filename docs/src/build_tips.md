@@ -19,12 +19,12 @@ fi
 
 Here are other examples of scripts with target-specific checks:
 
-* [XZ](https://github.com/JuliaPackaging/Yggdrasil/blob/8b9ba2b7b4652e96daf506c98c2b373b48eef5cb/X/XZ/build_tarballs.jl) - Custom windows installation
-* [Sundials](https://github.com/JuliaPackaging/Yggdrasil/blob/fdbb7392c498cbf5b440cc947c29ab6790de18c6/S/Sundials/build_tarballs.jl#L52-L60) - 32-bit check
+* [Kaleido](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/K/Kaleido/build_tarballs.jl#L20-L25) - Different steps for Windows and macOS
+* [Libical](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/L/Libical/build_tarballs.jl#L21-L25) - 32-bit check
 
 It is also possible to run quite different scripts for each target by running different build scripts for different sets of targets. Here is an example where windows builds are separated from other targets:
 
-* [Git](https://github.com/JuliaPackaging/Yggdrasil/blob/bf4ac37978764a3e953d06d7ed052ef06968f3bf/G/Git/build_tarballs.jl)
+* [Git](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/G/Git/build_tarballs.jl#L22-L26)
 
 ## Autoconfigure builds
 
@@ -38,8 +38,8 @@ make install
 
 Here are examples of autoconfigure build scripts:
 
-* [Patchelf](https://github.com/JuliaPackaging/Yggdrasil/blob/4cacbf2377730f60255500b4e7dd58d9f9c18752/P/Patchelf/build_tarballs.jl#L18-L20)
-* [LibCURL](https://github.com/JuliaPackaging/Yggdrasil/blob/4dd53a5ea3df104aa9f3f8f4cd9996568871d2af/L/LibCURL/build_tarballs.jl#L37-L39)
+* [Patchelf](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/P/Patchelf/build_tarballs.jl#L18-L20)
+* [LibCURL](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/L/LibCURL/build_tarballs.jl#L55-L57)
 
 
 ## CMake builds
@@ -52,12 +52,11 @@ cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOO
 
 The toolchain file sets up several CMake environment variables for better cross-platform support, such as `CMAKE_SYSROOT`, `CMAKE_C_COMPILER`, etc...  Examples of builds that include CMake parts include:
 
-* [JpegTurbo](https://github.com/JuliaPackaging/Yggdrasil/blob/92fb385b4de0bdd0c378b45e83ef4bad116bbd08/J/JpegTurbo/build_tarballs.jl)
+* [JpegTurbo](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/J/JpegTurbo/build_tarballs.jl#L19-L21)
 
-* [Sundials](https://github.com/JuliaPackaging/Yggdrasil/blob/fdbb7392c498cbf5b440cc947c29ab6790de18c6/S/Sundials/build_tarballs.jl#L46-L60)
-  - Needs `-DSUNDIALS_INDEX_TYPE=int32_t` on 32-bit targets (Sundials-specific way to specify integer size)
-  - Needs to copy *.dll files from `destdir/lib` to `destdir/bin` for windows; this also removes symlinks by using `cp -L`
-  - Needs `-DCMAKE_FIND_ROOT_PATH="$WORKSPACE/destdir"`, so CMake's `find_library` can find libraries from KLU
+* [Sundials](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/S/Sundials/Sundials%405/build_tarballs.jl#L42-L55)
+  - Needs to copy *.dll files from `${prefix}/lib` to `${libdir}` for Windows
+  - Needs `KLU_LIBRARY_DIR="$libdir"`, so CMake's `find_library` can find libraries from KLU
 
 ## Meson builds
 
@@ -78,17 +77,17 @@ The wizard automatically suggests using Meson if the `meson.build` file is prese
 
 Examples of builds performed with Meson include:
 
-* [gdk-pixbuf](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/G/gdk_pixbuf/build_tarballs.jl):
+* [gdk-pixbuf](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/G/gdk_pixbuf/build_tarballs.jl#L22-L35):
   here meson uses platform-dependent options;
-* [libepoxy](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/L/Libepoxy/build_tarballs.jl):
+* [libepoxy](https://github.com/JuliaPackaging/Yggdrasil/blob/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/L/Libepoxy/build_tarballs.jl#L19-L25):
   this script modifies `c_args` in the Meson cross file in order to add an include directory;
-* [xkbcommon](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/X/xkbcommon/build_tarballs.jl).
+* [xkbcommon](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/X/xkbcommon/build_tarballs.jl#L26-L30).
 
 ## Editing files in the wizard
 
 In the wizard, the `vim` editor is available for editing files. But, it doesn't leave any record in the build script. One generally needs to provide patch files or use something like `sed`. If a file needs patching, we suggest using `git` to add the entire worktree to a new repo, make the changes you need, then use `git diff -p` to output a patch that can be included alongside your build recipe.
 
-You can include local files like patches very easily by placing them within a `bundled/patches` nested directory, and then providing `"./bundled"` as one of the `sources` for your build.  See, for example, [`OpenBLAS`](https://github.com/JuliaPackaging/Yggdrasil/tree/029e588412f232f215e5e6a7564693d3dbf8e922/O/OpenBLAS).
+You can include local files like patches very easily by placing them within a `bundled/patches` nested directory, and then providing `"./bundled"` as one of the `sources` for your build.  See, for example, [`OpenBLAS`](https://github.com/JuliaPackaging/Yggdrasil/tree/8d5a27e24016c0ff2eae379f15dca17e79fd4be4/O/OpenBLAS/OpenBLAS%400.3.13).
 
 ## Automatic environment variables
 
