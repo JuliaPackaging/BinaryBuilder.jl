@@ -5,19 +5,25 @@ using Registrator
 const _github_auth = Ref{GitHub.Authorization}()
 
 function github_auth(;allow_anonymous::Bool=true)
-    if !isassigned(_github_auth) || !allow_anonymous && isa(_github_auth[], GitHub.AnonymousAuth)
-        # If the user is feeding us a GITHUB_TOKEN token, use it!
-        if length(get(ENV, "GITHUB_TOKEN", "")) == 40
+
+    if (!isassigned(_github_auth) || !allow_anonymous && isa(_github_auth[], GitHub.AnonymousAuth)) && length(get(ENV, "GITHUB_TOKEN", "")) == 40
+        try 
             _github_auth[] = GitHub.authenticate(ENV["GITHUB_TOKEN"])
-        else
-            if allow_anonymous
-                _github_auth[] = GitHub.AnonymousAuth()
+        catch e
+            if occursin("401", e.msg)
+                @warn "GitHub was unable to authenticate using the token from `ENV[\"GITHUB_TOKEN\"]`, it may be stale. Falling back on alternate authentication methods."
             else
-                # If we're not allowed to return an anonymous authorization,
-                # then let's create a token.
-                _github_auth[] = GitHub.authenticate(obtain_token())
+                rethrow()
             end
         end
+    end
+    
+    if !isassigned(_github_auth) && allow_anonymous
+        _github_auth[] = GitHub.AnonymousAuth()
+    end
+
+    if !isassigned(_github_auth)
+        _github_auth[] = GitHub.authenticate(obtain_token())
     end
 
     if !isa(_github_auth[], GitHub.AnonymousAuth)
