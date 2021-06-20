@@ -183,7 +183,7 @@ In addition to the standard Unix tools, in the build environment there are some 
   ```sh
   install_license ${WORKSPACE}/srcdir/THIS_IS_THE_LICENSE.md
   ```
-* `update_configure_scripts`: utility to update autoconfigure scripts.  Sometimes libraries come with out-of-date autoconfigure scripts (e.g., old `configure.guess` can't recognise `aarch64` platforms of systems using Musl C library).  Just run
+* `update_configure_scripts`: utility to update autoconfigure scripts.  Sometimes libraries come with out-of-date autoconfigure scripts (e.g., old `configure.sub` can't recognise `aarch64` platforms or systems using Musl C library).  Just run
   ```sh
   update_configure_scripts
   ```
