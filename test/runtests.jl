@@ -67,6 +67,7 @@ install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 
 # Run all our tests
 include("basic.jl")
+include("buildmeta.jl")
 include("building.jl")
 include("auditing.jl")
 include("jll.jl")

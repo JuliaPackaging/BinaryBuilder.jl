@@ -39,9 +39,13 @@ using OutputCollectors, BinaryBuilderBase, .Auditor, .Wizard
 # Autocomplete BinaryBuilder.run_wizard
 const run_wizard = Wizard.run_wizard
 
-include("AutoBuild.jl")
+#include("AutoBuild.jl")
 include("Declarative.jl")
 include("Logging.jl")
+
+include("cli_tools.jl")
+include("BuildMeta.jl")
+include("BuildAPI.jl")
 
 function __init__()
     # If we're running on Azure, enable azure logging:
