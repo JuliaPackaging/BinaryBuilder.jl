@@ -28,11 +28,11 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[BinaryBuilderBase]]
 deps = ["CodecZlib", "Downloads", "InteractiveUtils", "JSON", "LibGit2", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "Scratch", "SimpleBufferStream", "TOML", "Tar", "UUIDs", "p7zip_jll", "pigz_jll"]
-git-tree-sha1 = "225b107285e25a745047582d138cd99986f52f1a"
-repo-rev = "mg/libstdc++"
+git-tree-sha1 = "755f460cfc360d3b57686469afc9ce6800a06adc"
+repo-rev = "mg/csl_paths"
 repo-url = "https://github.com/giordano/BinaryBuilderBase.jl.git"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
-version = "0.6.12"
+version = "0.6.13"
 
 [[CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
