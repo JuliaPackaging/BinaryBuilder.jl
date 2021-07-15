@@ -96,7 +96,6 @@ The following environment variables are automatically set in the build environme
 * `CC`: the C cross compiler
 * `CXX`: the C++ cross compiler
 * `FC`: the Fortran cross compiler
-* `OBJC`: the Objective-C cross compiler
 
 The above variables point to utilities for the target environment.  To reference the utilities for the host environment either prepend `HOST` or append `_HOST`.  For example, `HOSTCC` and `CC_HOST` point to the native C compiler.
 
