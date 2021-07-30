@@ -39,7 +39,7 @@ end
 
 
 function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractPlatform;
-                       verbose::Bool = false, autofix::Bool = false, subdir::AbstractString="")
+                       verbose::Bool = false, subdir::AbstractString="")
     # Skip any kind of Windows platforms
     if Sys.iswindows(platform)
         return true
@@ -48,18 +48,13 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
     # Skip if this file already contains an SONAME
     rel_path = relpath(realpath(path), realpath(prefix.path))
     soname = get_soname(path)
-    if soname != nothing
+    if soname !== nothing
         if verbose
             @info("$(rel_path) already has SONAME \"$(soname)\"")
         end
         return true
     else
         soname = basename(path)
-    end
-
-    # If we're not allowed to fix it, fail out
-    if !autofix
-        return false
     end
 
     # Otherwise, set the SONAME
@@ -105,8 +100,7 @@ We require that all shared libraries are accessible on disk through their
 SONAME (if it exists).  While this is almost always true in practice, it
 doesn't hurt to make doubly sure.
 """
-function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
-                                                  autofix::Bool = false)
+function symlink_soname_lib(path::AbstractString; verbose::Bool = false)
     # If this library doesn't have an SONAME, then just quit out immediately
     soname = get_soname(path)
     if soname === nothing
@@ -116,18 +110,11 @@ function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
     # Absolute path to where the SONAME-named file should be
     soname_path = joinpath(dirname(path), basename(soname))
     if !isfile(soname_path)
-        if autofix
-            target = basename(path)
-            if verbose
-                @info("Library $(soname) does not exist, creating link to $(target)...")
-            end
-            symlink(target, soname_path)
-        else
-            if verbose
-                @info("Library $(soname) does not exist, failing out...")
-            end
-            return false
+        target = basename(path)
+        if verbose
+            @info("Library $(soname) does not exist, creating link to $(target)...")
         end
+        symlink(target, soname_path)
     end
     return true
 end

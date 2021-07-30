@@ -385,11 +385,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 end
 
 """
-    get_compilers_versions(; compilers = [:c])
+    get_compilers_versions(compilers)
 
 Return the script string that is used to print the versions of the given `compilers`.
 """
-function get_compilers_versions(; compilers = [:c])
+function get_compilers_versions(compilers)
     output =
         """
         set -x

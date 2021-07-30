@@ -38,12 +38,16 @@ const BUILD_HELP = (
                             of deploying to the local `~/.julia/dev` directory only can
                             be explicitly requested by setting `<repo>` to `"local"`.
                             Note there is no way to _not_ deploy; a JLL package will
-                            always be generated.
+                            always be generated.  For testing, local deployment is
+                            sufficient as the artifacts the generated JLL will reference
+                            are already existent on the build machine, as they were just
+                            built by BinaryBuilder.
 
         --register=<depot>  Register into the given depot.  By default, registers into
                             the first entry of `JULIA_DEPOT_PATH`, which is typically 
                             `~/.julia`.  Registration requires deployment to a non-
-                            local target.
+                            local target, as it must embed the URL that the deployed
+                            JLL package is available at within the registry.
 
         --meta-json         Output a JSON representation of the given build instead of
                             actually building.  Note that this can (and often does)
@@ -127,7 +131,7 @@ end
 This structure holds all of the inputs that are needed to generate a build of a software
 project in the build environment.  Things such as the project name, the list of sources,
 the build script, the dependencies, etc... are all listed within this structure.  Once
-the users calls `build!()`, each `BuildConfig` will get a `BuildResult` packed into the
+the user calls `build!()`, each `BuildConfig` will get a `BuildResult` packed into the
 overall `BuildMeta` object.
 """
 struct BuildConfig
@@ -150,21 +154,60 @@ struct BuildConfig
     # merged into `dependencies`, once we are properly constructing our build environment
     # through things like `GCC_jll` and `Clang_jll`, instead of special compiler shards.
     compilers::Vector{Symbol}
+    shards::Vector{BinaryBuilderBase.CompilerShard}
+
+    # Flags that influence the build environment and the generated compiler wrappers
+    allow_unsafe_flags::Bool
+    lock_microarchitecture::Bool
+
+    # This contains a fine-grained list of audit actions that should be skipped for this
+    # build.  If the special value `:all` exists wtihin this Vector, auditing is skipped
+    # completely.
+    audit_action_blocklist::Vector{Symbol}
 
     # Bash script that will perform the actual build itself
     script::String
 
-    # The platform this build will target; fully-specified.
+    # The platform this build will target, both the user-requested
+    # (possibly not-fully-concretized) as well as the fully-concretized
+    # due to compiler ABI constraints.
     target::AbstractPlatform
+    concrete_target::AbstractPlatofrm
 end
 
 function BuildConfig(src_name::AbstractString,
                      sources::Vector{<:AbstractSource},
                      dependencies::Vector{<:AbstractDependency},
-                     compilers::Vector{Symbol},
                      script::AbstractString,
-                     target::AbstractPlatform)
-    return BuildConfig(String(src_name), sources, dependencies, compilers, String(script), target)
+                     target::AbstractPlatform;
+                     # For GCC, default to oldest version for compatibility
+                     preferred_gcc_version::VersionNumber = BinaryBuilderBase.getversion(BinaryBuilderBase.available_gcc_builds[1]),
+                     # LLVM doesn't have the compatibility issues that GCC does, so default to the latest and greatest
+                     preferred_llvm_version::VersionNumber = BinaryBuilderBase.getversion(BinaryBuilderBase.available_llvm_builds[end]),
+                     allow_unsafe_flags::Bool = false,
+                     lock_microarchitecture::Bool = true,
+                     # By default, only provide C/C++/Fortran compilers
+                     compilers::Vector{Symbol} = [:c],
+                     audit_action_blocklist::Vector{Symbol} = Symbol[],
+                     )
+    shards = choose_shards(target; preferred_gcc_version, preferred_llvm_version, compilers)
+    # Now that we know which compilers we're building with, let's figure out our actual
+    # platform that we will use to construct the build environment (this will strictly be
+    # a valid sub-platform of the `target` given here).
+    concrete_target = BinaryBuilderBase.get_concrete_platform(target, shards)
+    return BuildConfig(
+        String(src_name),
+        sources,
+        dependencies,
+        compilers,
+        shards,
+        allow_unsafe_flags,
+        lock_microarchitecture,
+        audit_action_blocklist,
+        String(script),
+        target,
+        concrete_target,
+    )
 end
 
 """
@@ -192,7 +235,7 @@ struct BuildResult
     # These are `@info`/`@warn`/`@error` messages that get emitted during the build/audit
     # we may eventually want to make this more structured, e.g. organize them by audit
     # pass and whatnot.  These messages are not written out to disk during packaging.
-    msgs::Vector{Test.LogRecord}
+    #msgs::Vector{Test.LogRecord}
 
     ## TODO: merge `logs` and `msgs` with a better, more structured logging facility?
 end
@@ -200,16 +243,19 @@ end
 function BuildResult(config::BuildConfig,
                      status::Symbol,
                      prefix::AbstractString,
-                     logs::Dict{AbstractString,AbstractString},
-                     msgs::Vector{Test.LogRecord})
+                     logs::Dict{AbstractString,AbstractString})
+                     #msgs::Vector{Test.LogRecord})
     return BuildResult(
         config,
         status,
         String(prefix),
         Dict(String(k) => String(v) for (k, v) in logs),
-        msgs,
+        #msgs,
     )
 end
+
+# TODO: construct helper to reconstruct BuildResult objects from S3-saved tarballs
+
 
 """
     PackageConfig
@@ -222,9 +268,6 @@ struct PackageConfig
     # The build results we're packaging up
     builds::Vector{BuildResult}
 
-    # The name of the JLL we're going to package into.  E.g. "Zlib"
-    name::String
-
     # The extraction script that we're using to copy build results out into our artifacts
     script::String
 
@@ -233,12 +276,14 @@ struct PackageConfig
 end
 
 function PackageConfig(builds::Vector{BuildResult},
-                       name::AbstractString,
                        script::AbstractString,
                        products::Vector{Product})
+    names = [br.name for br in builds]
+    if !all(names .== names[1])
+        error("Can only package builds with the same source name!")
+    end
     return PackageConfig(
         builds,
-        String(name)
         String(script),
         products,
     )
@@ -254,8 +299,8 @@ struct PackageResult
     # Treehashes that represent the packaged outputs for this JLL release
     artifacts::Vector{Base.SHA1}
 
-    # The location the code was all written out to (or nothing, if no JLL code was generated)
-    code_dir::Union{String,Nothing}
+    # The location the code was all written out to
+    code_dir::String
 
     # The location the code/binaries were deployed to (or `nothing`, if it was not deployed)
     deploy_target::Union{String,Nothing}
@@ -264,7 +309,7 @@ end
 function PackageResult(config::PackageConfig,
                        published_version::VersionNumber,
                        artifacts::Vector{Base.SHA1},
-                       code_dir::Union{AbstractString,Nothing},
+                       code_dir::AbstractString,
                        deploy_target::Union{AbstractString,Nothing})
     stringify(x::AbstractString) = String(x)
     stringify(::Nothing) = nothing
@@ -272,7 +317,7 @@ function PackageResult(config::PackageConfig,
         config,
         published_version,
         artifacts,
-        stringify(code_dir),
+        String(code_dir),
         stringify(deploy_target),
     )
 end
@@ -280,8 +325,12 @@ end
 """
     BuildMeta
 
-This structure holds the metadata of a BinaryBuilder session including all build inputs,
-all artifacts generated, the JLL packages uploaded, etc...
+This structure holds the metadata of a BinaryBuilder session including:
+
+ - All build inputs as `BuildConfig` objects
+ - All generated artifacts as `BuildResults` objects
+ - All build outputs as `PackageConfig` objects
+ - All generated JLLs as `PackageResult` objects
 
 When constructed, global options (most commonly passed in on the command line through
 `ARGS`) can be passed to the `BuildMeta` through a `BuildMeta(ARGS::Vector{String})`
@@ -303,16 +352,22 @@ struct BuildMeta
     verbose::Bool
     debug::Union{Nothing,String}
 
-    # If `json_output` is not `nothing`, most steps won't actually do anything,
-    # they'll just print JSON representations of the step out to this `IO`.
+    # Most steps have a JSON representation that they can output, to allow us to
+    # "trace" through a build and see what steps were run.  On Yggdrasil, we combine
+    # this with the "dry run" mode, to allow us to generate a series of jobs.
+    dry_run::Bool
     json_output::Union{Nothing,IO}
     deploy_target::String
     register_depot::Union{Nothing,String}
+
+    # Metadata about the version of BB used to build this thing
+    bb_metadata::Dict
 
     function BuildMeta(;target_list::Vector{Platform} = Platform[],
                         verbose::Bool = false,
                         debug::Union{Nothing,AbstractString} = nothing,
                         json_output::Union{Nothing,AbstractString,IO} = nothing,
+                        dry_run::Bool = false,
                         deploy_target::AbstractString = "local",
                         register_depot::Union{Nothing,AbstractString} = nothing,
                        )
@@ -345,9 +400,11 @@ struct BuildMeta
             target_list,
             verbose,
             stringify(debug),
+            dry_run,
             json_output,
             stringify(deploy_target),
             stringify(register_depot),
+            Dict{String,String}("bb_version" => get_bb_version())
         )
     end
 end

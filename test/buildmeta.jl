@@ -59,6 +59,7 @@ using Base.BinaryPlatforms
         @test isempty(meta.target_list)
         @test !meta.verbose
         @test meta.debug === nothing
+        @test !meta.dry_run
         @test meta.json_output === nothing
         @test meta.deploy_target == "local"
         @test meta.register_depot === nothing
@@ -71,6 +72,7 @@ using Base.BinaryPlatforms
             ],
             verbose=true,
             debug="end",
+            dry_run=false,
             json_output=Base.stdout,
             deploy_target="JuliaBinaryWrappers/Foo_jll.jl",
             register_depot="/tmp/depot",
@@ -82,6 +84,7 @@ using Base.BinaryPlatforms
         @test os(meta.target_list[2]) == "windows"
         @test meta.verbose
         @test meta.debug == "end"
+        @test !meta.dry_run
         @test meta.json_output == Base.stdout
         @test meta.deploy_target == "JuliaBinaryWrappers/Foo_jll.jl"
         @test meta.register_depot == "/tmp/depot"
@@ -107,6 +110,7 @@ using Base.BinaryPlatforms
         @test all(os.(meta.target_list) .== "linux")
         @test meta.verbose
         @test meta.debug == "begin"
+        @test meta.dry_run
         @test isa(meta.json_output, IOStream)
         @test meta.json_output.name == "<file $(json_path)>"
         @test meta.deploy_target == "JuliaBinaryWrappers/Foo_jll.jl"
@@ -114,8 +118,20 @@ using Base.BinaryPlatforms
     end
 
     @testset "BuildConfig" begin
-        
+        # Create a `BuildMeta` with a JSON output, so that we end up not actually building anyt
+        json_output = IOBuffer()
+        meta = BuildMeta(;json_output)
 
+        # Create a simple build invocation, ensure that it creates a `BuildConfig` as we expect
+        build!(
+            meta,
+            "Foo",
+            v"1.0.0",
+            AbstractSource[],
+            "make install",
+            Platform("x86_64", "linux"),
+            AbstractDependency[],
+        )
 
     end
 end
