@@ -172,3 +172,41 @@ make install
 ```
 
 Note that setting `LDFLAGS=-no-undefined` before `./configure` would make this fail because it would run a command like `cc -no-undefined conftest.c`, which upsets the compiler).  See for example [#170](https://github.com/JuliaPackaging/Yggdrasil/pull/170), [#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354).
+
+### Libtool refuses to build shared library because '-lmingw32' is not a real file
+
+If you see errors like:
+```
+[14:12:52] *** Warning: linker path does not have real file for library -lmingw32.
+[14:12:52] *** I have the capability to make that library automatically link in when
+[14:12:52] *** you link to this library.  But I can only do this if you have a
+[14:12:52] *** shared version of the library, which you do not appear to have
+[14:12:52] *** because I did check the linker path looking for a file starting
+[14:12:52] *** with libmingw32 and none of the candidates passed a file format test
+[14:12:52] *** using a file magic. Last file checked: /opt/x86_64-w64-mingw32/x86_64-w64-mingw32/sys-root/lib/libmingw32.a
+```
+
+This is a bug in autoconf's AC_F77_LIBRARY_LDFLAGS (or AC_FC_LIBRARY_LDFLAGS) macro. A patch has been submitted to fix this upstream.
+In the meantime, you may be able to remove these macros. They are often not required.
+
+## macOS
+
+### CMake complains "No known for CXX compiler"
+
+E.g. error messages like:
+```
+CMake Error in CMakeLists.txt:
+  No known features for CXX compiler
+
+  "Clang"
+
+  version 12.0.0.
+```
+
+This issue is caused by not setting CMake policy CMP0025. This policy is supposed to only affect the CompilerId for
+AppleClang, but it also has the effect of turning off feature detection for upstream clang (which is what we're using
+here) on CMake versions prior to CMake 3.18. Add
+```
+cmake_policy(SET CMP0025 NEW)
+```
+At the very top of your CMakeLists.txt, before the project definition (or get an updated version of CMake).
