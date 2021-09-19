@@ -161,7 +161,13 @@ function download_source(state::WizardState)
         source_path = joinpath(state.workspace, basename(url))
 
         if isfile(source_path)
-            name, ext = splitext(basename(source_path))
+            if occursin(".tar.", basename(source_path))
+                #match everything up to but not including ".tar.*" to strip multiple file extensions
+                m = match(r"^.*(?=(\.tar\.([\s\S]*)))", basename(source_path))
+                name, ext = m.match, m.captures[1]
+            else
+                name, ext = splitext(basename(source_path))
+            end
             n = 1
             while isfile(joinpath(state.workspace, "$(name)_$n$ext"))
                 n += 1
