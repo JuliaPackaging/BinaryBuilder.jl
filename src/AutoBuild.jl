@@ -395,11 +395,11 @@ function get_compilers_versions(; compilers = [:c])
 end
 
 function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
-                                   attempts::Int = 3, verbose::Bool = false)
+                                   attempts::Int = 3, verbose::Bool = false, ncpu=Sys.CPU_THREADS)
     for attempt in 1:attempts
         try
             ghr() do ghr_path
-                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) $(tag) $(path)`)
+                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) -p $(ncpu) $(tag) $(path)`)
             end
             return
         catch
