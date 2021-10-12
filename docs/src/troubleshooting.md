@@ -21,7 +21,7 @@ state = BinaryBuilder.Wizard.load_wizard_state() # select 'resume'
 BinaryBuilder.Wizard.print_build_tarballs(stdout, state)
 ```
 
-The build script may then be edited as appropriate -- for example to disable the failing platform -- and rerun directly with `julia --debug --verbose build_tarballs.jl` (see [manual build documentation](https://docs.binarybuilder.org/dev/#Manually-create-or-edit-build_tarballs.jl)) to debug and complete *without* starting from scratch.
+The build script may then be edited as appropriate -- for example to disable the failing platform -- and rerun directly with `julia  build_tarballs.jl --debug --verbose` (see [manual build documentation](https://docs.binarybuilder.org/dev/#Manually-create-or-edit-build_tarballs.jl)) to debug and complete *without* starting from scratch.
 
 ### Header files of the dependencies can't be found
 
