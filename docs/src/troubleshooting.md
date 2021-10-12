@@ -12,6 +12,17 @@ While below you will find some tips about common problems found when building pa
 
 You are welcome to open a pull request to [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/) with a non-working build recipe, or ask for help in the `#binarybuilder` channel in the [JuliaLang Slack](https://julialang.org/slack/).  Someone will likely help you out if and when they are available, like for any support provided by volunteers.
 
+### How to retrieve in-progress build script
+
+If the Wizard-based build fails after the first platform target, the Wizard may occasionally exit without resumability (because the only resume mode is to retry the failed platform). In this situation, the last build state and in-progress build script may be retrieved using the following steps:
+
+```
+state = BinaryBuilder.Wizard.load_wizard_state() # select 'resume'
+BinaryBuilder.Wizard.print_build_tarballs(stdout, state)
+```
+
+The build script may then be edited as appropriate -- for example to disable the failing platform -- and rerun directly with `julia --debug --verbose build_tarballs.jl` (see [manual build documentation](https://docs.binarybuilder.org/dev/#Manually-create-or-edit-build_tarballs.jl)) to debug and complete *without* starting from scratch.
+
 ### Header files of the dependencies can't be found
 
 Sometimes the build system can't find the header files of the dependencies, even if they're properly installed.  When this happens, you have to inform the C/C++ preprocessor where the files are.
