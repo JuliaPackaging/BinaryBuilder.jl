@@ -212,7 +212,7 @@ end
             [platform],
             # The products we expect to be build
             [libcxxstringabi_test],
-            # No depenedencies
+            # No dependencies
             Dependency[];
             preferred_gcc_version=gcc_version
         )

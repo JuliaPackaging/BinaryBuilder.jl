@@ -38,7 +38,7 @@
                     [platform],
                     # The products we expect to be build
                     libfoo_products,
-                    # No depenedencies
+                    # No dependencies
                     Dependency[];
                     # Don't do audit passes
                     skip_audit=true,
@@ -362,7 +362,7 @@ end
             [platform],
             # The products we expect to be build
             [LibraryProduct("libconfuse", :libconfuse)],
-            # No depenedencies
+            # No dependencies
             Dependency[];
             # Don't do audit passes
             skip_audit=true,
