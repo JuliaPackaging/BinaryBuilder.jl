@@ -57,6 +57,14 @@ fi
 install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 """
 
+libfoo_autotools_script = raw"""
+cd ${WORKSPACE}/srcdir/libfoo
+autoreconf -fiv
+./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target} --disable-static
+make install
+install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
+"""
+
 # Run all our tests
 include("basic.jl")
 include("building.jl")
