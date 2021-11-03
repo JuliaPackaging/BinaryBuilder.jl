@@ -256,8 +256,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # If the user passed in a platform (or a few, comma-separated) on the
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
-        parse_platform(p::AbstractString) = p == "any" ? AnyPlatform() : parse(Platform, p; validate_strict=true)
-        platforms = parse_platform.(split(ARGS[1], ","))
+        platforms = BinaryBuilderBase.parse_platform.(split(ARGS[1], ","))
     end
 
     # Check to make sure we have the necessary environment stuff
@@ -713,8 +712,10 @@ function autobuild(dir::AbstractString,
             default_host_platform;
             verbose=verbose,
         )
-        host_artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in dependencies if is_host_dependency(d)], default_host_platform; verbose=verbose)
-        target_artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in dependencies if is_target_dependency(d)], concrete_platform; verbose=verbose)
+        setup_deps(f, prefix, dependencies, platform, verbose) =
+            setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in filter_platforms(dependencies, platform) if f(d)], platform; verbose)
+        host_artifact_paths = setup_deps(is_host_dependency, prefix, dependencies, default_host_platform, verbose)
+        target_artifact_paths = setup_deps(is_target_dependency, prefix, dependencies, concrete_platform, verbose)
 
         # Create a runner to work inside this workspace with the nonce built-in
         ur = preferred_runner()(
@@ -1162,7 +1163,7 @@ function build_jll_package(src_name::String,
                 export $(join(sort(variable_name.(first.(collect(products_info)))), ", "))
                 """)
             end
-            for dep in dependencies
+            for dep in filter_platforms(dependencies, platform)
                 println(io, "using $(getname(dep))")
             end
 
@@ -1193,7 +1194,7 @@ function build_jll_package(src_name::String,
 
             print(io, """
             function __init__()
-                JLLWrappers.@generate_init_header($(join(getname.(dependencies), ", ")))
+                JLLWrappers.@generate_init_header($(join(getname.(filter_platforms(dependencies, platform)), ", ")))
             """)
 
             for (p, p_info) in sort(products_info)
@@ -1284,7 +1285,7 @@ function build_jll_package(src_name::String,
             # In this case we can easily add a direct link to the repo
             println(io, "* [`", depname, "`](https://github.com/JuliaBinaryWrappers/", depname, ".jl)")
         else
-            println(io, "* `", depname, ")`")
+            println(io, "* `", depname, "`")
         end
     end
     print_product(io, p::Product) = println(io, "* `", typeof(p), "`: `", variable_name(p), "`")
@@ -1320,6 +1321,8 @@ function build_jll_package(src_name::String,
         for p in sort(collect(platforms), by = triplet)
             println(io, "* `", p, "` (`", triplet(p), "`)")
         end
+        # Note: here we list _all_ runtime dependencies, including those that may be
+        # required only for some platforms.
         if length(dependencies) > 0
             println(io)
             println(io, """
@@ -1370,7 +1373,8 @@ function build_jll_package(src_name::String,
     # We used to have a duplicate license file, remove it.
     rm(joinpath(code_dir, "LICENSE.md"); force=true)
 
-    # Add a Project.toml
+    # Add a Project.toml.  Note: here we list _all_ runtime dependencies, including those
+    # that may be required only for some platforms.
     project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts=lazy_artifacts)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         Pkg.TOML.print(io, project)
