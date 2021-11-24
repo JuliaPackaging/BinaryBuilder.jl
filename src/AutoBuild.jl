@@ -9,6 +9,39 @@ import PkgLicenses
 const DEFAULT_JULIA_VERSION_SPEC = "1.0"
 const PKG_VERSIONS = Base.VERSION >= v"1.7-" ? Pkg.Versions : Pkg.Types
 
+mutable struct BuildTimer
+    begin_setup::Float64
+    end_setup::Float64
+    begin_build::Float64
+    end_build::Float64
+    begin_audit::Float64
+    end_audit::Float64
+    begin_package::Float64
+    end_package::Float64
+    BuildTimer() = new(NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN)
+end
+
+function Base.show(io::IO, t::BuildTimer)
+    function rnd(a, b)
+        min, sec = divrem(b - a, 60)
+        out = ""
+        if min ≥ 1
+            out *= string(Int(min), "m ")
+        end
+        out *= string(round(sec; digits=2), "s")
+        return out
+    end
+    # Sanity check: make sure all fields are non-NaN: if that's not the case, just skip.
+    if all(.!(isnan.(getfield.((t,), fieldnames(BuildTimer)))))
+        print(io, "Timings: ",
+              "setup: ", rnd(t.begin_setup, t.end_setup), ", ",
+              "build: ", rnd(t.begin_build, t.end_build), ", ",
+              "audit: ", rnd(t.begin_audit, t.end_audit), ", ",
+              "packaging: ", rnd(t.begin_package, t.end_package),
+              )
+    end
+end
+
 const BUILD_HELP = (
     """
     Usage: build_tarballs.jl [target1,target2,...] [--help]
@@ -663,6 +696,9 @@ function autobuild(dir::AbstractString,
     try mkpath(out_path) catch; end
 
     for platform in sort(collect(platforms), by = triplet)
+        timer = BuildTimer()
+        timer.begin_setup = time()
+
         # We build in a platform-specific directory
         build_path = joinpath(dir, "build", triplet(platform))
         mkpath(build_path)
@@ -745,8 +781,12 @@ function autobuild(dir::AbstractString,
             # teeing to stdout
             run(ur, `/bin/bash -l -c $(get_compilers_versions(; compilers...))`, io;
                 verbose = verbose, tee_stream = devnull)
+            timer.end_setup = time()
             # Run the build script
-            run(ur, `/bin/bash -l -c $(trapper_wrapper)`, io; verbose=verbose)
+            timer.begin_build = time()
+            res = run(ur, `/bin/bash -l -c $(trapper_wrapper)`, io; verbose=verbose)
+            timer.end_build = time()
+            res
         end
         if !did_succeed
             if debug
@@ -758,6 +798,7 @@ function autobuild(dir::AbstractString,
         end
 
         # Run an audit of the prefix to ensure it is properly relocatable
+        timer.begin_audit = time()
         if !skip_audit
             audit_result = audit(dest_prefix, src_name;
                                  platform=platform, verbose=verbose,
@@ -772,6 +813,7 @@ function autobuild(dir::AbstractString,
                 error(strip(msg))
             end
         end
+        timer.end_audit = time()
 
         # Finally, error out if something isn't satisfied
         unsatisfied_so_die = false
@@ -828,6 +870,7 @@ function autobuild(dir::AbstractString,
         compress_dir(logdir(dest_prefix; subdir=src_name); verbose)
 
         # Once we're built up, go ahead and package this dest_prefix out
+        timer.begin_package = time()
         tarball_path, tarball_hash, git_hash = package(
             dest_prefix,
             joinpath(out_path, src_name),
@@ -836,6 +879,7 @@ function autobuild(dir::AbstractString,
             verbose=verbose,
             force=true,
         )
+        timer.end_package = time()
 
         build_output_meta[platform] = (
             tarball_path,
@@ -855,6 +899,7 @@ function autobuild(dir::AbstractString,
         if isempty(readdir(build_path))
             rm(build_path; recursive=true)
         end
+        verbose && @info timer
     end
 
     # Return our product hashes
