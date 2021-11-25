@@ -124,6 +124,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         return nothing
     end
 
+    if !Base.isidentifier(src_name)
+        error("Package name \"$(src_name)\" is not a valid identifier")
+    end
+
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
     if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && minimum(VersionNumber(rng.lower.t) for rng in PKG_VERSIONS.semver_spec(julia_compat).ranges) < v"1.6"
         error("Experimental platforms cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
@@ -475,9 +479,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       lazy_artifacts::Bool=false,
                       kwargs...)
-    if !Base.isidentifier(name)
-        error("Package name \"$(name)\" is not a valid identifier")
-    end
     # Calculate tree hash of wrapper code
     wrapper_tree_hash = bytes2hex(Pkg.GitTools.tree_hash(code_dir))
     wrapper_commit_hash = LibGit2.head(code_dir)
@@ -1099,9 +1100,6 @@ function build_jll_package(src_name::String,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                            lazy_artifacts::Bool = false,
                            init_block = "")
-    if !Base.isidentifier(src_name)
-        error("Package name \"$(src_name)\" is not a valid identifier")
-    end
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
