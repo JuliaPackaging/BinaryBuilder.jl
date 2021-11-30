@@ -212,9 +212,13 @@ function diff_srcdir(state::WizardState, prefix::Prefix, ur::Runner)
     return false
 end
 
-function bb_add(client, state::WizardState, prefix::Prefix, platform::AbstractPlatform, jll::AbstractString)
+function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Union{Dict{Prefix,Vector{String}}, Nothing}, platform::AbstractPlatform, jll::AbstractString)
     if any(dep->getpkg(dep).name == jll, state.dependencies)
         println(client, "ERROR: Package was already added")
+        return
+    end
+    if prefix_artifacts === nothing
+        println(client, "ERROR: `bb add` not available in this context (if you think it should be, file an issue)!")
         return
     end
     new_dep = Dependency(jll)
@@ -223,10 +227,9 @@ function bb_add(client, state::WizardState, prefix::Prefix, platform::AbstractPl
         concrete_platform = get_concrete_platform(platform, state)
         # Clear out the prefix artifacts directory in case this change caused
         # any previous dependencies to change
-        let artifacts_dir = joinpath(prefix, "artifacts")
-            isdir(artifacts_dir) && rm(artifacts_dir; recursive=true)
-        end
-        setup_dependencies(prefix, getpkg.([state.dependencies; new_dep]), concrete_platform)
+        cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
+        pkgs = getpkg.([state.dependencies; new_dep])
+        prefix_artifacts[prefix] = setup_dependencies(prefix, pkgs, concrete_platform)
         push!(state.dependencies, new_dep)
     catch e
         showerror(client, e)
@@ -253,7 +256,7 @@ function bb_parser()
     s
 end
 
-function setup_bb_service(state::WizardState, prefix, platform)
+function setup_bb_service(state::WizardState, prefix, platform, prefix_artifacts::Union{Dict{Prefix,Vector{String}}, Nothing})
     fpath = joinpath(prefix, "metadir", "bb_service")
     server = listen(fpath)
     @async begin
@@ -273,7 +276,7 @@ function setup_bb_service(state::WizardState, prefix, platform)
                         parsed = parse_args(ARGS, s)
                         if parsed == nothing
                         elseif parsed["%COMMAND%"] == "add"
-                            bb_add(client, state, prefix, platform, parsed["add"]["jll"])
+                            bb_add(client, state, prefix, prefix_artifacts, platform, parsed["add"]["jll"])
                         end
                         close(client)
                     catch e
@@ -305,6 +308,7 @@ end
 function interactive_build(state::WizardState, prefix::Prefix,
                            ur::Runner, build_path::AbstractString,
                            platform::AbstractPlatform;
+                           prefix_artifacts::Union{Dict{Prefix,Vector{String}}, Nothing} = nothing,
                            hist_modify = string, srcdir_overlay = true)
     histfile = joinpath(prefix, "metadir", ".bash_history")
     cmd = `/bin/bash -l`
@@ -325,7 +329,7 @@ function interactive_build(state::WizardState, prefix::Prefix,
             cmd = `/bin/bash -c $cmd`
         end
 
-        (fpath, server) = setup_bb_service(state, prefix, platform)
+        (fpath, server) = setup_bb_service(state, prefix, platform, prefix_artifacts)
 
         script_successful = run_interactive(ur, ignorestatus(cmd), stdin=state.ins, stdout=state.outs, stderr=state.outs)
 
@@ -407,7 +411,7 @@ function step3_interactive(state::WizardState, prefix::Prefix,
                            ur::Runner, build_path::AbstractString, artifact_paths::Vector{String})
 
     concrete_platform = get_concrete_platform(platform, state)
-    if interactive_build(state, prefix, ur, build_path, platform)
+    if interactive_build(state, prefix, ur, build_path, platform; prefix_artifacts=Dict(prefix=>artifact_paths))
         # Unsymlink all the deps from the dest_prefix before moving to the next step
         cleanup_dependencies(prefix, artifact_paths, concrete_platform)
         state.step = :step3_retry
@@ -617,6 +621,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
 
                     if choice == 1
                         if interactive_build(state, prefix, ur, build_path, platform;
+                                          prefix_artifacts = prefix_artifacts,
                                           hist_modify = function(olds, s)
                             """
                             $olds
@@ -658,6 +663,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
                         )
 
                         if interactive_build(state, prefix, ur, build_path, platform;
+                                          prefix_artifacts = prefix_artifacts,
                                           hist_modify = function(olds, s)
                             """
                             if [ \$target != "$(triplet(platform))" ]; then
