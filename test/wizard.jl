@@ -17,7 +17,7 @@ function with_wizard_output(f::Function, state, step_func::Function)
             z = String(readavailable(pty.master))
 
             # Un-comment this to figure out what on earth is going wrong
-            #print(z)
+            # print(z)
             write(out_buff, z)
         end
     end
@@ -83,10 +83,14 @@ for i in available_ports
 end
 
 function readuntil_sift(io::IO, needle)
+    # N.B.: This is a terrible way to do this and works around the fact that our `IOBuffer`
+    # does not block. It works fine here, but do not copy this to other places.
     needle = codeunits(needle)
     buffer = zeros(UInt8, length(needle))
+    all_buffer = UInt8[]
     while isopen(io)
         new_c = read(io, 1)
+        append!(all_buffer, new_c)
         if isempty(new_c)
             # We need to wait for more data, sleep for a bit
             sleep(0.01)
@@ -95,14 +99,14 @@ function readuntil_sift(io::IO, needle)
 
         buffer = [buffer[2:end]; new_c]
         if !any(buffer .!= needle)
-            return true
+            return all_buffer
         end
     end
-    return false
+    return nothing
 end
 
 function call_response(ins, outs, question, answer; newline=true)
-    @assert readuntil_sift(outs, question)
+    @assert readuntil_sift(outs, question) !== nothing
     # Because we occasionally are dealing with things that do strange
     # stdin tricks like reading raw stdin buffers, we sleep here for safety.
     sleep(0.1)
@@ -284,10 +288,16 @@ end
 
 @testset "Wizard - Building" begin
     function succcess_path_call_response(ins, outs)
+        output = readuntil_sift(outs, "Build complete")
+        if contains(String(output), "Warning:")
+            close(ins)
+            return false
+        end
         call_response(ins, outs, "Would you like to edit this script now?", "N")
         call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
         call_response(ins, outs, "lib/libfoo.so", "libfoo")
         call_response(ins, outs, "bin/fooifier", "fooifier")
+        return true
     end
 
     # Test step3 success path
@@ -298,7 +308,7 @@ end
         make install
         exit
         """)
-        succcess_path_call_response(ins, outs)
+        @test succcess_path_call_response(ins, outs)
     end
     @test state.history == """
     cd \$WORKSPACE/srcdir
@@ -323,7 +333,7 @@ end
         exit
         """)
 
-        succcess_path_call_response(ins, outs)
+        @test succcess_path_call_response(ins, outs)
     end
     @test state.history == """
     cd \$WORKSPACE/srcdir
@@ -357,9 +367,9 @@ end
         exit 1
         """)
 
-        @test readuntil_sift(outs, "Warning:")
+        @test readuntil_sift(outs, "Warning:") !== nothing
 
-        succcess_path_call_response(ins, outs)
+        @test succcess_path_call_response(ins, outs)
     end
     step3_test(state)
 
@@ -376,7 +386,29 @@ end
         make install
         exit
         """)
-        succcess_path_call_response(ins, outs)
+        @test succcess_path_call_response(ins, outs)
+    end
+
+    # Step 3 - `bb add`
+    state = step3_state()
+    state.dependencies = [Dependency(PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a"))]
+    with_wizard_output(state, Wizard.step34) do ins, outs
+        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+        if [[ ! -f \${libdir}/libz.\${dlext} ]]; then
+            echo "ERROR: Could not find libz.\${dlext}" >&2
+            exit 1
+        fi
+        bb add Xorg_xorgproto_jll
+        if [[ ! -d \${includedir}/X11 ]]; then
+            echo "ERROR: Could not find include/X11" >&2
+            exit 1
+        fi
+        bb add Zlib_jll
+        cd libfoo
+        make install
+        exit
+        """)
+        @test succcess_path_call_response(ins, outs)
     end
 end
 
@@ -431,12 +463,12 @@ end
     state = step7_state()
     with_wizard_output(state, state->Wizard._deploy(state)) do ins, outs
         call_response(ins, outs, "How should we deploy this build recipe?", "\e[B\e[B\r")
-        @test readuntil_sift(outs, "Your generated build_tarballs.jl:")
-        @test readuntil_sift(outs, "name = \"libfoo\"")
-        @test readuntil_sift(outs, "make install")
-        @test readuntil_sift(outs, "LibraryProduct(\"libfoo\", :libfoo)")
-        @test readuntil_sift(outs, "ExecutableProduct(\"fooifier\", :fooifier)")
-        @test readuntil_sift(outs, "dependencies = Dependency[")
+        @test readuntil_sift(outs, "Your generated build_tarballs.jl:") !== nothing
+        @test readuntil_sift(outs, "name = \"libfoo\"") !== nothing
+        @test readuntil_sift(outs, "make install") !== nothing
+        @test readuntil_sift(outs, "LibraryProduct(\"libfoo\", :libfoo)") !== nothing
+        @test readuntil_sift(outs, "ExecutableProduct(\"fooifier\", :fooifier)") !== nothing
+        @test readuntil_sift(outs, "dependencies = Dependency[") !== nothing
     end
 end
 
