@@ -29,7 +29,7 @@ function print_build_tarballs(io::IO, state::WizardState)
         products_string = "Product[\n]"
     else
         stuff = collect(zip(state.files, state.file_kinds, state.file_varnames))
-        sort!(stuff, by = x -> x[2], rev=true)
+        sort!(stuff, by = x -> x[2], lt=(x,y)-> (x == :library || y ==:other))
         products_string = "[\n    " * join(map(stuff) do x
             file, kind, varname = x
 
