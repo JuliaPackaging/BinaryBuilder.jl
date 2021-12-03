@@ -639,20 +639,6 @@ function autobuild(dir::AbstractString,
                    kwargs...)
     @nospecialize
 
-    # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds.
-    # Exclude GitHub Actions, it wouldn't time out
-    if (haskey(ENV, "TRAVIS") || (haskey(ENV, "CI") && !haskey(ENV, "GITHUB_ACTIONS"))) && !verbose
-        run_travis_busytask = true
-        travis_busytask = @async begin
-            # Don't let Travis think we're asleep...
-            @info("Brewing a pot of coffee for Travis...")
-            while run_travis_busytask
-                sleep(4)
-                print(".")
-            end
-        end
-    end
-
     # This is what we'll eventually return
     @info("Building for $(join(triplet.(platforms), ", "))")
     build_output_meta = Dict()
@@ -868,12 +854,6 @@ function autobuild(dir::AbstractString,
         if isempty(readdir(build_path))
             rm(build_path; recursive=true)
         end
-    end
-
-    if (haskey(ENV, "TRAVIS") || (haskey(ENV, "CI") && !haskey(ENV, "GITHUB_ACTIONS"))) && !verbose
-        run_travis_busytask = false
-        wait(travis_busytask)
-        println()
     end
 
     # Return our product hashes
