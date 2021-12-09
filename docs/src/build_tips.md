@@ -85,7 +85,7 @@ Examples of builds performed with Meson include:
 
 ## Go builds
 
-The Rust toolchain provided by BinaryBuilder can be requested by adding `:go` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :go]`.  Go-based packages can usually be built and installed with `go`:
+The Go toolchain provided by BinaryBuilder can be requested by adding `:go` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :go]`.  Go-based packages can usually be built and installed with `go`:
 
 ```sh
 go build -o ${bindir}
