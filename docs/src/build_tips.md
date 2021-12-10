@@ -63,7 +63,7 @@ The toolchain file sets up several CMake environment variables for better cross-
 BinaryBuilder supports also building with Meson.  Since this is going to be a cross-compilation, you have to specify a Meson cross file:
 
 ```sh
-meson --cross-file="${MESON_TARGET_TOOLCHAIN}"
+meson --cross-file="${MESON_TARGET_TOOLCHAIN}" --buildtype=release
 ```
 
 After configuring the project with `meson`, you can then build and install it with
