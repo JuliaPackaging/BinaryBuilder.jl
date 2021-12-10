@@ -83,6 +83,40 @@ Examples of builds performed with Meson include:
   this script modifies `c_args` in the Meson cross file in order to add an include directory;
 * [xkbcommon](https://github.com/JuliaPackaging/Yggdrasil/blob/2f3638292c99fa6032634517f8a1aa8360d6fe8d/X/xkbcommon/build_tarballs.jl#L26-L30).
 
+## Go builds
+
+The Go toolchain provided by BinaryBuilder can be requested by adding `:go` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :go]`.  Go-based packages can usually be built and installed with `go`:
+
+```sh
+go build -o ${bindir}
+```
+
+The Go toolchain provided by BinaryBuilder automatically selects the appropriate target.
+
+Example of packages using Go:
+
+* [pprof](https://github.com/JuliaPackaging/Yggdrasil/blob/ea43d07d264046e8c94a460907bba209a015c10f/P/pprof/build_tarballs.jl#L21-L22): it uses `go build` to compile the program and manually moves the executable to `${bindir}`.
+
+## Rust builds
+
+The Rust toolchain provided by BinaryBuilder can be requested by adding `:rust` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :rust]`.  Rust-based packages can usually be built with `cargo`:
+
+```sh
+cargo build --release
+```
+
+The Rust toolchain provided by BinaryBuilder automatically selects the appropriate target and number of parallel jobs to be used.  Note, however, that you may have to manually install the product in the `${prefix}`.  Read the installation instructions of the package in case they recommend a different build procedure.
+
+Example of packages using Rust:
+
+* [Tokei](https://github.com/JuliaPackaging/Yggdrasil/blob/ea43d07d264046e8c94a460907bba209a015c10f/T/Tokei/build_tarballs.jl#L14-L15): it uses `cargo build` to compile the program and manually moves the executable to `${bindir}`;
+* [Librsvg](https://github.com/JuliaPackaging/Yggdrasil/blob/ea43d07d264046e8c94a460907bba209a015c10f/L/Librsvg/build_tarballs.jl#L35-L45): it uses a build system based on Autoconf which would internally call `cargo build`, but the user has to follow the `./configure` + `make` + `make install` sequence.
+
+
+!!! warn
+
+	The Rust toolchain currently used does not work with the `i686-w64-mingw32` (32-bit Windows) platform.
+
 ## Editing files in the wizard
 
 In the wizard, the `vim` editor is available for editing files. But, it doesn't leave any record in the build script. One generally needs to provide patch files or use something like `sed`. If a file needs patching, we suggest using `git` to add the entire worktree to a new repo, make the changes you need, then use `git diff -p` to output a patch that can be included alongside your build recipe.
