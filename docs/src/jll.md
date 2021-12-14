@@ -282,3 +282,24 @@ Some comments about how to write this file:
   you want to use to override the products of the JLL package must have the same
   tree structure as the artifact.  In our example we need to use `/usr` to
   override Fontconfig and `/usr/local` for Bzip2.
+
+### Overriding specific products
+
+Instead of overriding the entire artifact, you can override a particular library
+within a JLL using [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl).
+
+For example, to override our `libbz2` example:
+```julia
+using Preferences
+set_preferences!(
+    "LocalPreferences.toml",
+    "Bzip2_jll",
+    "libbzip2_path" => "/usr/local/lib/libbz2.so",
+)
+```
+Note that the product name is `libbzip2`, but we use `libbzip2_path`.
+
+!!! warning
+    There are two common cases where this will not work:
+    1. The JLL is part of the [Julia stdlib](https://github.com/JuliaLang/julia/tree/master/stdlib), for example `Zlib_jll`
+    2. The JLL has not been compiled with [JLLWrappers.jl](https://github.com/JuliaPackaging/JLLWrappers.jl) as a dependency, for example, `Gzip_jll`.
