@@ -538,9 +538,9 @@ function register_jll(name, build_version, dependencies, julia_compat;
         upstream_registry_url = "https://github.com/JuliaRegistries/General"
         name_jll = "$(name)_jll"
         if _package_is_registered(upstream_registry_url, name_jll)
-            pr_title = "New version: $(name_jll) v$(build_version)"
+            pr_title = "[$(name)] New version: $(name_jll) v$(build_version)"
         else
-            pr_title = "New package: $(name_jll) v$(build_version)"
+            pr_title = "[$(name)] New package: $(name_jll) v$(build_version)"
         end
         # Open pull request against JuliaRegistries/General
         body = """
