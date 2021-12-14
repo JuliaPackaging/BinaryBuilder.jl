@@ -205,7 +205,7 @@ function yggdrasil_deploy(name, version, patches, build_tarballs_content;
                 "base" => "master",
                 "head" => "$(dirname(fork.full_name)):$(branch_name)",
                 "maintainer_can_modify" => true,
-                "title" => "Wizard recipe: $(name)-v$(version)",
+                "title" => "[$(replace(name, r"_jll$"=> ""))] Wizard recipe: $(name)-v$(version)",
                 "body" => """
                 This pull request contains a new build recipe I built using the BinaryBuilder.jl wizard:
 
