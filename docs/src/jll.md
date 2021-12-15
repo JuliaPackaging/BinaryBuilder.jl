@@ -285,8 +285,12 @@ Some comments about how to write this file:
 
 ### Overriding specific products
 
-Instead of overriding the entire artifact, you can override a particular library
-within a JLL using [Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl).
+Instead of overriding the entire artifact, you can override a particular product
+(library, executable, or file) within a JLL using
+[Preferences.jl](https://github.com/JuliaPackaging/Preferences.jl).
+
+!!! compat
+    This section requires Julia 1.6 or later.
 
 For example, to override our `libbz2` example:
 ```julia
@@ -301,5 +305,12 @@ Note that the product name is `libbzip2`, but we use `libbzip2_path`.
 
 !!! warning
     There are two common cases where this will not work:
-    1. The JLL is part of the [Julia stdlib](https://github.com/JuliaLang/julia/tree/master/stdlib), for example `Zlib_jll`
-    2. The JLL has not been compiled with [JLLWrappers.jl](https://github.com/JuliaPackaging/JLLWrappers.jl) as a dependency, for example, `Gzip_jll`.
+    1. The JLL is part of the [Julia stdlib](https://github.com/JuliaLang/julia/tree/master/stdlib),
+       for example `Zlib_jll`
+    2. The JLL has not been compiled with [JLLWrappers.jl](https://github.com/JuliaPackaging/JLLWrappers.jl)
+       as a dependency. In this case, it means that the last build of the JLL
+       pre-dates the introduction of the JLLWrappers package and needs a fresh
+       build. Please open an issue on [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/)
+       requesting a new build, or make a pull request to update the relevant
+       `build_tarballs.jl` script.
+
