@@ -38,8 +38,10 @@ end
         sources = [DirectorySource(build_tests_dir)]
         # Build for this platform and a platform that isn't this one for sure:
         # FreeBSD.
-        platforms = [platform, Platform("x86_64", "freebsd")]
-        dependencies = [Dependency("Zlib_jll")]
+        freebsd = Platform("x86_64", "freebsd")
+        platforms = [platform, freebsd]
+        # We depend on Zlib_jll only on the host platform, but not on FreeBSD
+        dependencies = [Dependency("Zlib_jll"; platforms=[platform])]
         # The buffer where we'll write the JSON meta data
         buff = IOBuffer()
 
@@ -142,6 +144,13 @@ end
             mkpath(env_dir)
             Pkg.activate(env_dir)
             Pkg.develop(PackageSpec(path=code_dir))
+            # Make sure we use Zlib_jll only in the wrapper for the host
+            # platform and not the FreeBSD one.
+            platform_wrapper = joinpath(code_dir, "src", "wrappers", triplet(platform) * ".jl")
+            freebsd_wrapper = joinpath(code_dir, "src", "wrappers", triplet(freebsd) * ".jl")
+            @test contains(readchomp(platform_wrapper), "using Zlib_jll")
+            @test !contains(readchomp(freebsd_wrapper), "using Zlib_jll")
+            # Load JLL package and run some actual code from it.
             @eval TestJLL using libfoo_jll
             @test 6.08 ≈ @eval TestJLL ccall((:foo, libfoo), Cdouble, (Cdouble, Cdouble), 2.3, 4.5)
             @test @eval TestJLL libfoo_jll.is_available()
