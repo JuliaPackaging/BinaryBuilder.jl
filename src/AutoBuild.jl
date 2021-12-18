@@ -1425,6 +1425,29 @@ const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # For even more interesting historical reasons, we append an extra
 # "_jll" to the name of the new package before computing its UUID.
 jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
+
+function find_uuid(ctx, pkg)
+    if Pkg.Types.has_uuid(pkg)
+        return pkg.uuid
+    end
+    depname = getname(pkg)
+    @static if VERSION >= v"1.7"
+        uuids = Pkg.Types.registered_uuids(ctx.registries, depname)
+    else
+        uuids = Pkg.Types.registered_uuids(ctx, depname)
+    end
+    if isempty(uuids)
+        return nothing
+    end
+    if length(uuids) == 1
+        return first(uuids)
+    end
+    error("""
+    Multiple UUIDs found for package `$(depname)`.
+    Use `PackageSpec(name = \"$(depname)\", uuid = ..." to specify the UUID explicitly.
+    """)
+end
+
 function build_project_dict(name, version, dependencies::Array{Dependency}, julia_compat::String=DEFAULT_JULIA_VERSION_SPEC; lazy_artifacts::Bool=false, kwargs...)
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(
@@ -1437,9 +1460,16 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
         "compat" => Dict{String,Any}("JLLWrappers" => "1.2.0",
                                      "julia" => "$(julia_compat)")
     )
+
+    ctx = Pkg.Types.Context()
     for dep in dependencies
+        pkgspec = getpkg(dep)
         depname = getname(dep)
-        project["deps"][depname] = string(jll_uuid(depname))
+        uuid = find_uuid(ctx, pkgspec)
+        if uuid === nothing
+            uuid = jll_uuid(depname)
+        end
+        project["deps"][depname] = string(uuid)
         if dep isa Dependency && length(dep.compat) > 0
             Pkg.Types.semver_spec(dep.compat) # verify dep.compat is valid
             project["compat"][depname] = dep.compat

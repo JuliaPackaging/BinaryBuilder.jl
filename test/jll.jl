@@ -9,13 +9,19 @@ module TestJLL end
     @test jll_uuid("Zlib_jll") == UUID("83775a58-1f1d-513f-b197-d71354ab007a")
     @test jll_uuid("FFMPEG_jll") == UUID("b22a6f82-2f65-5046-a5b2-351ab43fb4e5")
 
-    project = build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), Dependency(PackageSpec(name = "XZ_jll"), compat = "=2.4.6")])
+    project = build_project_dict("LibFoo", v"1.3.5",
+        [Dependency("Zlib_jll"),
+         Dependency(PackageSpec(name = "XZ_jll"), compat = "=2.4.6"),
+         Dependency(PackageSpec(name = "Preferences", uuid = parse(UUID, "21216c6a-2e73-6563-6e65-726566657250"))),
+         Dependency("Scratch"),])
     @test project["deps"] == Dict("JLLWrappers" => "692b3bcd-3c85-4b1f-b108-f13ce0eb3210",
                                   "Artifacts"   => "56f22d72-fd6d-98f1-02f0-08ddc0907c33",
                                   "Pkg"         => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
                                   "Zlib_jll"    => "83775a58-1f1d-513f-b197-d71354ab007a",
                                   "Libdl"       => "8f399da3-3557-5675-b5ff-fb832c97cbdb",
-                                  "XZ_jll"      => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800")
+                                  "XZ_jll"      => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800",
+                                  "Preferences" => "21216c6a-2e73-6563-6e65-726566657250",
+                                  "Scratch"     => "6c6a2e73-6563-6170-7368-637461726353")
     @test project["name"] == "LibFoo_jll"
     @test project["uuid"] == "b250f842-3251-58d3-8ee4-9a24ab2bab3f"
     @test project["compat"] == Dict("julia" => "1.0", "XZ_jll" => "=2.4.6", "JLLWrappers" => "1.2.0")
