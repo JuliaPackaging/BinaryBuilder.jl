@@ -33,13 +33,13 @@ julia build_tarballs.jl --help
 ```
 You can build the tarballs with
 ```
-julia build_tarballs.jl --debug --verbose
+julia build_tarballs.jl --debug=error --verbose
 ```
-The `--debug` option will drop you into the BinaryBuilder interactive shell if an error occurs.  If the build fails, after finding out the steps needed to fix the build you have to manually update the script in `build_tarballs.jl`.  You should run again the above command to make sure that everything is actually working.
+The `--debug=error` option will drop you into the BinaryBuilder interactive shell if an error occurs.  If the build fails, after finding out the steps needed to fix the build you have to manually update the script in `build_tarballs.jl`.  You should run again the above command to make sure that everything is actually working.
 
 Since `build_tarballs.jl` takes as argument the comma-separated list of [triplets](@ref Platforms) for which to build the tarballs, you can select only a few of them.  For example, with
 ```
-julia build_tarballs.jl --debug --verbose aarch64-linux-musl,arm-linux-musleabihf
+julia build_tarballs.jl --debug=error --verbose aarch64-linux-musl,arm-linux-musleabihf
 ```
 you'll run the build script only for the `aarch64-linux-musl` and `arm-linux-musleabihf` target platforms.
 

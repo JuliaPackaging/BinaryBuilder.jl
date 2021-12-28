@@ -45,7 +45,7 @@ You can always build a JLL package on your machine with the `--deploy` flag to t
 A common use case is that you want to build a JLL package for, say, `Libfoo`, that will be used as dependency to build `Quxlib`, and you want to make sure that building both `Libfoo` and `Quxlib` will work before submitting all the pull requests to [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/).  You can prepare the `build_tarballs.jl` script for `Libfoo` and then build and deploy it with
 
 ```
-julia build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Libfoo_jll.jl"
+julia build_tarballs.jl --debug=error --verbose --deploy="MY_USERNAME/Libfoo_jll.jl"
 ```
 
 replacing `MY_USERNAME` with your GitHub username: this will build the tarballs for all the platforms requested and upload them to a release of the `MY_USERNAME/Libfoo_jll.jl`, where the JLL package will also be created.  As explained above, you can pass argument the list of triplets of the platforms for you which you want to build the tarballs, in case you want to compile only some of them.  In the Julia REPL, you can install this package as any unregistered package with
@@ -69,7 +69,7 @@ Since this package is unregistered, you have to use the full [`PackageSpec`](htt
 You can of course in turn build and deploy this package with
 
 ```
-julia build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
+julia build_tarballs.jl --debug=error --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
 ```
 
 Note that `PackageSpec` can also point to a local path: e.g., `PackageSpec(; name="Libfoo_jll", uuid="...", path="/home/myname/.julia/dev/Libfoo_jll")`.  This is particularly useful when [building a custom JLL package locally](@ref), instead of deploying it to a remote Git repository.
