@@ -5,7 +5,7 @@ const instruction_categories = JSON.parsefile(joinpath(@__DIR__, "instructions.j
                                               dicttype=Dict{String,Vector{String}})
 
 # Turn instructions "inside out", so e.g. we have "vzeroall" => "avx"
-mnemonics_by_category = Dict(
+const mnemonics_by_category = Dict(
     inst => cat for (cat, insts) in instruction_categories for inst in insts
 )
 
