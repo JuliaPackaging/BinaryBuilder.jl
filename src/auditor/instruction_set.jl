@@ -44,12 +44,15 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     run_interactive(ur, `/bin/bash -c "$(objdump_cmd)"`; stdout=output, stderr=devnull)
     seekstart(output)
 
-    for line in eachline(output)
+    @time for line in eachline(output)
         isempty(line) && continue
 
         # First, ensure that this line of output is 3 fields long at least
-        count('\t', line) != 2 && continue
-
+        @static if VERSION >= v"1.7.0-DEV.35"
+            count('\t', line) != 2 && continue
+        else
+            count(==('\t'), line) != 2 && continue
+        end
         # Grab the mnemonic for this line as the first word of the 3rd field
         idx = findlast('\t', line)
         s = SubString(line, idx+1)
