@@ -24,8 +24,8 @@ binned by the mapping defined within `instruction_categories`.
 """
 function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     # The outputs we are calculating
-    counts = Dict(k => 0 for k in keys(instruction_categories))
-    mnemonics = String[]
+    counts = Dict{SubString{String}, Int}(k => 0 for k in keys(instruction_categories))
+    mnemonics = Set{SubString{String}}()
 
     ur = preferred_runner()(
         abspath(dirname(path));
@@ -45,14 +45,18 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     seekstart(output)
 
     for line in eachline(output)
+        isempty(line) && continue
+
         # First, ensure that this line of output is 3 fields long at least
-        fields = filter(x -> !isempty(strip(x)), split(line, '\t'))
-        if length(fields) < 3
-            continue
-        end
+        count('\t', line) != 2 && continue
 
         # Grab the mnemonic for this line as the first word of the 3rd field
-        m = split(fields[3])[1]
+        idx = findlast('\t', line)
+        s = SubString(line, idx+1)
+        space = findfirst(' ', s)
+        space === nothing && (space = lastindex(s))
+        m = SubString(s, 1, space-1)
+
         push!(mnemonics, m)
 
         # For each mnemonic, find it in mnemonics_by_category, if we can, and
