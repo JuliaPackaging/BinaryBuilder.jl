@@ -44,7 +44,7 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     run_interactive(ur, `/bin/bash -c "$(objdump_cmd)"`; stdout=output, stderr=devnull)
     seekstart(output)
 
-    @time for line in eachline(output)
+    for line in eachline(output)
         isempty(line) && continue
 
         # First, ensure that this line of output is 3 fields long at least
