@@ -173,7 +173,7 @@ function cppfilt(symbol_names::Vector, platform::AbstractPlatform; strip_undersc
     output = IOBuffer()
     mktempdir() do dir
         ur = preferred_runner()(dir; cwd="/workspace/", platform=platform)
-        cmd = `/opt/bin/$(triplet(ur.platform))/c++filt`
+        cmd = Cmd(`/opt/bin/$(triplet(ur.platform))/c++filt`; ignorestatus=true)
         if strip_underscore
             cmd = `$(cmd) --strip-underscore`
         end
