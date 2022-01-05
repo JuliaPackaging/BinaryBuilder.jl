@@ -358,6 +358,52 @@ Examples of builders that depend on other binaries include:
   depends on `Xorg_libxcb_jll`, and `Xorg_xtrans_jll` at build- and run-time,
   and on `Xorg_xorgproto_jll` and `Xorg_util_macros_jll` only at build-time.
 
+### Platform-dependent dependencies
+
+By default, all dependencies are used for all platforms, but there are some
+cases where a package requires some dependencies only on some platforms.  You
+can specify the platforms where a dependency is needed by passing the
+`platforms` keyword argument to the dependency constructor, which is the vector
+of `AbstractPlatforms` where the dependency should be used.
+
+For example, assuming that the variable `platforms` holds the vector of the
+platforms for which to build your package, you can specify that `Package_jl` is
+required on all platforms excluding Windows one with
+
+```julia
+Dependency("Package_jll"; platforms=filter(!Sys.iswindows, platforms))
+```
+
+The information that a dependency is only needed on some platforms is
+transferred to the JLL package as well: the wrappers will load the
+platform-dependent JLL dependencies only when needed.
+
+!!! warning
+
+    Julia's package manager doesn't have the concept of optional (or
+    platform-dependent) dependencies: this means that when installing a JLL
+    package in your environment, all of its dependencies will always be
+    installed as well in any case.  It's only at runtime that platform-specific
+    dependencies will be loaded where necessary.
+
+    For the same reason, even if you specify a dependency to be not needed on
+    for a platform, the build recipe may still pull it in if that's also an
+    indirect dependency required by some other dependencies.  At the moment
+    `BinaryBuilder.jl` isn't able to propagate the information that a dependency
+    is platform-dependent when installing the artifacts of the dependencies.
+
+Examples:
+
+* [`ADIOS2`](https://github.com/JuliaPackaging/Yggdrasil/blob/0528e0f31b55355df632c79a2784621583443d9c/A/ADIOS2/build_tarballs.jl#L122-L123)
+  uses `MPICH_jll` to provide an MPI implementations on all platforms excluding
+  Windows, and `MicrosoftMPI_jll` for Windows.
+* [`GTK3`](https://github.com/JuliaPackaging/Yggdrasil/blob/0528e0f31b55355df632c79a2784621583443d9c/G/GTK3/build_tarballs.jl#L70-L104)
+  uses the X11 software stack only on Linux and FreeBSD platforms, and Wayland
+  only on Linux.
+* [`NativeFileDialog`](https://github.com/JuliaPackaging/Yggdrasil/blob/0528e0f31b55355df632c79a2784621583443d9c/N/NativeFileDialog/build_tarballs.jl#L40-L44)
+  uses GTK3 only on Linux and FreeBSD, on all other platforms it uses system
+  libraries, so no other packages are needed in those cases.
+
 ### Version number of dependencies
 
 There are two different ways to specify the version of a dependency, with two
