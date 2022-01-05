@@ -1,10 +1,26 @@
 # Trigger on pushes to `master`
 trigger:
-- master
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - contrib
+    - src
+    - test
+    - Manifest.toml
 
 # Trigger on PRs against `master`
 pr:
-- master
+  branches:
+    include:
+    - master
+  paths:
+    include:
+    - contrib
+    - src
+    - test
+    - Manifest.toml
 
 # By default, use the `Native` pool of agents
 pool: BinaryBuilder
