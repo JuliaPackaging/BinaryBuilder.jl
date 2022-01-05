@@ -206,6 +206,12 @@ end
         libfoo_tarball_hash,
     ]
 
+    #test that two files downloaded with the same name are re-named appropriately 
+    m = match.(r"^.+(?=(\.tar\.([\s\S]+)))", basename.(getfield.(state.source_files,:path)))
+    for cap in m
+        @test cap.captures[1] ∈ BinaryBuilderBase.tar_extensions
+    end
+
     # Test download/install with a broken symlink that used to kill the wizard
     # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/183
     state = step2_state()
