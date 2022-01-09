@@ -799,10 +799,6 @@ function autobuild(dir::AbstractString,
                         end
                     end
                 end
-
-                debug_shell_prompt = """
-                Launching debug shell now:
-                """                
                 
                 if length(log_files) > 0
                     if length(log_files) > 1
@@ -811,11 +807,14 @@ function autobuild(dir::AbstractString,
                         log_files_str = log_files[1]
                     end
 
-                    build_files_prompt = """
+                    debug_shell_prompt = """
                     Build failed, the following log files were generated:
                         $log_files_str
+
+                    Launching debug shell:
                     """
-                    debug_shell_prompt = build_files_prompt * debug_shell_prompt
+                else
+                    debug_shell_prompt = "Build failed, launching debug shell:"
                 end
 
                 @warn(debug_shell_prompt)
