@@ -132,9 +132,9 @@ provides more details about what you can usually do inside the build script.
 
 The builder should also specify the list of platforms for which you want to
 build the package.  At the time of writing, we support Linux (`x86_64`, `i686`,
-`armv7l`, `aarch64`, `ppc64le`), Windows (`x86_64`, `i686`), macOS (`x86_64`)
-and FreeBSD (`x86_64`).  When possible, we try to build for all supported
-platforms, in which case you can set
+`armv6l`, `armv7l`, `aarch64`, `ppc64le`), Windows (`x86_64`, `i686`), macOS
+(`x86_64`, `aarch64`) and FreeBSD (`x86_64`).  When possible, we try to build
+for all supported platforms, in which case you can set
 
 ```julia
 platforms = supported_platforms()
