@@ -117,7 +117,6 @@ function download_source(state::WizardState)
             continue
         end
     end
-    
     # Did the user exit out with ^D or something else go horribly wrong?
     if entered_url === nothing
         error("Could not obtain source URL")
