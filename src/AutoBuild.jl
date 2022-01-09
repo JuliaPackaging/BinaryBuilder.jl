@@ -791,7 +791,35 @@ function autobuild(dir::AbstractString,
         end
         if !did_succeed
             if debug
-                @warn("Build failed, launching debug shell")
+                log_files = []
+                for (root, dirs, files) in walkdir(prefix.path * "/srcdir")
+                    for file in files
+                        if endswith(file, ".log")
+                            push!(log_files, joinpath(root, file))
+                        end
+                    end
+                end
+
+                debug_shell_prompt = """
+                Launching debug shell now:
+                """                
+                
+                if length(log_files) > 0
+                    if length(log_files) > 1
+                        log_files_str = join(log_files, "\n    ")
+                    elseif length(log_files) == 1
+                        log_files_str = log_files[1]
+                    end
+
+                    build_files_prompt = """
+                    Build failed, the following log files were generated:
+                        $log_files_str
+                    """
+                    debug_shell_prompt = build_files_prompt * debug_shell_prompt
+                end
+
+                @warn(debug_shell_prompt)
+                
                 run_interactive(ur, `/bin/bash -l -i`)
             end
             msg = "Build for $(src_name) on $(triplet(platform)) did not complete successfully\n"
