@@ -268,9 +268,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             @info("Building and deploying version $(build_version) to $(deploy_jll_repo)")
             # We need to make sure that the JLL repo at least exists, so that we can deploy binaries to it
             # even if we're not planning to register things to it today.
-            init_jll_package(src_name, code_dir, deploy_jll_repo)
+            init_jll_package(code_dir, deploy_jll_repo)
         else
             @info("Building and deploying version $(build_version) to $(code_dir)")
+            # XXX: should we intialize the git repository here?  The problem is that if we
+            # don't clone for the remote we end up with a diverging history.
         end
         tag = "$(src_name)-v$(build_version)"
     end
@@ -929,10 +931,11 @@ function get_github_author_login(repository, commit_hash; gh_auth=Wizard.github_
     end
 end
 
-
-function init_jll_package(name, code_dir, deploy_repo;
+# Init remote repository, and its local counterpart
+function init_jll_package(code_dir, deploy_repo;
                           gh_auth = Wizard.github_auth(;allow_anonymous=false),
                           gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+    url = "https://github.com/$(deploy_repo)"
     try
         # This throws if it does not exist
         GitHub.repo(deploy_repo; auth=gh_auth)
@@ -942,7 +945,7 @@ function init_jll_package(name, code_dir, deploy_repo;
         gh_org = dirname(deploy_repo)
         isorg = GitHub.owner(gh_org; auth=gh_auth).typ == "Organization"
         owner = GitHub.Owner(gh_org, isorg)
-        @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
+        @info("Creating new wrapper code repo at $(url)")
         try
             GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit", "has_issues" => "false"); auth=gh_auth)
         catch create_e
@@ -958,9 +961,9 @@ function init_jll_package(name, code_dir, deploy_repo;
 
     if !isdir(code_dir)
         # If it does exist, clone it down:
-        @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
+        @info("Cloning wrapper code repo from $(url) into $(code_dir)")
         Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
-            LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+            LibGit2.clone(url, code_dir; credentials=creds)
         end
     else
         # Otherwise, hard-reset to latest main:
