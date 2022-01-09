@@ -18,17 +18,9 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: "1.6"
-      - name: Cache artifacts
-        uses: actions/cache@v1
-        env:
-          cache-name: cache-artifacts
+      - uses: julia-actions/cache@v1
         with:
-          path: ~/.julia/artifacts
-          key: ${{ runner.os }}-test-${{ env.cache-name }}-${{ hashFiles('**/docs/Project.toml') }}
-          restore-keys: |
-            ${{ runner.os }}-test-${{ env.cache-name }}-
-            ${{ runner.os }}-test-
-            ${{ runner.os }}-
+          cache-registries: "true"
       - name: Install dependencies
         shell: julia --color=yes --project=docs/ {0}
         run: |

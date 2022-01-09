@@ -1,7 +1,7 @@
 name = "BinaryBuilder"
 uuid = "12aac903-9f7c-5d81-afc2-d9565ea332ae"
 authors = ["Elliot Saba <staticfloat@gmail.com>"]
-version = "0.4.1"
+version = "0.4.8"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -33,7 +33,7 @@ ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
 [compat]
 ArgParse = "1.1"
-BinaryBuilderBase = "0.6.5, 1"
+BinaryBuilderBase = "1.2"
 GitHub = "5.1"
 HTTP = "0.8, 0.9"
 JLD2 = "0.1.6, 0.2, 0.3, 0.4"

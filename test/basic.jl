@@ -68,7 +68,7 @@ end
             [platform],
             # No products
             Product[],
-            # No depenedencies
+            # No dependencies
             Dependency[],
         )
 

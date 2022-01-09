@@ -5,7 +5,7 @@ const instruction_categories = JSON.parsefile(joinpath(@__DIR__, "instructions.j
                                               dicttype=Dict{String,Vector{String}})
 
 # Turn instructions "inside out", so e.g. we have "vzeroall" => "avx"
-mnemonics_by_category = Dict(
+const mnemonics_by_category = Dict(
     inst => cat for (cat, insts) in instruction_categories for inst in insts
 )
 
@@ -24,8 +24,8 @@ binned by the mapping defined within `instruction_categories`.
 """
 function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     # The outputs we are calculating
-    counts = Dict(k => 0 for k in keys(instruction_categories))
-    mnemonics = String[]
+    counts = Dict{SubString{String}, Int}(k => 0 for k in keys(instruction_categories))
+    mnemonics = Set{SubString{String}}()
 
     ur = preferred_runner()(
         abspath(dirname(path));
@@ -41,18 +41,25 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     else
         objdump_cmd = "\${target}-objdump -d $(basename(path))"
     end
-    run_interactive(ur, `/bin/bash -c "$(objdump_cmd)"`; stdout=output, stderr=devnull)
+    run_interactive(ur, Cmd(`/bin/bash -c "$(objdump_cmd)"`; ignorestatus=true); stdout=output, stderr=devnull)
     seekstart(output)
 
     for line in eachline(output)
-        # First, ensure that this line of output is 3 fields long at least
-        fields = filter(x -> !isempty(strip(x)), split(line, '\t'))
-        if length(fields) < 3
-            continue
-        end
+        isempty(line) && continue
 
+        # First, ensure that this line of output is 3 fields long at least
+        @static if VERSION >= v"1.7.0-DEV.35"
+            count('\t', line) != 2 && continue
+        else
+            count(==('\t'), line) != 2 && continue
+        end
         # Grab the mnemonic for this line as the first word of the 3rd field
-        m = split(fields[3])[1]
+        idx = findlast('\t', line)
+        s = SubString(line, idx+1)
+        space = findfirst(' ', s)
+        space === nothing && (space = lastindex(s))
+        m = SubString(s, 1, space-1)
+
         push!(mnemonics, m)
 
         # For each mnemonic, find it in mnemonics_by_category, if we can, and

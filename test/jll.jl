@@ -9,13 +9,19 @@ module TestJLL end
     @test jll_uuid("Zlib_jll") == UUID("83775a58-1f1d-513f-b197-d71354ab007a")
     @test jll_uuid("FFMPEG_jll") == UUID("b22a6f82-2f65-5046-a5b2-351ab43fb4e5")
 
-    project = build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), Dependency(PackageSpec(name = "XZ_jll"), compat = "=2.4.6")])
+    project = build_project_dict("LibFoo", v"1.3.5",
+        [Dependency("Zlib_jll"),
+         Dependency(PackageSpec(name = "XZ_jll"), compat = "=2.4.6"),
+         Dependency(PackageSpec(name = "Preferences", uuid = parse(UUID, "21216c6a-2e73-6563-6e65-726566657250"))),
+         Dependency("Scratch"),])
     @test project["deps"] == Dict("JLLWrappers" => "692b3bcd-3c85-4b1f-b108-f13ce0eb3210",
                                   "Artifacts"   => "56f22d72-fd6d-98f1-02f0-08ddc0907c33",
                                   "Pkg"         => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
                                   "Zlib_jll"    => "83775a58-1f1d-513f-b197-d71354ab007a",
                                   "Libdl"       => "8f399da3-3557-5675-b5ff-fb832c97cbdb",
-                                  "XZ_jll"      => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800")
+                                  "XZ_jll"      => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800",
+                                  "Preferences" => "21216c6a-2e73-6563-6e65-726566657250",
+                                  "Scratch"     => "6c6a2e73-6563-6170-7368-637461726353")
     @test project["name"] == "LibFoo_jll"
     @test project["uuid"] == "b250f842-3251-58d3-8ee4-9a24ab2bab3f"
     @test project["compat"] == Dict("julia" => "1.0", "XZ_jll" => "=2.4.6", "JLLWrappers" => "1.2.0")
@@ -38,8 +44,10 @@ end
         sources = [DirectorySource(build_tests_dir)]
         # Build for this platform and a platform that isn't this one for sure:
         # FreeBSD.
-        platforms = [platform, Platform("x86_64", "freebsd")]
-        dependencies = [Dependency("Zlib_jll")]
+        freebsd = Platform("x86_64", "freebsd")
+        platforms = [platform, freebsd]
+        # We depend on Zlib_jll only on the host platform, but not on FreeBSD
+        dependencies = [Dependency("Zlib_jll"; platforms=[platform])]
         # The buffer where we'll write the JSON meta data
         buff = IOBuffer()
 
@@ -142,6 +150,13 @@ end
             mkpath(env_dir)
             Pkg.activate(env_dir)
             Pkg.develop(PackageSpec(path=code_dir))
+            # Make sure we use Zlib_jll only in the wrapper for the host
+            # platform and not the FreeBSD one.
+            platform_wrapper = joinpath(code_dir, "src", "wrappers", triplet(platform) * ".jl")
+            freebsd_wrapper = joinpath(code_dir, "src", "wrappers", triplet(freebsd) * ".jl")
+            @test contains(readchomp(platform_wrapper), "using Zlib_jll")
+            @test !contains(readchomp(freebsd_wrapper), "using Zlib_jll")
+            # Load JLL package and run some actual code from it.
             @eval TestJLL using libfoo_jll
             @test 6.08 ≈ @eval TestJLL ccall((:foo, libfoo), Cdouble, (Cdouble, Cdouble), 2.3, 4.5)
             @test @eval TestJLL libfoo_jll.is_available()

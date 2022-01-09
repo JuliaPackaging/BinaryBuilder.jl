@@ -57,7 +57,6 @@ necessary.  It also holds all necessary metadata such as input/output streams.
     name::Union{Nothing, String} = nothing
     version::Union{Nothing, VersionNumber} = nothing
     github_api::GitHub.GitHubAPI = GitHub.DEFAULT_API
-    travis_endpoint::String = "https://api.travis-ci.org/"
 end
 
 function serializeable_fields(::WizardState)

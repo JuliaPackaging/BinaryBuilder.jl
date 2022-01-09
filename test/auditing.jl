@@ -212,7 +212,7 @@ end
             [platform],
             # The products we expect to be build
             [libcxxstringabi_test],
-            # No depenedencies
+            # No dependencies
             Dependency[];
             preferred_gcc_version=gcc_version
         )
@@ -280,6 +280,42 @@ end
     end
 end
 
+
+@testset "Auditor - .la removal" begin
+    for os in ["linux", "macos", "freebsd", "windows"]
+        platform = Platform("x86_64", os)
+        mktempdir() do build_path
+            build_output_meta = nothing
+            @test_logs (:info, r"removing libtool file .*/destdir/lib/libfoo.la$") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "libfoo",
+                    v"1.0.0",
+                    # Copy in the libfoo sources
+                    [DirectorySource(build_tests_dir)],
+                    # Build libfoo using autotools to create a real .la file,
+                    # and also create a fake .la file (which should not be removed)
+                    libfoo_autotools_script * "\ntouch \${prefix}/lib/libbar.la",
+                    # Build for our platform
+                    [platform],
+                    # The products we expect to be build
+                    libfoo_products,
+                    # No dependencies
+                    Dependency[]
+                )
+            end
+
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Test that `libfoo.la` has been removed but `libbar.la` hasn't
+            contents = list_tarball_files(tarball_path)
+            @test "lib/libbar.la" in contents
+            @test !("lib/libfoo.la" in contents)
+        end
+    end
+end
 
 @testset "Auditor - .dll moving" begin
     for platform in [Platform("x86_64", "windows")]

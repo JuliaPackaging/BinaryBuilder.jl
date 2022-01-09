@@ -9,6 +9,39 @@ import PkgLicenses
 const DEFAULT_JULIA_VERSION_SPEC = "1.0"
 const PKG_VERSIONS = Base.VERSION >= v"1.7-" ? Pkg.Versions : Pkg.Types
 
+mutable struct BuildTimer
+    begin_setup::Float64
+    end_setup::Float64
+    begin_build::Float64
+    end_build::Float64
+    begin_audit::Float64
+    end_audit::Float64
+    begin_package::Float64
+    end_package::Float64
+    BuildTimer() = new(NaN, NaN, NaN, NaN, NaN, NaN, NaN, NaN)
+end
+
+function Base.show(io::IO, t::BuildTimer)
+    function rnd(a, b)
+        min, sec = divrem(b - a, 60)
+        out = ""
+        if min ≥ 1
+            out *= string(Int(min), "m ")
+        end
+        out *= string(round(sec; digits=2), "s")
+        return out
+    end
+    # Sanity check: make sure all fields are non-NaN: if that's not the case, just skip.
+    if all(.!(isnan.(getfield.((t,), fieldnames(BuildTimer)))))
+        print(io, "Timings: ",
+              "setup: ", rnd(t.begin_setup, t.end_setup), ", ",
+              "build: ", rnd(t.begin_build, t.end_build), ", ",
+              "audit: ", rnd(t.begin_audit, t.end_audit), ", ",
+              "packaging: ", rnd(t.begin_package, t.end_package),
+              )
+    end
+end
+
 const BUILD_HELP = (
     """
     Usage: build_tarballs.jl [target1,target2,...] [--help]
@@ -124,6 +157,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         return nothing
     end
 
+    if !Base.isidentifier(src_name)
+        error("Package name \"$(src_name)\" is not a valid identifier")
+    end
+
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
     if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && minimum(VersionNumber(rng.lower.t) for rng in PKG_VERSIONS.semver_spec(julia_compat).ranges) < v"1.6"
         error("Experimental platforms cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
@@ -219,8 +256,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     # If the user passed in a platform (or a few, comma-separated) on the
     # command-line, use that instead of our default platforms
     if length(ARGS) > 0
-        parse_platform(p::AbstractString) = p == "any" ? AnyPlatform() : parse(Platform, p; validate_strict=true)
-        platforms = parse_platform.(split(ARGS[1], ","))
+        platforms = BinaryBuilderBase.parse_platform.(split(ARGS[1], ","))
     end
 
     # Check to make sure we have the necessary environment stuff
@@ -232,9 +268,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             @info("Building and deploying version $(build_version) to $(deploy_jll_repo)")
             # We need to make sure that the JLL repo at least exists, so that we can deploy binaries to it
             # even if we're not planning to register things to it today.
-            init_jll_package(src_name, code_dir, deploy_jll_repo)
+            init_jll_package(code_dir, deploy_jll_repo)
         else
             @info("Building and deploying version $(build_version) to $(code_dir)")
+            # XXX: should we intialize the git repository here?  The problem is that if we
+            # don't clone for the remote we end up with a diverging history.
         end
         tag = "$(src_name)-v$(build_version)"
     end
@@ -475,9 +513,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       lazy_artifacts::Bool=false,
                       kwargs...)
-    if !Base.isidentifier(name)
-        error("Package name \"$(name)\" is not a valid identifier")
-    end
     # Calculate tree hash of wrapper code
     wrapper_tree_hash = bytes2hex(Pkg.GitTools.tree_hash(code_dir))
     wrapper_commit_hash = LibGit2.head(code_dir)
@@ -639,20 +674,6 @@ function autobuild(dir::AbstractString,
                    kwargs...)
     @nospecialize
 
-    # If we're on CI and we're not verbose, schedule a task to output a "." every few seconds.
-    # Exclude GitHub Actions, it wouldn't time out
-    if (haskey(ENV, "TRAVIS") || (haskey(ENV, "CI") && !haskey(ENV, "GITHUB_ACTIONS"))) && !verbose
-        run_travis_busytask = true
-        travis_busytask = @async begin
-            # Don't let Travis think we're asleep...
-            @info("Brewing a pot of coffee for Travis...")
-            while run_travis_busytask
-                sleep(4)
-                print(".")
-            end
-        end
-    end
-
     # This is what we'll eventually return
     @info("Building for $(join(triplet.(platforms), ", "))")
     build_output_meta = Dict()
@@ -676,6 +697,9 @@ function autobuild(dir::AbstractString,
     try mkpath(out_path) catch; end
 
     for platform in sort(collect(platforms), by = triplet)
+        timer = BuildTimer()
+        timer.begin_setup = time()
+
         # We build in a platform-specific directory
         build_path = joinpath(dir, "build", triplet(platform))
         mkpath(build_path)
@@ -690,8 +714,10 @@ function autobuild(dir::AbstractString,
             default_host_platform;
             verbose=verbose,
         )
-        host_artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in dependencies if is_host_dependency(d)], default_host_platform; verbose=verbose)
-        target_artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in dependencies if is_target_dependency(d)], concrete_platform; verbose=verbose)
+        setup_deps(f, prefix, dependencies, platform, verbose) =
+            setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in filter_platforms(dependencies, platform) if f(d)], platform; verbose)
+        host_artifact_paths = setup_deps(is_host_dependency, prefix, dependencies, default_host_platform, verbose)
+        target_artifact_paths = setup_deps(is_target_dependency, prefix, dependencies, concrete_platform, verbose)
 
         # Create a runner to work inside this workspace with the nonce built-in
         ur = preferred_runner()(
@@ -758,8 +784,12 @@ function autobuild(dir::AbstractString,
             # teeing to stdout
             run(ur, `/bin/bash -l -c $(get_compilers_versions(; compilers...))`, io;
                 verbose = verbose, tee_stream = devnull)
+            timer.end_setup = time()
             # Run the build script
-            run(ur, `/bin/bash -l -c $(trapper_wrapper)`, io; verbose=verbose)
+            timer.begin_build = time()
+            res = run(ur, `/bin/bash -l -c $(trapper_wrapper)`, io; verbose=verbose)
+            timer.end_build = time()
+            res
         end
         if !did_succeed
             if debug
@@ -771,6 +801,7 @@ function autobuild(dir::AbstractString,
         end
 
         # Run an audit of the prefix to ensure it is properly relocatable
+        timer.begin_audit = time()
         if !skip_audit
             audit_result = audit(dest_prefix, src_name;
                                  platform=platform, verbose=verbose,
@@ -785,6 +816,7 @@ function autobuild(dir::AbstractString,
                 error(strip(msg))
             end
         end
+        timer.end_audit = time()
 
         # Finally, error out if something isn't satisfied
         unsatisfied_so_die = false
@@ -841,6 +873,7 @@ function autobuild(dir::AbstractString,
         compress_dir(logdir(dest_prefix; subdir=src_name); verbose)
 
         # Once we're built up, go ahead and package this dest_prefix out
+        timer.begin_package = time()
         tarball_path, tarball_hash, git_hash = package(
             dest_prefix,
             joinpath(out_path, src_name),
@@ -849,6 +882,7 @@ function autobuild(dir::AbstractString,
             verbose=verbose,
             force=true,
         )
+        timer.end_package = time()
 
         build_output_meta[platform] = (
             tarball_path,
@@ -868,12 +902,7 @@ function autobuild(dir::AbstractString,
         if isempty(readdir(build_path))
             rm(build_path; recursive=true)
         end
-    end
-
-    if (haskey(ENV, "TRAVIS") || (haskey(ENV, "CI") && !haskey(ENV, "GITHUB_ACTIONS"))) && !verbose
-        run_travis_busytask = false
-        wait(travis_busytask)
-        println()
+        verbose && @info timer
     end
 
     # Return our product hashes
@@ -902,10 +931,11 @@ function get_github_author_login(repository, commit_hash; gh_auth=Wizard.github_
     end
 end
 
-
-function init_jll_package(name, code_dir, deploy_repo;
+# Init remote repository, and its local counterpart
+function init_jll_package(code_dir, deploy_repo;
                           gh_auth = Wizard.github_auth(;allow_anonymous=false),
                           gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+    url = "https://github.com/$(deploy_repo)"
     try
         # This throws if it does not exist
         GitHub.repo(deploy_repo; auth=gh_auth)
@@ -915,7 +945,7 @@ function init_jll_package(name, code_dir, deploy_repo;
         gh_org = dirname(deploy_repo)
         isorg = GitHub.owner(gh_org; auth=gh_auth).typ == "Organization"
         owner = GitHub.Owner(gh_org, isorg)
-        @info("Creating new wrapper code repo at https://github.com/$(deploy_repo)")
+        @info("Creating new wrapper code repo at $(url)")
         try
             GitHub.create_repo(owner, basename(deploy_repo), Dict("license_template" => "mit", "has_issues" => "false"); auth=gh_auth)
         catch create_e
@@ -931,9 +961,9 @@ function init_jll_package(name, code_dir, deploy_repo;
 
     if !isdir(code_dir)
         # If it does exist, clone it down:
-        @info("Cloning wrapper code repo from https://github.com/$(deploy_repo) into $(code_dir)")
+        @info("Cloning wrapper code repo from $(url) into $(code_dir)")
         Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
-            LibGit2.clone("https://github.com/$(deploy_repo)", code_dir; credentials=creds)
+            LibGit2.clone(url, code_dir; credentials=creds)
         end
     else
         # Otherwise, hard-reset to latest main:
@@ -1099,9 +1129,6 @@ function build_jll_package(src_name::String,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                            lazy_artifacts::Bool = false,
                            init_block = "")
-    if !Base.isidentifier(src_name)
-        error("Package name \"$(src_name)\" is not a valid identifier")
-    end
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
@@ -1139,7 +1166,7 @@ function build_jll_package(src_name::String,
                 export $(join(sort(variable_name.(first.(collect(products_info)))), ", "))
                 """)
             end
-            for dep in dependencies
+            for dep in filter_platforms(dependencies, platform)
                 println(io, "using $(getname(dep))")
             end
 
@@ -1170,7 +1197,7 @@ function build_jll_package(src_name::String,
 
             print(io, """
             function __init__()
-                JLLWrappers.@generate_init_header($(join(getname.(dependencies), ", ")))
+                JLLWrappers.@generate_init_header($(join(getname.(filter_platforms(dependencies, platform)), ", ")))
             """)
 
             for (p, p_info) in sort(products_info)
@@ -1261,16 +1288,20 @@ function build_jll_package(src_name::String,
             # In this case we can easily add a direct link to the repo
             println(io, "* [`", depname, "`](https://github.com/JuliaBinaryWrappers/", depname, ".jl)")
         else
-            println(io, "* `", depname, ")`")
+            println(io, "* `", depname, "`")
         end
     end
     print_product(io, p::Product) = println(io, "* `", typeof(p), "`: `", variable_name(p), "`")
     # Add a README.md
     open(joinpath(code_dir, "README.md"), "w") do io
-        print(io,
-              """
-              # `$(src_name)_jll.jl` (v$(build_version))
-
+        println(io,
+                """
+                # `$(src_name)_jll.jl` (v$(build_version))
+                """)
+        if is_yggdrasil()
+            println(io, "[![deps](https://juliahub.com/docs/$(src_name)_jll/deps.svg)](https://juliahub.com/ui/Packages/$(src_name)_jll/$(Base.package_slug(BinaryBuilder.jll_uuid("$(src_name)_jll"), 5))?page=2)\n")
+        end
+        print(io, """
               This is an autogenerated package constructed using [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/BinaryBuilder.jl).""")
         if is_yggdrasil()
             print(io, " The originating [`build_tarballs.jl`](https://github.com/JuliaPackaging/Yggdrasil/blob/$(yggdrasil_head())/$(ENV["PROJECT"])/build_tarballs.jl) script can be found on [`Yggdrasil`](https://github.com/JuliaPackaging/Yggdrasil/), the community build tree.  If you have any issue, please report it to the Yggdrasil [bug tracker](https://github.com/JuliaPackaging/Yggdrasil/issues).")
@@ -1297,6 +1328,8 @@ function build_jll_package(src_name::String,
         for p in sort(collect(platforms), by = triplet)
             println(io, "* `", p, "` (`", triplet(p), "`)")
         end
+        # Note: here we list _all_ runtime dependencies, including those that may be
+        # required only for some platforms.
         if length(dependencies) > 0
             println(io)
             println(io, """
@@ -1347,7 +1380,8 @@ function build_jll_package(src_name::String,
     # We used to have a duplicate license file, remove it.
     rm(joinpath(code_dir, "LICENSE.md"); force=true)
 
-    # Add a Project.toml
+    # Add a Project.toml.  Note: here we list _all_ runtime dependencies, including those
+    # that may be required only for some platforms.
     project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts=lazy_artifacts)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         Pkg.TOML.print(io, project)
@@ -1398,6 +1432,29 @@ const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # For even more interesting historical reasons, we append an extra
 # "_jll" to the name of the new package before computing its UUID.
 jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
+
+function find_uuid(ctx, pkg)
+    if Pkg.Types.has_uuid(pkg)
+        return pkg.uuid
+    end
+    depname = getname(pkg)
+    @static if VERSION >= v"1.7"
+        uuids = Pkg.Types.registered_uuids(ctx.registries, depname)
+    else
+        uuids = Pkg.Types.registered_uuids(ctx, depname)
+    end
+    if isempty(uuids)
+        return nothing
+    end
+    if length(uuids) == 1
+        return first(uuids)
+    end
+    error("""
+    Multiple UUIDs found for package `$(depname)`.
+    Use `PackageSpec(name = \"$(depname)\", uuid = ..." to specify the UUID explicitly.
+    """)
+end
+
 function build_project_dict(name, version, dependencies::Array{Dependency}, julia_compat::String=DEFAULT_JULIA_VERSION_SPEC; lazy_artifacts::Bool=false, kwargs...)
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(
@@ -1410,9 +1467,16 @@ function build_project_dict(name, version, dependencies::Array{Dependency}, juli
         "compat" => Dict{String,Any}("JLLWrappers" => "1.2.0",
                                      "julia" => "$(julia_compat)")
     )
+
+    ctx = Pkg.Types.Context()
     for dep in dependencies
+        pkgspec = getpkg(dep)
         depname = getname(dep)
-        project["deps"][depname] = string(jll_uuid(depname))
+        uuid = find_uuid(ctx, pkgspec)
+        if uuid === nothing
+            uuid = jll_uuid(depname)
+        end
+        project["deps"][depname] = string(uuid)
         if dep isa Dependency && length(dep.compat) > 0
             Pkg.Types.semver_spec(dep.compat) # verify dep.compat is valid
             project["compat"][depname] = dep.compat

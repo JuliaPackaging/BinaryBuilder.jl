@@ -72,7 +72,7 @@ You can of course in turn build and deploy this package with
 julia build_tarballs.jl --debug --verbose --deploy="MY_USERNAME/Quxlib_jll.jl"
 ```
 
-Note that `PackageSpec` can also point to a local path: e.g., `PackageSpec(; name="Libfoo_jll", uuid="...", path="/home/myname/.julia/dev/Libfoo_jll")`.  This is particularly useful when [building a custom JLL package locally](@ref), instead of deploying it to a remote Git repository.
+Note that `PackageSpec` can also point to a local path: e.g., `PackageSpec(; name="Libfoo_jll", uuid="...", path="/home/myname/.julia/dev/Libfoo_jll")`.  This is particularly useful when [Building a custom JLL package locally](@ref), instead of deploying it to a remote Git repository.
 
 ### What are those numbers in the list of sources?  How do I get them?
 

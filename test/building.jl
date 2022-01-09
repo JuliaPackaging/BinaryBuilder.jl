@@ -38,7 +38,7 @@
                     [platform],
                     # The products we expect to be build
                     libfoo_products,
-                    # No depenedencies
+                    # No dependencies
                     Dependency[];
                     # Don't do audit passes
                     skip_audit=true,
@@ -104,23 +104,20 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 @testset "Shard testsuites" begin
     @testset "$(shard)" for shard in shards_to_test
 
-        if Sys.isfreebsd(shard) && libgfortran_version(shard) == v"3"
-            # Skip test for this shard until
-            # https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1053 is
-            # fixed.
-            @test_broken false
-            continue
-        end
-
         platforms = [shard]
         mktempdir() do build_path
-            products = Product[
+            products = [
                 ExecutableProduct("hello_world_c", :hello_world_c),
                 ExecutableProduct("hello_world_cxx", :hello_world_cxx),
                 ExecutableProduct("hello_world_fortran", :hello_world_fortran),
                 ExecutableProduct("hello_world_go", :hello_world_go),
-                ExecutableProduct("hello_world_rust", :hello_world_rust),
             ]
+
+            if !platforms_match(shard, Platform("i686", "windows"))
+                # Rust is broken on 32-bit Windows, let's skip it
+                push!(products, ExecutableProduct("hello_world_rust", :hello_world_rust))
+            end
+
 
             build_output_meta = autobuild(
                 build_path,
@@ -130,6 +127,10 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 DirectorySource[],
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
+                # Skip Rust on 32-bit Windows, it's totally unusable
+                if [[ "${target}" == i686-*-mingw* ]]; then
+                    while which rustc &> /dev/null; do rm $(which rustc); done
+                fi
                 # Build testsuite
                 make -j${nproc} -sC /usr/share/testsuite install
                 # Install fake license just to silence the warning
@@ -362,7 +363,7 @@ end
             [platform],
             # The products we expect to be build
             [LibraryProduct("libconfuse", :libconfuse)],
-            # No depenedencies
+            # No dependencies
             Dependency[];
             # Don't do audit passes
             skip_audit=true,
