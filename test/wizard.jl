@@ -1,5 +1,5 @@
 using BinaryBuilder, BinaryBuilder.BinaryBuilderBase, BinaryBuilder.Wizard
-using GitHub, Test, VT100, Sockets, HTTP, SHA, Tar
+using GitHub, Test, VT100, Sockets, HTTP, SHA, Tar, IOCapture
 import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
@@ -251,6 +251,23 @@ end
     @test length(state.dependencies) == 2
     @test any([BinaryBuilder.getname(d) == "ghr_jll" for d in state.dependencies])
     @test any([BinaryBuilder.getname(d) == "Zlib_jll" for d in state.dependencies])
+
+    # Test for escaping the URL prompt with N
+    state = step2_state()
+    with_wizard_output(state, Wizard.step2) do ins, outs
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:$(port)/a/source.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "Y")
+        call_response(ins, outs, "Please enter a URL", "N")
+    end
+    @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
+
+    state = step2_state()
+    cap = IOCapture.capture() do    
+        with_wizard_output(state, Wizard.step2) do ins, outs
+            call_response(ins, outs, "Please enter a URL", "N")
+        end
+    end
+    @test cap.output == "No URLs were given.\n"
 end
 
 
