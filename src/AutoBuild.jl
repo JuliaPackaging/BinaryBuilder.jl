@@ -792,7 +792,7 @@ function autobuild(dir::AbstractString,
         if !did_succeed
             if debug
                 log_files = String[]
-                for (root, dirs, files) in walkdir(prefix.path * "/srcdir")
+                for (root, dirs, files) in walkdir(joinpath(prefix.path, "srcdir"))
                     for file in files
                         if endswith(file, ".log")
                             push!(log_files, joinpath(root, file))
