@@ -33,7 +33,7 @@ ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
 [compat]
 ArgParse = "1.1"
-BinaryBuilderBase = "1.2"
+BinaryBuilderBase = "1.4"
 GitHub = "5.1"
 HTTP = "0.8, 0.9"
 JLD2 = "0.1.6, 0.2, 0.3, 0.4"
@@ -48,7 +48,7 @@ Registrator = "1.1"
 RegistryTools = "1.3.4"
 Scratch = "1.0"
 ghr_jll = "0.13.0"
-julia = "1.6"
+julia = "1.7"
 
 [extras]
 JLLWrappers = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
