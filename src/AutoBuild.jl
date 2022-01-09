@@ -795,7 +795,7 @@ function autobuild(dir::AbstractString,
                 for (root, dirs, files) in walkdir(joinpath(prefix.path, "srcdir"))
                     for file in files
                         if endswith(file, ".log")
-                            push!(log_files, joinpath(root, file))
+                            push!(log_files, replace(joinpath(root, file), "$dir/" => ""))
                         end
                     end
                 end
