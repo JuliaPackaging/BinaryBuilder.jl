@@ -801,11 +801,7 @@ function autobuild(dir::AbstractString,
                 end
                 
                 if length(log_files) > 0
-                    if length(log_files) > 1
-                        log_files_str = join(log_files, "\n    ")
-                    elseif length(log_files) == 1
-                        log_files_str = log_files[1]
-                    end
+                    log_files_str = join(log_files, "\n    ")
 
                     debug_shell_prompt = """
                     Build failed, the following log files were generated:
