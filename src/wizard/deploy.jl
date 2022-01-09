@@ -2,7 +2,8 @@ function print_build_tarballs(io::IO, state::WizardState)
     urlfiles = zip(state.source_urls, state.source_files)
 
     sources_strings = map(urlfiles) do x
-        url_string = repr(x[1])
+        # Try to be smart and automatically replace version number with `$(version)`.
+        url_string = replace(repr(x[1]), string(state.version) => "\$(version)")
         if endswith(x[1], ".git")
             "GitSource($(url_string), $(repr(x[2].hash)))"
         elseif any(endswith(x[1], ext) for ext in BinaryBuilderBase.archive_extensions)
