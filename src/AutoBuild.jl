@@ -817,7 +817,7 @@ function autobuild(dir::AbstractString,
         end
         if !did_succeed
             if debug
-                # Print debug promt and paths to any generated log files
+                # Print debug prompt and paths to any generated log files
                 debug_shell_prompt = compose_debug_prompt(prefix.path, dir)
                 @warn(debug_shell_prompt)
                 run_interactive(ur, `/bin/bash -l -i`)
