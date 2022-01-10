@@ -603,6 +603,32 @@ function get_meta_json(
     return dict
 end
 
+function compose_debug_prompt(sandbox_dir, project_dir)
+    log_files = String[]
+    for (root, dirs, files) in walkdir(joinpath(sandbox_dir, "srcdir"))
+        for file in files
+            if endswith(file, ".log")
+                push!(log_files, replace(joinpath(root, file), "$project_dir/" => ""))
+            end
+        end
+    end
+    
+    if length(log_files) > 0
+        log_files_str = join(log_files, "\n    ")
+
+        debug_shell_prompt = """
+        Build failed, the following log files were generated:
+            $log_files_str
+
+        Launching debug shell:
+        """
+    else
+        debug_shell_prompt = "Build failed, launching debug shell:"
+    end
+
+    return debug_shell_prompt
+end
+
 """
     autobuild(dir::AbstractString, src_name::AbstractString,
               src_version::VersionNumber, sources::Vector,
@@ -791,30 +817,9 @@ function autobuild(dir::AbstractString,
         end
         if !did_succeed
             if debug
-                log_files = String[]
-                for (root, dirs, files) in walkdir(joinpath(prefix.path, "srcdir"))
-                    for file in files
-                        if endswith(file, ".log")
-                            push!(log_files, replace(joinpath(root, file), "$dir/" => ""))
-                        end
-                    end
-                end
-                
-                if length(log_files) > 0
-                    log_files_str = join(log_files, "\n    ")
-
-                    debug_shell_prompt = """
-                    Build failed, the following log files were generated:
-                        $log_files_str
-
-                    Launching debug shell:
-                    """
-                else
-                    debug_shell_prompt = "Build failed, launching debug shell:"
-                end
-
+                # Print debug promt and paths to any generated log files
+                debug_shell_prompt = compose_debug_prompt(prefix.path, dir)
                 @warn(debug_shell_prompt)
-                
                 run_interactive(ur, `/bin/bash -l -i`)
             end
             msg = "Build for $(src_name) on $(triplet(platform)) did not complete successfully\n"
