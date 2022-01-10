@@ -618,7 +618,7 @@ function compose_debug_prompt(sandbox_dir, project_dir)
 
         debug_shell_prompt = """
         Build failed, the following log files were generated:
-            - $log_files_str
+          - $log_files_str
 
         Launching debug shell:
         """
