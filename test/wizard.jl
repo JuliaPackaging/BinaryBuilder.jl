@@ -251,6 +251,30 @@ end
     @test length(state.dependencies) == 2
     @test any([BinaryBuilder.getname(d) == "ghr_jll" for d in state.dependencies])
     @test any([BinaryBuilder.getname(d) == "Zlib_jll" for d in state.dependencies])
+
+    # Test for escaping the URL prompt with N
+    state = step2_state()
+    with_wizard_output(state, Wizard.step2) do ins, outs
+        call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:$(port)/a/source.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "Y")
+        call_response(ins, outs, "Please enter a URL", "N")
+        call_response(ins, outs, "Would you like to download additional sources", "N")
+        call_response(ins, outs, "Do you require any (binary) dependencies", "N")
+        call_response(ins, outs, "Enter a name for this project", "get_me_out")
+        call_response(ins, outs, "Enter a version number", "1.0.0")
+        call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
+    end
+    @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
+    state = step2_state()   
+    with_wizard_output(state, Wizard.step2) do ins, outs
+        call_response(ins, outs, "Please enter a URL", "N")
+        call_response(ins, outs, "No URLs", "http://127.0.0.1:$(port)/a/source.tar.gz")
+        call_response(ins, outs, "Would you like to download additional sources", "N")
+        call_response(ins, outs, "Do you require any (binary) dependencies", "N")
+        call_response(ins, outs, "Enter a name for this project", "no_urls")
+        call_response(ins, outs, "Enter a version number", "1.0.0")
+        call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
+    end
 end
 
 

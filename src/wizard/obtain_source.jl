@@ -99,10 +99,12 @@ function download_source(state::WizardState)
         # First, ask the user where this is all coming from
         msg = replace(strip("""
         Please enter a URL (git repository or compressed archive) containing the
-        source code to build:
+        source code to build or `N` to stop:
         """), "\n" => " ")
         new_entered_url = nonempty_line_prompt("URL", msg; ins=state.ins, outs=state.outs)
-
+        if new_entered_url == "N" || new_entered_url == "n"
+            return new_entered_url, SetupSource(string(new_entered_url), "", "", "")
+        end
         # Early-exit for invalid URLs, using HTTP.URIs.parse_uri() to ensure
         # it is a valid URL
         try
@@ -115,7 +117,6 @@ function download_source(state::WizardState)
             continue
         end
     end
-
     # Did the user exit out with ^D or something else go horribly wrong?
     if entered_url === nothing
         error("Could not obtain source URL")
@@ -325,10 +326,16 @@ function obtain_source(state::WizardState)
 
     while true
         url, file = download_source(state)
-        push!(state.source_urls, url)
-        push!(state.source_files, file)
-        println(state.outs)
-
+        if url != "N"
+            push!(state.source_urls, url)
+            push!(state.source_files, file)
+            println(state.outs)
+        else
+            if isempty(state.source_urls)
+                printstyled(state.outs, "No URLs were given.\n", color=:yellow, bold=true)
+                continue
+            end
+        end 
         q = "Would you like to download additional sources? "
         if yn_prompt(state, q, :n) != :y
             break
