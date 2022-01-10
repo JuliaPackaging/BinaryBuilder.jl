@@ -1,5 +1,5 @@
 using BinaryBuilder, BinaryBuilder.BinaryBuilderBase, BinaryBuilder.Wizard
-using GitHub, Test, VT100, Sockets, HTTP, SHA, Tar, IOCapture
+using GitHub, Test, VT100, Sockets, HTTP, SHA, Tar
 import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
