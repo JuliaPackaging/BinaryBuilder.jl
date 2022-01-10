@@ -102,7 +102,7 @@ end
 
 
         # Test that debug prompt generation works
-        @testset "Check debug prompt logic"
+        @testset "Check debug prompt logic" begin
             @test "Build failed, launching debug shell:" == BinaryBuilder.compose_debug_prompt(build_path, temp_path)
             logfile_path = joinpath(build_path, "srcdir", "errors.log")
             open(logfile_path, "w") do io
