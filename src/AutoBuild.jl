@@ -460,13 +460,23 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
     update_registry(devnull)
 
     jll_name = "$(src_name)_jll"
+    uuid = jll_uuid(jll_name)
 
     # If it does, we need to bump the build number up to the next value
-    build_number = 0
-    if jll_uuid(jll_name) in Pkg.Types.registered_uuids(ctx.registries, jll_name)
-        # Collect all version numbers of the package.  TODO: deal with multiple
-        # registries, here we're assuming the first is the good one.
-        versions = sort!(collect(keys(Pkg.Registry.registry_info(ctx.registries[1][jll_uuid(jll_name)]).version_info)))
+    build_number = UInt64(0)
+    if uuid in Pkg.Types.registered_uuids(ctx.registries, jll_name)
+        # Collect all version numbers of the package across all registries.
+        versions = VersionNumber[]
+        for reg in ctx.registries
+            if !haskey(reg, uuid)
+                continue
+            end
+
+            pkg_info = Pkg.Registry.registry_info(reg[uuid])
+            append!(versions, sort!(collect(keys(pkg_info.version_info))))
+        end
+        unique!(sort!(versions))
+
         # Find largest version number that matches ours
         filter!(v -> (v.major == src_version.major) &&
             (v.minor == src_version.minor) &&
