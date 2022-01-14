@@ -105,9 +105,7 @@ end
         @testset "Check debug prompt logic" begin
             @test "Build failed, launching debug shell:" == BinaryBuilder.compose_debug_prompt(build_path)
             logfile_path = joinpath(build_path, "srcdir", "errors.log")
-            open(logfile_path, "w") do io
-                write(io, "sample log message")
-            end
+            write(logfile_path, "sample log message")
             @test "Build failed, the following log files were generated:\n  - $(replace(logfile_path, "$build_path" => "\${WORKSPACE}"))\n\nLaunching debug shell:\n" == BinaryBuilder.compose_debug_prompt(build_path)
             rm(logfile_path)
         end
