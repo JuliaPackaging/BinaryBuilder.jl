@@ -108,7 +108,7 @@ end
             open(logfile_path, "w") do io
                 write(io, "sample log message")
             end
-            @test "Build failed, the following log files were generated:\n  - $(replace(logfile_path, "$temp_path" => "\${WORKSPACE}"))\n\nLaunching debug shell:\n" == BinaryBuilder.compose_debug_prompt(build_path)
+            @test "Build failed, the following log files were generated:\n  - $(replace(logfile_path, "$build_path" => "\${WORKSPACE}"))\n\nLaunching debug shell:\n" == BinaryBuilder.compose_debug_prompt(build_path)
             rm(logfile_path)
         end
 
