@@ -111,6 +111,18 @@ end
     end
 end
 
+@testset "Debug Prompt (Flag Generated Logs)" begin
+    mktempdir() do build_path
+        log_dir = joinpath(build_path, "srcdir")
+        mkdir(log_dir)
+        @test "Build failed, launching debug shell:" == BinaryBuilder.compose_debug_prompt(build_path)
+
+        logfile_path = joinpath(log_dir, "errors.log")
+        write(logfile_path, "sample log message")
+        @test "Build failed, the following log files were generated:\n  - $(replace(logfile_path, "$build_path" => "\${WORKSPACE}"))\n\nLaunching debug shell:\n" == BinaryBuilder.compose_debug_prompt(build_path)
+    end
+end
+
 @testset "Wizard Utilities" begin
     # Make sure canonicalization does what we expect
     zmq_url = "https://github.com/zeromq/zeromq3-x/releases/download/v3.2.5/zeromq-3.2.5.tar.gz"

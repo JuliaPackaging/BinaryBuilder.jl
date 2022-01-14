@@ -605,6 +605,32 @@ function get_meta_json(
     return dict
 end
 
+function compose_debug_prompt(workspace)
+    log_files = String[]
+    for (root, dirs, files) in walkdir(joinpath(workspace, "srcdir"))
+        for file in files
+            if endswith(file, ".log")
+                push!(log_files, replace(joinpath(root, file), workspace => "\${WORKSPACE}"))
+            end
+        end
+    end
+    
+    if length(log_files) > 0
+        log_files_str = join(log_files, "\n  - ")
+
+        debug_shell_prompt = """
+        Build failed, the following log files were generated:
+          - $log_files_str
+
+        Launching debug shell:
+        """
+    else
+        debug_shell_prompt = "Build failed, launching debug shell:"
+    end
+
+    return debug_shell_prompt
+end
+
 """
     autobuild(dir::AbstractString, src_name::AbstractString,
               src_version::VersionNumber, sources::Vector,
@@ -793,7 +819,9 @@ function autobuild(dir::AbstractString,
         end
         if !did_succeed
             if debug
-                @warn("Build failed, launching debug shell")
+                # Print debug prompt and paths to any generated log files
+                debug_shell_prompt = compose_debug_prompt(prefix.path)
+                @warn(debug_shell_prompt)
                 run_interactive(ur, `/bin/bash -l -i`)
             end
             msg = "Build for $(src_name) on $(triplet(platform)) did not complete successfully\n"
