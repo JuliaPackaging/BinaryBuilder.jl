@@ -100,15 +100,6 @@ end
         @test isfile(hist_file)
         @test isfile(env_file)
 
-        # Test that debug prompt generation works
-        @testset "Check debug prompt logic" begin
-            @test "Build failed, launching debug shell:" == BinaryBuilder.compose_debug_prompt(build_path)
-            logfile_path = joinpath(build_path, "srcdir", "errors.log")
-            write(logfile_path, "sample log message")
-            @test "Build failed, the following log files were generated:\n  - $(replace(logfile_path, "$build_path" => "\${WORKSPACE}"))\n\nLaunching debug shell:\n" == BinaryBuilder.compose_debug_prompt(build_path)
-            rm(logfile_path)
-        end
-
         # Test that exit 1 is in .bash_history
         @test occursin("\nexit 1\n", read(open(hist_file), String))
 
@@ -117,6 +108,18 @@ end
 
         # Delete the build path
         rm(build_path, recursive = true)
+    end
+end
+
+@testset "Debug Prompt (Flag Generated Logs)" begin
+    mktempdir() do build_path
+        log_dir = joinpath(build_path, "srcdir")
+        mkdir(log_dir)
+        @test "Build failed, launching debug shell:" == BinaryBuilder.compose_debug_prompt(build_path)
+
+        logfile_path = joinpath(log_dir, "errors.log")
+        write(logfile_path, "sample log message")
+        @test "Build failed, the following log files were generated:\n  - $(replace(logfile_path, "$build_path" => "\${WORKSPACE}"))\n\nLaunching debug shell:\n" == BinaryBuilder.compose_debug_prompt(build_path)
     end
 end
 
