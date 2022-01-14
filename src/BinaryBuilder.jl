@@ -31,6 +31,7 @@ export audit, collect_files, collapse_symlinks
 # Autocomplete BinaryBuilder.runshell
 const runshell = BinaryBuilderBase.runshell
 
+include("BuildMeta.jl")
 include("Auditor.jl")
 include("Wizard.jl")
 
@@ -44,7 +45,7 @@ include("Declarative.jl")
 include("Logging.jl")
 
 include("cli_tools.jl")
-include("BuildMeta.jl")
+
 include("BuildAPI.jl")
 
 function __init__()

@@ -1,13 +1,14 @@
 using Test
 
-export BuildMeta
+# Re-export some useful definitions from BBB/Base
+export AbstractDependency, AbstractSource, AbstractPlatform
+export BuildMeta, BuildConfig, BuildResult, ExtractConfig, ExtractResult, PackageConfig, PackageResult
 
 const BUILD_HELP = (
     """
-    Usage: build_tarballs.jl [target1,target2,...] [--help]
-                             [--verbose] [--debug=mode]
-                             [--deploy=repo] [--deploy-bin=repo] [--deploy-jll=repo]
-                             [--register] [--meta-json]
+    Usage: build_tarballs.jl [target1,target2,...] [--help] [--verbose] [--debug=mode]
+                             [--deploy=<repo>] [--register=<depot>] [--build-path=<dir>]
+                             [--output-dir=<dir>] [--dry-run=<tags>] [--meta-json]
 
     Options:
         targets             By default `build_tarballs.jl` will build a tarball for every
@@ -49,10 +50,26 @@ const BUILD_HELP = (
                             local target, as it must embed the URL that the deployed
                             JLL package is available at within the registry.
 
-        --meta-json         Output a JSON representation of the given build instead of
-                            actually building.  Note that this can (and often does)
-                            output multiple JSON objects for multiple platforms, multi-
-                            stage builds, etc...
+        --dry-run=<tags>    Allows skipping various parts of the build pipeline.  Must be
+                            a list of comma-separated tags, one of `build`, `extract`,
+                            `package`, or `all`.  If no `tags` are specified, defaults to
+                            `all`, which is equivalent to specifying all categories.
+                            Note that specifying `build` implies `extract`, which in turn
+                            implies `package`.
+
+        --meta-json=<path>  Output a JSON representation of the given build.  Often used
+                            in conjunction with `--dry-run` to get a description of what
+                            would be built, without any products actually being listed.
+                            Note that in the case of complicated `build_tarballs.jl` with
+                            multiple builds, it may output multiple JSON objects.  If no
+                            path is given, defaults to writing to standard output.
+
+        --build-dir=<path>  Directory that holds in-progress builds.  Generally gets
+                            cleaned up after a build completes.  Defaults to the value
+                            `"\$(pwd())/build"`.
+
+        --output-dir=<dir>  Directory that holds packaged tarball outputs.  Defaults to
+                            the value `"\$(pwd())/products"`.
 
         --help              Print out this message.
 
@@ -112,6 +129,47 @@ function parse_build_tarballs_args(ARGS::Vector{String})
         parsed_kwargs[:register_depot] = register_path
     end
 
+    # Dry run settings
+    dry_run, dry_run_csv = extract_flag!(ARGS, "--dry-run", "all")
+    if dry_run
+        # Parse the given set of categories
+        dry_run_categories = Symbol.(split(dry_run_csv, ","))
+
+        # Ensure that we only have valid values in these dry run categories
+        valid_categories = [:build, :extract, :package, :all]
+        for d in dry_run_categories
+            if d ∉ valid_categories
+                throw(ArgumentError("Invalid dry_run setting '$(d)'; value values are: $(valid_categories)"))
+            end
+        end
+
+        # If `:all` was passed, just set the parsed values to all valid possibilities
+        if :all ∈ dry_run_categories
+            dry_run_categories = valid_categories
+        else
+            # If `:build` was passed, that implies `:extract` and `:package`,
+            # just like `:extract` implies `:package`.
+            if :build ∈ dry_run_categories
+                push!(dry_run_categories, :extract)
+            end
+
+            if :extract in dry_run_categories
+                push!(dry_run_categories, :package)
+            end
+        end
+        parsed_kwargs[:dry_run] = sort(collect(Set(dry_run_categories)))
+    end
+
+    # Build/output directory locations
+    build_dir, build_dir_path = extract_flag!(ARGS, "--build-dir")
+    if build_dir
+        parsed_kwargs[:build_dir] = build_dir_path
+    end
+    output_dir, output_dir_path = extract_flag!(ARGS, "--output-dir")
+    if output_dir
+        parsed_kwargs[:output_dir] = output_dir_path
+    end
+
     # Slurp up the last argument as platforms
     if length(ARGS) == 1
         parse_platform(p::AbstractString) = p == "any" ? AnyPlatform() : parse(Platform, p; validate_strict=true)
@@ -123,7 +181,9 @@ function parse_build_tarballs_args(ARGS::Vector{String})
     return parsed_kwargs
 end
 
-
+# Helper to convert SubStrings to Strings, but only if they're not `nothing`
+string_or_nothing(x::AbstractString) = String(x)
+string_or_nothing(::Nothing) = nothing
 
 """
     BuildConfig
@@ -160,11 +220,6 @@ struct BuildConfig
     allow_unsafe_flags::Bool
     lock_microarchitecture::Bool
 
-    # This contains a fine-grained list of audit actions that should be skipped for this
-    # build.  If the special value `:all` exists wtihin this Vector, auditing is skipped
-    # completely.
-    audit_action_blocklist::Vector{Symbol}
-
     # Bash script that will perform the actual build itself
     script::String
 
@@ -172,14 +227,14 @@ struct BuildConfig
     # (possibly not-fully-concretized) as well as the fully-concretized
     # due to compiler ABI constraints.
     target::AbstractPlatform
-    concrete_target::AbstractPlatofrm
-end
+    concrete_target::AbstractPlatform
 
-function BuildConfig(src_name::AbstractString,
+    function BuildConfig(src_name::AbstractString,
+                     src_version::VersionNumber,
                      sources::Vector{<:AbstractSource},
-                     dependencies::Vector{<:AbstractDependency},
                      script::AbstractString,
-                     target::AbstractPlatform;
+                     target::AbstractPlatform,
+                     dependencies::Vector{<:AbstractDependency};
                      # For GCC, default to oldest version for compatibility
                      preferred_gcc_version::VersionNumber = BinaryBuilderBase.getversion(BinaryBuilderBase.available_gcc_builds[1]),
                      # LLVM doesn't have the compatibility issues that GCC does, so default to the latest and greatest
@@ -188,27 +243,29 @@ function BuildConfig(src_name::AbstractString,
                      lock_microarchitecture::Bool = true,
                      # By default, only provide C/C++/Fortran compilers
                      compilers::Vector{Symbol} = [:c],
-                     audit_action_blocklist::Vector{Symbol} = Symbol[],
                      )
-    shards = choose_shards(target; preferred_gcc_version, preferred_llvm_version, compilers)
-    # Now that we know which compilers we're building with, let's figure out our actual
-    # platform that we will use to construct the build environment (this will strictly be
-    # a valid sub-platform of the `target` given here).
-    concrete_target = BinaryBuilderBase.get_concrete_platform(target, shards)
-    return BuildConfig(
-        String(src_name),
-        sources,
-        dependencies,
-        compilers,
-        shards,
-        allow_unsafe_flags,
-        lock_microarchitecture,
-        audit_action_blocklist,
-        String(script),
-        target,
-        concrete_target,
-    )
+        shards = choose_shards(target; preferred_gcc_version, preferred_llvm_version, compilers)
+        # Now that we know which compilers we're building with, let's figure out our actual
+        # platform that we will use to construct the build environment (this will strictly be
+        # a valid sub-platform of the `target` given here).
+        concrete_target = BinaryBuilderBase.get_concrete_platform(target, shards)
+        return new(
+            String(src_name),
+            src_version,
+            sources,
+            dependencies,
+            compilers,
+            shards,
+            allow_unsafe_flags,
+            lock_microarchitecture,
+            String(script),
+            target,
+            concrete_target,
+        )
+    end
 end
+
+
 
 """
     BuildResult
@@ -221,10 +278,11 @@ struct BuildResult
     # The config that this result was built from
     config::BuildConfig
 
-    # The overall status of the build; e.g. `:complete`.
+    # The overall status of the build.  One of [:successful, :failed, :skipped]
     status::Symbol
 
     # The location of the build prefix on-disk (typically an artifact directory)
+    # For a failed or skipped build, this may be empty or only partially filled.
     prefix::String
 
     # Logs that are generated from build invocations and audit passes.
@@ -238,87 +296,153 @@ struct BuildResult
     #msgs::Vector{Test.LogRecord}
 
     ## TODO: merge `logs` and `msgs` with a better, more structured logging facility?
+
+    function BuildResult(config::BuildConfig,
+                         status::Symbol,
+                         prefix::AbstractString,
+                         logs::Dict{AbstractString,AbstractString})
+                         #msgs::Vector{Test.LogRecord})
+        return new(
+            config,
+            status,
+            String(prefix),
+            Dict(String(k) => String(v) for (k, v) in logs),
+            #msgs,
+        )
+    end
 end
 
-function BuildResult(config::BuildConfig,
-                     status::Symbol,
-                     prefix::AbstractString,
-                     logs::Dict{AbstractString,AbstractString})
-                     #msgs::Vector{Test.LogRecord})
+# Helper function for skipped builds
+function BuildResult_skipped(config::BuildConfig)
     return BuildResult(
         config,
-        status,
-        String(prefix),
-        Dict(String(k) => String(v) for (k, v) in logs),
-        #msgs,
+        :skipped,
+        "/dev/null",
+        Dict{String,String}(),
     )
 end
 
 # TODO: construct helper to reconstruct BuildResult objects from S3-saved tarballs
 
-
-"""
-    PackageConfig
-
-This structure holds all the inputs needed to package a new JLL release.  It requires a
-set of `BuildResult`s that it will then package up into a new JLL, optionally deploying
-the build results onto GitHub releases, etc...
-"""
-struct PackageConfig
-    # The build results we're packaging up
-    builds::Vector{BuildResult}
+struct ExtractConfig
+    # The build result we're packaging up
+    build::BuildResult
 
     # The extraction script that we're using to copy build results out into our artifacts
     script::String
 
     # The products that this package will ensure are available
     products::Vector{<:Product}
+
+    # This contains a fine-grained list of audit actions that should be skipped for this
+    # build.  If the special value `:all` exists wtihin this Vector, auditing is skipped
+    # completely.
+    audit_action_blocklist::Vector{Symbol}
+
+    function ExtractConfig(build::BuildResult,
+                              script::AbstractString,
+                              products::Vector{Product},
+                              audit_action_blocklist::Vector{Symbol} = Symbol[])
+        # if !isempty(builds) && any(b.config.src_name != builds[1].config.src_name for b in builds)
+        #     # I don't know why anyone would want to do this; let's just not allow it.
+        #     throw(ArgumentError("Cannot package unrelated builds together!"))
+        # end
+        return new(
+            build,
+            String(script),
+            products,
+            audit_action_blocklist,
+        )
+    end
 end
 
-function PackageConfig(builds::Vector{BuildResult},
-                       script::AbstractString,
-                       products::Vector{Product})
-    names = [br.name for br in builds]
-    if !all(names .== names[1])
-        error("Can only package builds with the same source name!")
+struct ExtractResult
+    # Link back to the originating ExtractResult
+    config::ExtractConfig
+
+    # The overall status of the extraction.  One of :successful, :failed, :skipped.
+    status::Symbol
+
+    # Treehash that represents the packaged output for the given config
+    # On a failed/skipped build, this may be the special all-zero artifact hash.
+    artifact::Base.SHA1
+
+    # Logs generated during this extraction (audit logs, mostly)
+    logs::Dict{String,String}
+
+    function ExtractResult(config::ExtractConfig, status::Symbol,
+                              artifact::Base.SHA1, logs::Dict{AbstractString,AbstractString})
+        return new(
+            config,
+            status,
+            artifact,
+            Dict(String(k) => String(v) for (k,v) in logs),
+        )
     end
-    return PackageConfig(
-        builds,
-        String(script),
-        products,
+end
+
+function ExtractResult_skipped(config::ExtractConfig)
+    return ExtractResult(
+        config,
+        :skipped,
+        Base.SHA1("0"^40),
+        Dict{String,String}(),
     )
+end
+
+struct PackageConfig
+    # The name of the generated JLL; if not specified, defaults to `$(src_name)_jll`.
+    # Note that by default we add `_jll` at the end, but this is not enforced in code!
+    name::String
+
+    # The list of successful extractions that we're going to combine
+    # together into a single package
+    extractions::Vector{ExtractResult}
+
+    function PackageConfig(extractions::Vector{ExtractResult}; name::Union{AbstractString,Nothing} = nothing)
+        if !isempty(extractions) && any(e.config.builds[1].name != extractions[1].config.builds[1].name for e in extractions)
+            throw(ArgumentError("Cannot package extractions from different builds!"))
+        end
+        # We allow overriding the name, but default to `$(src_name)_jll`
+        if name === nothing
+            name = string(extractions[1].config.builds[1].config.src_name, "_jll")
+        end
+        if !Base.isidentifier(name)
+            throw(ArgumentError("Package name '$(name)' is not a valid identifier!"))
+        end
+        return new(name, extractions)
+    end    
 end
 
 struct PackageResult
     # Link back to the originating Package Config
     config::PackageConfig
 
-    # The version number this package result is getting published under (may disagree with `src_version`)
+    # Overall status of the packaging.  One of :successful, :failed or :skipped
+    status::Symbol
+
+    # The version number this package result is getting published under
+    # (may disagree with `src_version`).
     published_version::VersionNumber
 
-    # Treehashes that represent the packaged outputs for this JLL release
-    artifacts::Vector{Base.SHA1}
-
-    # The location the code was all written out to
-    code_dir::String
-
-    # The location the code/binaries were deployed to (or `nothing`, if it was not deployed)
-    deploy_target::Union{String,Nothing}
+    function PackageResult(config::PackageConfig,
+                           status::Symbol,
+                           published_version::VersionNumber)
+        return new(
+            config,
+            status,
+            published_version,
+        )
+    end
 end
 
-function PackageResult(config::PackageConfig,
-                       published_version::VersionNumber,
-                       artifacts::Vector{Base.SHA1},
-                       code_dir::AbstractString,
-                       deploy_target::Union{AbstractString,Nothing})
-    stringify(x::AbstractString) = String(x)
-    stringify(::Nothing) = nothing
+# Note that this helper still takes in the `published_version`, as that is
+# potentially quite useful for static analysis to know.
+function PackageResult_skipped(config::PackageConfig, published_version::VersionNumber)
     return PackageResult(
         config,
+        :skipped,
         published_version,
-        artifacts,
-        String(code_dir),
-        stringify(deploy_target),
     )
 end
 
@@ -328,7 +452,9 @@ end
 This structure holds the metadata of a BinaryBuilder session including:
 
  - All build inputs as `BuildConfig` objects
- - All generated artifacts as `BuildResults` objects
+ - All build trees as `BuildResult` objects
+ - All extraction targets as `ExtractConfig` objects
+ - All extracted artifacts as `ExtractResult` objects
  - All build outputs as `PackageConfig` objects
  - All generated JLLs as `PackageResult` objects
 
@@ -340,6 +466,10 @@ struct BuildMeta
     # Contains a list of builds; when you run build!() with arguments, it records
     # what the metadata for that build was in here.
     builds::Dict{BuildConfig,Union{Nothing,BuildResult}}
+
+    # Contains a list of "extractions"; when you run `extract!()` with arguments, it
+    # records the pieces that were generated here.
+    extractions::Dict{ExtractConfig,Union{Nothing,ExtractResult}}
 
     # Contains a list of JLL packages; when you run `package!()` with arguments, it
     # records the pieces that were generated here.
@@ -355,10 +485,12 @@ struct BuildMeta
     # Most steps have a JSON representation that they can output, to allow us to
     # "trace" through a build and see what steps were run.  On Yggdrasil, we combine
     # this with the "dry run" mode, to allow us to generate a series of jobs.
-    dry_run::Bool
+    dry_run::Set{Symbol}
     json_output::Union{Nothing,IO}
     deploy_target::String
     register_depot::Union{Nothing,String}
+    build_dir::String
+    output_dir::String
 
     # Metadata about the version of BB used to build this thing
     bb_metadata::Dict
@@ -367,9 +499,11 @@ struct BuildMeta
                         verbose::Bool = false,
                         debug::Union{Nothing,AbstractString} = nothing,
                         json_output::Union{Nothing,AbstractString,IO} = nothing,
-                        dry_run::Bool = false,
+                        dry_run::Vector{Symbol} = Symbol[],
                         deploy_target::AbstractString = "local",
                         register_depot::Union{Nothing,AbstractString} = nothing,
+                        build_dir::AbstractString = joinpath(pwd(), "build"),
+                        output_dir::AbstractString = joinpath(pwd(), "products"),
                        )
         if debug !== nothing
             if debug ∉ ("begin", "end", "error")
@@ -391,20 +525,20 @@ struct BuildMeta
             end
         end
 
-        # Helper to convert SubStrings to Strings, but only if they're not `nothing`
-        stringify(x::AbstractString) = String(x)
-        stringify(::Nothing) = nothing
         return new(
             Dict{BuildConfig,BuildResult}(),
-            Dict{BuildResult,PackageResult}(),
+            Dict{ExtractConfig,ExtractResult}(),
+            Dict{PackageConfig,PackageResult}(),
             target_list,
             verbose,
-            stringify(debug),
-            dry_run,
+            string_or_nothing(debug),
+            Set{Symbol}(dry_run),
             json_output,
-            stringify(deploy_target),
-            stringify(register_depot),
-            Dict{String,String}("bb_version" => get_bb_version())
+            string_or_nothing(deploy_target),
+            string_or_nothing(register_depot),
+            build_dir,
+            output_dir,
+            Dict("bb_version" => get_bb_version())
         )
     end
 end

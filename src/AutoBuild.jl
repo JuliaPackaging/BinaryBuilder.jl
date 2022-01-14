@@ -768,7 +768,7 @@ function autobuild(dir::AbstractString,
             workspaces = [
                 joinpath(prefix, "metadir") => "/meta",
             ],
-            compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
+            compiler_wrapper_path = joinpath(prefix, "compiler_wrappers"),
             src_name = src_name,
             shards = shards,
             extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers,:allow_unsafe_flags,:lock_microarchitecture))...,

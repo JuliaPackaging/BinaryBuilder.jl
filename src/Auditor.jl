@@ -6,6 +6,7 @@ using Pkg
 using ObjectFile
 
 using BinaryBuilderBase: march
+using BinaryBuilder
 
 export audit, collect_files, collapse_symlinks
 
@@ -37,7 +38,7 @@ This method is still a work in progress, only some of the above list is
 actually implemented, be sure to actually inspect `Auditor.jl` to see what is
 and is not currently in the realm of fantasy.
 """
-function audit(config::BuildConfig, prefix::Prefix, logs::Dict{String,String};
+function audit(config::ExtractConfig, prefix::String, logs::Dict{String,String};
                io=stderr, verbose::Bool = false, silent::Bool = false)
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
@@ -45,7 +46,7 @@ function audit(config::BuildConfig, prefix::Prefix, logs::Dict{String,String};
     end
 
     # Canonicalize immediately
-    prefix = Prefix(realpath(prefix.path))
+    prefix = Prefix(realpath(prefix))
     if verbose
         @info("Beginning audit of $(prefix.path)")
     end
