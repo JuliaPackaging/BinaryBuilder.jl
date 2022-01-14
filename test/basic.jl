@@ -100,7 +100,6 @@ end
         @test isfile(hist_file)
         @test isfile(env_file)
 
-
         # Test that debug prompt generation works
         @testset "Check debug prompt logic" begin
             @test "Build failed, launching debug shell:" == BinaryBuilder.compose_debug_prompt(build_path)
