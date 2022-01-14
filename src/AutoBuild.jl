@@ -603,12 +603,12 @@ function get_meta_json(
     return dict
 end
 
-function compose_debug_prompt(sandbox_dir, project_dir)
+function compose_debug_prompt(workspace)
     log_files = String[]
-    for (root, dirs, files) in walkdir(joinpath(sandbox_dir, "srcdir"))
+    for (root, dirs, files) in walkdir(joinpath(workspace, "srcdir"))
         for file in files
             if endswith(file, ".log")
-                push!(log_files, replace(joinpath(root, file), "$project_dir/" => ""))
+                push!(log_files, replace(joinpath(root, file), workspace => "\${WORKSPACE}"))
             end
         end
     end
@@ -818,7 +818,7 @@ function autobuild(dir::AbstractString,
         if !did_succeed
             if debug
                 # Print debug prompt and paths to any generated log files
-                debug_shell_prompt = compose_debug_prompt(prefix.path, dir)
+                debug_shell_prompt = compose_debug_prompt(prefix.path)
                 @warn(debug_shell_prompt)
                 run_interactive(ur, `/bin/bash -l -i`)
             end
