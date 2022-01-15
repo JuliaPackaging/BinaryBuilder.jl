@@ -449,7 +449,7 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
     error("Unable to upload $(path) to GitHub repo $(repo) on tag $(tag)")
 end
 
-function get_next_wrapper_version(src_name, src_version)
+function get_next_wrapper_version(src_name::AbstractString, src_version::VersionNumber)
     # If src_version already has a build_number, just return it immediately
     if src_version.build != ()
         return src_version
@@ -457,20 +457,31 @@ function get_next_wrapper_version(src_name, src_version)
     ctx = Pkg.Types.Context()
 
     # Force-update the registry here, since we may have pushed a new version recently
-    update_registry(ctx, devnull)
+    update_registry(devnull)
+
+    jll_name = "$(src_name)_jll"
+    uuid = jll_uuid(jll_name)
 
     # If it does, we need to bump the build number up to the next value
-    build_number = 0
-    if any(isfile(joinpath(p, "Package.toml")) for p in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll")))
-        # Find largest version number that matches ours in the registered paths
+    build_number = UInt64(0)
+    if uuid in Pkg.Types.registered_uuids(ctx.registries, jll_name)
+        # Collect all version numbers of the package across all registries.
         versions = VersionNumber[]
-        for path in Pkg.Operations.registered_paths(ctx, jll_uuid("$(src_name)_jll"))
-            append!(versions, RegistryTools.Compress.load_versions(joinpath(path, "Versions.toml")))
+        for reg in ctx.registries
+            if !haskey(reg, uuid)
+                continue
+            end
+
+            pkg_info = Pkg.Registry.registry_info(reg[uuid])
+            append!(versions, sort!(collect(keys(pkg_info.version_info))))
         end
-        versions = filter(v -> (v.major == src_version.major) &&
-                            (v.minor == src_version.minor) &&
-                            (v.patch == src_version.patch) &&
-                            (v.build isa Tuple{<:UInt}), versions)
+        unique!(sort!(versions))
+
+        # Find largest version number that matches ours
+        filter!(v -> (v.major == src_version.major) &&
+            (v.minor == src_version.minor) &&
+            (v.patch == src_version.patch) &&
+            (v.build isa Tuple{<:UInt}), versions)
         # Our build number must be larger than the maximum already present in the registry
         if !isempty(versions)
             build_number = first(maximum(versions).build) + 1
