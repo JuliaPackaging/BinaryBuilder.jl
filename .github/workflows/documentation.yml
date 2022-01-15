@@ -25,6 +25,7 @@ jobs:
         shell: julia --color=yes --project=docs/ {0}
         run: |
           using Pkg
+          Pkg.Registry.update()
           Pkg.develop(PackageSpec(path=pwd()))
           Pkg.instantiate()
       - uses: julia-actions/julia-docdeploy@releases/v1
