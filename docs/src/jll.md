@@ -157,9 +157,6 @@ defines the following variables:
 
   Roughly speaking, the value of this variable is the basename of the shared
   library, not its full absolute path;
-* `libdataproc_splitpath`: the path of the shared library, relative to
-  `artifact_dir`, as returned by
-  [`splitpath`](https://docs.julialang.org/en/v1/base/file/#Base.Filesystem.splitpath);
 * `libdataproc_path`: the full absolute path of the shared library.  Note that
   this is not `const`, thus it can't be used in `ccall`;
 * `libdataproc_handle`: the address in memory of the shared library after it has
@@ -202,9 +199,6 @@ that the executable will find all shared libraries it needs while running.
 In addition to the function called `mungify_exe`, for this product there will be
 the following unexported variables:
 
-* `mungify_exe_splitpath`: the path of the executable, relative to
-  `artifact_dir`, as returned by
-  [`splitpath`](https://docs.julialang.org/en/v1/base/file/#Base.Filesystem.splitpath);
 * `mungify_exe_path`: the full absolute path of the executable;
 
 ### FileProduct
