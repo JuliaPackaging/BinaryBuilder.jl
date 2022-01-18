@@ -1347,7 +1347,7 @@ function build_jll_package(src_name::String,
         end
         println(io)
         println(io)
-        println(io,"For more details about JLL packages and how to use them, see `BinaryBuilder.jl` [documentation](https://juliapackaging.github.io/BinaryBuilder.jl/dev/jll/).")
+        println(io,"For more details about JLL packages and how to use them, see `BinaryBuilder.jl` [documentation](https://docs.binarybuilder.org/stable/jll/).")
         println(io)
         if length(sources) > 0
             # `sources` can be empty, and it is for some HelloWorld examples
