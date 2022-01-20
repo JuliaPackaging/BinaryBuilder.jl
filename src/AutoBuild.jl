@@ -437,7 +437,7 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
     for attempt in 1:attempts
         try
             ghr() do ghr_path
-                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) $(tag) $(path)`)
+                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) -replace $(tag) $(path)`)
             end
             return
         catch
