@@ -2,8 +2,8 @@
 
 [![Build Status](https://dev.azure.com/JuliaPackaging/BinaryBuilder.jl/_apis/build/status/JuliaPackaging.BinaryBuilder.jl?branchName=master)](https://dev.azure.com/JuliaPackaging/BinaryBuilder.jl/_build/latest?definitionId=2&branchName=master) [![codecov.io](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl/coverage.svg?branch=master)](http://codecov.io/github/JuliaPackaging/BinaryBuilder.jl?branch=master) 
 
-[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://juliapackaging.github.io/BinaryBuilder.jl/stable)
-[![](https://img.shields.io/badge/docs-latest-blue.svg)](https://juliapackaging.github.io/BinaryBuilder.jl/latest)
+[![](https://img.shields.io/badge/docs-stable-blue.svg)](https://docs.binarybuilder.org/stable)
+[![](https://img.shields.io/badge/docs-dev-blue.svg)](https://docs.binarybuilder.org/dev)
 
 > "Yea, though I walk through the valley of the shadow of death, I will fear no evil"
 
@@ -24,7 +24,7 @@ BinaryBuilder.run_wizard()
 
 4. The output of a build is a JLL package (typically hosted within the [JuliaBinaryWrappers](https://github.com/JuliaBinaryWrappers/) GitHub organization) which can be added to packages just like any other Julia package.  The JLL package will export bindings for all products defined within the build recipe.
 
-For more information, see the documentation for this package, viewable either directly in markdown within the [`docs/src`](docs/src) folder within this repository, or [online](https://juliapackaging.github.io/BinaryBuilder.jl/latest).
+For more information, see the documentation for this package, viewable either directly in markdown within the [`docs/src`](docs/src) folder within this repository, or [online](https://docs.binarybuilder.org).
 
 # Philosophy
 

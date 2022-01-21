@@ -63,7 +63,7 @@ checking build system type... Invalid configuration `x86_64-linux-musl': system 
 configure: error: /bin/sh ./config.sub x86_64-linux-musl failed
 ```
 
-The `BinaryBuilder` environment provides the utility [`update_configure_scripts`](https://juliapackaging.github.io/BinaryBuilder.jl/dev/build_tips/#Utilities-in-the-build-environment-1) to automatically update these scripts, call it before `./configure`:
+The `BinaryBuilder` environment provides the utility [`update_configure_scripts`](@ref utils_build_env) to automatically update these scripts, call it before `./configure`:
 
 ```sh
 update_configure_scripts
@@ -118,7 +118,7 @@ make -j${nproc}
 make install
 ```
 
-See for example the builder for [Giflib](https://github.com/JuliaPackaging/Yggdrasil/blob/78fb3a7b4d00f3bc7fd2b1bcd24e96d6f31d6c4b/G/Giflib/build_tarballs.jl).  If you need to regenerate `configure`, you'll probably need to run [`update_configure_scripts`](https://juliapackaging.github.io/BinaryBuilder.jl/dev/build_tips/#Utilities-in-the-build-environment-1) to make other platforms work as well.
+See for example the builder for [Giflib](https://github.com/JuliaPackaging/Yggdrasil/blob/78fb3a7b4d00f3bc7fd2b1bcd24e96d6f31d6c4b/G/Giflib/build_tarballs.jl).  If you need to regenerate `configure`, you'll probably need to run [`update_configure_scripts`](@ref utils_build_env) to make other platforms work as well.
 
 ## FreeBSD
 

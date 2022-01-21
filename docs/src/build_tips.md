@@ -194,9 +194,9 @@ You need to understand the build process of package you want to compile in order
 
 Generated tarballs should come with the license of the library that you want to install.  If at the end of a successful build there is only one directory inside `${WORKSPACE}/srcdir`, BinaryBuilder will look into it for files with typical names for license (like `LICENSE`, `COPYRIGHT`, etc... with some combinations of extensions) and automatically install them to `${prefix}/share/licenses/${SRC_NAME}/`.  If in the final tarball there are no files in this directory a warning will be issued, to remind you to provide a license file.
 
-If the license file is not automatically installed (for example because there is more than one directory in `${WORKSPACE}/srcdir` or because the file name doesn't match the expected pattern) you have to manually install the file.  In the build script you can use the `install_license` command.  See the [Utilities in the build environment](@ref) section below.
+If the license file is not automatically installed (for example because there is more than one directory in `${WORKSPACE}/srcdir` or because the file name doesn't match the expected pattern) you have to manually install the file.  In the build script you can use the `install_license` command.  See the [Utilities in the build environment](@ref utils_build_env) section below.
 
-## Utilities in the build environment
+## [Utilities in the build environment](@id utils_build_env)
 
 In addition to the standard Unix tools, in the build environment there are some extra commands provided by BinaryBuilder.  Here is a list of some of these commands:
 
