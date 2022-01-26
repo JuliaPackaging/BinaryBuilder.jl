@@ -1175,7 +1175,7 @@ function build_jll_package(src_name::String,
     dependencies = Dependency[d for d in dependencies if is_runtime_dependency(d)]
 
     platforms = keys(build_output_meta)
-    products_info = Dict{Product,Any}
+    products_info = Dict{Product,Any}()
     for platform in sort(collect(platforms), by = triplet)
         if verbose
             @info("Generating jll package for $(triplet(platform)) in $(code_dir)")
