@@ -343,7 +343,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
         build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
-                          dependencies, bin_path; verbose=verbose, extra_kwargs...)
+                          dependencies, bin_path; verbose, julia_compat, extra_kwargs...)
         if deploy_jll_repo != "local"
             push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
         end
