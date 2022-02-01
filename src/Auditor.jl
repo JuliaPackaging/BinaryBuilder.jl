@@ -340,7 +340,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         libs = find_libraries(oh)
         ignored_libraries = String[]
         for libname in keys(libs)
-            if should_ignore_lib(libname, oh)
+            if should_ignore_lib(libname, oh, platform)
                 push!(ignored_libraries, libname)
                 continue
             end
