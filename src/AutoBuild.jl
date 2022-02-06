@@ -161,6 +161,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         error("Package name \"$(src_name)\" is not a valid identifier")
     end
 
+    # TODO: Remove when BinaryBuilder.jl blockers for aarch64, etc. have been fixed
     if Sys.ARCH != :x86_64
         error("BinaryBuilder support is currently limited to :x86_84 systems, `$(Sys.ARCH)` was detected.")
     end
