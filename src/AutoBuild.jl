@@ -162,7 +162,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     if Sys.ARCH != :x86_64
-        error("BinaryBuilder only runs on :x86_84 systems, `$(Sys.ARCH)` was detected.")
+        error("BinaryBuilder support is currently limited to :x86_84 systems, `$(Sys.ARCH)` was detected.")
     end
     
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
