@@ -4,9 +4,9 @@ The purpose of the [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/Binary
 
 !!! warning "BinaryBuilder only runs on x86_64 systems"
     At this time, BinaryBuilder itself runs on Linux `x86_64` and macOS `x86_64` systems only,
-    with Windows support under active development. Explicitly, this means that BinaryBuilder will **not** run on the newer Apple Silicon 'M1' Macs.
+    with Windows support under active development. Explicitly, this means that for BinaryBuilder to run on the newer Apple Silicon 'M1' Macs, you will need to use the [macOS x86 (Intel or Rosetta) Julia binary](https://julialang.org/downloads/#current_stable_release).
     On macOS and Windows, you must have `docker` installed as the backing virtualization engine.
-    Note that Docker Desktop is the recommended version; if you have Docker Machine
+    Note that [Docker Desktop](https://www.docker.com/products/docker-desktop) is the recommended version; if you have Docker Machine
     installed it may not work correctly or may need additional configuration.
 
 ## Project flow
