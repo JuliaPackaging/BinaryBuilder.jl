@@ -161,6 +161,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         error("Package name \"$(src_name)\" is not a valid identifier")
     end
 
+    if Sys.ARCH != :x86_64
+        error("BinaryBuilder only runs on :x86_84 systems, `$(Sys.ARCH)` was detected.")
+    end
+    
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
     if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && minimum(VersionNumber(rng.lower.t) for rng in PKG_VERSIONS.semver_spec(julia_compat).ranges) < v"1.6"
         error("Experimental platforms cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
