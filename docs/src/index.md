@@ -2,7 +2,12 @@
 
 The purpose of the [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/BinaryBuilder.jl) Julia package is to provide a system for compiling 3rd-party binary dependencies that should work anywhere the [official Julia distribution](https://julialang.org/downloads) does.  In particular, using this package you will be able to compile your large pre-existing codebases of C, C++, Fortran, Rust, Go, etc... software into binaries that can be downloaded and loaded/run on a very wide range of machines.  As it is difficult (and often expensive) to natively compile software packages across the growing number of platforms that this package will need to support, we focus on providing a set of Linux-hosted cross-compilers.  This package will therefore set up an environment to perform cross-compilation for all of the major platforms, and will do its best to make the compilation process as painless as possible.
 
-Note that at this time, BinaryBuilder itself runs on Linux `x86_64` and macOS `x86_64` systems only, with Windows support under active development.  On macOS and Windows, you must have `docker` installed as the backing virtualization engine.  Note that Docker Desktop is the recommended version; if you have Docker Machine installed it may not work correctly or may need additional configuration.
+!!! warning "BinaryBuilder only runs on x86_64"
+    At this time, BinaryBuilder itself runs on Linux `x86_64` and macOS `x86_64` systems only,
+    with Windows support under active development. Explicitly, this means that BinaryBuilder will **not** run on the newer Apple Silicon 'M1' Macs.
+    On macOS and Windows, you must have `docker` installed as the backing virtualization engine.
+    Note that Docker Desktop is the recommended version; if you have Docker Machine
+    installed it may not work correctly or may need additional configuration.
 
 ## Project flow
 
