@@ -190,7 +190,6 @@ function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
               "libdevstat.sos.7",
               "libexecinfo.so.1",
               "libkvm.so.7",
-              "libz.so.6",
               )
     end
     return lowercase(basename(lib)) in ignore_libs
@@ -201,10 +200,8 @@ function should_ignore_lib(lib, ::MachOHandle, platform::AbstractPlatform)
         # This is not built by clang or GCC, so we leave it as a system library
         "libc++.1.dylib",
         "libresolv.9.dylib",
-        # Other libraries in the SDK
-        "libz.1.dylib",
         # Frameworks in the SDK
-        "courefoundation",
+        "corefoundation",
         "foundation",
         "iokit",
         "security",
