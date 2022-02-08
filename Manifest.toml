@@ -1,6 +1,6 @@
 # This file is machine-generated - editing it directly is not advised
 
-julia_version = "1.7.1"
+julia_version = "1.7.2"
 manifest_format = "2.0"
 
 [[deps.ArgParse]]
@@ -31,7 +31,7 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[deps.BinaryBuilderBase]]
 deps = ["CodecZlib", "Downloads", "InteractiveUtils", "JSON", "LibGit2", "LibGit2_jll", "Libdl", "Logging", "OutputCollectors", "Pkg", "Random", "SHA", "Scratch", "SimpleBufferStream", "TOML", "Tar", "UUIDs", "p7zip_jll", "pigz_jll"]
-git-tree-sha1 = "fb8fd5a89a0da8f040eb92f8d2457a960d016916"
+git-tree-sha1 = "d355613deba838940c6ba558ab03aa50e2baa1f3"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaPackaging/BinaryBuilderBase.jl.git"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
@@ -92,9 +92,9 @@ version = "0.1.8"
 
 [[deps.FileIO]]
 deps = ["Pkg", "Requires", "UUIDs"]
-git-tree-sha1 = "67551df041955cc6ee2ed098718c8fcd7fc7aebe"
+git-tree-sha1 = "80ced645013a5dbdc52cf70329399c35ce007fae"
 uuid = "5789e2e9-d7fb-5bc7-8068-2c6fae9b9549"
-version = "1.12.0"
+version = "1.13.0"
 
 [[deps.FileWatching]]
 uuid = "7b1f6079-737a-58dc-b8bc-7a2ca5c1b5ee"
@@ -455,9 +455,9 @@ uuid = "83775a58-1f1d-513f-b197-d71354ab007a"
 
 [[deps.ghr_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg"]
-git-tree-sha1 = "f5c8cb306d4fe2d1fff90443a088fc5ba536c134"
+git-tree-sha1 = "a83b3feeda837dd3f3cad19076bda0f0a524d687"
 uuid = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
-version = "0.13.0+1"
+version = "0.14.0+0"
 
 [[deps.libblastrampoline_jll]]
 deps = ["Artifacts", "Libdl", "OpenBLAS_jll"]
@@ -479,6 +479,6 @@ uuid = "3f19e933-33d8-53b3-aaab-bd5110c3b7a0"
 
 [[deps.pigz_jll]]
 deps = ["Artifacts", "JLLWrappers", "Libdl", "Pkg", "Zlib_jll"]
-git-tree-sha1 = "8c379a72c82099ceb4be53f4f427690376279052"
+git-tree-sha1 = "3c0c0b0c133b6ab53e1af05dc526091ce8781f16"
 uuid = "1bc43ea1-30af-5bc8-a9d4-c018457e6e3e"
-version = "2.5.0+0"
+version = "2.7.0+0"
