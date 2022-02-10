@@ -205,6 +205,7 @@ function should_ignore_lib(lib, ::MachOHandle, platform::AbstractPlatform)
         "foundation",
         "iokit",
         "security",
+        "systemconfiguration",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
@@ -242,6 +243,8 @@ function should_ignore_lib(lib, ::COFFHandle, platform::AbstractPlatform)
         "msimg32.dll",
         "dnsapi.dll",
         "wsock32.dll",
+        "psapi.dll",
+        "bcrypt.dll",
 
         # Compiler support libraries
         "libgcc_s_seh-1.dll",
