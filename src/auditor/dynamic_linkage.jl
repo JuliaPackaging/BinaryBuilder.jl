@@ -150,7 +150,7 @@ function is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
 end
 
 # These are libraries we should straight-up ignore, like libsystem on OSX
-function should_ignore_lib(lib, ::ELFHandle)
+function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
     ignore_libs = [
         # dynamic loaders
         "ld-linux-x86-64.so.2",
@@ -184,18 +184,32 @@ function should_ignore_lib(lib, ::ELFHandle)
         "libthr.so.3",
         "libpthread.so.0",
     ]
+    if Sys.isfreebsd(platform)
+        push!(ignore_libs,
+              # From FreeBSD SDK
+              "libdevstat.sos.7",
+              "libexecinfo.so.1",
+              "libkvm.so.7",
+              )
+    end
     return lowercase(basename(lib)) in ignore_libs
 end
-function should_ignore_lib(lib, ::MachOHandle)
+function should_ignore_lib(lib, ::MachOHandle, platform::AbstractPlatform)
     ignore_libs = [
         "libsystem.b.dylib",
         # This is not built by clang or GCC, so we leave it as a system library
         "libc++.1.dylib",
         "libresolv.9.dylib",
+        # Frameworks in the SDK
+        "corefoundation",
+        "foundation",
+        "iokit",
+        "security",
+        "systemconfiguration",
     ]
     return lowercase(basename(lib)) in ignore_libs
 end
-function should_ignore_lib(lib, ::COFFHandle)
+function should_ignore_lib(lib, ::COFFHandle, platform::AbstractPlatform)
     ignore_libs = [
         # Core runtime libs
         "ntdll.dll",
@@ -228,6 +242,9 @@ function should_ignore_lib(lib, ::COFFHandle)
         "winhttp.dll",
         "msimg32.dll",
         "dnsapi.dll",
+        "wsock32.dll",
+        "psapi.dll",
+        "bcrypt.dll",
 
         # Compiler support libraries
         "libgcc_s_seh-1.dll",
