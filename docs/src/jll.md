@@ -168,7 +168,6 @@ An [`ExecutableProduct`](@ref) is a binary executable that can be run on the
 current platform.  If, for example, the `ExecutableProduct` has been called
 `mungify_exe`, the wrapper defines an exported function named `mungify_exe` that
 should run by the user in one the following ways:
-versions:
 
 ```julia
 # Only available in Julia v1.6+
