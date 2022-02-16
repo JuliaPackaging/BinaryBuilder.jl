@@ -73,7 +73,7 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
         if choice == 1
             # Link dependencies into the prefix again
             concrete_platform = get_concrete_platform(platform, state)
-            artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
+            artifact_paths = setup_dependencies(prefix, state.dependencies, concrete_platform)
             return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
         elseif choice == 2
             state.step = :step3
@@ -228,8 +228,7 @@ function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Un
         # Clear out the prefix artifacts directory in case this change caused
         # any previous dependencies to change
         cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
-        pkgs = getpkg.([state.dependencies; new_dep])
-        prefix_artifacts[prefix] = setup_dependencies(prefix, pkgs, concrete_platform)
+        prefix_artifacts[prefix] = setup_dependencies(prefix, [state.dependencies; new_dep], concrete_platform)
         push!(state.dependencies, new_dep)
     catch e
         showerror(client, e)
@@ -439,7 +438,7 @@ function step3_retry(state::WizardState)
     mkpath(build_path)
     concrete_platform = get_concrete_platform(platform, state)
     prefix = setup_workspace(build_path, vcat(state.source_files, state.patches), concrete_platform; verbose=false)
-    artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
+    artifact_paths = setup_dependencies(prefix, state.dependencies, concrete_platform)
 
     ur = preferred_runner()(
         prefix.path;
@@ -526,7 +525,7 @@ function step34(state::WizardState)
         concrete_platform;
         verbose=false
     )
-    artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
+    artifact_paths = setup_dependencies(prefix, state.dependencies, concrete_platform; verbose=true)
 
     provide_hints(state, joinpath(prefix, "srcdir"))
 
@@ -571,7 +570,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
             prefix = setup_workspace(build_path, vcat(state.source_files, state.patches), concrete_platform; verbose=true)
             # Clean up artifacts in case there are some
             cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
-            artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
+            artifact_paths = setup_dependencies(prefix, state.dependencies, concrete_platform; verbose=true)
             # Record newly added artifacts for this prefix
             prefix_artifacts[prefix] = artifact_paths
             ur = preferred_runner()(
@@ -648,7 +647,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
                         )
                         # Clean up artifacts in case there are some
                         cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
-                        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform; verbose=true)
+                        artifact_paths = setup_dependencies(prefix, state.dependencies, platform; verbose=true)
                         # Record newly added artifacts for this prefix
                         prefix_artifacts[prefix] = artifact_paths
 
@@ -782,7 +781,7 @@ function step5c(state::WizardState)
             concrete_platform;
             verbose=false,
         )
-        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=false)
+        artifact_paths = setup_dependencies(prefix, state.dependencies, concrete_platform; verbose=false)
         ur = preferred_runner()(
             prefix.path;
             cwd="/workspace/srcdir",
