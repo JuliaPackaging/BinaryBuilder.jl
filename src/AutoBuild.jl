@@ -549,7 +549,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
-    jllwrappers_compat = isempty(augment_platform_block) ? "1.2.0" : "1.4.0"
+    jllwrappers_compat = isempty(augment_platform_block) ? DEFAULT_JLLWRAPPERS_VERSION_SPEC : "1.4.0"
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts=lazy_artifacts))
     errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
     reg_branch = RegistryTools.register(
