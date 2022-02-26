@@ -98,6 +98,8 @@ const BUILD_HELP = (
                             instead of actually building.  Note that this can
                             (and often does) output multiple JSON objects for
                             multiple platforms, multi-stage builds, etc...
+        
+        --skip-audit        Skips auditing of the output products.
 
         --help              Print out this message.
 
@@ -188,6 +190,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
     # This sets whether we should build verbosely or not
     verbose = check_flag!(ARGS, "--verbose")
+
+    # This sets whether auditing should be skipped
+    skip_audit = check_flag!(ARGS, "--skip-audit")
 
     # This sets whether we drop into a debug shell on failure or not
     debug, debug_mode = extract_flag!(ARGS, "--debug", "error")
@@ -325,8 +330,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             args...;
 
             # Flags
-            verbose=verbose,
-            debug=debug,
+            verbose,
+            debug,
+            skip_audit,
             kwargs...,
         )
     end
