@@ -5,6 +5,7 @@ function get_yggdrasil()
     # but since that doens't exist yet, we'll stick it into `deps`:
     yggdrasil_dir = abspath(joinpath(@__DIR__, "..", "..", "deps", "Yggdrasil"))
 
+    @info "Yggdrasil directory: $(yggdrasil_dir)"
     if !isdir(yggdrasil_dir)
         @info( "Cloning bare Yggdrasil into deps/Yggdrasil...")
         LibGit2.clone("https://github.com/JuliaPackaging/Yggdrasil.git", yggdrasil_dir; isbare=true)

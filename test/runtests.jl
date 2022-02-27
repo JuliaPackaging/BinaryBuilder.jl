@@ -69,6 +69,6 @@ install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 # include("basic.jl")
 # include("building.jl")
 # include("auditing.jl")
-include("jll.jl")
+# include("jll.jl")
 include("wizard.jl")
 include("declarative.jl")
