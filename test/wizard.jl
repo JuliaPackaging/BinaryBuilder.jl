@@ -129,7 +129,7 @@ end
     state.name = nothing
     # Use an existing name, choose a new one afterwards
     with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
-        call_response(ins, outs, "Enter a name for this project", "libcurl")
+        call_response(ins, outs, "Enter a name for this project", "cuba")
         call_response(ins, outs, "Choose a new project name", "y")
         call_response(ins, outs, "Enter a name for this project", "libfoobarqux")
     end
@@ -138,10 +138,10 @@ end
     state.name = nothing
     # Use an existing name, confirm the choice
     with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
-        call_response(ins, outs, "Enter a name for this project", "libcurl")
+        call_response(ins, outs, "Enter a name for this project", "cuba")
         call_response(ins, outs, "Choose a new project name", "N")
     end
-    @test state.name == "libcurl"
+    @test state.name == "cuba"
     @test state.version == v"1.2.3"
 end
 
