@@ -84,8 +84,10 @@ for i in available_ports
     # All looks good, update the global `port` and start the server
     global port = i
     @async HTTP.serve(r, Sockets.localhost, port; server=server, verbose=false)
+    @info "port $(port) is good, move on"
     break
 end
+@info "$(@__FILE__):$(@__LINE__)"
 
 function readuntil_sift(io::IO, needle)
     # N.B.: This is a terrible way to do this and works around the fact that our `IOBuffer`
@@ -122,32 +124,46 @@ function call_response(ins, outs, question, answer; newline=true)
 end
 
 @testset "Wizard - Obtain source" begin
+    @info "$(@__FILE__):$(@__LINE__)"
     state = Wizard.WizardState()
     # Use a non existing name
+    @info "$(@__FILE__):$(@__LINE__)"
     with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
         # Append "_jll" to the name and make sure this is automatically removed
         call_response(ins, outs, "Enter a name for this project", "libfoobarqux_jll")
         call_response(ins, outs, "Enter a version number", "1.2.3")
     end
+    @info "$(@__FILE__):$(@__LINE__)"
     @test state.name == "libfoobarqux"
     @test state.version == v"1.2.3"
     state.name = nothing
     # Use an existing name, choose a new one afterwards
+    @info "$(@__FILE__):$(@__LINE__)"
     with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
+        @info "$(@__FILE__):$(@__LINE__)"
         call_response(ins, outs, "Enter a name for this project", "libcurl")
+        @info "$(@__FILE__):$(@__LINE__)"
         call_response(ins, outs, "Choose a new project name", "y")
+        @info "$(@__FILE__):$(@__LINE__)"
         call_response(ins, outs, "Enter a name for this project", "libfoobarqux")
+        @info "$(@__FILE__):$(@__LINE__)"
     end
+    @info "$(@__FILE__):$(@__LINE__)"
     @test state.name == "libfoobarqux"
     @test state.version == v"1.2.3"
+    @info "$(@__FILE__):$(@__LINE__)"
     state.name = nothing
+    @info "$(@__FILE__):$(@__LINE__)"
     # Use an existing name, confirm the choice
+    @info "$(@__FILE__):$(@__LINE__)"
     with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
         call_response(ins, outs, "Enter a name for this project", "libcurl")
         call_response(ins, outs, "Choose a new project name", "N")
     end
+    @info "$(@__FILE__):$(@__LINE__)"
     @test state.name == "libcurl"
     @test state.version == v"1.2.3"
+    @info "$(@__FILE__):$(@__LINE__)"
 end
 
 # Set the state up
