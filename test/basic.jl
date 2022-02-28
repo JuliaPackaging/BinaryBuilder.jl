@@ -231,6 +231,10 @@ end
 
     @test_throws ErrorException build_project_dict(name, version, dependencies, "nonsense")
 
+    # Ensure passing a JLLWrappers dependency bound works
+    dict = build_project_dict(name, version, dependencies; jllwrappers_compat="1.4.0")
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.0", "JLLWrappers" => "1.4.0")
+
     # Ensure passing compat bounds works
     dependencies = [
         Dependency(PackageSpec(name="libLLVM_jll"), compat="=9.0.0"),
