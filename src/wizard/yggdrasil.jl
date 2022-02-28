@@ -1,18 +1,23 @@
 # Only update yggdrasil once
-const yggdrasil_updated = Ref(false)
+yggdrasil_updated = false
 function get_yggdrasil()
     # TODO: Eventually, we want to use a Pkg cache to store Yggdrasil,
     # but since that doens't exist yet, we'll stick it into `deps`:
-    yggdrasil_dir = BinaryBuilderBase.cached_git_clone("https://github.com/JuliaPackaging/Yggdrasil.git"; verbose=true)
+    yggdrasil_dir = abspath(joinpath(@__DIR__, "..", "..", "deps", "Yggdrasil"))
 
-    if !yggdrasil_updated[]
-        @info("Updating bare Yggdrasil clone in deps/Yggdrasil...")
-        repo = LibGit2.GitRepo(yggdrasil_dir)
-        LibGit2.fetch(repo)
-        origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
-        LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_SOFT)
+    if !isdir(yggdrasil_dir)
+        @info( "Cloning bare Yggdrasil into deps/Yggdrasil...")
+        LibGit2.clone("https://github.com/JuliaPackaging/Yggdrasil.git", yggdrasil_dir; isbare=true)
+    else
+        if !yggdrasil_updated
+            @info("Updating bare Yggdrasil clone in deps/Yggdrasil...")
+            repo = LibGit2.GitRepo(yggdrasil_dir)
+            LibGit2.fetch(repo)
+            origin_master_oid = LibGit2.GitHash(LibGit2.lookup_branch(repo, "origin/master", true))
+            LibGit2.reset!(repo, origin_master_oid, LibGit2.Consts.RESET_SOFT)
+        end
     end
-    yggdrasil_updated[] = true
+    global yggdrasil_updated = true
     return yggdrasil_dir
 end
 
