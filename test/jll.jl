@@ -45,9 +45,27 @@ end
         # Build for this platform and a platform that isn't this one for sure:
         # FreeBSD.
         freebsd = Platform("x86_64", "freebsd")
-        platforms = [platform, freebsd]
+        platforms = Platform[]
+
+        for p in [platform, freebsd]
+            for tag in ["enabled", "disabled"]
+                augmented_platform = deepcopy(platform)
+                augmented_platform["test"] = tag
+                push!(platforms, augmented_platform)
+            end
+        end
+
+        augmented_platform_block = """
+            using Base.BinaryPlatforms
+
+            function augment_platform!(platform::Platform)
+                platform["test"] = "enabled"
+            end
+        """
+
         # We depend on Zlib_jll only on the host platform, but not on FreeBSD
-        dependencies = [Dependency("Zlib_jll"; platforms=[platform])]
+        dependencies = [Dependency("Zlib_jll"; platforms=filter(Sys.islinux, platforms))]
+
         # The buffer where we'll write the JSON meta data
         buff = IOBuffer()
 
@@ -65,6 +83,7 @@ end
                 # The products we expect to be build
                 libfoo_products,
                 dependencies;
+                augment_platform_block
             )
             # Generate the JSON file
             println(buff, JSON.json(dict))
