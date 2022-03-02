@@ -1106,7 +1106,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
     downloaded_files = readdir(download_dir)
     for platform in sort(collect(platforms), by = triplet)
         # Find the corresponding tarball:
-        tarball_idx = findfirst([occursin(".$(triplet(platform)).", f) for f in downloaded_files])
+        tarball_idx = findfirst([occursin(".$(triplet(platform)).tar", f) for f in downloaded_files])
 
         # No tarball matching the given platform...
         if tarball_idx === nothing
@@ -1116,7 +1116,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 if isos(platform) && os_version(platform) === nothing
                     tmp_platform = deepcopy(platform)
                     tmp_platform["os_version"] = try_os_version
-                    tarball_idx = findfirst([occursin(".$(triplet(tmp_platform)).", f) for f in downloaded_files])
+                    tarball_idx = findfirst([occursin(".$(triplet(tmp_platform)).tar", f) for f in downloaded_files])
                 end
             end
         end
