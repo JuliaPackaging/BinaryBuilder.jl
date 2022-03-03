@@ -556,7 +556,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
     jllwrappers_compat = isempty(augment_platform_block) ? DEFAULT_JLLWRAPPERS_VERSION_SPEC : "1.4.0"
-    project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts=lazy_artifacts))
+    project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts, augment_platform_block))
     errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
     reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
@@ -1496,7 +1496,7 @@ function build_jll_package(src_name::String,
     # Add a Project.toml.  Note: here we list _all_ runtime dependencies, including those
     # that may be required only for some platforms.
     jllwrappers_compat = isempty(augment_platform_block) ? "1.2.0" : "1.4.0"
-    project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts=lazy_artifacts, jllwrappers_compat)
+    project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts, jllwrappers_compat, augment_platform_block)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         Pkg.TOML.print(io, project)
     end
