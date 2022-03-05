@@ -223,7 +223,7 @@ function print_wizard_logo(outs)
               \\/     L
                \\ ,'   \
              _/ L'   `  \          Join us in the #binarybuilder channel on the
-            /  /    /   /          community slack: https://julialang.slack.com
+            /  /    /   /          community slack: https://julialang.org/slack/
            /  /    |    \
           "_''--_-''---__=;        https://github.com/JuliaPackaging/BinaryBuilder.jl
     """
