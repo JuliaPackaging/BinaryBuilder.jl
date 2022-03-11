@@ -406,7 +406,9 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
             if rp == "."
                 return "\$ORIGIN"
             end
-            if startswith(rp, ".")
+            if startswith(rp, ".") || !startswith(rp, "/")
+                # Relative paths starting with `.`, or anything which isn't an absolute
+                # path.  It may also be a relative path without the leading `./`
                 return "\$ORIGIN/$(rp)"
             end
             return rp
