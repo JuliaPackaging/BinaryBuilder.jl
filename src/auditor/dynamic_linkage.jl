@@ -1,5 +1,4 @@
 using ObjectFile.ELF
-import ObjectFile: rpaths, canonical_rpaths
 
 """
     platform_for_object(oh::ObjectHandle)
@@ -68,13 +67,13 @@ function platform_for_object(oh::ObjectHandle)
     end
 end
 
-function rpaths(file::AbstractString)
+function _rpaths(file::AbstractString)
     readmeta(file) do oh
         rpaths(RPath(oh))
     end
 end
 
-function canonical_rpaths(file::AbstractString)
+function _canonical_rpaths(file::AbstractString)
     readmeta(file) do oh
         canonical_rpaths(RPath(oh))
     end
@@ -406,12 +405,14 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
             if rp == "."
                 return "\$ORIGIN"
             end
-            if startswith(rp, ".")
+            if startswith(rp, ".") || !startswith(rp, "/")
+                # Relative paths starting with `.`, or anything which isn't an absolute
+                # path.  It may also be a relative path without the leading `./`
                 return "\$ORIGIN/$(rp)"
             end
             return rp
         end
-        current_rpaths = [r for r in rpaths(path) if !isempty(r)]
+        current_rpaths = [r for r in _rpaths(path) if !isempty(r)]
         add_rpath = rp -> begin
             # Join together RPaths to set new one
             rpaths = unique(vcat(current_rpaths, rp))
@@ -425,6 +426,9 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
                 return path
             end
             rpaths = chomp_slashdot.(rpaths)
+            # Remove paths starting with `/workspace`: they will not work outisde of the
+            # build environment and only create noise when debugging.
+            filter!(rp -> !startswith(rp, "/workspace"), rpaths)
 
             rpath_str = join(rpaths, ':')
             return `$patchelf $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(rel_path)`
@@ -435,7 +439,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     # If the relative directory doesn't already exist within the RPATH of this
     # binary, then add it in.
     new_libdir = abspath(dirname(new_libpath) * "/")
-    if !(new_libdir in canonical_rpaths(path))
+    if !(new_libdir in _canonical_rpaths(path))
         libname = basename(old_libpath)
         cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
         with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io

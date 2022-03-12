@@ -571,6 +571,55 @@ end
     end
 end
 
+@testset "Auditor - rpaths" begin
+    @testset "$platform" for platform in (Platform("x86_64", "linux"; libc="glibc"), Platform("x86_64", "macos"))
+        mktempdir() do build_path
+            build_output_meta = nothing
+            @test_logs (:info, "Building for $(triplet(platform))") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "rpaths",
+                    v"1.0.0",
+                    # No sources
+                    FileSource[],
+                    # Build two libraries, `libbar` in `${libdir}/qux/` and `libfoo` in
+                    # `${libdir}`, with the latter linking to the former.
+                    raw"""
+                    mkdir -p ${libdir}/qux
+                    echo "int bar(){return 38;}" | gcc -x c -shared -fPIC - -o ${libdir}/qux/libbar.${dlext}
+                    echo "extern int bar(); int foo(){return bar() + 4;}" | gcc -x c -shared -fPIC - -o ${libdir}/libfoo.${dlext} -L${libdir}/qux -lbar -Wl,-rpath,${libdir}/qux
+                    """,
+                    [platform],
+                    # Ensure our library products are built
+                    [LibraryProduct("libbar", :libbar, "\$libdir/qux"), LibraryProduct("libfoo", :libfoo)],
+                    # No dependencies
+                    Dependency[];
+                    require_license = false
+                )
+            end
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            # Ensure the build products were created
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            # Make sure rpath of libbar is empty
+            @test Auditor._rpaths(joinpath(testdir, "lib", "qux", "libbar.$(platform_dlext(platform))")) == []
+            # Make sure the rpath of libfoo contains only `$ORIGIN/qux`, with the relative
+            # path handled correctly.
+            libfoo_rpaths = Auditor._rpaths(joinpath(testdir, "lib", "libfoo.$(platform_dlext(platform))"))
+            @test (Sys.isapple(platform) ? "@loader_path" : "\$ORIGIN") * "/qux" in libfoo_rpaths
+            # Currently we don't filter out absolute rpaths for macOS libraries, no good.
+            @test length(libfoo_rpaths) == 1 broken=Sys.isapple(platform)
+        end
+    end
+end
+
 @testset "Auditor - execution permission" begin
     mktempdir() do build_path
         build_output_meta = nothing
