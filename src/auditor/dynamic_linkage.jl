@@ -426,6 +426,9 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
                 return path
             end
             rpaths = chomp_slashdot.(rpaths)
+            # Remove paths starting with `/workspace`: they will not work outisde of the
+            # build environment and only create noise when debugging.
+            filter!(rp -> !startswith(rp, "/workspace"), rpaths)
 
             rpath_str = join(rpaths, ':')
             return `$patchelf $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(rel_path)`
