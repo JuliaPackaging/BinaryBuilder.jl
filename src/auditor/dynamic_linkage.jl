@@ -187,8 +187,10 @@ function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
         push!(ignore_libs,
               # From FreeBSD SDK
               "libdevstat.sos.7",
+              "libdl.so.1",
               "libexecinfo.so.1",
               "libkvm.so.7",
+              "libutil.so.9",
               )
     end
     return lowercase(basename(lib)) in ignore_libs
@@ -200,9 +202,15 @@ function should_ignore_lib(lib, ::MachOHandle, platform::AbstractPlatform)
         "libc++.1.dylib",
         "libresolv.9.dylib",
         # Frameworks in the SDK
+        "appkit",
+        "cocoa",
         "corefoundation",
+        "coreservices",
         "foundation",
         "iokit",
+        "metal",
+        "metalkit",
+        "quartzcore",
         "security",
         "systemconfiguration",
     ]
