@@ -543,8 +543,8 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
-                      lazy_artifacts::Bool=false,
-                      augment_platform_block="",
+                      augment_platform_block::String="",
+                      lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                       kwargs...)
     if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
         error("Augmentation blocks cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
@@ -622,9 +622,10 @@ function get_meta_json(
                    products::Vector{<:Product},
                    dependencies::Vector{<:AbstractDependency};
                    julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                   lazy_artifacts::Bool = false,
                    init_block::String = "",
-                   augment_platform_block::String = "")
+                   augment_platform_block::String = "",
+                   lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+    )
 
     dict = Dict(
         "name" => src_name,
@@ -1064,7 +1065,6 @@ function rebuild_jll_package(obj::Dict;
                              build_version = nothing,
                              gh_org::String = "JuliaBinaryWrappers",
                              verbose::Bool = false,
-                             lazy_artifacts::Bool = false,
                              from_scratch::Bool = true)
     if build_version === nothing
         build_version = BinaryBuilder.get_next_wrapper_version(obj["name"], obj["version"])
@@ -1079,6 +1079,8 @@ function rebuild_jll_package(obj::Dict;
         error("If download_dir is specified, you must specify upload_prefix as well!")
     end
 
+    augment_platform_block = get(obj, "augment_platform_block", "")
+    lazy_artifacts = get(obj, "lazy_artifacts", !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7")
     return rebuild_jll_package(
         obj["name"],
         build_version,
@@ -1088,12 +1090,12 @@ function rebuild_jll_package(obj::Dict;
         obj["dependencies"],
         download_dir,
         upload_prefix;
-        verbose=verbose,
-        lazy_artifacts = lazy_artifacts,
+        verbose,
+        lazy_artifacts,
         julia_compat = get(obj, "julia_compat", DEFAULT_JULIA_VERSION_SPEC),
         init_block = get(obj, "init_block", ""),
-        augment_platform_block = get(obj, "augment_platform_block", ""),
-        from_scratch = from_scratch,
+        augment_platform_block,
+        from_scratch,
     )
 end
 
@@ -1196,8 +1198,8 @@ function build_jll_package(src_name::String,
                            bin_path::String;
                            verbose::Bool = false,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                           init_block = "",
-                           augment_platform_block = "",
+                           init_block::String = "",
+                           augment_platform_block::String = "",
                            # If we support versions older than Julia v1.7 the artifact
                            # should be lazy when we augment the platform.
                            lazy_artifacts::Bool = !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
@@ -1579,8 +1581,8 @@ end
 function build_project_dict(name, version, dependencies::Array{Dependency},
                             julia_compat::String=DEFAULT_JULIA_VERSION_SPEC;
                             jllwrappers_compat::String=DEFAULT_JLLWRAPPERS_VERSION_SPEC,
-                            lazy_artifacts::Bool=false,
-                            augment_platform_block="",
+                            augment_platform_block::String="",
+                            lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                             kwargs...)
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(

@@ -143,7 +143,7 @@ end
                     @test occursin("MESON_TARGET_TOOLCHAIN", json_obj["script"])
                 end
 
-                BinaryBuilder.rebuild_jll_package(json_obj; download_dir=download_dir, upload_prefix=upload_prefix, verbose=false, lazy_artifacts=json_obj["lazy_artifacts"], from_scratch=from_scratch)
+                BinaryBuilder.rebuild_jll_package(json_obj; download_dir, upload_prefix, verbose=false, from_scratch)
             end
 
             env_dir = joinpath(build_path, "foo")
