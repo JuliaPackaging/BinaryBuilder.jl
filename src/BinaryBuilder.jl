@@ -6,16 +6,16 @@ using GitHub
 using Pkg, Base.BinaryPlatforms, Pkg.Artifacts
 using ghr_jll
 
-# Re-export useful stuff from Pkg:
+# Re-export useful stuff from Base.BinaryPlatforms:
 export HostPlatform, platform_dlext, valid_dl_path, arch, libc, nbits,
        libgfortran_version, libstdcxx_version, cxxstring_abi, detect_libgfortran_version,
        detect_libstdcxx_version, detect_cxxstring_abi, call_abi, wordsize, triplet,
-       select_platform, platforms_match, AbstractPlatform, Platform
+       select_platform, platforms_match, AbstractPlatform, Platform, os
 # BinaryBuilderBase/src/Prefix.jl
 export Prefix, bindir, libdirs, includedir, logdir, activate, deactivate,
        isinstalled, install, uninstall, list_tarball_files, verify, temp_prefix
 # BinaryBuilderBase/src/Rootfs.jl
-export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis
+export supported_platforms, expand_gfortran_versions, expand_cxxstring_abis, expand_microarchitectures
 # BinaryBuilderBase/src/Platforms.jl
 export AnyPlatform
 # BinaryBuilderBase/src/Products.jl
