@@ -1,7 +1,7 @@
 export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
-using Pkg.TOML, Dates, UUIDs
+using TOML, Dates, UUIDs
 using RegistryTools
 import LibGit2
 import PkgLicenses
@@ -104,7 +104,7 @@ const BUILD_HELP = (
                             instead of actually building.  Note that this can
                             (and often does) output multiple JSON objects for
                             multiple platforms, multi-stage builds, etc...
-        
+
         --skip-audit        Skips auditing of the output products.
 
         --help              Print out this message.
@@ -543,8 +543,8 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
-                      lazy_artifacts::Bool=false,
-                      augment_platform_block="",
+                      augment_platform_block::String="",
+                      lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                       kwargs...)
     if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
         error("Augmentation blocks cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
@@ -622,9 +622,10 @@ function get_meta_json(
                    products::Vector{<:Product},
                    dependencies::Vector{<:AbstractDependency};
                    julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                   lazy_artifacts::Bool = false,
                    init_block::String = "",
-                   augment_platform_block::String = "")
+                   augment_platform_block::String = "",
+                   lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+    )
 
     dict = Dict(
         "name" => src_name,
@@ -654,7 +655,7 @@ function compose_debug_prompt(workspace)
             end
         end
     end
-    
+
     if length(log_files) > 0
         log_files_str = join(log_files, "\n  - ")
 
@@ -1064,7 +1065,6 @@ function rebuild_jll_package(obj::Dict;
                              build_version = nothing,
                              gh_org::String = "JuliaBinaryWrappers",
                              verbose::Bool = false,
-                             lazy_artifacts::Bool = false,
                              from_scratch::Bool = true)
     if build_version === nothing
         build_version = BinaryBuilder.get_next_wrapper_version(obj["name"], obj["version"])
@@ -1079,6 +1079,9 @@ function rebuild_jll_package(obj::Dict;
         error("If download_dir is specified, you must specify upload_prefix as well!")
     end
 
+    julia_compat = get(obj, "julia_compat", DEFAULT_JULIA_VERSION_SPEC)
+    augment_platform_block = get(obj, "augment_platform_block", "")
+    lazy_artifacts = get(obj, "lazy_artifacts", !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7")
     return rebuild_jll_package(
         obj["name"],
         build_version,
@@ -1088,12 +1091,12 @@ function rebuild_jll_package(obj::Dict;
         obj["dependencies"],
         download_dir,
         upload_prefix;
-        verbose=verbose,
-        lazy_artifacts = lazy_artifacts,
-        julia_compat = get(obj, "julia_compat", DEFAULT_JULIA_VERSION_SPEC),
+        verbose,
+        lazy_artifacts,
+        julia_compat,
         init_block = get(obj, "init_block", ""),
-        augment_platform_block = get(obj, "augment_platform_block", ""),
-        from_scratch = from_scratch,
+        augment_platform_block,
+        from_scratch,
     )
 end
 
@@ -1196,8 +1199,8 @@ function build_jll_package(src_name::String,
                            bin_path::String;
                            verbose::Bool = false,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                           init_block = "",
-                           augment_platform_block = "",
+                           init_block::String = "",
+                           augment_platform_block::String = "",
                            # If we support versions older than Julia v1.7 the artifact
                            # should be lazy when we augment the platform.
                            lazy_artifacts::Bool = !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
@@ -1327,33 +1330,28 @@ function build_jll_package(src_name::String,
     if !isempty(augment_platform_block)
         pkg_dir = joinpath(code_dir, ".pkg")
         !ispath(pkg_dir) && mkdir(pkg_dir)
-        open(joinpath(pkg_dir, "platform_augmentation.jl"), "w") do io
-            println(io, """
-            $(augment_platform_block)
-            """)
-        end
+        write(joinpath(pkg_dir, "platform_augmentation.jl"), augment_platform_block)
 
-        open(joinpath(pkg_dir, "select_artifacts.jl"), "w") do io
-            println(io, """
-            push!(Base.LOAD_PATH, dirname(@__DIR__))
+        write(joinpath(pkg_dir, "select_artifacts.jl"),
+              """
+              push!(Base.LOAD_PATH, dirname(@__DIR__))
 
-            using TOML, Artifacts, Base.BinaryPlatforms
-            include("./platform_augmentation.jl")
-            artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+              using TOML, Artifacts, Base.BinaryPlatforms
+              include("./platform_augmentation.jl")
+              artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
 
-            # Get "target triplet" from ARGS, if given (defaulting to the host triplet otherwise)
-            target_triplet = get(ARGS, 1, Base.BinaryPlatforms.host_triplet())
+              # Get "target triplet" from ARGS, if given (defaulting to the host triplet otherwise)
+              target_triplet = get(ARGS, 1, Base.BinaryPlatforms.host_triplet())
 
-            # Augment this platform object with any special tags we require
-            platform = augment_platform!(HostPlatform(parse(Platform, target_triplet)))
+              # Augment this platform object with any special tags we require
+              platform = augment_platform!(HostPlatform(parse(Platform, target_triplet)))
 
-            # Select all downloadable artifacts that match that platform
-            artifacts = select_downloadable_artifacts(artifacts_toml; platform, include_lazy=true)
+              # Select all downloadable artifacts that match that platform
+              artifacts = select_downloadable_artifacts(artifacts_toml; platform, include_lazy=true)
 
-            #Output the result to `stdout` as a TOML dictionary
-            TOML.print(stdout, artifacts)
-            """)
-        end
+              #Output the result to `stdout` as a TOML dictionary
+              TOML.print(stdout, artifacts)
+              """)
     end
 
     # Generate target-demuxing main source file.
@@ -1419,9 +1417,9 @@ function build_jll_package(src_name::String,
         if is_yggdrasil()
             println(io, """
                         The originating [`build_tarballs.jl`](https://github.com/JuliaPackaging/Yggdrasil/blob/$(yggdrasil_head())/$(ENV["PROJECT"])/build_tarballs.jl) script can be found on [`Yggdrasil`](https://github.com/JuliaPackaging/Yggdrasil/), the community build tree.")
-                        
+
                         ## Bug Reports
-                        
+
                         If you have any issue, please report it to the Yggdrasil [bug tracker](https://github.com/JuliaPackaging/Yggdrasil/issues).
                         """)
         end
@@ -1505,7 +1503,7 @@ function build_jll_package(src_name::String,
     jllwrappers_compat = isempty(augment_platform_block) ? "1.2.0" : "1.4.0"
     project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts, jllwrappers_compat, augment_platform_block)
     open(joinpath(code_dir, "Project.toml"), "w") do io
-        Pkg.TOML.print(io, project)
+        TOML.print(io, project)
     end
 
     # Add a `.gitignore`
@@ -1579,8 +1577,8 @@ end
 function build_project_dict(name, version, dependencies::Array{Dependency},
                             julia_compat::String=DEFAULT_JULIA_VERSION_SPEC;
                             jllwrappers_compat::String=DEFAULT_JLLWRAPPERS_VERSION_SPEC,
-                            lazy_artifacts::Bool=false,
-                            augment_platform_block="",
+                            augment_platform_block::String="",
+                            lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                             kwargs...)
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(

@@ -1,3 +1,4 @@
+using TOML
 using JSON
 using UUIDs
 using GitHub
@@ -48,6 +49,17 @@ end
         platforms = [platform, freebsd]
         # We depend on Zlib_jll only on the host platform, but not on FreeBSD
         dependencies = [Dependency("Zlib_jll"; platforms=[platform])]
+        # Augment platform
+        augment_platform_block = """
+        using Base.BinaryPlatforms
+        function augment_platform!(platform::Platform)
+            platform["test"] = "enabled"
+            return platform
+        end
+        """
+        # Julia compat.  Include Julia v1.6 to exercise the code path which forces lazy
+        # artifacts when augmenting the platform
+        julia_compat = "1.6"
         # The buffer where we'll write the JSON meta data
         buff = IOBuffer()
 
@@ -65,6 +77,8 @@ end
                 # The products we expect to be build
                 libfoo_products,
                 dependencies;
+                julia_compat,
+                augment_platform_block,
             )
             # Generate the JSON file
             println(buff, JSON.json(dict))
@@ -143,13 +157,21 @@ end
                     @test occursin("MESON_TARGET_TOOLCHAIN", json_obj["script"])
                 end
 
-                BinaryBuilder.rebuild_jll_package(json_obj; download_dir=download_dir, upload_prefix=upload_prefix, verbose=false, lazy_artifacts=json_obj["lazy_artifacts"], from_scratch=from_scratch)
+                BinaryBuilder.rebuild_jll_package(json_obj; download_dir, upload_prefix, verbose=false, from_scratch)
             end
 
             env_dir = joinpath(build_path, "foo")
             mkpath(env_dir)
             Pkg.activate(env_dir)
             Pkg.develop(PackageSpec(path=code_dir))
+            @test isfile(joinpath(code_dir, ".pkg", "select_artifacts.jl"))
+            @test read(joinpath(code_dir, ".pkg", "platform_augmentation.jl"), String) == augment_platform_block
+            # Make sure the artifacts are lazy because we are augmenting the platform and
+            # Julia compat includes versions before v1.7.
+            artifacts_toml = TOML.parsefile(joinpath(code_dir, "Artifacts.toml"))
+            for artifact in artifacts_toml["libfoo"]
+                @test artifact["lazy"]
+            end
             # Make sure we use Zlib_jll only in the wrapper for the host
             # platform and not the FreeBSD one.
             platform_wrapper = joinpath(code_dir, "src", "wrappers", triplet(platform) * ".jl")
