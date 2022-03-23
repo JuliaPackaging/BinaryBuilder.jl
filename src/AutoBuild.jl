@@ -104,7 +104,7 @@ const BUILD_HELP = (
                             instead of actually building.  Note that this can
                             (and often does) output multiple JSON objects for
                             multiple platforms, multi-stage builds, etc...
-        
+
         --skip-audit        Skips auditing of the output products.
 
         --help              Print out this message.
@@ -655,7 +655,7 @@ function compose_debug_prompt(workspace)
             end
         end
     end
-    
+
     if length(log_files) > 0
         log_files_str = join(log_files, "\n  - ")
 
@@ -1329,33 +1329,28 @@ function build_jll_package(src_name::String,
     if !isempty(augment_platform_block)
         pkg_dir = joinpath(code_dir, ".pkg")
         !ispath(pkg_dir) && mkdir(pkg_dir)
-        open(joinpath(pkg_dir, "platform_augmentation.jl"), "w") do io
-            println(io, """
-            $(augment_platform_block)
-            """)
-        end
+        write(joinpath(pkg_dir, "platform_augmentation.jl"), augment_platform_block)
 
-        open(joinpath(pkg_dir, "select_artifacts.jl"), "w") do io
-            println(io, """
-            push!(Base.LOAD_PATH, dirname(@__DIR__))
+        write(joinpath(pkg_dir, "select_artifacts.jl"),
+              """
+              push!(Base.LOAD_PATH, dirname(@__DIR__))
 
-            using TOML, Artifacts, Base.BinaryPlatforms
-            include("./platform_augmentation.jl")
-            artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
+              using TOML, Artifacts, Base.BinaryPlatforms
+              include("./platform_augmentation.jl")
+              artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
 
-            # Get "target triplet" from ARGS, if given (defaulting to the host triplet otherwise)
-            target_triplet = get(ARGS, 1, Base.BinaryPlatforms.host_triplet())
+              # Get "target triplet" from ARGS, if given (defaulting to the host triplet otherwise)
+              target_triplet = get(ARGS, 1, Base.BinaryPlatforms.host_triplet())
 
-            # Augment this platform object with any special tags we require
-            platform = augment_platform!(HostPlatform(parse(Platform, target_triplet)))
+              # Augment this platform object with any special tags we require
+              platform = augment_platform!(HostPlatform(parse(Platform, target_triplet)))
 
-            # Select all downloadable artifacts that match that platform
-            artifacts = select_downloadable_artifacts(artifacts_toml; platform, include_lazy=true)
+              # Select all downloadable artifacts that match that platform
+              artifacts = select_downloadable_artifacts(artifacts_toml; platform, include_lazy=true)
 
-            #Output the result to `stdout` as a TOML dictionary
-            TOML.print(stdout, artifacts)
-            """)
-        end
+              #Output the result to `stdout` as a TOML dictionary
+              TOML.print(stdout, artifacts)
+              """)
     end
 
     # Generate target-demuxing main source file.
@@ -1421,9 +1416,9 @@ function build_jll_package(src_name::String,
         if is_yggdrasil()
             println(io, """
                         The originating [`build_tarballs.jl`](https://github.com/JuliaPackaging/Yggdrasil/blob/$(yggdrasil_head())/$(ENV["PROJECT"])/build_tarballs.jl) script can be found on [`Yggdrasil`](https://github.com/JuliaPackaging/Yggdrasil/), the community build tree.")
-                        
+
                         ## Bug Reports
-                        
+
                         If you have any issue, please report it to the Yggdrasil [bug tracker](https://github.com/JuliaPackaging/Yggdrasil/issues).
                         """)
         end
