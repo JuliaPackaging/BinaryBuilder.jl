@@ -43,6 +43,11 @@ function Base.show(io::IO, t::BuildTimer)
     end
 end
 
+# Helper function to get the minimum version supported by the given compat
+# specification, given as a string.
+minimum_compat(compat::String) =
+    minimum(VersionNumber(rng.lower.t) for rng in PKG_VERSIONS.semver_spec(compat).ranges)
+
 const BUILD_HELP = (
     """
     Usage: build_tarballs.jl [target1,target2,...] [--help]
@@ -174,7 +179,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
-    if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && minimum(VersionNumber(rng.lower.t) for rng in PKG_VERSIONS.semver_spec(julia_compat).ranges) < v"1.6"
+    if any(p -> arch(p) == "armv6l" || (Sys.isapple(p) && arch(p) == "aarch64"), platforms) && minimum_compat(julia_compat) < v"1.6"
         error("Experimental platforms cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
     end
 
@@ -541,8 +546,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       lazy_artifacts::Bool=false,
                       augment_platform_block="",
                       kwargs...)
-    if !isempty(augment_platform_block) &&
-       minimum(VersionNumber(rng.lower.t) for rng in PKG_VERSIONS.semver_spec(julia_compat).ranges) < v"1.6"
+    if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
         error("Augmentation blocks cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
     end
 
@@ -1192,9 +1196,12 @@ function build_jll_package(src_name::String,
                            bin_path::String;
                            verbose::Bool = false,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                           lazy_artifacts::Bool = false,
                            init_block = "",
-                           augment_platform_block = "",)
+                           augment_platform_block = "",
+                           # If we support versions older than Julia v1.7 the artifact
+                           # should be lazy when we augment the platform.
+                           lazy_artifacts::Bool = !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+                           )
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
