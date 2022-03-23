@@ -1,7 +1,7 @@
 export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
-using Pkg.TOML, Dates, UUIDs
+using TOML, Dates, UUIDs
 using RegistryTools
 import LibGit2
 import PkgLicenses
@@ -1079,6 +1079,7 @@ function rebuild_jll_package(obj::Dict;
         error("If download_dir is specified, you must specify upload_prefix as well!")
     end
 
+    julia_compat = get(obj, "julia_compat", DEFAULT_JULIA_VERSION_SPEC)
     augment_platform_block = get(obj, "augment_platform_block", "")
     lazy_artifacts = get(obj, "lazy_artifacts", !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7")
     return rebuild_jll_package(
@@ -1092,7 +1093,7 @@ function rebuild_jll_package(obj::Dict;
         upload_prefix;
         verbose,
         lazy_artifacts,
-        julia_compat = get(obj, "julia_compat", DEFAULT_JULIA_VERSION_SPEC),
+        julia_compat,
         init_block = get(obj, "init_block", ""),
         augment_platform_block,
         from_scratch,
@@ -1502,7 +1503,7 @@ function build_jll_package(src_name::String,
     jllwrappers_compat = isempty(augment_platform_block) ? "1.2.0" : "1.4.0"
     project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts, jllwrappers_compat, augment_platform_block)
     open(joinpath(code_dir, "Project.toml"), "w") do io
-        Pkg.TOML.print(io, project)
+        TOML.print(io, project)
     end
 
     # Add a `.gitignore`
