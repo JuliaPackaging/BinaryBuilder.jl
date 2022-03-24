@@ -186,7 +186,7 @@ For a build to work there may be different kinds of dependencies, for example:
   * if they are available in a JLL package for the `x86_64-linux-musl` platform, you can install them as [`HostBuildDependency`](@ref).  In order to keep binaries for the target platform separated from those for the host system, these dependencies will be installed under `${host_prefix}`, in particular executables will be present under `${host_bindir}` which is automatically added to the `${PATH}` environment variable;
   * if they are present in Alpine Linux repositories, you can install them with the system package manager [`apk`](https://wiki.alpinelinux.org/wiki/Alpine_Linux_package_management).
 
-  Remember that this class of dependencies is built for the host platform: if the library you want to build for the target platform requires another binary library to link to, installing it as `HostBuildDepency` or with `apk` will not help.
+  Remember that this class of dependencies is built for the host platform: if the library you want to build for the target platform requires another binary library to link to, installing it as `HostBuildDependency` or with `apk` will not help.
 
 You need to understand the build process of package you want to compile in order to know what of these classes a dependency belongs to.
 
