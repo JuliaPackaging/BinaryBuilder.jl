@@ -1416,7 +1416,7 @@ function build_jll_package(src_name::String,
                 """)
         if is_yggdrasil()
             println(io, """
-                        The originating [`build_tarballs.jl`](https://github.com/JuliaPackaging/Yggdrasil/blob/$(yggdrasil_head())/$(ENV["PROJECT"])/build_tarballs.jl) script can be found on [`Yggdrasil`](https://github.com/JuliaPackaging/Yggdrasil/), the community build tree.")
+                        The originating [`build_tarballs.jl`](https://github.com/JuliaPackaging/Yggdrasil/blob/$(yggdrasil_head())/$(ENV["PROJECT"])/build_tarballs.jl) script can be found on [`Yggdrasil`](https://github.com/JuliaPackaging/Yggdrasil/), the community build tree.
 
                         ## Bug Reports
 
