@@ -286,16 +286,21 @@ end
         platform = Platform("x86_64", os)
         mktempdir() do build_path
             build_output_meta = nothing
-            @test_logs (:info, r"removing libtool file .*/destdir/lib/libfoo.la$") match_mode=:any begin
+            @test_logs (:info, r"Removing libtool file .*/destdir/lib/libfoo.la$") (:info, r"Removing libtool file .*/destdir/lib/libqux.la$") match_mode=:any begin
                 build_output_meta = autobuild(
                     build_path,
                     "libfoo",
                     v"1.0.0",
                     # Copy in the libfoo sources
                     [DirectorySource(build_tests_dir)],
-                    # Build libfoo using autotools to create a real .la file,
-                    # and also create a fake .la file (which should not be removed)
-                    libfoo_autotools_script * "\ntouch \${prefix}/lib/libbar.la",
+                    # Build libfoo using autotools to create a real .la file, and also
+                    # create a fake .la file (which should not be removed).  Create also a
+                    # symlink libqux.la -> libfoo.la, which will be broken after libfoo.la
+                    # has been deleted: remove libqux.la as well
+                    libfoo_autotools_script * raw"""
+                    touch ${prefix}/lib/libbar.la
+                    ln -s ${prefix}/lib/libfoo.la ${prefix}/lib/libqux.la
+                    """,
                     # Build for our platform
                     [platform],
                     # The products we expect to be build
@@ -309,10 +314,11 @@ end
             tarball_path, tarball_hash = build_output_meta[platform][1:2]
             @test isfile(tarball_path)
 
-            # Test that `libfoo.la` has been removed but `libbar.la` hasn't
+            # Test that `libfoo.la` and `libqux.la` have been removed but `libbar.la` hasn't
             contents = list_tarball_files(tarball_path)
             @test "lib/libbar.la" in contents
             @test !("lib/libfoo.la" in contents)
+            @test !("lib/libqux.la" in contents)
         end
     end
 end
