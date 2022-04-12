@@ -192,6 +192,11 @@ function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
               "libkvm.so.7",
               "libutil.so.9",
               )
+    elseif libc(platform) == "glibc"
+        push!(ignore_libs,
+              # Part of Glibc
+              "libresolv.so.2",
+              )
     end
     return lowercase(basename(lib)) in ignore_libs
 end
@@ -365,12 +370,12 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
     if verbose
         @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
     end
-    
+
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
     id_cmd = `$install_name_tool -id $(new_id) $(rel_path)`
 
-    # Create a new linkage that looks like @rpath/$lib on OSX, 
+    # Create a new linkage that looks like @rpath/$lib on OSX,
     with_logfile(prefix, "fix_identity_mismatch_$(basename(rel_path)).log"; subdir) do io
         run(ur, id_cmd, io; verbose=verbose)
     end
