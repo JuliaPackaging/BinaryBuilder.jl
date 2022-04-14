@@ -196,6 +196,7 @@ function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
         push!(ignore_libs,
               # Part of Glibc
               "libresolv.so.2",
+              "libutil.so.1",
               )
     end
     return lowercase(basename(lib)) in ignore_libs
@@ -213,6 +214,7 @@ function should_ignore_lib(lib, ::MachOHandle, platform::AbstractPlatform)
         "corefoundation",
         "coremidi",
         "coreservices",
+        "diskarbitration",
         "foundation",
         "iokit",
         "metal",
