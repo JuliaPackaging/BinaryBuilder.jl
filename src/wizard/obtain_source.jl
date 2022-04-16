@@ -1,7 +1,5 @@
-using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, enable_apple_file, macos_sdk_already_installed, accept_apple_sdk
-using ProgressMeter
+using BinaryBuilderBase: available_gcc_builds, available_llvm_builds, enable_apple_file, macos_sdk_already_installed, accept_apple_sdk, cached_git_clone
 import Downloads
-const update! = ProgressMeter.update!
 
 """
 Canonicalize a GitHub repository URL
@@ -34,53 +32,6 @@ function canonicalize_file_url(url)
         return "https://raw.githubusercontent.com/$user/$repo/$ref/$(filepath)"
     end
     url
-end
-
-struct GitTransferProgress
-    total_objects::Cuint
-    indexed_objects::Cuint
-    received_objects::Cuint
-    local_objects::Cuint
-    total_deltas::Cuint
-    indexed_deltas::Cuint
-    received_bytes::Csize_t
-end
-
-function transfer_progress(progress::Ptr{GitTransferProgress}, p::Any)
-    progress = unsafe_load(progress)
-    p.n = progress.total_objects
-    if progress.total_deltas != 0
-        p.desc = "Resolving Deltas: "
-        p.n = progress.total_deltas
-        update!(p, Int(max(1, progress.indexed_deltas)))
-    else
-        update!(p, Int(max(1, progress.received_objects)))
-    end
-    return Cint(0)
-end
-
-"""
-    clone(url::String, source_path::String)
-
-Clone a git repository hosted at `url` into `source_path`, with a progress bar
-displayed to stdout.
-"""
-function clone(url::String, source_path::String)
-    # Clone with a progress bar
-    p = Progress(0, 1, "Cloning: ")
-    GC.@preserve p begin
-        callbacks = LibGit2.RemoteCallbacks(
-            transfer_progress=@cfunction(
-                transfer_progress,
-                Cint,
-                (Ptr{GitTransferProgress}, Any)
-            ),
-            payload = p
-        )
-        fetch_opts = LibGit2.FetchOptions(callbacks=callbacks)
-        clone_opts = LibGit2.CloneOptions(fetch_opts=fetch_opts, bare = Cint(true))
-        return LibGit2.clone(url, source_path, clone_opts)
-    end
 end
 
 """
@@ -130,13 +81,12 @@ function download_source(state::WizardState)
         println(state.outs)
     end
 
-    # Record the source path and the source hash
-    source_path = joinpath(state.workspace, basename(url))
     local source_hash
 
     if endswith(url, ".git") || startswith(url, "git://")
+        source_path = cached_git_clone(url; progressbar=true, verbose=true)
         # Clone the URL, record the current gitsha for the given branch
-        repo = clone(url, source_path)
+        repo = GitRepo(source_path)
 
         msg = "You have selected a git repository. Please enter a branch, commit or tag to use.\n" *
         "Please note that for reproducibility, the exact commit will be recorded, \n" *
