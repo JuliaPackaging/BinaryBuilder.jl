@@ -204,14 +204,17 @@ end
 function should_ignore_lib(lib, ::MachOHandle, platform::AbstractPlatform)
     ignore_libs = [
         "libsystem.b.dylib",
+        "libobjc.a.dylib",
         # This is not built by clang or GCC, so we leave it as a system library
         "libc++.1.dylib",
         "libresolv.9.dylib",
         # Frameworks in the SDK
         "appkit",
+        "carbon",
         "cocoa",
         "coreaudio",
         "corefoundation",
+        "coregraphics",
         "coremidi",
         "coreservices",
         "diskarbitration",
@@ -220,6 +223,7 @@ function should_ignore_lib(lib, ::MachOHandle, platform::AbstractPlatform)
         "metal",
         "metalkit",
         "opencl",
+        "opengl",
         "quartzcore",
         "security",
         "systemconfiguration",
