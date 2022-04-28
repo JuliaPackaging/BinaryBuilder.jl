@@ -109,7 +109,8 @@ function download_source(state::WizardState)
         close(repo)
     else
         # Download the source tarball
-        source_path = joinpath(state.workspace, basename(url))
+        basename_without_urlparams(url) = first(split(basename(url), "?"))
+        source_path = joinpath(state.workspace, basename_without_urlparams(url))
 
         if isfile(source_path)
             # Try to match everything up to but not including ".tar.*" to strip multiple file extensions
