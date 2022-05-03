@@ -116,6 +116,9 @@ const BUILD_HELP = (
         julia build_tarballs.jl x86_64-linux-gnu,i686-linux-gnu
             This builds two tarballs for the two platforms given, with a
             minimum of output messages.
+
+    Supported Platforms:
+        $(join(map(triplet, supported_platforms()), "\n    "))
     """
 )
 
