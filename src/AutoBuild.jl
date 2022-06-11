@@ -785,7 +785,7 @@ function autobuild(dir::AbstractString,
             verbose=verbose,
         )
         setup_deps(f, prefix, dependencies, platform, verbose) =
-            setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in filter_platforms(dependencies, platform) if f(d)], platform; verbose)
+            setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(d) for d in filter_platforms(dependencies, platform) if f(d) && is_build_dependency(d)], platform; verbose)
         host_artifact_paths = setup_deps(is_host_dependency, prefix, dependencies, default_host_platform, verbose)
         target_artifact_paths = setup_deps(is_target_dependency, prefix, dependencies, concrete_platform, verbose)
 
