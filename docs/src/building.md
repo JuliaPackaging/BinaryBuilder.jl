@@ -330,6 +330,8 @@ dependencies = [
 
 * [`Dependency`](@ref) specify a JLL package that is necessary to build and load
   the current builder.  Binaries for the target platform will be installed;
+* [`RuntimeDependency`](@ref): a JLL package that is necessary only at runtime.  Its
+  artifact will not be installed in the prefix during the build.
 * [`BuildDependency`](@ref) is a JLL package necessary only to build the current
   package, but not to load it.  This dependency will install binaries for the
   target platforms and will not be added to the list of the dependencies of the
@@ -338,11 +340,11 @@ dependencies = [
   install binaries for the host system.  This kind of dependency is usually
   added to provide some binary utilities to run during the build process.
 
-The argument of `Dependency`, `BuildDependency`, and `HostBuildDependency` can
-also be a `Pkg.PackageSpec`, with which you can specify more details about the
-dependency, like a version number, or also a non-registered package.  Note that
-in Yggdrasil only JLL packages in the [General
-registry](https://github.com/JuliaRegistries/General) can be accepted.
+The argument of `Dependency`, `RuntimeDependency`, `BuildDependency`, and
+`HostBuildDependency` can also be a `Pkg.PackageSpec`, with which you can
+specify more details about the dependency, like a version number, or also a
+non-registered package.  Note that in Yggdrasil only JLL packages in the
+[General registry](https://github.com/JuliaRegistries/General) can be accepted.
 
 The dependencies for the target system (`Dependency` and `BuildDependency`) will
 be installed under `${prefix}` within the build environment, while the
@@ -358,7 +360,7 @@ Examples of builders that depend on other binaries include:
   depends on `Xorg_libxcb_jll`, and `Xorg_xtrans_jll` at build- and run-time,
   and on `Xorg_xorgproto_jll` and `Xorg_util_macros_jll` only at build-time.
 
-### Platform-dependent dependencies
+### Platform-specific dependencies
 
 By default, all dependencies are used for all platforms, but there are some
 cases where a package requires some dependencies only on some platforms.  You
