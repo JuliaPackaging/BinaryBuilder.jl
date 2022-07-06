@@ -31,11 +31,11 @@ uuid = "2a0f44e3-6c83-55bd-87e4-b1978d98bd5f"
 
 [[deps.BinaryBuilderBase]]
 deps = ["CodecZlib", "Downloads", "InteractiveUtils", "JSON", "LibGit2", "LibGit2_jll", "Libdl", "Logging", "OrderedCollections", "OutputCollectors", "Pkg", "ProgressMeter", "Random", "SHA", "Scratch", "SimpleBufferStream", "TOML", "Tar", "UUIDs", "p7zip_jll", "pigz_jll"]
-git-tree-sha1 = "c85100c358dbcd7d918130ab333bf57c7f375f68"
+git-tree-sha1 = "fa26ae2e67151f71070a259cf303fd5beb3fa010"
 repo-rev = "master"
 repo-url = "https://github.com/JuliaPackaging/BinaryBuilderBase.jl.git"
 uuid = "7f725544-6523-48cd-82d1-3fa08ff4056e"
-version = "1.12.0"
+version = "1.13.0"
 
 [[deps.CodecZlib]]
 deps = ["TranscodingStreams", "Zlib_jll"]
@@ -101,9 +101,9 @@ version = "0.1.7"
 
 [[deps.GitHub]]
 deps = ["Base64", "Dates", "HTTP", "JSON", "MbedTLS", "Sockets", "SodiumSeal", "URIs"]
-git-tree-sha1 = "056781ae7b953289778408b136f8708a46837979"
+git-tree-sha1 = "f1d3170f588c7610b568c9a97971915100dd51e8"
 uuid = "bc5e4493-9b4d-5f90-b8aa-2b2bcaad7a26"
-version = "5.7.2"
+version = "5.7.3"
 
 [[deps.HTTP]]
 deps = ["Base64", "Dates", "IniFile", "Logging", "MbedTLS", "NetworkOptions", "Sockets", "URIs"]
@@ -202,10 +202,10 @@ deps = ["Base64"]
 uuid = "d6f4376e-aef5-505a-96c1-9c027394607a"
 
 [[deps.MbedTLS]]
-deps = ["Dates", "MbedTLS_jll", "Random", "Sockets"]
-git-tree-sha1 = "1c38e51c3d08ef2278062ebceade0e46cefc96fe"
+deps = ["Dates", "MbedTLS_jll", "MozillaCACerts_jll", "Random", "Sockets"]
+git-tree-sha1 = "891d3b4e8f8415f53108b4918d0183e61e18015b"
 uuid = "739be429-bea8-5141-9913-cc70e7f3736d"
-version = "1.0.3"
+version = "1.1.0"
 
 [[deps.MbedTLS_jll]]
 deps = ["Artifacts", "Libdl"]
@@ -260,9 +260,9 @@ version = "0.1.1"
 
 [[deps.Parsers]]
 deps = ["Dates"]
-git-tree-sha1 = "1285416549ccfcdf0c50d4997a94331e88d68413"
+git-tree-sha1 = "0044b23da09b5608b4ecacb4e5e6c6332f833a7e"
 uuid = "69de0a69-1ddd-5017-9359-2bf0b02dc9f0"
-version = "2.3.1"
+version = "2.3.2"
 
 [[deps.Pidfile]]
 deps = ["FileWatching", "Test"]
