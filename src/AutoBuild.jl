@@ -118,7 +118,7 @@ const BUILD_HELP = (
             minimum of output messages.
 
     Supported Platforms:
-        $(join(map(triplet, supported_platforms()), "\n    "))
+        $(join(sort(triplet.(supported_platforms())), "\n    "))
     """
 )
 
@@ -745,7 +745,7 @@ function autobuild(dir::AbstractString,
     @nospecialize
 
     # This is what we'll eventually return
-    @info("Building for $(join(triplet.(platforms), ", "))")
+    @info("Building for $(join(sort(triplet.(platforms)), ", "))")
     build_output_meta = Dict()
 
     # Resolve dependencies into PackageSpecs now, ensuring we have UUIDs for all deps
