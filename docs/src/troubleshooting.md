@@ -30,7 +30,7 @@ Sometimes the build system can't find the header files of the dependencies, even
 For example, if the project uses Autotools you can set the `CPPFLAGS` environment variable:
 
 ```sh
-export CPPFLAGS="-I${prefix}/include"
+export CPPFLAGS="-I${includedir}"
 ./configure --prefix=${prefix} --build=${MACHTYPE} --host=${target}
 make -j${nprocs}
 make install
@@ -38,7 +38,7 @@ make install
 
 See for example [Cairo](https://github.com/JuliaPackaging/Yggdrasil/blob/9a1ae803823e0dba7628bc71ff794d0c79e39c95/C/Cairo/build_tarballs.jl#L16-L17) build script.
 
-If instead the project uses CMake you'll need to use a different environment variable, since CMake ignores `CPPFLAGS`.  If the compiler that can't find the header file is the C one, you need to add the path to the `CFLAGS` variable (e.g., `CFLAGS="-I${prefix}/include"`), in case it's the C++ one you have to set the `CXXFLAGS` variable (e.g., `CXXFLAGS="-I${prefix}/include"`).
+If instead the project uses CMake you'll need to use a different environment variable, since CMake ignores `CPPFLAGS`.  If the compiler that can't find the header file is the C one, you need to add the path to the `CFLAGS` variable (e.g., `CFLAGS="-I${includedir}"`), in case it's the C++ one you have to set the `CXXFLAGS` variable (e.g., `CXXFLAGS="-I${includedir}"`).
 
 ### Libraries of the dependencies can't be found
 
