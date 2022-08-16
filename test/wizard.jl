@@ -54,7 +54,11 @@ libfoo_tarball_hash = bytes2hex(sha256(libfoo_tarball_data))
 function serve_tgz(req)
     HTTP.Response(200, libfoo_tarball_data)
 end
-HTTP.@register(r, "GET", "/*/source.tar.gz", serve_tgz)
+@static if isdefined(HTTP, Symbol("@register"))
+    HTTP.@register(r, "GET", "/*/source.tar.gz", serve_tgz)
+else
+    HTTP.register!(r, "GET", "/*/source.tar.gz", serve_tgz)
+end
 port = -1
 server = Sockets.TCPServer()
 # Try to connect to different ports, in case one is busy.  Important in case we
