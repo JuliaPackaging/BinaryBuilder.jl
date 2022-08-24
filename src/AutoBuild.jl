@@ -755,8 +755,8 @@ function autobuild(dir::AbstractString,
     end
 
     # If the user passed in a src_version with a build number, bail out
-    if src_version.build != ()
-        error("Will not build with a `src_version` that has a build number already specified!")
+    if any(!isempty, (src_version.prerelease, src_version.build))
+        error("Will not build with a `src_version` that has not the format `major.minor.patch`!  Do not set prerelease or build numbers.")
     end
 
     # We must prepare our sources.  Download them, hash them, etc...

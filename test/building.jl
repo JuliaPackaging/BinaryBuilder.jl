@@ -291,11 +291,21 @@ end
             )
         end
 
-        # Test that manually specifying a build number in our src_version is an error()
+        # Test that manually specifying prerelease or build number in our src_version is an error()
         @test_throws ErrorException autobuild(
             build_path,
             "badopenssl",
             v"1.1.1+c",
+            GitSource[],
+            "true",
+            [HostPlatform()],
+            Product[],
+            Dependency[],
+        )
+        @test_throws ErrorException autobuild(
+            build_path,
+            "test",
+            v"1.2.3-4",
             GitSource[],
             "true",
             [HostPlatform()],
