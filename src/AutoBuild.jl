@@ -43,6 +43,9 @@ function Base.show(io::IO, t::BuildTimer)
     end
 end
 
+exclude_logs(_, f) = f != "logs"
+only_logs(_, f)    = f == "logs"
+
 # Helper function to get the minimum version supported by the given compat
 # specification, given as a string.
 minimum_compat(compat::String) =
@@ -953,6 +956,18 @@ function autobuild(dir::AbstractString,
             platform=platform,
             verbose=verbose,
             force=true,
+            # Do not include logs into the main tarball
+            filter=exclude_logs,
+        )
+        # Create another tarball only for the logs
+        package(
+            dest_prefix,
+            joinpath(out_path, src_name * "-logs"),
+            src_version;
+            platform=platform,
+            verbose=verbose,
+            force=true,
+            filter=only_logs,
         )
         timer.end_package = time()
 
