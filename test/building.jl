@@ -180,6 +180,21 @@ end
 
 @testset "gfortran linking specialty flags" begin
     # We test things like linking against libgfortran with `$FC` on a couple of troublesome platforms
+    expected_git_shas = Dict(
+        v"4" => Dict(
+            Platform("x86_64", "linux"; libgfortran_version=v"3")  => Base.SHA1("6b705c0ff5760e236ab414fb9a366193f36d3e45"),
+            Platform("aarch64", "linux"; libgfortran_version=v"3") => Base.SHA1("fb501d0fb03bbf8f034cff50d8d8a1b2956cdf1a"),
+        ),
+        v"5" => Dict(
+            Platform("x86_64", "linux"; libgfortran_version=v"3")  => Base.SHA1("ef9653f47abba2895b14c1086ba40ad8c64ac098"),
+            Platform("aarch64", "linux"; libgfortran_version=v"3") => Base.SHA1("ed873d488f47fb8bf5b4b89bb31ed1cad27ee27c"),
+        ),
+        v"6" => Dict(
+            Platform("x86_64", "linux"; libgfortran_version=v"3")  => Base.SHA1("b3829adf90f6521e4a05f20924506c8358247e06"),
+            Platform("aarch64", "linux"; libgfortran_version=v"3") => Base.SHA1("641031469413f4fa776c74310098b1b181796720"),
+        ),
+    )
+
     for gcc_version in (v"4", v"5", v"6")
         mktempdir() do build_path
             build_output_meta = autobuild(
@@ -210,6 +225,11 @@ end
                 preferred_gcc_version=gcc_version,
             )
 
+            for p in (Platform("x86_64", "linux"; libgfortran_version=v"3"), Platform("aarch64", "linux"; libgfortran_version=v"3"))
+                # Test build reproducibility
+                @test build_output_meta[p][3] == expected_git_shas[gcc_version][p]
+            end
+
             # Just a simple test to ensure that it worked.
             @test length(keys(build_output_meta)) == 6
         end
@@ -218,6 +238,7 @@ end
     # Test that building something that links against gfortran suggests depending on CSL
     @test_logs (:warn, r"CompilerSupportLibraries_jll") match_mode=:any begin
         mktempdir() do build_path
+            p = Platform("x86_64", "linux"; libgfortran_version=v"3")
             build_output_meta = autobuild(
                 build_path,
                 "csl_dependency",
@@ -231,10 +252,12 @@ end
                 # Install fake license just to silence the warning
                 install_license /usr/share/licenses/libuv/LICENSE
                 """,
-                [Platform("x86_64", "linux"; libgfortran_version=v"3")],
+                [p],
                 [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
                 Dependency[],
             )
+            # Test build reproducibility
+            @test build_output_meta[p][3] == Base.SHA1("95e005d9b057b3a28af61189b9af5613127416a6")
         end
     end
 end
@@ -319,6 +342,7 @@ end
 
 @testset "AnyPlatform" begin
     mktempdir() do build_path
+        p = AnyPlatform()
         build_output_meta = autobuild(
             build_path,
             "header",
@@ -330,12 +354,13 @@ end
             touch ${includedir}/libqux.h
             install_license /usr/share/licenses/MIT
             """,
-            [AnyPlatform()],
+            [p],
             [FileProduct("include/libqux.h", :libqux_h)],
             # No dependencies
             Dependency[]
         )
-        @test haskey(build_output_meta, AnyPlatform())
+        @test haskey(build_output_meta, p)
+        @test build_output_meta[p][3] == Base.SHA1("45c55bfed92bd890d6487c58c4c03e07f5fb8829")
 
         # Test that having a LibraryProduct for AnyPlatform raises an error
         @test_throws ErrorException autobuild(
