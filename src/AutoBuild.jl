@@ -1127,11 +1127,15 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
 
+    # For each platform, we have two tarballs: the main with the full product,
+    # and the logs-only one.  This function filters out the logs one.
+    filter_main_tarball(f, platform) = occursin(".$(triplet(platform)).tar", f) && !occursin("-logs.", f)
+
     # Then generate a JLL package for each platform
     downloaded_files = readdir(download_dir)
     for platform in sort(collect(platforms), by = triplet)
         # Find the corresponding tarball:
-        tarball_idx = findfirst([occursin(".$(triplet(platform)).tar", f) for f in downloaded_files])
+        tarball_idx = findfirst(f -> filter_main_tarball(f, platform), downloaded_files)
 
         # No tarball matching the given platform...
         if tarball_idx === nothing
@@ -1141,7 +1145,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 if isos(platform) && os_version(platform) === nothing
                     tmp_platform = deepcopy(platform)
                     tmp_platform["os_version"] = try_os_version
-                    tarball_idx = findfirst([occursin(".$(triplet(tmp_platform)).tar", f) for f in downloaded_files])
+                    tarball_idx = findfirst(f -> filter_main_tarball(f, tmp_platform), downloaded_files)
                 end
             end
         end
