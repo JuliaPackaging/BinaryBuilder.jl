@@ -17,6 +17,7 @@ makedocs(
             "Reference" => "reference.md",
         ],
     ],
+    strict = true,
 )
 
 deploydocs(
