@@ -1265,7 +1265,9 @@ function build_jll_package(src_name::String,
                 """)
             end
             for dep in filter_platforms(dependencies, platform)
-                println(io, "using $(getname(dep))")
+                if !is_top_level_dependency(dep)
+                    println(io, "using $(getname(dep))")
+                end
             end
 
             # Generate header definitions like `find_artifact_dir()`
@@ -1386,6 +1388,12 @@ function build_jll_package(src_name::String,
         """)
         if lazy_artifacts
             println(io, "using LazyArtifacts")
+        end
+
+        for dep in dependencies
+            if is_top_level_dependency(dep)
+                println(io, "using $(getname(dep))")
+            end
         end
 
         if !isempty(augment_platform_block)

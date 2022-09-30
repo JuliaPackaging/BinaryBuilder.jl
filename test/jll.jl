@@ -48,7 +48,10 @@ end
         freebsd = Platform("x86_64", "freebsd")
         platforms = [platform, freebsd]
         # We depend on Zlib_jll only on the host platform, but not on FreeBSD
-        dependencies = [Dependency("Zlib_jll"; platforms=[platform])]
+        dependencies = [
+            Dependency("Zlib_jll"; platforms=[platform]),
+            Dependency("Preferences"; top_level=true)
+        ]
         # Augment platform
         augment_platform_block = """
         using Base.BinaryPlatforms
@@ -176,8 +179,12 @@ end
             # platform and not the FreeBSD one.
             platform_wrapper = joinpath(code_dir, "src", "wrappers", triplet(platform) * ".jl")
             freebsd_wrapper = joinpath(code_dir, "src", "wrappers", triplet(freebsd) * ".jl")
+            main_src = joinpath(code_dir, "src", name * "_jll.jl")
             @test contains(readchomp(platform_wrapper), "using Zlib_jll")
             @test !contains(readchomp(freebsd_wrapper), "using Zlib_jll")
+            @test !contains(readchomp(platform_wrapper), "using Preferences")
+            @test !contains(readchomp(freebsd_wrapper),  "using Preferences")
+            @test contains(readchomp(main_src),  "using Preferences")
             # Load JLL package and run some actual code from it.
             @eval TestJLL using libfoo_jll
             @test 6.08 ≈ @eval TestJLL ccall((:foo, libfoo), Cdouble, (Cdouble, Cdouble), 2.3, 4.5)
