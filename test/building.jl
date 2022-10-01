@@ -221,7 +221,7 @@ end
         ),
     )
 
-    for gcc_version in (v"4", v"5", v"6")
+    @testset "gcc version $(gcc_version)" for gcc_version in (v"4", v"5", v"6")
         mktempdir() do build_path
             build_output_meta = autobuild(
                 build_path,
@@ -246,7 +246,10 @@ end
 
             for p in troublesome_platforms
                 # Test build reproducibility
-                @test build_output_meta[p][3] == expected_git_shas[gcc_version][p]
+                # Note: for some reasons, GCC 5 for i686 windows gives different results on
+                # different systems, while still always reproducible on each of them:
+                # https://github.com/JuliaPackaging/BinaryBuilder.jl/pull/1234#issuecomment-1264192726
+                @test build_output_meta[p][3] == expected_git_shas[gcc_version][p] skip=(Sys.iswindows(p) && gcc_version==v"5")
             end
 
             # Just a simple test to ensure that it worked.
