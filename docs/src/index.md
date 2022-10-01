@@ -53,6 +53,25 @@ If you already have access to the [GitHub Codespaces](https://github.com/feature
 
 `BinaryBuilder.jl` wraps a [root filesystem](rootfs.md) that has been carefully constructed so as to provide the set of cross-compilers needed to support the wide array of platforms that Julia runs on.  This _RootFS_ is then used as the chroot jail for a sandboxed process which runs within the RootFS as if that were the whole world.  The workspace containing input source code and (eventually) output binaries is mounted within the RootFS and environment variables are setup such that the appropriate compilers for a particular target platform are used by build tools.
 
+## Reproducibility
+
+> [Reproducible builds](https://reproducible-builds.org/) are a set of software development practices that create an independently-verifiable path from source to binary code.
+
+`BinaryBuilder.jl` puts into place many of the practices needed to achieve reproducible builds.
+For example, the building environment is sandboxed and uses a fixed tree structure, thus having a reproducible [build path](https://reproducible-builds.org/docs/build-path/).
+The toolchain used by `BinaryBuilder.jl` also sets some [environment variables](https://reproducible-builds.org/docs/source-date-epoch/) and enforces [certain compiler flags](https://reproducible-builds.org/docs/randomness/) which help reproducibility.
+
+While `BinaryBuilder.jl` does not guarantee to always have reproducible builds, it achieves this goal in most cases.
+Reproducibility in `BinaryBuilder.jl` includes also the generated tarballs: they are created with [`Tar.jl`](https://github.com/JuliaIO/Tar.jl), which takes [a few measures](https://github.com/JuliaIO/Tar.jl/blob/1de4f92dc1ba4de4b54ac5279ec1d84fb15948f6/README.md#reproducibility) to ensure reproducibility of tarballs with the same git tree hash.
+If you rebuild multiple times the same package, with the same version of BinaryBuilder, the generated tarball which contains the main products (i.e. not the log files which are known not to be reproducible) should always have the same git tree hash and SHA256 sum, information which are printed to screen at the end of the build process and stored in the `Artifacts.toml` file of the [JLL package](@ref JLL-packages).
+
+There are however some caveats:
+
+* reproducibility can only be expected when using the toolchain offered by `BinaryBuilder.jl`;
+* there are [very specific cases](https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1230) where the macOS C/C++ toolchain does not produce reproducible binaries.
+  This happens when doing debug builds (`-g` flag) _and_ not building object files with deterministic names separately (e.g. if directly building and linking a program or a shared library from the source file, letting the compiler create the intermediate object files automatically with random names).
+  We have decided not to take action for this case because in practice most packages use build systems which compile intermediate object files with deterministic names (which is also the only way to take advantage of `ccache`, which `BinaryBuilder.jl` uses extensively) and typically do not do debug builds, thus sidestepping the issue entirely.
+
 ## Videos and tutorials
 
 BinaryBuilder has been covered in some videos, you may want to check them out if you want to know more about the framework (the date is specified in parentheses, to make it clear how old/new the videos are):
