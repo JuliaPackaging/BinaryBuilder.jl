@@ -61,7 +61,7 @@ If you already have access to the [GitHub Codespaces](https://github.com/feature
 For example, the building environment is sandboxed and uses a fixed tree structure, thus having a reproducible [build path](https://reproducible-builds.org/docs/build-path/).
 The toolchain used by `BinaryBuilder.jl` also sets some [environment variables](https://reproducible-builds.org/docs/source-date-epoch/) and enforces [certain compiler flags](https://reproducible-builds.org/docs/randomness/) which help reproducibility.
 
-While `BinaryBuilder.jl` does not guarantee to always have reproducible builds, it achieves this goal in most cases and for the vast majority of the supported platforms.
+While `BinaryBuilder.jl` does not guarantee to always have reproducible builds, it achieves this goal in most cases.
 Reproducibility in `BinaryBuilder.jl` includes also the generated tarballs: they are created with [`Tar.jl`](https://github.com/JuliaIO/Tar.jl), which takes [a few measures](https://github.com/JuliaIO/Tar.jl/blob/1de4f92dc1ba4de4b54ac5279ec1d84fb15948f6/README.md#reproducibility) to ensure reproducibility of tarballs with the same git tree hash.
 If you rebuild multiple times the same package, with the same version of BinaryBuilder, the generated tarball which contains the main products (i.e. not the log files which are known not to be reproducible) should always have the same git tree hash and SHA256 sum, information which are printed to screen at the end of the build process and stored in the `Artifacts.toml` file of the [JLL package](@ref JLL-packages).
 
@@ -70,9 +70,7 @@ There are however some caveats:
 * reproducibility can not be expected if not using the toolchain offered by `BinaryBuilder.jl`;
 * there are [very specific cases](https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1230) where the macOS C/C++ toolchain does not produce reproducible binaries.
   This happens when doing debug builds (`-g` flag) _and_ not building object files with deterministic names separately (e.g. if directly building and linking a program or a shared library from the source file, letting the compiler create the intermediate object files automatically with random names).
-  We have decided not to take action for this case because in practice most packages use build systems which compile intermediate object files with deterministic names (which is also the only way to take advante of `ccache`, which `BinaryBuilder.jl` uses extensively), thus sidestepping the issue entirely;
-* most versions of the GCC toolchain for Windows [generate non-reproducible files](https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1232).
-  This issue needs more investigation.
+  We have decided not to take action for this case because in practice most packages use build systems which compile intermediate object files with deterministic names (which is also the only way to take advante of `ccache`, which `BinaryBuilder.jl` uses extensively) and typically do not do debug builds, thus sidestepping the issue entirely.
 
 ## Videos and tutorials
 
