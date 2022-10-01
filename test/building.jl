@@ -180,22 +180,48 @@ end
 
 @testset "gfortran linking specialty flags" begin
     # We test things like linking against libgfortran with `$FC` on a couple of troublesome platforms
+    x86_64_linux = Platform("x86_64", "linux"; libgfortran_version=v"3")
+    aarch64_linux = Platform("aarch64", "linux"; libgfortran_version=v"3")
+    ppc64le_linux = Platform("powerpc64le", "linux"; libgfortran_version=v"3")
+    armv7l_linux = Platform("armv7l", "linux"; libgfortran_version=v"3")
+    x86_64_macos = Platform("x86_64", "macos"; libgfortran_version=v"3")
+    i686_windows = Platform("i686", "windows"; libgfortran_version=v"3")
+    troublesome_platforms = [
+        x86_64_linux,
+        ppc64le_linux,
+        armv7l_linux,
+        aarch64_linux,
+        x86_64_macos,
+        i686_windows,
+    ]
     expected_git_shas = Dict(
         v"4" => Dict(
-            Platform("x86_64", "linux"; libgfortran_version=v"3")  => Base.SHA1("6b705c0ff5760e236ab414fb9a366193f36d3e45"),
-            Platform("aarch64", "linux"; libgfortran_version=v"3") => Base.SHA1("fb501d0fb03bbf8f034cff50d8d8a1b2956cdf1a"),
+            x86_64_linux  => Base.SHA1("6b705c0ff5760e236ab414fb9a366193f36d3e45"),
+            ppc64le_linux => Base.SHA1("2fa9900c01dc87dad914de469e662cacd9c48e01"),
+            armv7l_linux  => Base.SHA1("192f05a64cc969cde17c026517166f98048ce27a"),
+            aarch64_linux => Base.SHA1("fb501d0fb03bbf8f034cff50d8d8a1b2956cdf1a"),
+            x86_64_macos  => Base.SHA1("5a927c7c1b0c7813564bf47ec7ff287071ed5aae"),
+            i686_windows  => Base.SHA1("f39858ccc34a63a648cf21d33ae236bfdd706d09"),
         ),
         v"5" => Dict(
-            Platform("x86_64", "linux"; libgfortran_version=v"3")  => Base.SHA1("ef9653f47abba2895b14c1086ba40ad8c64ac098"),
-            Platform("aarch64", "linux"; libgfortran_version=v"3") => Base.SHA1("ed873d488f47fb8bf5b4b89bb31ed1cad27ee27c"),
+            x86_64_linux  => Base.SHA1("ef9653f47abba2895b14c1086ba40ad8c64ac098"),
+            ppc64le_linux => Base.SHA1("b402ba20da0b800d37f69e1fbfe0e30c3b11a8db"),
+            armv7l_linux  => Base.SHA1("b282db91a2c2a33485718d8e8a743b7f5c384719"),
+            aarch64_linux => Base.SHA1("ed873d488f47fb8bf5b4b89bb31ed1cad27ee27c"),
+            x86_64_macos  => Base.SHA1("099b6a75d4f417c9f67c4da9218a56327086ec72"),
+            i686_windows  => Base.SHA1("9390a3c24a8e274e6d7245c6c977f97b406bc3f5"),
         ),
         v"6" => Dict(
-            Platform("x86_64", "linux"; libgfortran_version=v"3")  => Base.SHA1("b3829adf90f6521e4a05f20924506c8358247e06"),
-            Platform("aarch64", "linux"; libgfortran_version=v"3") => Base.SHA1("641031469413f4fa776c74310098b1b181796720"),
+            x86_64_linux  => Base.SHA1("b3829adf90f6521e4a05f20924506c8358247e06"),
+            ppc64le_linux => Base.SHA1("a12153a57fc6d8c415dc77161a39ed8ab01b16b2"),
+            armv7l_linux  => Base.SHA1("a5c66513ca6a0348ca7b1e99412524fb1ee75e87"),
+            aarch64_linux => Base.SHA1("641031469413f4fa776c74310098b1b181796720"),
+            x86_64_macos  => Base.SHA1("c01c6e840c4268123fbbd8703c8a153219752800"),
+            i686_windows  => Base.SHA1("ae50af4ca8651cb3c8f71f34d0b66ca0d8f14a99"),
         ),
     )
 
-    for gcc_version in (v"4", v"5", v"6")
+    @testset "gcc version $(gcc_version)" for gcc_version in (v"4", v"5", v"6")
         mktempdir() do build_path
             build_output_meta = autobuild(
                 build_path,
@@ -211,27 +237,23 @@ end
                 install_license /usr/share/licenses/libuv/LICENSE
                 """,
                 # Build for a few troublesome platforms
-                [
-                    Platform("x86_64", "linux"; libgfortran_version=v"3"),
-                    Platform("powerpc64le", "linux"; libgfortran_version=v"3"),
-                    Platform("armv7l", "linux"; libgfortran_version=v"3"),
-                    Platform("aarch64", "linux"; libgfortran_version=v"3"),
-                    Platform("x86_64", "macos"; libgfortran_version=v"3"),
-                    Platform("i686", "windows"; libgfortran_version=v"3"),
-                ],
+                troublesome_platforms,
                 [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
                 # Express a dependency on CSL to silence warning for fortran code
                 [Dependency("CompilerSupportLibraries_jll")];
                 preferred_gcc_version=gcc_version,
             )
 
-            for p in (Platform("x86_64", "linux"; libgfortran_version=v"3"), Platform("aarch64", "linux"; libgfortran_version=v"3"))
+            for p in troublesome_platforms
                 # Test build reproducibility
-                @test build_output_meta[p][3] == expected_git_shas[gcc_version][p]
+                # Note: for some reasons, GCC 5 for i686 windows gives different results on
+                # different systems, while still always reproducible on each of them:
+                # https://github.com/JuliaPackaging/BinaryBuilder.jl/pull/1234#issuecomment-1264192726
+                @test build_output_meta[p][3] == expected_git_shas[gcc_version][p] skip=(Sys.iswindows(p) && gcc_version==v"5")
             end
 
             # Just a simple test to ensure that it worked.
-            @test length(keys(build_output_meta)) == 6
+            @test length(keys(build_output_meta)) == length(troublesome_platforms)
         end
     end
 
