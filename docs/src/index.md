@@ -67,10 +67,10 @@ If you rebuild multiple times the same package, with the same version of BinaryB
 
 There are however some caveats:
 
-* reproducibility can not be expected if not using the toolchain offered by `BinaryBuilder.jl`;
+* reproducibility can only be expected when using the toolchain offered by `BinaryBuilder.jl`;
 * there are [very specific cases](https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1230) where the macOS C/C++ toolchain does not produce reproducible binaries.
   This happens when doing debug builds (`-g` flag) _and_ not building object files with deterministic names separately (e.g. if directly building and linking a program or a shared library from the source file, letting the compiler create the intermediate object files automatically with random names).
-  We have decided not to take action for this case because in practice most packages use build systems which compile intermediate object files with deterministic names (which is also the only way to take advante of `ccache`, which `BinaryBuilder.jl` uses extensively) and typically do not do debug builds, thus sidestepping the issue entirely.
+  We have decided not to take action for this case because in practice most packages use build systems which compile intermediate object files with deterministic names (which is also the only way to take advantage of `ccache`, which `BinaryBuilder.jl` uses extensively) and typically do not do debug builds, thus sidestepping the issue entirely.
 
 ## Videos and tutorials
 
