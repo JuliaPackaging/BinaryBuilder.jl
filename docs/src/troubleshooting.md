@@ -107,6 +107,8 @@ This is one of worst cases when cross-compiling, and there isn't a simple soluti
 
 ## Musl Linux
 
+### Error in definition of `posix_memalign`
+
 Compiling for Musl platforms can sometimes fail with the error message
 
 ```
