@@ -103,7 +103,26 @@ The build environment provided by `BinaryBuilder` is a `x86_64-linux-musl`, and 
 ./foreign.exe: line 1: syntax error: unexpected end of file (expecting ")")
 ```
 
-This is one of worst cases when cross-compiling, and there isn't a simple solution.  You have to look into the build process to see if running the executable can be skipped (see for example the patch to not run `dot` in [#351](https://github.com/JuliaPackaging/Yggdrasil/pull/351)), or replaced by something else.  If the executable is a compile-time only utility, try to build it with the native compiler (see for example the patch to build a native `mkdefs` in [#351](https://github.com/JuliaPackaging/Yggdrasil/pull/351))
+This is one of worst cases when cross-compiling, and there isn't a simple solution.  You have to look into the build process to see if running the executable can be skipped (see for example the patch to not run `dot` in [Yggdrasil#351](https://github.com/JuliaPackaging/Yggdrasil/pull/351)), or replaced by something else.  If the executable is a compile-time only utility, try to build it with the native compiler (see for example the patch to build a native `mkdefs` in [Yggdrasil#351](https://github.com/JuliaPackaging/Yggdrasil/pull/351))
+
+## Musl Linux
+
+Compiling for Musl platforms can sometimes fail with the error message
+
+```
+/opt/x86_64-linux-musl/x86_64-linux-musl/sys-root/usr/include/stdlib.h:99:5: error: from previous declaration ‘int posix_memalign(void**, size_t, size_t)’
+ int posix_memalign (void **, size_t, size_t);
+     ^
+```
+
+This is due to a bug in older versions of GCC targeting this libc, see [BinaryBuilder.jl#387](https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/387) for more details.
+There are two options to solve this issue:
+
+* require GCC 6 by using `build_tarballs(...; preferred_gcc_version=v"6")`.
+  This may be the simplest option in some cases.
+  See for example [Yggdrasil#3974](https://github.com/JuliaPackaging/Yggdrasil/pull/3974)
+* if using older versions of GCC is important for wider compatibility, you can apply [this patch](https://github.com/JuliaPackaging/Yggdrasil/blob/48ac662cd53e02aff0189c81008874a04f7172c7/Z/ZeroMQ/bundled/patches/mm_malloc.patch) to the build toolchain.
+  See for example [ZeroMQ](https://github.com/JuliaPackaging/Yggdrasil/blob/48ac662cd53e02aff0189c81008874a04f7172c7/Z/ZeroMQ/build_tarballs.jl#L20-L26) recipe.
 
 ## PowerPC Linux
 
@@ -142,7 +161,7 @@ make -j${nprocs}
 make install
 ```
 
-See for example [#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354) and [#982](https://github.com/JuliaPackaging/Yggdrasil/pull/982).
+See for example [Yggdrasil#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354) and [Yggdrasil#982](https://github.com/JuliaPackaging/Yggdrasil/pull/982).
 
 ### ```undefined reference to `environ'```
 
@@ -182,7 +201,7 @@ make -j${nprocs} "${FLAGS[@]}"
 make install
 ```
 
-Note that setting `LDFLAGS=-no-undefined` before `./configure` would make this fail because it would run a command like `cc -no-undefined conftest.c`, which upsets the compiler).  See for example [#170](https://github.com/JuliaPackaging/Yggdrasil/pull/170), [#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354).
+Note that setting `LDFLAGS=-no-undefined` before `./configure` would make this fail because it would run a command like `cc -no-undefined conftest.c`, which upsets the compiler).  See for example [Yggdrasil#170](https://github.com/JuliaPackaging/Yggdrasil/pull/170), [Yggdrasil#354](https://github.com/JuliaPackaging/Yggdrasil/pull/354).
 
 ### Libtool refuses to build shared library because '-lmingw32' is not a real file
 
