@@ -686,7 +686,8 @@ end
               verbose = false, debug = false,
               skip_audit = false, ignore_audit_errors = true,
               autofix = true, code_dir = nothing,
-              meta_json_file = nothing, require_license = true, kwargs...)
+              meta_json_file = nothing, require_license = true,
+              dont_dlopen = false, kwargs...)
 
 Runs the boiler plate code to download, build, and package a source package
 for a list of platforms.  This method takes a veritable truckload of arguments,
@@ -728,6 +729,12 @@ here are the relevant actors, broken down in brief:
 
 * `require_license` enables a special audit pass that requires licenses to be
    installed by all packages.
+
+* `dont_dlopen`: don't try to `dlopen` library products. This is separate from
+   specifying `dont_dlopen` on a `LibraryProduct` in that it still results in
+   the generated JLL loading the library at run time, and only prevents
+   BinaryBuilder from doing so during JLL generation.
+
 """
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
@@ -744,6 +751,7 @@ function autobuild(dir::AbstractString,
                    autofix::Bool = true,
                    code_dir::Union{String,Nothing} = nothing,
                    require_license::Bool = true,
+                   dont_dlopen::Bool = false,
                    kwargs...)
     @nospecialize
 
@@ -901,10 +909,12 @@ function autobuild(dir::AbstractString,
                 # only `FileProduct`s.
                 error("Cannot have $(typeof(p)) for AnyPlatform")
             end
-            if !satisfied(p, dest_prefix; verbose=verbose, platform=platform)
+            if !satisfied(p, dest_prefix; verbose=verbose, platform=platform,
+                          skip_dlopen=dont_dlopen)
                 if !verbose
                     # If we never got a chance to see the verbose output, give it here:
-                    locate(p, dest_prefix; verbose=true, platform=platform)
+                    locate(p, dest_prefix; verbose=true, platform=platform,
+                           skip_dlopen=dont_dlopen)
                 end
                 @error("Built $(src_name) but $(variable_name(p)) still unsatisfied:")
                 unsatisfied_so_die = true
@@ -917,7 +927,7 @@ function autobuild(dir::AbstractString,
         # We also need to capture some info about each product
         products_info = Dict{Product,Any}()
         for p in products
-            product_path = locate(p, dest_prefix; platform=platform)
+            product_path = locate(p, dest_prefix; platform=platform, skip_dlopen=dont_dlopen)
             products_info[p] = Dict("path" => relpath(product_path, dest_prefix.path))
             if p isa LibraryProduct || p isa FrameworkProduct
                 products_info[p]["soname"] = something(
