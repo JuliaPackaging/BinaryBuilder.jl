@@ -624,6 +624,52 @@ end
             @test length(libfoo_rpaths) == 1 broken=Sys.isapple(platform)
         end
     end
+
+    @testset "GCC libraries" begin
+        platform = Platform("x86_64", "linux"; libc="glibc", libgfortran_version=v"5")
+        mktempdir() do build_path
+            build_output_meta = nothing
+            @test_logs (:info, "Building for $(triplet(platform))") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "rpaths",
+                    v"2.0.0",
+                    # No sources
+                    FileSource[],
+                    # Build two libraries, `libbar` in `${libdir}/qux/` and `libfoo` in
+                    # `${libdir}`, with the latter linking to the former.
+                    raw"""
+                    # Build fortran hello world
+                    make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
+                    # Install fake license just to silence the warning
+                    install_license /usr/share/licenses/libuv/LICENSE
+                    """,
+                    [platform],
+                    # Ensure our library products are built
+                    [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
+                    # Dependencies: add CSL
+                    [Dependency("CompilerSupportLibraries_jll")];
+                    autofix=true,
+                )
+            end
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            # Ensure the build products were created
+            @test isfile(tarball_path)
+            # Ensure reproducibility of build
+            @test build_output_meta[platform][3] == Base.SHA1("06ddfbeb9914a534ed3f21795b5da5b536d33c16")
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            # Make sure auditor set the rpath of `hello_world`, even if it links only to
+            # libgfortran.
+            @test Auditor._rpaths(joinpath(testdir, "bin", "hello_world_fortran")) == ["\$ORIGIN/../lib"]
+        end
+    end
 end
 
 @testset "Auditor - execution permission" begin
