@@ -229,7 +229,7 @@ end
                     make install
                     install_license /usr/share/licenses/libuv/LICENSE
                 """
-                build_output_meta = do_build(build_path, script, platform, gcc_version)
+                build_output_meta = @test_logs (:info, "Building for $(triplet(platform))") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any do_build(build_path, script, platform, gcc_version)
                 # Extract our platform's build
                 @test haskey(build_output_meta, platform)
                 tarball_path, tarball_hash = build_output_meta[platform][1:2]
@@ -470,7 +470,7 @@ end
 
     mktempdir() do build_path
         hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
-        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") match_mode=:any begin
+        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any begin
             autobuild(
                 build_path,
                 "hello_fortran",
@@ -488,7 +488,9 @@ end
                 [platform],
                 #
                 Product[hello_world],
-                # No dependencies
+                # Note: we purposefully don't require CompilerSupportLibraries, even if we
+                # should, but the `@test_logs` above makes sure the audit warns us about
+                # this problem.
                 Dependency[];
             )
         end
@@ -518,14 +520,20 @@ end
         @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
             @test !Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(platform), autofix=false)
             # Make sure audit is otherwise happy with the executable
-            @test Auditor.audit(Prefix(testdir); platform=platform, autofix=false)
+            # Note by Mosè: this test was introduced before
+            # https://github.com/JuliaPackaging/BinaryBuilder.jl/pull/1240 and relied on the
+            # fact audit was ok with not depending on CSL for packages needing GCC
+            # libraries, but that was a fallacious expectation.  At the moment I don't know
+            # how to meaningfully use this test, leaving here as broken until we come up
+            # with better ideas (just remove the test?).
+            @test Auditor.audit(Prefix(testdir); platform=platform, autofix=false) broken=true
         end
 
         # Let's pretend that we're building for a different libgfortran version:
         # audit should warn us.
         libgfortran_versions = (3, 4, 5)
         other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
-        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) readmeta(hello_world_path) do oh
+        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") readmeta(hello_world_path) do oh
             p = deepcopy(platform)
             p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
             @test !Auditor.audit(Prefix(testdir); platform=p, autofix=false)
