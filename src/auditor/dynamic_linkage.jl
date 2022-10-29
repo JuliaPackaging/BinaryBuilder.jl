@@ -173,11 +173,9 @@ function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
         "libstdc++.so.6",
         "libc++.so.1",
         "libcxxrt.so.1",
-        # GCC libraries
+        # libc libraries
         "libdl.so.2",
         "librt.so.1",
-        "libgcc_s.1.so",
-        "libgcc_s.so.1",
         "libm.so.5",
         "libm.so.6",
         "libthr.so.3",
@@ -313,31 +311,6 @@ end
 # Determine whether a library is a "default" library or not, if it is we need
 # to map it to `@rpath/$libname` on OSX or `\$ORIGIN/$libname` on Linux/FreeBSD
 is_default_lib(lib, oh) = false
-function is_default_lib(lib, ::MachOHandle)
-    default_libs = [
-        "libgcc_s.1.dylib",
-        "libgfortran.3.dylib",
-        "libgfortran.4.dylib",
-        "libgfortran.5.dylib",
-        "libquadmath.0.dylib",
-        "libgomp.1.dylib",
-        "libstdc++.6.dylib",
-    ]
-    return lowercase(basename(lib)) in default_libs
-end
-function is_default_lib(lib, ::ELFHandle)
-    default_libs = [
-        "libgcc_s.so.1",
-        "libgfortran.so.3",
-        "libgfortran.so.4",
-        "libgfortran.so.5",
-        "libquadmath.so.0",
-        "libgomp.so.1",
-        "libstdc++.so.6",
-        "libc++.so.1",
-    ]
-    return lowercase(basename(lib)) in default_libs
-end
 
 function valid_library_path(f::AbstractString, p::AbstractPlatform)
     if Sys.iswindows(p)

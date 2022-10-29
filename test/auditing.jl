@@ -229,7 +229,7 @@ end
                     make install
                     install_license /usr/share/licenses/libuv/LICENSE
                 """
-                build_output_meta = do_build(build_path, script, platform, gcc_version)
+                build_output_meta = @test_logs (:info, "Building for $(triplet(platform))") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any do_build(build_path, script, platform, gcc_version)
                 # Extract our platform's build
                 @test haskey(build_output_meta, platform)
                 tarball_path, tarball_hash = build_output_meta[platform][1:2]
@@ -470,7 +470,7 @@ end
 
     mktempdir() do build_path
         hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
-        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") match_mode=:any begin
+        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any begin
             autobuild(
                 build_path,
                 "hello_fortran",
@@ -488,7 +488,9 @@ end
                 [platform],
                 #
                 Product[hello_world],
-                # No dependencies
+                # Note: we purposefully don't require CompilerSupportLibraries, even if we
+                # should, but the `@test_logs` above makes sure the audit warns us about
+                # this problem.
                 Dependency[];
             )
         end
@@ -518,14 +520,20 @@ end
         @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
             @test !Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(platform), autofix=false)
             # Make sure audit is otherwise happy with the executable
-            @test Auditor.audit(Prefix(testdir); platform=platform, autofix=false)
+            # Note by Mosè: this test was introduced before
+            # https://github.com/JuliaPackaging/BinaryBuilder.jl/pull/1240 and relied on the
+            # fact audit was ok with not depending on CSL for packages needing GCC
+            # libraries, but that was a fallacious expectation.  At the moment I don't know
+            # how to meaningfully use this test, leaving here as broken until we come up
+            # with better ideas (just remove the test?).
+            @test Auditor.audit(Prefix(testdir); platform=platform, autofix=false) broken=true
         end
 
         # Let's pretend that we're building for a different libgfortran version:
         # audit should warn us.
         libgfortran_versions = (3, 4, 5)
         other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
-        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) readmeta(hello_world_path) do oh
+        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") readmeta(hello_world_path) do oh
             p = deepcopy(platform)
             p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
             @test !Auditor.audit(Prefix(testdir); platform=p, autofix=false)
@@ -622,6 +630,52 @@ end
             @test (Sys.isapple(platform) ? "@loader_path" : "\$ORIGIN") * "/qux" in libfoo_rpaths
             # Currently we don't filter out absolute rpaths for macOS libraries, no good.
             @test length(libfoo_rpaths) == 1 broken=Sys.isapple(platform)
+        end
+    end
+
+    @testset "GCC libraries" begin
+        platform = Platform("x86_64", "linux"; libc="glibc", libgfortran_version=v"5")
+        mktempdir() do build_path
+            build_output_meta = nothing
+            @test_logs (:info, "Building for $(triplet(platform))") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "rpaths",
+                    v"2.0.0",
+                    # No sources
+                    FileSource[],
+                    # Build two libraries, `libbar` in `${libdir}/qux/` and `libfoo` in
+                    # `${libdir}`, with the latter linking to the former.
+                    raw"""
+                    # Build fortran hello world
+                    make -j${nproc} -sC /usr/share/testsuite/fortran/hello_world install
+                    # Install fake license just to silence the warning
+                    install_license /usr/share/licenses/libuv/LICENSE
+                    """,
+                    [platform],
+                    # Ensure our library products are built
+                    [ExecutableProduct("hello_world_fortran", :hello_world_fortran)],
+                    # Dependencies: add CSL
+                    [Dependency("CompilerSupportLibraries_jll")];
+                    autofix=true,
+                )
+            end
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            # Ensure the build products were created
+            @test isfile(tarball_path)
+            # Ensure reproducibility of build
+            @test build_output_meta[platform][3] == Base.SHA1("06ddfbeb9914a534ed3f21795b5da5b536d33c16")
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            # Make sure auditor set the rpath of `hello_world`, even if it links only to
+            # libgfortran.
+            @test Auditor._rpaths(joinpath(testdir, "bin", "hello_world_fortran")) == ["\$ORIGIN/../lib"]
         end
     end
 end
