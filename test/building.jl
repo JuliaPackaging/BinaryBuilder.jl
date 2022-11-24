@@ -200,7 +200,7 @@ end
             ppc64le_linux => Base.SHA1("53a4e6c7e7d05bf245a8b794133b963bb1ebb1c2"),
             armv7l_linux  => Base.SHA1("28fc03c35a4d30da70fbdefc69ecc6b6bf93f2fb"),
             aarch64_linux => Base.SHA1("c1c06efddc8bdce7b33fc9d8b6859f3c63e429ea"),
-            x86_64_macos  => Base.SHA1("6d7c6812ed8d0deb69d47ae467ea4fee9f691e34"),
+            x86_64_macos  => Base.SHA1("b0f9ef3b42b30f9085d4f9d60c3ea441554c442f"),
             i686_windows  => Base.SHA1("f39858ccc34a63a648cf21d33ae236bfdd706d09"),
         ),
         v"5" => Dict(
@@ -208,7 +208,7 @@ end
             ppc64le_linux => Base.SHA1("b663282a6101647c0aa87043a632b6cdc08f761f"),
             armv7l_linux  => Base.SHA1("9a3273d5c7a41e7c2a5ab58b6b69db49a8533bc1"),
             aarch64_linux => Base.SHA1("4bab3a85aceb3e589989f1a11a2f092c5038a6e0"),
-            x86_64_macos  => Base.SHA1("86d45de929dfc89dd65cb6222287a1c1309f4d08"),
+            x86_64_macos  => Base.SHA1("9ddfd323ed25fc02394067c6e863f1cf826a9e5e"),
             i686_windows  => Base.SHA1("9390a3c24a8e274e6d7245c6c977f97b406bc3f5"),
         ),
         v"6" => Dict(
@@ -216,7 +216,7 @@ end
             ppc64le_linux => Base.SHA1("97b7e5682b3cadc873644931b17894fa2ff05335"),
             armv7l_linux  => Base.SHA1("267b443b17b99ca2a14ea93d2afc2cce51cad05e"),
             aarch64_linux => Base.SHA1("b396b1d94aba8642a68122a3515b26e4397217a0"),
-            x86_64_macos  => Base.SHA1("b6216a106353f62e611579d88275f244b4923678"),
+            x86_64_macos  => Base.SHA1("b211e8c87b83e820416757d6d2985bcd19db7f24"),
             i686_windows  => Base.SHA1("ae50af4ca8651cb3c8f71f34d0b66ca0d8f14a99"),
         ),
     )
