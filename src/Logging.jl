@@ -33,7 +33,7 @@ Logging.catch_exceptions(::AzureSinkLogger) = true
 
 function enable_azure_logging()
     # Tee-in AzureSinkLogger so that `@warn` and `@error` are printed out nicely
-    global_logger(TeeLogger(
+    global_logger(DemuxLogger(
         global_logger(),
         AzureSinkLogger(),
     ))
