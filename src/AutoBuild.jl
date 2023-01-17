@@ -541,8 +541,8 @@ function _package_is_registered(registry_url::AbstractString,
 end
 
 is_yggdrasil() = get(ENV, "YGGDRASIL", "false") == "true"
-# Use an Azure Pipelines environment variable to get the current commit hash
-yggdrasil_head() = get(ENV, "BUILD_SOURCEVERSION", "")
+# Use a Buildkite environment variable to get the current commit hash
+yggdrasil_head() = get(ENV, "BUILDKITE_COMMIT", "")
 
 function register_jll(name, build_version, dependencies, julia_compat;
                       deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
