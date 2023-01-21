@@ -201,7 +201,9 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
             continue
         end
         # remove it
-        @info("Removing libtool file $f")
+        if verbose
+            @info("Removing libtool file $f")
+        end
         rm(f; force=true)
     end
 
@@ -245,6 +247,16 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 mv(f, joinpath(prefix, "bin", basename(f)))
             end
         end
+
+        # Normalise timestamp of Windows import libraries.
+        import_libraries = collect_files(prefix, endswith(".dll.a"))
+        for implib in import_libraries
+            if verbose
+                @info("Normalising timestamps in import library $(implib)")
+            end
+            normalise_implib_timestamp(implib)
+        end
+
     end
 
     # Check that we're providing a license file
