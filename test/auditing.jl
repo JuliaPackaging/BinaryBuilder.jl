@@ -731,10 +731,10 @@ end
 # * https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1232
 # * https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1245
 @testset "Auditor - Reproducible libraries on Windows" begin
-    platform = Platform("x86_64", "windows")
+    platform = Platform("i686", "windows")
     expected_git_shas = Dict(
-        v"4" => Base.SHA1("5084adf84a54c21699adf0e48dfabb260823871a"),
-        v"6" => Base.SHA1("d9e0fb2c60e0f3bc49633827d1d0bd374f55fef8"),
+        v"4" => Base.SHA1("64017544630a472081ba10879e58901d5e3b53a0"),
+        v"6" => Base.SHA1("31afae67c528151860c18128696b19c85309b556"),
     )
     @testset "gcc version $(gcc_version)" for gcc_version in (v"4", v"6")
         mktempdir() do build_path
