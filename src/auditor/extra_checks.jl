@@ -1,6 +1,8 @@
 # This file contains some extra checks that don't fall into the other
 # categories, for example because they're very platform-specific.
 
+using Dates: DateTime, datetime2unix
+
 function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::Bool = false, kwargs...)
     if Sys.isfreebsd(p)
         if oh.ei.osabi != ELF.ELFOSABI_FREEBSD
@@ -28,4 +30,20 @@ function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::B
         end
     end
     return true
+end
+
+# Problem: import libraries on Windows embed information about temporary object files,
+# including their modification time on disk, which makes import libraries non-reproducible:
+# <https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1245>.
+function normalise_implib_timestamp(path::AbstractString)
+    # Format of the object file info is something like
+    #     /      1674301251  0     0     644     286       `
+    # where `1674301251` is the Unix timestamp of the modification time of the library, we
+    # normalise it to another timestamp.  NOTE: it appears that changing the timestamp width
+    # would break the library, so we use another fixed 10-digit wide timestamp.  10-digit
+    # Unix timestamps span between 2001 and 2286, so we should be good for a while.
+    timestamp = trunc(Int, datetime2unix(DateTime(2013, 2, 13, 0, 49, 0))) # Easter egg
+    newlib = replace(read(path, String), r"(?<HEAD>/ +)(\d{10})(?<TAIL> +\d+ +\d+ +\d+ +\d+ +`)" => SubstitutionString("\\g<HEAD>$(timestamp)\\g<TAIL>"))
+    # Write back the file to disk.
+    write(path, newlib)
 end

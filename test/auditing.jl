@@ -306,7 +306,8 @@ end
                     # The products we expect to be build
                     libfoo_products,
                     # No dependencies
-                    Dependency[]
+                    Dependency[];
+                    verbose = true,
                 )
             end
 
@@ -723,6 +724,54 @@ end
         # recording exact original permissions:
         # https://github.com/JuliaIO/Tar.jl/blob/37766a22f5a6ac9f07022d83debd5db7d7a4b896/README.md#permissions
         @test_broken filemode(libfoo_path) & 0o777 == 0o750
+    end
+end
+
+# References:
+# * https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1232
+# * https://github.com/JuliaPackaging/BinaryBuilder.jl/issues/1245
+@testset "Auditor - Reproducible libraries on Windows" begin
+    platform = Platform("x86_64", "windows")
+    expected_git_shas = Dict(
+        v"4" => Base.SHA1("5084adf84a54c21699adf0e48dfabb260823871a"),
+        v"6" => Base.SHA1("d9e0fb2c60e0f3bc49633827d1d0bd374f55fef8"),
+    )
+    @testset "gcc version $(gcc_version)" for gcc_version in (v"4", v"6")
+        mktempdir() do build_path
+            build_output_meta = nothing
+            product = LibraryProduct("libfoo", :libfoo)
+            @test_logs (:info, r"Normalising timestamps in import library") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "implib",
+                    v"1.0.0",
+                    # No sources
+                    FileSource[],
+                    # Build a library without execution permissions
+                    raw"""
+                    mkdir -p "${libdir}"
+                    cd "${libdir}"
+                    echo 'int foo(){ return 42; }' | cc -x c -shared - -o libfoo.${dlext} -Wl,--out-implib,libfoo.${dlext}.a
+                    """,
+                    # Build for Windows
+                    [platform],
+                    # Ensure our library product is built
+                    [product],
+                    # No dependencies
+                    Dependency[];
+                    verbose = true,
+                    require_license = false,
+                    preferred_gcc_version = gcc_version,
+                )
+            end
+
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+            # Ensure reproducibility of build
+            @test build_output_meta[platform][3] == expected_git_shas[gcc_version]
+        end
     end
 end
 
