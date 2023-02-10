@@ -1646,12 +1646,14 @@ function build_project_dict(name, version, dependencies::Array{Dependency},
             project["compat"][depname] = dep.compat
         end
     end
-    # Always add Libdl, Pkg and Artifacts as dependencies
-    # Once we stop supporting Julia 1.5-, we can drop the `Pkg` requirement.
+    # Always add Libdl, Artifacts, and JLLWrappers as dependencies.
     project["deps"]["Libdl"] = "8f399da3-3557-5675-b5ff-fb832c97cbdb"
-    project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
     project["deps"]["Artifacts"] = "56f22d72-fd6d-98f1-02f0-08ddc0907c33"
     project["deps"]["JLLWrappers"] = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
+    if minimum_compat(julia_compat) < v"1.6"
+        # `Pkg` is used in JLLWrappers only when we require Julia v1.5-.
+        project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
+    end
     if lazy_artifacts
         project["deps"]["LazyArtifacts"] = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
     end

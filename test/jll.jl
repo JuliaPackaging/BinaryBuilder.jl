@@ -29,6 +29,8 @@ module TestJLL end
     @test project["version"] == "1.3.5"
     # Make sure BuildDependency's don't find their way to the project
     @test_throws MethodError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
+    # `Pkg` should not be a dependency if we require Julia v1.6.
+    @test !haskey(BinaryBuilder.build_project_dict("foo", v"1.2", Dependency[], "1.6")["deps"], "Pkg")
 
     gh_auth = Wizard.github_auth(;allow_anonymous=true)
     @test get_github_author_login("JuliaPackaging/Yggdrasil", "invalid_hash"; gh_auth) === nothing
