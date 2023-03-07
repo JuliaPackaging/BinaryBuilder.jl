@@ -431,7 +431,7 @@ different meanings:
 
 As a package developer, you may want to test JLL packages locally, or as a binary dependency
 developer you may want to easily use custom binaries.  Through a combination of `dev`'ing out
-the JLL package and creating an `overrides` directory, it is easy to get complete control over
+the JLL package and creating an `override` directory, it is easy to get complete control over
 the local JLL package state.
 
 ## Overriding a prebuilt JLL package's binaries
@@ -470,6 +470,11 @@ options).  If `--deploy=local` is passed, the JLL package will still be built in
 the `~/.julia/dev/` directory, but it will not be uploaded anywhere.  This is
 useful for local testing and validation that the built artifacts are working
 with your package.
+
+For information, if you want to build a JLL package only for your current platform,
+you can use `platforms = [HostPlatform()]` in the `build_tarball.jl` script.
+You can also provide the target triplet `Base.BinaryPlatforms.host_triplet()`
+if you run the script in the command line.
 
 ## Deploying local builds without recreating the tarballs
 Sometimes all tarballs have already been created successfully locally but not

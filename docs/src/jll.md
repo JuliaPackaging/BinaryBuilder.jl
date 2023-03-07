@@ -231,6 +231,11 @@ package, depending on whether the package is `dev`'ed or not.  The second method
 is particularly recommended to system administrator who wants to use system
 libraries in place of the libraries in JLL packages.
 
+!!! warning
+    The `Artifacts.toml` of the overrided JLL packages must have valid url
+    fields because Julia always install an artifact for your platform
+    even if you override it. It impacts locally built JLL packages.
+
 ### `dev`'ed JLL packages
 
 In the event that a user wishes to override the content within a `dev`'ed JLL
@@ -306,4 +311,3 @@ Note that the product name is `libbzip2`, but we use `libbzip2_path`.
        build. Please open an issue on [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/)
        requesting a new build, or make a pull request to update the relevant
        `build_tarballs.jl` script.
-
