@@ -346,15 +346,15 @@ version = "1.2.2"
 
 [[deps.Registrator]]
 deps = ["AutoHashEquals", "Base64", "Dates", "Distributed", "FileWatching", "GitForge", "GitHub", "HTTP", "JSON", "LibGit2", "Logging", "MbedTLS", "Mocking", "Mustache", "Mux", "Pkg", "RegistryTools", "Serialization", "Sockets", "TimeToLive", "URIs", "UUIDs", "ZMQ"]
-git-tree-sha1 = "76a6df170b381dbbae2a0e386e59e9d894ba4290"
+git-tree-sha1 = "7242ef64be5953fac9bf8b3efa3a7c4d2d44ca09"
 uuid = "4418983a-e44d-11e8-3aec-9789530b3b3e"
-version = "1.5.0"
+version = "1.8.0"
 
 [[deps.RegistryTools]]
 deps = ["AutoHashEquals", "LibGit2", "Pkg", "SHA", "UUIDs"]
-git-tree-sha1 = "aceb02a844394332608c88d7da6217daf2b5e4e5"
+git-tree-sha1 = "94060d91cc152680842357aacb402afbd06601aa"
 uuid = "d1eb7eb1-105f-429d-abf5-b0f65cb9e2c4"
-version = "1.8.1"
+version = "2.1.0"
 
 [[deps.Requires]]
 deps = ["UUIDs"]
