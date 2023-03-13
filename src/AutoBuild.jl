@@ -566,10 +566,12 @@ function register_jll(name, build_version, dependencies, julia_compat;
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
     jllwrappers_compat = isempty(augment_platform_block) ? DEFAULT_JLLWRAPPERS_VERSION_SPEC : "1.4.0"
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts, augment_platform_block))
+    project_file = joinpath(mktempdir(), "Project.toml")
+    Pkg.Types.write_project(project, project_file)
     errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
     reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
-        project,
+        project_file,
         wrapper_tree_hash;
         registry=registry_url,
         cache=cache,
