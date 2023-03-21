@@ -28,7 +28,7 @@ module TestJLL end
     @test project["compat"] == Dict("julia" => "1.0", "XZ_jll" => "=2.4.6", "JLLWrappers" => "1.2.0")
     @test project["version"] == "1.3.5"
     # Make sure BuildDependency's don't find their way to the project
-    @test_throws MethodError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
+    @test_throws AssertionError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
     # `Pkg` should not be a dependency if we require Julia v1.6.
     @test !haskey(BinaryBuilder.build_project_dict("foo", v"1.2", Dependency[], "1.6")["deps"], "Pkg")
 
@@ -52,7 +52,7 @@ end
         # We depend on Zlib_jll only on the host platform, but not on FreeBSD
         dependencies = [
             Dependency("Zlib_jll"; platforms=[platform]),
-            Dependency("Preferences"; top_level=true)
+            RuntimeDependency("Preferences"; top_level=true)
         ]
         # Augment platform
         augment_platform_block = """

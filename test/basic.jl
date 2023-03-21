@@ -214,7 +214,7 @@ end
     @test project.uuid == UUID("8fcd9439-76b0-55f4-a525-bad0597c05d8")
     # Make sure that a `BuildDependency` can't make it to the list of
     # dependencies of the new JLL package
-    @test_throws MethodError build_project_dict(name, version, [BuildDependency("Foo_jll")])
+    @test_throws AssertionError build_project_dict(name, version, [BuildDependency("Foo_jll")])
 
     version = v"1.6.8"
     next_version = BinaryBuilder.get_next_wrapper_version("Xorg_libX11", version)

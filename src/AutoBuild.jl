@@ -363,9 +363,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
         end
 
-        # For deploy discard build-only dependencies
-        # and make sure we get a `Vector{Dependency}`
-        dependencies = Dependency[dep for dep in dependencies if is_runtime_dependency(dep)]
+        # For deploy keep only runtime  dependencies.
+        dependencies = [dep for dep in dependencies if is_runtime_dependency(dep)]
 
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
@@ -1240,8 +1239,8 @@ function build_jll_package(src_name::String,
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
 
-    # Drop BuildDependency objects
-    dependencies = Dependency[d for d in dependencies if is_runtime_dependency(d)]
+    # Drop build dependencies
+    dependencies = [d for d in dependencies if is_runtime_dependency(d)]
 
     platforms = keys(build_output_meta)
     products_info = Dict{Product,Any}()
@@ -1614,12 +1613,15 @@ function find_uuid(ctx, pkg)
     """)
 end
 
-function build_project_dict(name, version, dependencies::Array{Dependency},
+function build_project_dict(name, version, dependencies::Array{<:AbstractDependency},
                             julia_compat::String=DEFAULT_JULIA_VERSION_SPEC;
                             jllwrappers_compat::String=DEFAULT_JLLWRAPPERS_VERSION_SPEC,
                             augment_platform_block::String="",
                             lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                             kwargs...)
+    # Make sure we only have runtime dependecies at this point.
+    @assert all(is_runtime_dependency, dependencies)
+
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(
         "name" => "$(name)_jll",
