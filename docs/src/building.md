@@ -470,3 +470,11 @@ options).  If `--deploy=local` is passed, the JLL package will still be built in
 the `~/.julia/dev/` directory, but it will not be uploaded anywhere.  This is
 useful for local testing and validation that the built artifacts are working
 with your package.
+
+## Deploying local builds without recreating the tarballs
+Sometimes all tarballs have already been created successfully locally but not
+deployed to GitHub. This can happen, e.g., if it is tricky to figure out the
+correct build script for all platforms, or if each platform build takes a long
+time. In this case, it is possible to skip the build process and just deploy
+the JLL package by providing the `--skip-build` flag to the `build_tarballs.jl`
+script. Read the help (`--help`) for more information.
