@@ -103,6 +103,13 @@ const BUILD_HELP = (
                             so using `--register` without `--deploy` or the
                             more specific `--deploy-jll` is an error.
 
+        --skip-build        Skips building the platform binaries. This option
+                            is useful if, e.g., you have already built all
+                            platform binaries and now only wish to deploy the
+                            JLL package to GitHub. Note that this will error if
+                            not all tarballs for the listed platforms are
+                            present.
+
         --meta-json         Output a JSON representation of the given build
                             instead of actually building.  Note that this can
                             (and often does) output multiple JSON objects for
@@ -251,6 +258,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         error("Cannot register with a local deployment!")
     end
 
+    # This sets whether building should be skipped
+    skip_build = check_flag!(ARGS, "--skip-build")
+
     if deploy_bin || deploy_jll
         code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
 
@@ -342,6 +352,12 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         end
 
         build_output_meta = Dict()
+    elseif skip_build
+        # If they do not want to build, there is nothing we can do here
+        build_output_meta = Dict()
+        if verbose
+          @info("Skipping the build process for the tarballs as requested...")
+        end
     else
         # Build the given platforms using the given sources
         build_output_meta = autobuild(
@@ -368,8 +384,18 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         # The location the binaries will be available from
         bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
-        build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
-                          dependencies, bin_path; verbose, julia_compat, extra_kwargs...)
+
+        if !skip_build
+            # Build JLL package based on output of autobuild
+            build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
+                              dependencies, bin_path; verbose, julia_compat, extra_kwargs...)
+        else
+            # Rebuild output meta data from the information we have here
+            rebuild_jll_package(src_name, build_version, sources, platforms, products, dependencies,
+                                joinpath(pwd(), "products"), bin_path;
+                                code_dir, verbose, from_scratch=false,
+                                julia_compat, extra_kwargs...)
+        end
         if deploy_jll_repo != "local"
             push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
         end
