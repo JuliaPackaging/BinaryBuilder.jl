@@ -165,6 +165,8 @@ For these target systems Clang is the default compiler, however some programs ma
 
 For programs built with CMake (see the [CMake build](#CMake-builds-1) section) you can use the GCC toolchain file that is in `${CMAKE_TARGET_TOOLCHAIN%.*}_gcc.cmake`.
 
+For programs built with Meson (see the [Meson build](#Meson-builds-1) section) you can use the GCC toolchain file that is in `${MESON_TARGET_TOOLCHAIN%.*}_gcc.meson`.
+
 If the project that you want to build uses the GNU Build System (also known as the Autotools), there isn't an automatic switch to use GCC, but you have to set the appropriate variables.  For example, this setting can be used to build most C/C++ programs with GCC for FreeBSD and macOS:
 ```sh
 if [[ "${target}" == *-freebsd* ]] || [[ "${target}" == *-apple-* ]]; then
