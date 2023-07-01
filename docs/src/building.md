@@ -471,7 +471,7 @@ the `~/.julia/dev/` directory, but it will not be uploaded anywhere.  This is
 useful for local testing and validation that the built artifacts are working
 with your package.
 
-For information, if you want to build a JLL package only for your current platform,
+If you want to build a JLL package only for your current platform,
 you can use `platforms = [HostPlatform()]` in the `build_tarball.jl` script.
 You can also provide the target triplet `Base.BinaryPlatforms.host_triplet()`
 if you run the script in the command line.

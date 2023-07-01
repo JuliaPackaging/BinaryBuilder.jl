@@ -232,9 +232,9 @@ is particularly recommended to system administrator who wants to use system
 libraries in place of the libraries in JLL packages.
 
 !!! warning
-    The `Artifacts.toml` of the overrided JLL packages must have valid url
-    fields because Julia always install an artifact for your platform
-    even if you override it. It impacts locally built JLL packages.
+    The `Artifacts.toml` of the overridden JLL packages must have valid url
+    fields because Julia always installs an artifact for your platform
+    even if you override it. This impacts locally built JLL packages.
 
 ### `dev`'ed JLL packages
 
