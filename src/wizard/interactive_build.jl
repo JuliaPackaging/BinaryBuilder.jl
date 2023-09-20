@@ -212,7 +212,10 @@ function diff_srcdir(state::WizardState, prefix::Prefix, ur::Runner)
     return false
 end
 
-function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Union{Dict{Prefix,Vector{String}}, Nothing}, platform::AbstractPlatform, jll::AbstractString)
+function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Union{Dict{Prefix,Vector{String}}, Nothing}, platform::AbstractPlatform, dep_kind::Type, jll::AbstractString)
+    if !endswith(jll, "_jll")
+        jll *= "_jll"
+    end
     if any(dep->getpkg(dep).name == jll, state.dependencies)
         println(client, "ERROR: Package was already added")
         return
@@ -221,7 +224,7 @@ function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Un
         println(client, "ERROR: `bb add` not available in this context (if you think it should be, file an issue)!")
         return
     end
-    new_dep = Dependency(jll)
+    new_dep = dep_kind(jll)
     try
         # This will redo some work, but that may be ok
         concrete_platform = get_concrete_platform(platform, state)
@@ -231,8 +234,9 @@ function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Un
         pkgs = getpkg.([state.dependencies; new_dep])
         prefix_artifacts[prefix] = setup_dependencies(prefix, pkgs, concrete_platform)
         push!(state.dependencies, new_dep)
+        println(client, "[bb] Added dependency $jll. The dependency is available for use.")
     catch e
-        showerror(client, e)
+        showerror(client, e, catch_backtrace())
     end
 end
 
@@ -247,10 +251,24 @@ function bb_parser()
             action = :command
     end
 
+    add_arg_group!(s["add"], "dependency kind", exclusive=true)
+    @add_arg_table! s["add"] begin
+        "--build"
+            help = "This is a build-only dependency (e.g. for header-only libraries)"
+            nargs = 0
+        "--runtime"
+            help = "This is a runtime-only dependency (e.g. for runtime assets)"
+            nargs = 0
+        "--hostbuild"
+            help = "This is a host build-time dependency (e.g. cross-compile build tools)"
+            nargs = 0
+    end
+
+    add_arg_group!(s["add"], "jll name")
     @add_arg_table! s["add"] begin
         "jll"
-        help = "The jll to add"
-        required = true
+            help = "The jll to add"
+            required = true
     end
 
     s
@@ -276,7 +294,11 @@ function setup_bb_service(state::WizardState, prefix, platform, prefix_artifacts
                         parsed = parse_args(ARGS, s)
                         if parsed == nothing
                         elseif parsed["%COMMAND%"] == "add"
-                            bb_add(client, state, prefix, prefix_artifacts, platform, parsed["add"]["jll"])
+                            dep_kind = parsed["add"]["build"] ? BuildDependency :
+                                       parsed["add"]["runtime"] ? RuntimeDependency :
+                                       parsed["add"]["hostbuild"] ? HostBuildDependency :
+                                                                    Dependency
+                            bb_add(client, state, prefix, prefix_artifacts, platform, dep_kind, parsed["add"]["jll"])
                         end
                         close(client)
                     catch e
