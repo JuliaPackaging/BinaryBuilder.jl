@@ -54,7 +54,7 @@ function download_source(state::WizardState)
         """), "\n" => " ")
         new_entered_url = nonempty_line_prompt("URL", msg; ins=state.ins, outs=state.outs)
         if new_entered_url == "N" || new_entered_url == "n"
-            return new_entered_url, SetupSource(string(new_entered_url), "", "", "")
+            return nothing
         end
         # Early-exit for invalid URLs, using HTTP.URIs.parse_uri() to ensure
         # it is a valid URL
@@ -82,8 +82,7 @@ function download_source(state::WizardState)
     end
 
     local source_hash
-
-    if endswith(url, ".git") || startswith(url, "git://")
+    if endswith(url, ".git") || startswith(url, "git://") || startswith(url, "ssh://")
         source_path = cached_git_clone(url; progressbar=true, verbose=true)
         # Clone the URL, record the current gitsha for the given branch
         repo = GitRepo(source_path)
@@ -136,7 +135,7 @@ function download_source(state::WizardState)
     end
 
     # Spit back the url, local path and source hash
-    return url, SetupSource(url, source_path, source_hash, "")
+    return SetupSource(url, source_path, source_hash, "")
 end
 
 """
@@ -272,17 +271,15 @@ function obtain_source(state::WizardState)
 
     # These are the metadata we need to know about all the sources we'll be
     # building over the course of this journey we're on together.
-    state.source_urls = String[]
     state.source_files = SetupSource[]
 
     while true
-        url, file = download_source(state)
-        if url != "N"
-            push!(state.source_urls, url)
+        file = download_source(state)
+        if file !== nothing
             push!(state.source_files, file)
             println(state.outs)
         else
-            if isempty(state.source_urls)
+            if isempty(state.source_files)
                 printstyled(state.outs, "No URLs were given.\n", color=:yellow, bold=true)
                 continue
             end
