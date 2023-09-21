@@ -1,3 +1,6 @@
 [deps]
 BinaryBuilderBase = "7f725544-6523-48cd-82d1-3fa08ff4056e"
 Documenter = "e30172f5-a6a5-5a46-863b-614d45cd2de4"
+
+[compat]
+Documenter = "0.27"
