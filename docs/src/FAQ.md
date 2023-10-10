@@ -92,3 +92,17 @@ The list of sources is a vector of [`BinaryBuilder.AbstractSource`](@ref)s.  Wha
   replacing `http://example.org/file.tar.gz` with the actual URL of the file you want to download.
 
 * For a [`GitSource`](@ref), the hash is the 40-character SHA1 hash of the revision you want to checkout.  For reproducibility you must indicate a specific revision, and not a branch or tag name, which are moving targets.
+
+### Now that I have a published and versioned `jll` package, what compat bounds do I put in its dependents? What if the upstream does not follow SemVer?
+
+Imagine there is a package `CoolFortranLibrary_jll` that is a build of an upstream Fortran library `CoolFortranLibrary`. We will abbreviate these to `CFL_jll` and `CFL`.
+
+Once you have `CFL_jll` you might want to have a Julia project that depends on it.
+As usual you put a compat bound for `CFL_jll` (the version number of upstream `CFL` and the jll version of `CFL_jll` are typically set equal during the `jll` registration).
+If you know for a fact that upstream `CFL` follows SemVer, then you just set compat bounds as if it was any other Julia project.
+However, not all ecosystems follow SemVer. The following two cases are quite common:
+
+1. `CFL` releases version 1.1.1 and version 1.1.2 that are incompatible. A real world example is Boost (which breaks the ABI in every single release because they embed the full version number in the soname of libraries). If you have a typical permissive semver-style compat section in a package that depends on `CFL_jll`, then your package will break whenever `CFL_jll` gets a new release. To solve this issue you have to use "hyphen style" compat bounds like `"0.9.0 - 1.1.2"`. This leads to a separate problem: you need to change the compat bound every time there is a new `CFL_jll` release: this is the least bad option though -- it causes more annoyance for developers but it ensures users never end up with broken installs. And bots like `CompatHelper` can mostly automate that issue.
+2. `CFL` releases versions 1.0.0 and 2.0.0 that are perfectly compatible. The Linux kernel, Chrome, Firefox, and curl are such examples. This causes annoying churn, as the developper still needs to update compat bounds in packages that depend on `CFL_jll`. Or, if you have a very strong belief in `CFL`'s commitment to backward compatibility, you can put an extremely generous compat bound like `">= 1.0.0"`.
+
+While the SemVer (and Julia's) "conservative" approach to compatibility ensures there will never be runtime crashes due to installed incompatible libraries, you might still end up with systems that refuse to install in the first place (which the Julia ecosystem considers the lesser evil). E.g., package `A.jl` that depends on newer versions of `CLF` and package `B.jl` that depends on older versions can not be installed at the same time. This happens less often in ecosystems that follow semver, but might happen relatively often in an ecosystem that does not. Thus developers that rely on `jll` packages that do not follow semver should be proactive in updating their compat bonds (and are strongly encouraged to heavily use the `CompatHelper` bot).
