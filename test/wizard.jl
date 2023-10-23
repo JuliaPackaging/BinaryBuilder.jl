@@ -178,7 +178,7 @@ end
         call_response(ins, outs, "Select the preferred LLVM version", "\e[B\e[B\e[B\r")
     end
     # Check that the state is modified appropriately
-    @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
+    @test getfield.(state.source_files, :url) == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
     @test getfield.(state.source_files, :hash) == [libfoo_tarball_hash]
     @test Set(state.compilers) == Set([:c, :rust, :go])
     @test state.preferred_gcc_version == getversion(available_gcc_builds[1])
@@ -201,7 +201,7 @@ end
         call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
     end
     # Check that the state is modified appropriately
-    @test state.source_urls == [
+    @test getfield.(state.source_files, :url) == [
         "http://127.0.0.1:$(port)/a/source.tar.gz",
         "http://127.0.0.1:$(port)/b/source.tar.gz",
     ]
@@ -268,7 +268,7 @@ end
         call_response(ins, outs, "Enter a version number", "1.0.0")
         call_response(ins, outs, "Do you want to customize the set of compilers?", "N")
     end
-    @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
+    @test getfield.(state.source_files, :url) == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
     state = step2_state()   
     with_wizard_output(state, Wizard.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "N")
@@ -295,8 +295,8 @@ function step3_state()
     state = Wizard.WizardState()
     state.step = :step34
     state.platforms = [Platform("x86_64", "linux")]
-    state.source_urls = ["http://127.0.0.1:$(port)/a/source.tar.gz"]
-    state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}(libfoo_tarball_path, libfoo_tarball_hash, "")]
+    state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}("http://127.0.0.1:$(port)/a/source.tar.gz",
+        libfoo_tarball_path, libfoo_tarball_hash, "")]
     state.name = "libfoo"
     state.version = v"1.0.0"
     state.dependencies = Dependency[]

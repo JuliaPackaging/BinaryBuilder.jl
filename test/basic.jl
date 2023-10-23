@@ -167,8 +167,7 @@ end
     state = Wizard.WizardState()
     state.step = :step34
     state.platforms = [Platform("x86_64", "linux")]
-    state.source_urls = ["http://127.0.0.1:14444/a/source.tar.gz"]
-    state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}("/tmp/source.tar.gz", bytes2hex(sha256("a")), "")]
+    state.source_files = [BinaryBuilder.SetupSource{ArchiveSource}("http://127.0.0.1:14444/a/source.tar.gz", "/tmp/source.tar.gz", bytes2hex(sha256("a")), "")]
     state.name = "libfoo"
     state.version = v"1.0.0"
     state.dependencies = [Dependency(PackageSpec(;name="Zlib_jll")),

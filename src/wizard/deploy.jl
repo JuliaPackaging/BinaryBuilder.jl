@@ -1,15 +1,13 @@
 function print_build_tarballs(io::IO, state::WizardState)
-    urlfiles = zip(state.source_urls, state.source_files)
-
-    sources_strings = map(urlfiles) do x
+    sources_strings = map(state.source_files) do source
         # Try to be smart and automatically replace version number with `$(version)`.
-        url_string = replace(repr(x[1]), string(state.version) => "\$(version)")
-        if endswith(x[1], ".git")
-            "GitSource($(url_string), $(repr(x[2].hash)))"
-        elseif any(endswith(x[1], ext) for ext in BinaryBuilderBase.archive_extensions)
-            "ArchiveSource($(url_string), $(repr(x[2].hash)))"
+        url_string = replace(repr(source.url), string(state.version) => "\$(version)")
+        if endswith(source.url, ".git")
+            "GitSource($(url_string), $(repr(source.hash)))"
+        elseif any(endswith(source.url, ext) for ext in BinaryBuilderBase.archive_extensions)
+            "ArchiveSource($(url_string), $(repr(source.hash)))"
         else
-            "FileSource($(url_string), $(repr(x[2].hash)))"
+            "FileSource($(url_string), $(repr(source.hash)))"
         end
     end
     if !isempty(state.patches)
