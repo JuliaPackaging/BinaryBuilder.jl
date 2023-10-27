@@ -25,7 +25,14 @@ module TestJLL end
                                   "Scratch"     => "6c6a2e73-6563-6170-7368-637461726353")
     @test project["name"] == "LibFoo_jll"
     @test project["uuid"] == "b250f842-3251-58d3-8ee4-9a24ab2bab3f"
-    @test project["compat"] == Dict("julia" => "1.0", "XZ_jll" => "=2.4.6", "JLLWrappers" => "1.2.0")
+    @test project["compat"] == Dict(
+        "julia" => "1.0",
+        "XZ_jll" => "=2.4.6",
+        "JLLWrappers" => "1.2.0",
+        "Libdl" => "1",
+        "Artifacts" => "1",
+        "Pkg" => "1",
+    )
     @test project["version"] == "1.3.5"
     # Make sure BuildDependency's don't find their way to the project
     @test_throws AssertionError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
