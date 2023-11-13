@@ -1057,8 +1057,7 @@ end
 
 # Init remote repository, and its local counterpart
 function init_jll_package(code_dir, deploy_repo;
-                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
-                          gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+                          gh_auth = Wizard.github_auth(;allow_anonymous=false))
     url = "https://github.com/$(deploy_repo)"
     try
         # This throws if it does not exist
@@ -1086,13 +1085,13 @@ function init_jll_package(code_dir, deploy_repo;
     if !isdir(code_dir)
         # If it does exist, clone it down:
         @info("Cloning wrapper code repo from $(url) into $(code_dir)")
-        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
+        Wizard.with_gitcreds("x-access-token", gh_auth.token) do creds
             LibGit2.clone(url, code_dir; credentials=creds)
         end
     else
         # Otherwise, hard-reset to latest main:
         repo = LibGit2.GitRepo(code_dir)
-        Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
+        Wizard.with_gitcreds("x-access-token", gh_auth.token) do creds
             LibGit2.fetch(repo; credentials=creds)
         end
         main_branch = LibGit2.lookup_branch(repo, "origin/main", true)
