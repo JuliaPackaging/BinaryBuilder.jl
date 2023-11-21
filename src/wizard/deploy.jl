@@ -147,8 +147,7 @@ end
 function yggdrasil_deploy(name, version, patches, build_tarballs_content;
                           open_pr::Bool=false,
                           branch_name=nothing,
-                          gh_auth = github_auth(;allow_anonymous=false),
-                          gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+                          gh_auth = github_auth(;allow_anonymous=false))
     # First, fork Yggdrasil (this just does nothing if it already exists)
     fork = GitHub.create_fork("JuliaPackaging/Yggdrasil"; auth=gh_auth)
 
@@ -188,7 +187,7 @@ function yggdrasil_deploy(name, version, patches, build_tarballs_content;
         @info("Committing and pushing to $(fork.full_name)#$(branch_name)...")
         LibGit2.add!(repo, rel_bt_path)
         LibGit2.commit(repo, "New Recipe: $(name) v$(version)")
-        with_gitcreds(gh_username, gh_auth.token) do creds
+        with_gitcreds("x-access-token", gh_auth.token) do creds
             LibGit2.push(
                 repo,
                 refspecs=["+HEAD:refs/heads/$(branch_name)"],
