@@ -1581,13 +1581,12 @@ end
 function push_jll_package(name, build_version;
                           code_dir = joinpath(Pkg.devdir(), "$(name)_jll"),
                           deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
-                          gh_auth = Wizard.github_auth(;allow_anonymous=false),
-                          gh_username = gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"])
+                          gh_auth = Wizard.github_auth(;allow_anonymous=false))
     # Next, push up the wrapper code repository
     wrapper_repo = LibGit2.GitRepo(code_dir)
     LibGit2.add!(wrapper_repo, ".")
     commit = LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
-    Wizard.with_gitcreds(gh_username, gh_auth.token) do creds
+    Wizard.with_gitcreds("x-access-token", gh_auth.token) do creds
         refspecs = ["refs/heads/main"]
         # Fetch the remote repository, to have the relevant refspecs up to date.
         LibGit2.fetch(
