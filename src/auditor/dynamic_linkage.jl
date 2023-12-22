@@ -69,17 +69,13 @@ end
 
 function _rpaths(file::AbstractString)
     readmeta(file) do ohs
-        foreach(ohs) do oh
-            rpaths(RPath(oh))
-        end
+        vcat(rpaths.(RPath.(ohs))...)
     end
 end
 
 function _canonical_rpaths(file::AbstractString)
     readmeta(file) do ohs
-        foreach(ohs) do oh
-            canonical_rpaths(RPath(oh))
-        end
+        vcat(canonical_rpaths.(RPath.(ohs))...)
     end
 end
 
