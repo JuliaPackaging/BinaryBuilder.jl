@@ -204,7 +204,7 @@ end
             i686_windows  => Base.SHA1("f39858ccc34a63a648cf21d33ae236bfdd706d09"),
         ),
         v"5" => Dict(
-            x86_64_linux  => Base.SHA1("b202768af2c23d5ffa76df338eedeba10044c7f9"),
+            x86_64_linux  => Base.SHA1("743b2eac2e096281a2c69f95a2f58a4583824a84"),
             ppc64le_linux => Base.SHA1("b663282a6101647c0aa87043a632b6cdc08f761f"),
             armv7l_linux  => Base.SHA1("9a3273d5c7a41e7c2a5ab58b6b69db49a8533bc1"),
             aarch64_linux => Base.SHA1("4bab3a85aceb3e589989f1a11a2f092c5038a6e0"),
@@ -212,7 +212,7 @@ end
             i686_windows  => Base.SHA1("9390a3c24a8e274e6d7245c6c977f97b406bc3f5"),
         ),
         v"6" => Dict(
-            x86_64_linux  => Base.SHA1("8917015bdd43c961da93b003d67ccd9dd5debd54"),
+            x86_64_linux  => Base.SHA1("0b152c2cc8ff2af82f8d2d0adbbe26e0961131ed"),
             ppc64le_linux => Base.SHA1("97b7e5682b3cadc873644931b17894fa2ff05335"),
             armv7l_linux  => Base.SHA1("267b443b17b99ca2a14ea93d2afc2cce51cad05e"),
             aarch64_linux => Base.SHA1("b396b1d94aba8642a68122a3515b26e4397217a0"),
@@ -246,10 +246,10 @@ end
 
             for p in troublesome_platforms
                 # Test build reproducibility
-                # Note: for some reasons, GCC 5 for i686 windows gives different results on
+                # Note: for some reasons, GCC for i686 windows gives different results on
                 # different systems, while still always reproducible on each of them:
                 # https://github.com/JuliaPackaging/BinaryBuilder.jl/pull/1234#issuecomment-1264192726
-                @test build_output_meta[p][3] == expected_git_shas[gcc_version][p] skip=(Sys.iswindows(p) && gcc_version==v"5")
+                @test build_output_meta[p][3] == expected_git_shas[gcc_version][p] skip=(Sys.iswindows(p))
             end
 
             # Just a simple test to ensure that it worked.

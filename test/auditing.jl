@@ -667,7 +667,7 @@ end
             # Ensure the build products were created
             @test isfile(tarball_path)
             # Ensure reproducibility of build
-            @test build_output_meta[platform][3] == Base.SHA1("06ddfbeb9914a534ed3f21795b5da5b536d33c16")
+            @test build_output_meta[platform][3] == Base.SHA1("0165cfbbbb8e521707299d649359f2bfdc28f204")
 
             # Unpack it somewhere else
             @test verify(tarball_path, tarball_hash)
@@ -733,8 +733,8 @@ end
 @testset "Auditor - Reproducible libraries on Windows" begin
     platform = Platform("i686", "windows")
     expected_git_shas = Dict(
-        v"4" => Base.SHA1("64017544630a472081ba10879e58901d5e3b53a0"),
-        v"6" => Base.SHA1("31afae67c528151860c18128696b19c85309b556"),
+        v"4" => Base.SHA1("1b625af3aa29c4b4b398f1eeaccc83d781bca1a5"),
+        v"6" => Base.SHA1("61767c3a66a66caeed84ee747a95021a94e77e3d"),
     )
     @testset "gcc version $(gcc_version)" for gcc_version in (v"4", v"6")
         mktempdir() do build_path
