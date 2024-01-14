@@ -81,38 +81,40 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
         # Peel this binary file open like a delicious tangerine
         try
-            readmeta(f) do oh
-                if !is_for_platform(oh, platform)
-                    if verbose
-                        @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
-                    end
-                else
-                    # Check that the ISA isn't too high
-                    all_ok &= check_isa(oh, platform, prefix; verbose, silent)
-                    # Check that the OS ABI is set correctly (often indicates the wrong linker was used)
-                    all_ok &= check_os_abi(oh, platform; verbose)
-                    # Make sure all binary files are executables, if libraries aren't
-                    # executables Julia may not be able to dlopen them:
-                    # https://github.com/JuliaLang/julia/issues/38993.  In principle this
-                    # should be done when autofix=true, but we have to run this fix on MKL
-                    # for Windows, for which however we have to set autofix=false:
-                    # https://github.com/JuliaPackaging/Yggdrasil/pull/922.
-                    all_ok &= ensure_executability(oh; verbose, silent)
-
-                    # If this is a dynamic object, do the dynamic checks
-                    if isdynamic(oh)
-                        # Check that the libgfortran version matches
-                        all_ok &= check_libgfortran_version(oh, platform; verbose, has_csl)
-                        # Check whether the library depends on any of the most common
-                        # libraries provided by `CompilerSupportLibraries_jll`.
-                        all_ok &= check_csl_libs(oh, platform; verbose, has_csl)
-                        # Check that the libstdcxx string ABI matches
-                        all_ok &= check_cxxstring_abi(oh, platform; verbose)
-                        # Check that this binary file's dynamic linkage works properly.  Note to always
-                        # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
-                        # checks to freak out a little bit.
-                        all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
-                                                        platform, silent, verbose, autofix, src_name)
+            readmeta(f) do ohs
+                foreach(ohs) do oh
+                    if !is_for_platform(oh, platform)
+                        if verbose
+                            @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                        end
+                    else
+                        # Check that the ISA isn't too high
+                        all_ok &= check_isa(oh, platform, prefix; verbose, silent)
+                        # Check that the OS ABI is set correctly (often indicates the wrong linker was used)
+                        all_ok &= check_os_abi(oh, platform; verbose)
+                        # Make sure all binary files are executables, if libraries aren't
+                        # executables Julia may not be able to dlopen them:
+                        # https://github.com/JuliaLang/julia/issues/38993.  In principle this
+                        # should be done when autofix=true, but we have to run this fix on MKL
+                        # for Windows, for which however we have to set autofix=false:
+                        # https://github.com/JuliaPackaging/Yggdrasil/pull/922.
+                        all_ok &= ensure_executability(oh; verbose, silent)
+                    
+                        # If this is a dynamic object, do the dynamic checks
+                        if isdynamic(oh)
+                            # Check that the libgfortran version matches
+                            all_ok &= check_libgfortran_version(oh, platform; verbose, has_csl)
+                            # Check whether the library depends on any of the most common
+                            # libraries provided by `CompilerSupportLibraries_jll`.
+                            all_ok &= check_csl_libs(oh, platform; verbose, has_csl)
+                            # Check that the libstdcxx string ABI matches
+                            all_ok &= check_cxxstring_abi(oh, platform; verbose)
+                            # Check that this binary file's dynamic linkage works properly.  Note to always
+                            # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
+                            # checks to freak out a little bit.
+                            all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
+                                                            platform, silent, verbose, autofix, src_name)
+                        end
                     end
                 end
             end

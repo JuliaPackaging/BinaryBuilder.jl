@@ -85,7 +85,7 @@ from `ObjectFile`.
 function filter_object_files(files)
     return filter(files) do f
         try
-            readmeta(f) do oh
+            readmeta(f) do ohs
                 return true
             end
         catch e
@@ -121,8 +121,8 @@ function match_files(state::WizardState, prefix::Prefix,
     prefix_files = filter_object_files(prefix_files)
     # Check if we can load them as an object file
     prefix_files = filter(prefix_files) do f
-        readmeta(f) do oh
-            if !Auditor.is_for_platform(oh, platform)
+        readmeta(f) do ohs
+            if !any(Auditor.is_for_platform(oh, platform) for oh in ohs)
                 if !silent
                     @warn("Skipping binary `$f` with incorrect platform")
                 end
