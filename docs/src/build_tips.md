@@ -185,6 +185,36 @@ if [[ "${target}" == *-freebsd* ]] || [[ "${target}" == *-apple-* ]]; then
 fi
 ```
 
+## [Linking to BLAS/LAPACK libraries](@id link-blas)
+
+Many numerical libraries link to [BLAS](https://en.wikipedia.org/wiki/Basic_Linear_Algebra_Subprograms)/[LAPACK](https://en.wikipedia.org/wiki/LAPACK) libraries to execute optimised linear algebra routines.
+It is important to understand that the elements of the arrays manipulated by these libraries can be indexed by either 32-bit integer numbers ([LP64](https://en.wikipedia.org/wiki/64-bit_computing#64-bit_data_models)), or 64-bit integers (ILP64).
+For example, Julia itself employs BLAS libraries for linear algebra, and it expects ILP64 model on 64-bit platforms (e.g. the `x86_64` and `aarch64` architectures) and LP64 on LP64 on 32-bit platforms (e.g. the `i686` and `armv7l` architectures).
+Furthermore, Julia comes by default with [`libblastrampoline`](https://github.com/JuliaLinearAlgebra/libblastrampoline), a library which doesn't implement itself any BLAS/LAPACK routine but it forwards all BLAS/LAPACK function calls to another library (by default OpenBLAS) which can be designated at runtime, allowing you to easily switch between different backends if needed.
+`libblastrampoline` provides both ILP64 and LP64 interfaces on 64-bit platforms, in the former case BLAS function calls are expected to have the `_64` suffix to the standard BLAS names.
+
+If in your build you need to use a package to a BLAS/LAPACK library you have the following options:
+
+* use ILP64 interface on 64-bit systems and LP64 interface on 32-bit ones, just like Julia itself.
+  In this case, when targeting 64-bit systems you will need to make sure all BLAS/LAPACK function calls in the package you want to build will follow the expected naming convention of using the `_64` suffix, something which most packages would not do automatically.
+  The build systems of some packages (e.g. [`OpenBLAS`](https://github.com/JuliaPackaging/Yggdrasil/blob/b7f5e3c48f292078bbed4c9fdad071da7875c0bc/O/OpenBLAS/common.jl#L125) and [`SuiteSparse`](https://github.com/JuliaPackaging/Yggdrasil/blob/master/S/SuiteSparse/SuiteSparse%407/build_tarballs.jl#L30-L39)) provide this option out-of-the-box, but in most cases you will need to rename the symbols manually using the preprocessor, see for example the [`armadillo`](https://github.com/JuliaPackaging/Yggdrasil/blob/b7f5e3c48f292078bbed4c9fdad071da7875c0bc/A/armadillo/build_tarballs.jl#L29-L41) recipe.
+  If you are ready to use ILP64 interface on 64-bit systems, you can choose different libraries to link to:
+  - `libblastrampoline`, using the `libblastrampoline_jll` dependency.
+    This is the recommended solution, as it is also what is used by Julia itself, it does not introduce new dependencies, a default backing BLAS/LAPACK is always provided, and also the package you are building can take advantage of `libblastrampoline`'s mechanism to switch between different BLAS/LAPACK backend for optimal performance.
+    A couple of caveats to be aware of:
+      * for compatibility reasons it's recommended to use
+        ```julia
+        Dependency("libblastrampoline_jll"; compat="5.4.0")
+        ```
+        as dependency and also pass `julia_compat="1.9"` as keyword argument to the [`build_tarballs`](@ref) function
+      * to link to `libblastrampoline` you should use `-lblastrampoline` when targeting Unix systems, and `-lblastrampoline-5` (`5` being the major version of the library) when targeting Windows.
+  - link directly to other libraries which provide the ILP64 interface on 64-bit systems and the LP64 interface on 32-bit systems, like `OpenBLAS_jll` (what is used by default by julia to back `libblastrampoline`), but once you made the effort to respect the ILP64 interface linking to `libbastrampoline` may be more convenient
+* always use LP64 interface, also on 64-bit systems.
+  This may be a simpler option if renamining the BLAS/LAPACK symbols is too cumbersome in your case.
+  In terms of libraries to link to:
+  - also in this case you can link to `libblastrampoline`, however you _must_ make sure an LP64 BLAS/LAPACK library is backing `libblastrampoline`, otherwise all BLAS/LAPACK calls from the library will result in hard-to-debug segmentation faults, because in this case Julia does not provided a default backing LP64 BLAS/LAPACK library on 64-bit systems 
+  - alternatively, you can use builds of BLAS/LAPACK libraries which always use LP64 interface also on 64-bit platforms, like the package `OpenBLAS32_jll`.
+
 ## Dependencies for the target system vs host system
 
 BinaryBuilder provides a cross-compilation environment, which means that in general there is a distinction between the target platform (where the build binaries will eventually run) and the host platform (where compilation is currently happening).  In particular, inside the build environment in general you cannot run binary executables built for the target platform.
