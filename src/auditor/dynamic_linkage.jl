@@ -68,14 +68,14 @@ function platform_for_object(oh::ObjectHandle)
 end
 
 function _rpaths(file::AbstractString)
-    readmeta(file) do oh
-        rpaths(RPath(oh))
+    readmeta(file) do ohs
+        vcat(rpaths.(RPath.(ohs))...)
     end
 end
 
 function _canonical_rpaths(file::AbstractString)
-    readmeta(file) do oh
-        canonical_rpaths(RPath(oh))
+    readmeta(file) do ohs
+        vcat(canonical_rpaths.(RPath.(ohs))...)
     end
 end
 

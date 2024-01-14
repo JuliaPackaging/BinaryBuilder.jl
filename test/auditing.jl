@@ -86,9 +86,11 @@ end
             prefix = Prefix(testdir)
 
             # Run ISA test
-            readmeta(locate(product, prefix)) do oh
-                detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
-                @test detected_isa == "avx512"
+            readmeta(locate(product, prefix)) do ohs
+                foreach(ohs) do oh
+                    detected_isa = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                    @test detected_isa == "avx512"
+                end
             end
         end
     end
@@ -133,9 +135,11 @@ end
             prefix = Prefix(testdir)
 
             # Run ISA test
-            readmeta(locate(product, prefix)) do oh
-                detected_march = Auditor.analyze_instruction_set(oh, platform; verbose=true)
-                @test detected_march == "avx"
+            readmeta(locate(product, prefix)) do ohs
+                foreach(ohs) do oh
+                    detected_march = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                    @test detected_march == "avx"
+                end
             end
         end
     end
@@ -182,14 +186,16 @@ end
             prefix = Prefix(testdir)
 
             # Run ISA test
-            readmeta(locate(product, prefix)) do oh
-                detected_march = Auditor.analyze_instruction_set(oh, platform; verbose=true)
-                if march == "avx2"
-                    # Detecting the ISA isn't 100% reliable and it's even less
-                    # accurate when looking for AVX2 features
-                    @test_broken march == detected_march
-                else
-                    @test march == detected_march
+            readmeta(locate(product, prefix)) do ohs
+                foreach(ohs) do oh
+                    detected_march = Auditor.analyze_instruction_set(oh, platform; verbose=true)
+                    if march == "avx2"
+                        # Detecting the ISA isn't 100% reliable and it's even less
+                        # accurate when looking for AVX2 features
+                        @test_broken march == detected_march
+                    else
+                        @test march == detected_march
+                    end
                 end
             end
         end
@@ -243,9 +249,11 @@ end
                 prefix = Prefix(testdir)
 
                 # Ensure that the library detects as the correct cxxstring_abi:
-                readmeta(locate(libcxxstringabi_test, prefix)) do oh
-                    detected_cxxstring_abi = Auditor.detect_cxxstring_abi(oh, platform)
-                    @test detected_cxxstring_abi == cxxstring_abi(platform)
+                readmeta(locate(libcxxstringabi_test, prefix)) do ohs
+                    foreach(ohs) do oh
+                        detected_cxxstring_abi = Auditor.detect_cxxstring_abi(oh, platform)
+                        @test detected_cxxstring_abi == cxxstring_abi(platform)
+                    end
                 end
 
                 # Explicitly test cxx string abi mismatches
@@ -404,11 +412,13 @@ end
         prefix = Prefix(testdir)
 
         # Helper to extract the dylib id of a path
-        function get_dylib_id(path)
-            return readmeta(path) do oh
-                dylib_id_lcs = [lc for lc in MachOLoadCmds(oh) if isa(lc, MachOIdDylibCmd)]
-                @test !isempty(dylib_id_lcs)
-                return dylib_name(first(dylib_id_lcs))
+        function get_dylib_ids(path)
+            return readmeta(path) do ohs
+                map(ohs) do oh
+                     dylib_id_lcs = [lc for lc in MachOLoadCmds(oh) if isa(lc, MachOIdDylibCmd)]
+                     @test !isempty(dylib_id_lcs)
+                     return dylib_name(first(dylib_id_lcs))
+                end
             end
         end
 
@@ -419,13 +429,13 @@ end
         right_id_path = locate(right_id, prefix; platform=platform)
         for p in (no_id_path, abs_id_path, right_id_path)
             @test any(startswith.(p, libdirs(prefix)))
-            @test get_dylib_id(p) == "@rpath/$(basename(p))"
+            @test all(get_dylib_ids(p) .== "@rpath/$(basename(p))")
         end
 
         # Only if it already has an `@rpath/`-ified ID, it doesn't get touched.
         wrong_id_path = locate(wrong_id, prefix; platform=platform)
         @test any(startswith.(wrong_id_path, libdirs(prefix)))
-        @test get_dylib_id(wrong_id_path) == "@rpath/totally_different.dylib"
+        @test all(get_dylib_ids(wrong_id_path) .== "@rpath/totally_different.dylib")
 
         # Ensure that this bianry is codesigned
         @test BinaryBuilder.Auditor.check_codesigned(right_id_path, platform)
@@ -534,10 +544,12 @@ end
         # audit should warn us.
         libgfortran_versions = (3, 4, 5)
         other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
-        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") readmeta(hello_world_path) do oh
-            p = deepcopy(platform)
-            p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
-            @test !Auditor.audit(Prefix(testdir); platform=p, autofix=false)
+        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") readmeta(hello_world_path) do ohs
+            foreach(ohs) do oh
+                p = deepcopy(platform)
+                p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
+                @test !Auditor.audit(Prefix(testdir); platform=p, autofix=false)
+            end
         end
     end
 end

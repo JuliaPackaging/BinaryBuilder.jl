@@ -4,7 +4,7 @@ get_soname(oh::ObjectHandle) = nothing
 # Auto-open a path into an ObjectHandle
 function get_soname(path::AbstractString)
     try
-        readmeta(get_soname, path)
+        only(readmeta(ns -> get_soname.(ns), path))
     catch e
         @warn "Could not probe $(path) for an SONAME!" exception=(e, catch_backtrace())
         return nothing

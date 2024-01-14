@@ -120,8 +120,8 @@ function detect_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform)
 
     # Extract all pieces of `.gnu.version_d` from libstdc++.so, find the `GLIBCXX_*`
     # symbols, and use the maximum version of that to find the GLIBCXX ABI version number
-    version_symbols = readmeta(first(libstdcxx_libs)) do oh
-        unique(vcat((x -> x.names).(ELFVersionData(oh))...))
+    version_symbols = readmeta(first(libstdcxx_libs)) do ohs
+        unique(vcat((x -> x.names).(vcat(ELFVersionData.(ohs)...))...))
     end
     version_symbols = filter(x -> startswith(x, "GLIBCXX_"), version_symbols)
     if isempty(version_symbols)

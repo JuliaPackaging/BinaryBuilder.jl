@@ -34,15 +34,16 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
 
     # Check if we can load them as an object file
     files = filter(files) do f
-        readmeta(f) do oh
-            return Auditor.is_for_platform(oh, platform)
+        readmeta(f) do ohs
+            return any(Auditor.is_for_platform(oh, platform) for oh in ohs)
         end
     end
 
     # Strip out the prefix from filenames
     state.files = map(file->replace(file, "$(destdir_path)/" => ""), files)
     state.file_kinds = map(files) do f
-        readmeta(f) do oh
+        readmeta(f) do ohs
+            oh = first(ohs)
             if isexecutable(oh)
                 return :executable
             elseif islibrary(oh)
