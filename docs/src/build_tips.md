@@ -53,8 +53,12 @@ Here are examples of autoconfigure build scripts:
 For CMake, the wizard will suggest a template for running CMake. Typically, this will look like:
 
 ```sh
-cmake -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} -DCMAKE_BUILD_TYPE=Release
+cmake -B build -DCMAKE_INSTALL_PREFIX=${prefix} -DCMAKE_TOOLCHAIN_FILE=${CMAKE_TARGET_TOOLCHAIN} -DCMAKE_BUILD_TYPE=Release
+cmake --build build --parallel ${nproc}
+cmake --install build
 ```
+
+CMake makes it hard to cleanup a partial failed build and start over, so we always recommend configuring and building a CMake project in a dedicated new directory, `build` in the example above.
 
 The toolchain file sets up several CMake environment variables for better cross-platform support, such as `CMAKE_SYSROOT`, `CMAKE_C_COMPILER`, etc...  Examples of builds that include CMake parts include:
 
