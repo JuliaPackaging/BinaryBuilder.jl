@@ -9,7 +9,7 @@ function print_autoconf_hint(state::WizardState)
     printstyled(state.outs, "      ./configure --prefix=\${prefix} --build=\${MACHTYPE} --host=\${target}", bold=true)
     println(state.outs)
     println(state.outs)
-    println(state.outs, "    followed by `make` and `make install`. Since the prefix environment")
+    println(state.outs, "    followed by `make -j\${nproc}` and `make install`. Since the prefix environment")
     println(state.outs, "    variable is set already, this will automatically perform the installation")
     println(state.outs, "    into the correct directory.")
 end
@@ -66,10 +66,15 @@ function provide_hints(state::WizardState, path::AbstractString)
                 print(state.outs,   "    This file is likely input to CMake. ")
                 println(state.outs,   "The recommended options for CMake are")
                 println(state.outs)
-                printstyled(state.outs, "      cmake -DCMAKE_INSTALL_PREFIX=\$prefix -DCMAKE_TOOLCHAIN_FILE=\${CMAKE_TARGET_TOOLCHAIN} -DCMAKE_BUILD_TYPE=Release", bold=true)
+                printstyled(state.outs,
+                            """
+                                cmake -B build -DCMAKE_INSTALL_PREFIX=\$prefix -DCMAKE_TOOLCHAIN_FILE=\${CMAKE_TARGET_TOOLCHAIN} -DCMAKE_BUILD_TYPE=Release
+                                cmake --build build --parallel \${nproc}
+                                cmake --install build
+                            """, bold=true)
                 println(state.outs)
                 println(state.outs)
-                println(state.outs, "    followed by `make` and `make install`. Since the prefix environment")
+                println(state.outs, "    Since the prefix environment")
                 println(state.outs, "    variable is set already, this will automatically perform the installation")
                 println(state.outs, "    into the correct directory.\n")
             elseif file == "meson.build"
