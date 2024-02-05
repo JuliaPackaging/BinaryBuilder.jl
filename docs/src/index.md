@@ -47,7 +47,7 @@ If you decide to use this workflow, however, you will need to manually open pull
 
 ### GitHub Codespaces
 
-If you already have access to the [GitHub Codespaces](https://github.com/features/codespaces) service, you can use use BinaryBuilder and all the workflows described above in your browser or with Visual Studio Code, on any operating system, including those not natively supported by the package!  Head to [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/) and create a new Codespace.
+If you already have access to the [GitHub Codespaces](https://github.com/features/codespaces) service, you can use BinaryBuilder and all the workflows described above in your browser or with Visual Studio Code, on any operating system, including those not natively supported by the package!  Head to [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/) and create a new Codespace.
 
 ## How does this all work?
 
