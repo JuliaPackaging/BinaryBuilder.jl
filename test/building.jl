@@ -360,6 +360,10 @@ end
     end
 
     @test_throws ErrorException build_tarballs(String[], "", v"1.0", GitSource[], "", supported_platforms(; experimental=true), LibraryProduct[], Dependency[])
+
+    @test_throws ErrorException build_tarballs(String[], "1nvalid-name :(", v"4.20.69",
+                                               GitSource[], "", supported_platforms(),
+                                               LibraryProduct[], Dependency[])
 end
 
 @testset "AnyPlatform" begin

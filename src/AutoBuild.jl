@@ -169,6 +169,10 @@ supported ones. A few additional keyword arguments are accept:
   JLL wrapper to select the artifact. Note that this option requires the Julia
   compatibility `julia_compat` to be 1.6 or higher.
 
+* `validate_name` ensures that `src_name` constitutes a valid Julia identifier.
+  Since the generated JLL package is named according to `src_name`, this should
+  only be set to `false` if you _really_ know what you're doing.
+
 !!! note
 
     The `init_block` and `augment_platform_block` keyword arguments are experimental
@@ -178,7 +182,7 @@ supported ones. A few additional keyword arguments are accept:
 function build_tarballs(ARGS, src_name, src_version, sources, script,
                         platforms, products, dependencies;
                         julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                        kwargs...)
+                        validate_name::Bool=true, kwargs...)
     @nospecialize
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
@@ -187,7 +191,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         return nothing
     end
 
-    if !Base.isidentifier(src_name)
+    if validate_name && !Base.isidentifier(src_name)
         error("Package name \"$(src_name)\" is not a valid identifier")
     end
 
