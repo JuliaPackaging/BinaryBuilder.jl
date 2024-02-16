@@ -6,7 +6,7 @@ const _github_auth = Ref{GitHub.Authorization}()
 
 function github_auth(;allow_anonymous::Bool=true)
 
-    if (!isassigned(_github_auth) || !allow_anonymous && isa(_github_auth[], GitHub.AnonymousAuth)) && length(get(ENV, "GITHUB_TOKEN", "")) == 40
+    if (!isassigned(_github_auth) || !allow_anonymous && isa(_github_auth[], GitHub.AnonymousAuth)) && length(get(ENV, "GITHUB_TOKEN", "")) >= 40
         try 
             _github_auth[] = GitHub.authenticate(ENV["GITHUB_TOKEN"])
         catch e
