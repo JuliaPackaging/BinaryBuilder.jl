@@ -4,6 +4,10 @@ The purpose of the [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/Binary
 
 Note that at this time, BinaryBuilder itself runs on Linux `x86_64` and macOS `x86_64` systems only, with Windows support under active development.  On macOS and Windows, you must have `docker` installed as the backing virtualization engine.  Note that Docker Desktop is the recommended version; if you have Docker Machine installed it may not work correctly or may need additional configuration.
 
+!!! warn
+
+    This package currently requires Julia v1.7.  Contribute to [JuliaPackaging/JLLPrefixes.jl#6](https://github.com/JuliaPackaging/JLLPrefixes.jl/issues/6) if you care about supporting newer versions of Julia.
+
 ## Project flow
 
 Suppose that you have a Julia package `Foo.jl` which wants to use a compiled `libfoo` shared library.  As your first step in writing `Foo.jl`, you may compile `libfoo` locally on your own machine with your system compiler, then using `Libdl.dlopen()` to open the library, and `ccall()` to call into the exported functions.  Once you have written your C bindings in Julia, you will naturally desire to share the fruits of your labor with the rest of the world, and this is where `BinaryBuilder` can help you.  Not only will `BinaryBuilder` aid you in constructing compiled versions of all your dependencies, but it will also build a wrapper Julia package (referred to as a [JLL package](jll.md)) to aid in installation, versioning, and build product localization.
