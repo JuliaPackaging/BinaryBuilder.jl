@@ -187,7 +187,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         return nothing
     end
 
-    if !Base.isidentifier(src_name)
+    if !(Base.isidentifier(src_name) || startswith(src_name, "PlatformSupport-"))
         error("Package name \"$(src_name)\" is not a valid identifier")
     end
 
