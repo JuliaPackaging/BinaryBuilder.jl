@@ -1660,8 +1660,10 @@ function build_project_dict(name, version, dependencies::Array{<:AbstractDepende
             "JLLWrappers" => "$(jllwrappers_compat)",
             "julia" => "$(julia_compat)",
             # Stdlibs always used, we need to have compat bounds also for them.
-            "Libdl" => "1",
-            "Artifacts" => "1",
+            # The "< 0.0.1" trick is needed to prevent `Pkg.test` from breaking
+            # on older Julia versions.
+            "Libdl" => "< 0.0.1, 1",
+            "Artifacts" => "< 0.0.1, 1",
         )
     )
 
