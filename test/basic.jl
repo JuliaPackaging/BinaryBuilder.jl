@@ -199,7 +199,7 @@ end
     @test dict["name"] == "$(name)_jll"
     @test dict["version"] == "1.0.0"
     @test dict["uuid"] == "8fcd9439-76b0-55f4-a525-bad0597c05d8"
-    @test dict["compat"] == Dict{String,Any}("julia" => "1.0", "JLLWrappers" => "1.2.0", "Pkg" => "1", "Libdl" => "1", "Artifacts" => "1")
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.0", "JLLWrappers" => "1.2.0", "Pkg" => "< 0.0.1, 1", "Libdl" => "< 0.0.1, 1", "Artifacts" => "< 0.0.1, 1")
     @test all(in.(
         (
             "Pkg"       => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
