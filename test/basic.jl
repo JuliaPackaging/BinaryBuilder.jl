@@ -224,16 +224,16 @@ end
 
     # Ensure passing a Julia dependency bound works
     dict = build_project_dict(name, version, dependencies, "1.4")
-    @test dict["compat"] == Dict{String,Any}("julia" => "1.4", "JLLWrappers" => "1.2.0", "Pkg" => "1", "Libdl" => "1", "Artifacts" => "1")
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.4", "JLLWrappers" => "1.2.0", "Pkg" => "< 0.0.1, 1", "Libdl" => "< 0.0.1, 1", "Artifacts" => "< 0.0.1, 1")
 
     dict = build_project_dict(name, version, dependencies, "~1.4")
-    @test dict["compat"] == Dict{String,Any}("julia" => "~1.4", "JLLWrappers" => "1.2.0", "Pkg" => "1", "Libdl" => "1", "Artifacts" => "1")
+    @test dict["compat"] == Dict{String,Any}("julia" => "~1.4", "JLLWrappers" => "1.2.0", "Pkg" => "< 0.0.1, 1", "Libdl" => "< 0.0.1, 1", "Artifacts" => "< 0.0.1, 1")
 
     @test_throws ErrorException build_project_dict(name, version, dependencies, "nonsense")
 
     # Ensure passing a JLLWrappers dependency bound works
     dict = build_project_dict(name, version, dependencies; jllwrappers_compat="1.4.0")
-    @test dict["compat"] == Dict{String,Any}("julia" => "1.0", "JLLWrappers" => "1.4.0", "Pkg" => "1", "Libdl" => "1", "Artifacts" => "1")
+    @test dict["compat"] == Dict{String,Any}("julia" => "1.0", "JLLWrappers" => "1.4.0", "Pkg" => "< 0.0.1, 1", "Libdl" => "< 0.0.1, 1", "Artifacts" => "< 0.0.1, 1")
 
     # Ensure passing compat bounds works
     dependencies = [
