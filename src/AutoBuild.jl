@@ -488,13 +488,16 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
                                    attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
-            ghr() do ghr_path
-                run(`$ghr_path -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) $(tag) $(path)`)
-            end
+            # Note: in some cases we may want to reduce/avoid concurrency to avoid exceeding
+            # secondary rate limits:
+            # https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api?apiVersion=2022-11-28#avoid-concurrent-requests
+            # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
+            concurrency = get(ENV, "BINARYBUILDER_GHR_CONCURRENCY", string(Sys.CPU_THREADS))
+            run(`$(ghr()) -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) -p $(concurrency) $(tag) $(path)`)
             return
         catch
-            if verbose
-                @info("`ghr` upload step failed, beginning attempt #$(attempt)...")
+            if verbose && attempt < attempts
+                @info("`ghr` upload step failed, beginning attempt #$(attempt + 1)...")
             end
         end
     end
