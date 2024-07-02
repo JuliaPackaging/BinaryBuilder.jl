@@ -1663,8 +1663,10 @@ function build_project_dict(name, version, dependencies::Array{<:AbstractDepende
             "JLLWrappers" => "$(jllwrappers_compat)",
             "julia" => "$(julia_compat)",
             # Stdlibs always used, we need to have compat bounds also for them.
-            "Libdl" => "1",
-            "Artifacts" => "1",
+            # The "< 0.0.1" trick is needed to prevent `Pkg.test` from breaking
+            # on older Julia versions.
+            "Libdl" => "< 0.0.1, 1",
+            "Artifacts" => "< 0.0.1, 1",
         )
     )
 
@@ -1689,15 +1691,15 @@ function build_project_dict(name, version, dependencies::Array{<:AbstractDepende
     if minimum_compat(julia_compat) < v"1.6"
         # `Pkg` is used in JLLWrappers only when we require Julia v1.5-.
         project["deps"]["Pkg"] = "44cfe95a-1eb2-52ea-b672-e2afdf69b78f"
-        project["compat"]["Pkg"] = "1"
+        project["compat"]["Pkg"] = "< 0.0.1, 1"
     end
     if lazy_artifacts
         project["deps"]["LazyArtifacts"] = "4af54fe1-eca0-43a8-85a7-787d91b784e3"
-        project["compat"]["LazyArtifacts"] = "1"
+        project["compat"]["LazyArtifacts"] = "< 0.0.1, 1"
     end
     if !isempty(augment_platform_block)
         project["deps"]["TOML"] = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
-        project["compat"]["TOML"] = "1"
+        project["compat"]["TOML"] = "< 0.0.1, 1"
     end
 
     return project
