@@ -180,7 +180,7 @@ You should be aware of two incompatibilities in particular:
       achieved by appropriately setting the `_GLIBCXX_USE_CXX11_ABI` macro.
 
   This means that when building with GCC a C++ library or program which exposes
-  the `std::string` ABI, you must make sure that the user whill run a binary
+  the `std::string` ABI, you must make sure that the user will run a binary
   matching their `std::string` ABI.  You can manually specify the `std::string`
   ABI in the `compiler_abi` part of the platform, but `BinaryBuilder` lets you
   automatically expand the list of platform to include an entry for the C++03

@@ -86,3 +86,4 @@ BinaryBuilder has been covered in some videos, you may want to check them out if
 * [Your first BinaryBuilder.jl recipe with Julia](https://www.youtube.com/watch?v=7fkNcdbt4dg): live building by Miguel Raz Guzmán Macedo (2021-04-07)
 * [BinaryBuilder.jl — The Subtle Art of Binaries That "Just Work"](https://bbb.dereferenced.org/playback/presentation/2.3/75a49eebcb63d6fee8c55417ea7cc51768d86f3d-1621065511930): AlpineConf 2021 talk by Elliot Saba and Mosè Giordano, starts at 4:19:00 (2021-05-15)
 * [BinaryBuilder.jl — Using Julia's Pkg to deliver binary libraries](https://www.youtube.com/watch?v=S__x3K31qnE): PackagingCon 2021 talk by Mosè Giordano & Elliot Saba (2021-11-10)
+* [BinaryBuilder.jl: distributing binary libraries for Julia packages](https://www.youtube.com/watch?v=N9H7KNftFJA): talk at [JuliaHEP 2023 Workshop](https://indico.cern.ch/event/1292759/contributions/5613062/) by Mosè Giordano (2023-11-07)
