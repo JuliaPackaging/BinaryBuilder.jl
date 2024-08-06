@@ -29,9 +29,9 @@ module TestJLL end
         "julia" => "1.0",
         "XZ_jll" => "=2.4.6",
         "JLLWrappers" => "1.2.0",
-        "Libdl" => "1",
-        "Artifacts" => "1",
-        "Pkg" => "1",
+        "Libdl" => "< 0.0.1, 1",
+        "Artifacts" => "< 0.0.1, 1",
+        "Pkg" => "< 0.0.1, 1",
     )
     @test project["version"] == "1.3.5"
     # Make sure BuildDependency's don't find their way to the project
