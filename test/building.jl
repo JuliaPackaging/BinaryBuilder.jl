@@ -113,11 +113,17 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 ExecutableProduct("hello_world_go", :hello_world_go),
             ]
 
-            if !platforms_match(shard, Platform("i686", "windows"))
-                # Rust is broken on 32-bit Windows, let's skip it
+            if !(platforms_match(shard, Platform("i686", "windows")) ||
+                 platforms_match(shard, Platform("aarch64", "freebsd")))
+                # Rust is broken on 32-bit Windows and unavailable on FreeBSD AArch64, let's skip it
                 push!(products, ExecutableProduct("hello_world_rust", :hello_world_rust))
             end
 
+            compilers = [:c, :go]
+            # Don't even ask for Rust on FreeBSD AArch64
+            if !platforms_match(shard, Platform("aarch64", "freebsd"))
+                push!(compilers, :rust)
+            end
 
             build_output_meta = autobuild(
                 build_path,
@@ -127,7 +133,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 DirectorySource[],
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
-                # Skip Rust on 32-bit Windows, it's totally unusable
+                # Skip Rust on 32-bit Windows, the compiler exists but it's totally unusable
                 if [[ "${target}" == i686-*-mingw* ]]; then
                     while which rustc &> /dev/null; do rm $(which rustc); done
                 fi
@@ -142,7 +148,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 # Express a dependency on CSL to silence warning for fortran code
                 [Dependency("CompilerSupportLibraries_jll")];
                 # We need to be able to build go and rust and whatnot
-                compilers=[:c, :go, :rust],
+                compilers,
             )
 
             # Test that we built everything (I'm not entirely sure how I expect
