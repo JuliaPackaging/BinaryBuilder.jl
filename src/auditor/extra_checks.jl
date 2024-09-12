@@ -5,7 +5,19 @@ using Dates: DateTime, datetime2unix
 
 function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::Bool = false, kwargs...)
     if Sys.isfreebsd(p)
-        if oh.ei.osabi != ELF.ELFOSABI_FREEBSD
+        # On AArch64 and RISC-V, FreeBSD uses an ELF note section to identify itself rather
+        # than OS/ABI in the ELF header. In that case, the OS/ABI will be generic Unix (NONE).
+        # See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=252490 and
+        # https://github.com/freebsd/freebsd-src/blob/main/lib/csu/common/crtbrand.S
+        if oh.ei.osabi == ELF.ELFOSABI_NONE
+            if os_from_elf_note(oh) != "FreeBSD"
+                if verbose
+                    @warn("$(basename(path(oh))) does not have a FreeBSD-branded ELF note " *
+                          "and may be unrecognized or unusable on $p")
+                end
+                return false
+            end
+        elseif oh.ei.osabi != ELF.ELFOSABI_FREEBSD
             # The dynamic loader should not have problems in this case, but the
             # linker may not appreciate.  Let the user know about this.
             if verbose
@@ -17,7 +29,8 @@ function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::B
             end
             return false
         end
-    elseif call_abi(p) == "eabihf"
+    end
+    if call_abi(p) == "eabihf"
         # Make sure the object file has the hard-float ABI.  See Table 4-2 of
         # "ELF for the ARM Architecture" document
         # (https://developer.arm.com/documentation/ihi0044/e/).  Note: `0x000`
