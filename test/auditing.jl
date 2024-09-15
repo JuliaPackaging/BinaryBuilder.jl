@@ -1,5 +1,6 @@
 using BinaryBuilder.Auditor
-using BinaryBuilder.Auditor: compatible_marchs, valid_library_path
+using BinaryBuilder.Auditor: check_os_abi, compatible_marchs, is_for_platform, valid_library_path
+using ObjectFile
 
 # Tests for our auditing infrastructure
 
