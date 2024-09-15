@@ -788,57 +788,113 @@ end
 end
 
 @testset "Auditor - other checks" begin
-    platform = Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")
-    mktempdir() do build_path
-        build_output_meta = @test_logs (:error, r"libsoft.so does not match the hard-float ABI") match_mode=:any begin
-            autobuild(
-                build_path,
-                "hard_float_ABI",
-                v"1.0.0",
-                # No sources
-                FileSource[],
-                # Build a library which doesn't link to the standard library and
-                # forces the soft-float ABI
-                raw"""
-                mkdir -p "${libdir}" "${bindir}"
-                # This library has hard-float ABI
-                echo 'int test() { return 0; }' | cc -shared -fPIC -o "${libdir}/libhard.${dlext}" -x c -
-                # This library has soft-float ABI
-                echo 'int _start() { return 0; }' | /opt/${target}/bin/${target}-gcc -nostdlib -shared -mfloat-abi=soft -o "${libdir}/libsoft.${dlext}" -x c -
-                # hello_world built by Go doesn't specify any float ABI
-                make -C /usr/share/testsuite/go/hello_world/
-                cp "/tmp/testsuite/${target}/go/hello_world/hello_world" "${bindir}/hello_world"
-                """,
-                # Build for Linux armv7l hard-float
-                [platform],
-                # Ensure our library product is built
-                [
-                    LibraryProduct("libhard", :libhard),
-                    LibraryProduct("libsoft", :libsoft),
-                    ExecutableProduct("hello_world", :hello_world),
-                ],
-                # No dependencies
-                Dependency[];
-                compilers = [:c, :go],
-                verbose = true,
-                require_license = false
-            )
+    @testset "hard-float ABI" begin
+        platform = Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")
+        mktempdir() do build_path
+            build_output_meta = @test_logs (:error, r"libsoft.so does not match the hard-float ABI") match_mode=:any begin
+                autobuild(
+                    build_path,
+                    "hard_float_ABI",
+                    v"1.0.0",
+                    # No sources
+                    FileSource[],
+                    # Build a library which doesn't link to the standard library and
+                    # forces the soft-float ABI
+                    raw"""
+                    mkdir -p "${libdir}" "${bindir}"
+                    # This library has hard-float ABI
+                    echo 'int test() { return 0; }' | cc -shared -fPIC -o "${libdir}/libhard.${dlext}" -x c -
+                    # This library has soft-float ABI
+                    echo 'int _start() { return 0; }' | /opt/${target}/bin/${target}-gcc -nostdlib -shared -mfloat-abi=soft -o "${libdir}/libsoft.${dlext}" -x c -
+                    # hello_world built by Go doesn't specify any float ABI
+                    make -C /usr/share/testsuite/go/hello_world/
+                    cp "/tmp/testsuite/${target}/go/hello_world/hello_world" "${bindir}/hello_world"
+                    """,
+                    # Build for Linux armv7l hard-float
+                    [platform],
+                    # Ensure our library product is built
+                    [
+                        LibraryProduct("libhard", :libhard),
+                        LibraryProduct("libsoft", :libsoft),
+                        ExecutableProduct("hello_world", :hello_world),
+                    ],
+                    # No dependencies
+                    Dependency[];
+                    compilers = [:c, :go],
+                    verbose = true,
+                    require_license = false
+                )
+            end
+
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            # Remove libsoft.so, we want to run audit only on the other products
+            rm(joinpath(testdir, "lib", "libsoft.so"))
+            # Make sure `hello_world` passes the float ABI check even if it doesn't
+            # set `EF_ARM_ABI_FLOAT_HARD`.
+            @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
         end
+    end
+    @testset "OS/ABI: $platform" for platform in [Platform("x86_64", "freebsd"),
+                                                  Platform("aarch64", "freebsd")]
+        mktempdir() do build_path
+            build_output_meta = @test_logs (:warn, r"libwrong.so has an ELF header OS/ABI value that is not set to FreeBSD") match_mode=:any begin
+                autobuild(
+                    build_path,
+                    "OSABI",
+                    v"4.2.0",
+                    # No sources
+                    FileSource[],
+                    # Build a library with a mismatched OS/ABI in the ELF header
+                    raw"""
+                    mkdir -p "${libdir}"
+                    echo 'int wrong() { return 0; }' | cc -shared -fPIC -o "${libdir}/libwrong.${dlext}" -x c -
+                    echo 'int right() { return 0; }' | cc -shared -fPIC -o "${libdir}/libright.${dlext}" -x c -
+                    # NetBSD runs anywhere, which implies that anything that runs is for NetBSD, right?
+                    patchelf --set-os-abi 2 "${libdir}/libwrong.${dlext}"
+                    """,
+                    # Build for Linux armv7l hard-float
+                    [platform],
+                    # Ensure our library product is built
+                    [
+                        LibraryProduct("libwrong", :libwrong),
+                        LibraryProduct("libright", :libright),
+                    ],
+                    # No dependencies
+                    Dependency[];
+                    verbose=true,
+                    require_license=false,
+                )
+            end
 
-        @test haskey(build_output_meta, platform)
-        tarball_path, tarball_hash = build_output_meta[platform][1:2]
-        @test isfile(tarball_path)
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
 
-        # Unpack it somewhere else
-        @test verify(tarball_path, tarball_hash)
-        testdir = joinpath(build_path, "testdir")
-        mkdir(testdir)
-        unpack(tarball_path, testdir)
-        # Remove libsoft.so, we want to run audit only on the other products
-        rm(joinpath(testdir, "lib", "libsoft.so"))
-        # Make sure `hello_world` passes the float ABI check even if it doesn't
-        # set `EF_ARM_ABI_FLOAT_HARD`.
-        @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            readmeta(joinpath(testdir, "lib", "libright.so")) do oh
+                @test is_for_platform(oh, platform)
+                @test check_os_abi(oh, platform)
+            end
+            readmeta(joinpath(testdir, "lib", "libwrong.so")) do oh
+                @test !is_for_platform(oh, platform)
+                @test !check_os_abi(oh, platform)
+            end
+            # Only audit the library we didn't mess with in the recipe
+            rm(joinpath(testdir, "lib", "libwrong.so"))
+            @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
+        end
     end
 end
 
