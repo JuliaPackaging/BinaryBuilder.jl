@@ -1,0 +1,10 @@
+prefix=/workplace/destdir
+exec_prefix=${prefix}
+includedir=${prefix}/include
+libdir=${exec_prefix}/lib
+
+Name: Libfoo
+Description: Foo library, now without bar!
+Version: 1.0.0
+Cflags: -I${includedir}
+Libs: -L${libdir} -lfoo

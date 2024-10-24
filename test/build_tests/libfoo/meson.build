@@ -16,3 +16,5 @@ endif
 executable('fooifier', 'fooifier.cpp',
 	   link_with : libfoo, install : true,
 	   install_rpath : rpath_dir)
+
+install_data('libfoo.pc', install_dir: get_option('libdir')/'pkgconfig')
