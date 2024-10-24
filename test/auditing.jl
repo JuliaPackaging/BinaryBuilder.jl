@@ -332,6 +332,51 @@ end
     end
 end
 
+@testset "Auditor - relocatable pkg-config prefix" begin
+    for os in ["linux", "macos", "freebsd", "windows"]
+        platform = Platform("x86_64", os)
+        # FIXME: What should be done here?
+        mktempdir() do build_path
+            build_output_meta = nothing
+            @test_logs (:info, r"Relocatize pkg-config file .*/destdir/lib/pkgconfig/libfoo.pc$") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "libfoo",
+                    v"1.0.0",
+                    # Copy in the libfoo sources
+                    [DirectorySource(build_tests_dir)],
+                    # Build libfoo using autotools to create a real .la file, and also
+                    # create a fake .la file (which should not be removed).  Create also a
+                    # symlink libqux.la -> libfoo.la, which will be broken after libfoo.la
+                    # has been deleted: remove libqux.la as well
+                    libfoo_autotools_script * raw"""
+                    touch ${prefix}/lib/libbar.la
+                    ln -s ${prefix}/lib/libfoo.la ${prefix}/lib/libqux.la
+                    """,
+                    # Build for our platform
+                    [platform],
+                    # The products we expect to be build
+                    libfoo_products,
+                    # No dependencies
+                    Dependency[];
+                    verbose = true,
+                )
+            end
+
+            # Test that `libfoo.pc` exists and that pkg-config yields the
+            # correct path.
+            contents = list_tarball_files(tarball_path)
+            @test "lib/pkgconfig/libfoo.pc" in contents
+            # FIXME: How do I specify ${prefix}/lib/pkgconfig for
+            # PKG_CONFIG_PATH here?
+            libfoo_pc_prefix = read(`PKG_CONFIG_PATH=FIXME pkg-config --variable=prefix libfoo`, String)
+            # FIXME: How do I find the prefix here?
+            path_to_prefix = "PATH_TO_PREFIX" * "/lib/pkgconfig/../.."
+            @test libfoo_pc_prefix == path_to_prefix
+        end
+    end
+end
+
 @testset "Auditor - .dll moving" begin
     for platform in [Platform("x86_64", "windows")]
         mktempdir() do build_path
