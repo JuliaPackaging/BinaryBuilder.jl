@@ -209,6 +209,36 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         rm(f; force=true)
     end
 
+    # Make sure that `prefix` in pkg-config files *.pc points to the right
+    # directory.
+    pc_files = collect_files(prefix, endswith(".pc"))
+    for file in pc_files
+        # Make sure the file still exists on disk
+        if !isfile(file)
+            continue
+        end
+
+        # We want to replace every instance of `prefix=...` with
+        # `prefix=${pcfiledir}/../..`
+        content = ""
+        open(file, "r") do fs
+            str = readline(fs, keep = true)
+            while !isempty(str)
+                tmp = replace(str, r"^prefix=.*$" => s"prefix=${pcfiledir}/../..")
+                content = content * tmp
+                str = readline(fs, keep = true)
+            end
+        end
+
+        # Overwrite file
+        if verbose
+            @info("Relocatize pkg-config file $f")
+        end
+        open(file, "w") do fs
+            write(fs, content)
+        end
+    end
+
     if Sys.iswindows(platform)
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
