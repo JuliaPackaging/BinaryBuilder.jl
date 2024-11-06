@@ -209,33 +209,36 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         rm(f; force=true)
     end
 
-    # Make sure that `prefix` in pkg-config files *.pc points to the right
-    # directory.
+    # Make sure that `prefix` in pkg-config files use a relative prefix
     pc_files = collect_files(prefix, endswith(".pc"))
-    for file in pc_files
-        # Make sure the file still exists on disk
-        if !isfile(file)
-            continue
-        end
-
+    pc_re = r"^prefix=(/.*)$"
+    for f in pc_files
         # We want to replace every instance of `prefix=...` with
         # `prefix=${pcfiledir}/../..`
-        content = ""
-        open(file, "r") do fs
-            str = readline(fs, keep = true)
-            while !isempty(str)
-                tmp = replace(str, r"^prefix=.*$" => s"prefix=${pcfiledir}/../..")
-                content = content * tmp
-                str = readline(fs, keep = true)
+        changed = false
+        buf = IOBuffer()
+        for l in readlines(f)
+            m = match(pc_re, l)
+            if m !== nothing
+                # dealing with an absolute path we need to relativize;
+                # determine how many directories we need to go up.
+                dir = m.captures[1]
+                f_rel = relpath(f, prefix.path)
+                ndirs = count('/', f_rel)
+                prefix_rel = join([".." for _ in 1:ndirs], "/")
+                l = "prefix=\${pcfiledir}/$prefix_rel"
+                changed = true
             end
+            println(buf, l)
         end
+        str = String(take!(buf))
 
-        # Overwrite file
-        if verbose
-            @info("Relocatize pkg-config file $f")
-        end
-        open(file, "w") do fs
-            write(fs, content)
+        if changed
+            # Overwrite file
+            if verbose
+                @info("Relocatize pkg-config file $f")
+            end
+            write(f, str)
         end
     end
 

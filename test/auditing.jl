@@ -335,7 +335,6 @@ end
 @testset "Auditor - relocatable pkg-config prefix" begin
     for os in ["linux", "macos", "freebsd", "windows"]
         platform = Platform("x86_64", os)
-        # FIXME: What should be done here?
         mktempdir() do build_path
             build_output_meta = nothing
             @test_logs (:info, r"Relocatize pkg-config file .*/destdir/lib/pkgconfig/libfoo.pc$") match_mode=:any begin
@@ -363,16 +362,25 @@ end
                 )
             end
 
-            # Test that `libfoo.pc` exists and that pkg-config yields the
-            # correct path.
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
+
+            # Test that `libfoo.pc` exists and contains a relative prefix
+            # TODO: actually use pkg-config with PKG_CONFIG_PATH
             contents = list_tarball_files(tarball_path)
             @test "lib/pkgconfig/libfoo.pc" in contents
-            # FIXME: How do I specify ${prefix}/lib/pkgconfig for
-            # PKG_CONFIG_PATH here?
-            libfoo_pc_prefix = read(`PKG_CONFIG_PATH=FIXME pkg-config --variable=prefix libfoo`, String)
-            # FIXME: How do I find the prefix here?
-            path_to_prefix = "PATH_TO_PREFIX" * "/lib/pkgconfig/../.."
-            @test libfoo_pc_prefix == path_to_prefix
+            libfoo_pc = read(joinpath(testdir, "lib/pkgconfig/libfoo.pc"), String)
+            @test contains(libfoo_pc, "prefix=\${pcfiledir}")
+            @test !contains(libfoo_pc, "/workplace/destdir")
         end
     end
 end
