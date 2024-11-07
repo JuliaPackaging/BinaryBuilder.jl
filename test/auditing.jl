@@ -344,14 +344,7 @@ end
                     v"1.0.0",
                     # Copy in the libfoo sources
                     [DirectorySource(build_tests_dir)],
-                    # Build libfoo using autotools to create a real .la file, and also
-                    # create a fake .la file (which should not be removed).  Create also a
-                    # symlink libqux.la -> libfoo.la, which will be broken after libfoo.la
-                    # has been deleted: remove libqux.la as well
-                    libfoo_autotools_script * raw"""
-                    touch ${prefix}/lib/libbar.la
-                    ln -s ${prefix}/lib/libfoo.la ${prefix}/lib/libqux.la
-                    """,
+                    libfoo_autotools_script,
                     # Build for our platform
                     [platform],
                     # The products we expect to be build
