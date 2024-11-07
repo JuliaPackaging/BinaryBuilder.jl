@@ -209,6 +209,39 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         rm(f; force=true)
     end
 
+    # Make sure that `prefix` in pkg-config files use a relative prefix
+    pc_files = collect_files(prefix, endswith(".pc"))
+    pc_re = r"^prefix=(/.*)$"
+    for f in pc_files
+        # We want to replace every instance of `prefix=...` with
+        # `prefix=${pcfiledir}/../..`
+        changed = false
+        buf = IOBuffer()
+        for l in readlines(f)
+            m = match(pc_re, l)
+            if m !== nothing
+                # dealing with an absolute path we need to relativize;
+                # determine how many directories we need to go up.
+                dir = m.captures[1]
+                f_rel = relpath(f, prefix.path)
+                ndirs = count('/', f_rel)
+                prefix_rel = join([".." for _ in 1:ndirs], "/")
+                l = "prefix=\${pcfiledir}/$prefix_rel"
+                changed = true
+            end
+            println(buf, l)
+        end
+        str = String(take!(buf))
+
+        if changed
+            # Overwrite file
+            if verbose
+                @info("Relocatize pkg-config file $f")
+            end
+            write(f, str)
+        end
+    end
+
     if Sys.iswindows(platform)
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz

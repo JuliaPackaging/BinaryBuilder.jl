@@ -332,6 +332,52 @@ end
     end
 end
 
+@testset "Auditor - relocatable pkg-config prefix" begin
+    for os in ["linux", "macos", "freebsd", "windows"]
+        platform = Platform("x86_64", os)
+        mktempdir() do build_path
+            build_output_meta = nothing
+            @test_logs (:info, r"Relocatize pkg-config file .*/destdir/lib/pkgconfig/libfoo.pc$") match_mode=:any begin
+                build_output_meta = autobuild(
+                    build_path,
+                    "libfoo",
+                    v"1.0.0",
+                    # Copy in the libfoo sources
+                    [DirectorySource(build_tests_dir)],
+                    libfoo_autotools_script,
+                    # Build for our platform
+                    [platform],
+                    # The products we expect to be build
+                    libfoo_products,
+                    # No dependencies
+                    Dependency[];
+                    verbose = true,
+                )
+            end
+
+            # Extract our platform's build
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            prefix = Prefix(testdir)
+
+            # Test that `libfoo.pc` exists and contains a relative prefix
+            # TODO: actually use pkg-config with PKG_CONFIG_PATH
+            contents = list_tarball_files(tarball_path)
+            @test "lib/pkgconfig/libfoo.pc" in contents
+            libfoo_pc = read(joinpath(testdir, "lib/pkgconfig/libfoo.pc"), String)
+            @test contains(libfoo_pc, "prefix=\${pcfiledir}")
+            @test !contains(libfoo_pc, "/workplace/destdir")
+        end
+    end
+end
+
 @testset "Auditor - .dll moving" begin
     for platform in [Platform("x86_64", "windows")]
         mktempdir() do build_path
