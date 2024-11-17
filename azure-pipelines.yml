@@ -8,7 +8,7 @@ trigger:
     - contrib
     - src
     - test
-    - Manifest.toml
+    - Project.toml
 
 # Trigger on PRs against `master`
 pr:
@@ -20,7 +20,7 @@ pr:
     - contrib
     - src
     - test
-    - Manifest.toml
+    - Project.toml
 
 # By default, use the `Native` pool of agents
 pool: BinaryBuilder
