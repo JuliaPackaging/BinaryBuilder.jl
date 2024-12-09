@@ -540,7 +540,7 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
         filter!(v -> (v.major == src_version.major) &&
             (v.minor == src_version.minor) &&
             (v.patch == src_version.patch) &&
-            (v.build isa Tuple{<:UInt}), versions)
+            (v.build isa Tuple{UInt}), versions)
         # Our build number must be larger than the maximum already present in the registry
         if !isempty(versions)
             build_number = first(maximum(versions).build) + 1
