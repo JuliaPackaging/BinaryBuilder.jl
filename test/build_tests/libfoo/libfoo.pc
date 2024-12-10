@@ -1,5 +1,5 @@
 prefix=/workplace/destdir
-exec_prefix=${prefix}
+exec_prefix=/workplace/destdir
 includedir=${prefix}/include
 libdir=${exec_prefix}/lib
 

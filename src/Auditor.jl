@@ -209,10 +209,10 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         rm(f; force=true)
     end
 
-    # Make sure that `prefix` in pkg-config files use a relative prefix
+    # Make sure that `(exec_)prefix` in pkg-config files use a relative prefix
     pc_files = collect_files(prefix, endswith(".pc"))
-    pc_re = r"^prefix=(/.*)$"
-    for f in pc_files
+    for f in pc_files, var in ["prefix", "exec_prefix"]
+        pc_re = Regex("^$var=(/.*)\$")
         # We want to replace every instance of `prefix=...` with
         # `prefix=${pcfiledir}/../..`
         changed = false
@@ -226,7 +226,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 f_rel = relpath(f, prefix.path)
                 ndirs = count('/', f_rel)
                 prefix_rel = join([".." for _ in 1:ndirs], "/")
-                l = "prefix=\${pcfiledir}/$prefix_rel"
+                l = "$var=\${pcfiledir}/$prefix_rel"
                 changed = true
             end
             println(buf, l)
