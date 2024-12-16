@@ -6,7 +6,7 @@ using RegistryTools
 import LibGit2
 import PkgLicenses
 
-const DEFAULT_JULIA_VERSION_SPEC = "1.0"
+const DEFAULT_JULIA_VERSION_SPEC = "nothing"
 const DEFAULT_JLLWRAPPERS_VERSION_SPEC = "1.2.0"
 const PKG_VERSIONS = Base.VERSION >= v"1.7-" ? Pkg.Versions : Pkg.Types
 
@@ -152,7 +152,8 @@ supported ones. A few additional keyword arguments are accept:
 
 * `julia_compat` can be set to a version string which is used to set the
   supported Julia version in the `[compat]` section of the `Project.toml` of
-  the generated JLL package. The default value is `"1.0"`.
+  the generated JLL package. This does not have a default value and must be
+  always specified.
 
 * `lazy_artifacts` sets whether the artifacts should be lazy.
 
@@ -193,6 +194,14 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
     if validate_name && !Base.isidentifier(src_name)
         error("Package name \"$(src_name)\" is not a valid identifier")
+    end
+
+    if julia_compat == DEFAULT_JULIA_VERSION_SPEC
+        error("""
+              `julia_compat` must be set explicitly to a valid compat spec string.
+              If this is an existing recipe which didn't previously specify `julia_compat`, use the old default value of `"1.0"`,
+              otherwise for a new recipe you're encouraged to set `julia_compat="1.6"`.
+              """)
     end
 
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
