@@ -231,18 +231,32 @@ function obtain_binary_deps(state::WizardState)
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         local resolved_deps
         jll_names = String[]
+        dependencies = AbstractDependency[]
         while true
             jll_name = nonempty_line_prompt("package name", "Enter JLL package name:"; ins=state.ins, outs=state.outs)
             if !endswith(jll_name, "_jll")
                 jll_name *= "_jll"
             end
 
+            choices = Pair{String, Type}[
+                    "Build and runtime target dependency (e.g. libraries) [default]" => Dependency,
+                    "Build-only dependency (e.g. header-only libraries)" => BuildDependency,
+                    "Runtime-only dependency (e.g. runtime assets)" => RuntimeDependency,
+                    "Host-build dependency (e.g. cross-compile build tools)" => HostBuildDependency,
+                ]
+
+            selected_kind = request(terminal, "What kind of dependency is this?",
+                RadioMenu(map(x->x[1], choices); charset=:ascii))
+
+            dep_kind = choices[selected_kind][2]
+
             # Check to see if this JLL package name can be resolved:
             push!(jll_names, jll_name)
-            all_resolved, resolved_deps = resolve_jlls(Dependency.(jll_names), outs=state.outs)
+            push!(dependencies, dep_kind(jll_name))
+            all_resolved, resolved_deps = resolve_jlls(dependencies, outs=state.outs)
 
             if !all_resolved
-                pop!(jll_names)
+                pop!(jll_names); pop!(dependencies)
                 if yn_prompt(state, "Unable to resolve \"$(jll_name)\"; enter a new one?", :y) != :y
                     break
                 else
@@ -250,6 +264,7 @@ function obtain_binary_deps(state::WizardState)
                 end
             end
 
+            println(state.outs)
             q = "Would you like to provide additional dependencies? "
             if yn_prompt(state, q, :n) != :y
                 break
@@ -259,6 +274,14 @@ function obtain_binary_deps(state::WizardState)
         # unresolved deps so we filter them out here.
         state.dependencies = filter(x -> getname(x) ∈ jll_names, resolved_deps)
     end
+    println(state.outs)
+    print(state.outs, """
+    Dependency selection complete.
+    If you discover additional required dependencies during the build process, you
+    may add them using:
+    """)
+    println(state.outs)
+    printstyled(state.outs, "\tbb add [--build|--runtime|--hostbuild] <jll_name>\n", bold=true)
     println(state.outs)
 end
 
