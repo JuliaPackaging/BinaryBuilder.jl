@@ -15,6 +15,7 @@ function platform_for_object(oh::ObjectHandle)
             ELF.EM_X86_64 => "x86_64",
             ELF.EM_AARCH64 => "aarch64",
             ELF.EM_PPC64 => "powerpc64le",
+            ELF.EM_RISCV => "riscv64", # Could also be riscv32; should check ELF_CLASS
             ELF.EM_ARM => "arm",
         )
         mach = oh.header.e_machine
@@ -120,6 +121,9 @@ function is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
             return m == ELF.EM_AARCH64
         elseif arch(platform) == "powerpc64le"
             return m == ELF.EM_PPC64
+        elseif arch(platform) == "riscv64"
+            # Could also be riscv32; should check ELF_CLASS
+            return m == ELF.EM_RISCV
         elseif arch(platform) ∈ ("armv7l", "armv6l")
             return m == ELF.EM_ARM
         else
@@ -326,6 +330,7 @@ function patchelf_flags(p::AbstractPlatform)
     flags = []
 
     # ppc64le and aarch64 have 64KB page sizes, don't muck up the ELF section load alignment
+    # TODO: What is the riscv64 page size?
     if arch(p) in ("powerpc64le", "aarch64")
         append!(flags, ["--page-size", "65536"])
     end

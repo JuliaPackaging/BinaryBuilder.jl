@@ -1,7 +1,7 @@
 name = "BinaryBuilder"
 uuid = "12aac903-9f7c-5d81-afc2-d9565ea332ae"
 authors = ["Elliot Saba <staticfloat@gmail.com>"]
-version = "0.6.0"
+version = "0.6.1"
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -33,7 +33,7 @@ ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
 [compat]
 ArgParse = "1.1"
-BinaryBuilderBase = "1.31"
+BinaryBuilderBase = "1.33"
 Downloads = "1"
 GitHub = "5.1"
 HTTP = "0.8, 0.9, 1"
@@ -41,7 +41,7 @@ JLD2 = "0.1.6, 0.2, 0.3, 0.4, 0.5"
 JLLWrappers = "1.2.0"
 JSON = "0.21"
 LoggingExtras = "0.4, 1"
-ObjectFile = "0.4"
+ObjectFile = "0.4.3"
 OutputCollectors = "0.1"
 PkgLicenses = "0.2"
 Registrator = "1.1"
@@ -49,7 +49,7 @@ RegistryTools = "2.1"
 SHA = "0.7, 1"
 Scratch = "1.0"
 TOML = "1"
-ghr_jll = "0.13, 0.14"
+ghr_jll = "0.13, 0.14, 0.17"
 julia = "1.7"
 
 [extras]

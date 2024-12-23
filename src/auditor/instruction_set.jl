@@ -121,6 +121,8 @@ function minimum_march(counts::Dict, p::AbstractPlatform)
         # TODO: Detect NEON and vfpv4 instructions
     elseif arch(p) == "powerpc64le"
         # TODO Detect POWER9/10 instructions
+    elseif arch(p) == "riscv64"
+        # TODO
     end
     return generic_march(p)
 end
