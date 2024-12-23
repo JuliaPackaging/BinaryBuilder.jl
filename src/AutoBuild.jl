@@ -196,7 +196,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     # Throw an error if we're going to build for platforms not supported by Julia v1.5-.
-    if any(p -> arch(p) == "armv6l" || (Sys.isbsd(p) && arch(p) == "aarch64"), platforms) && minimum_compat(julia_compat) < v"1.6"
+    if any(p -> arch(p) in ("armv6l", "riscv64") || (Sys.isbsd(p) && arch(p) == "aarch64"), platforms) && minimum_compat(julia_compat) < v"1.6"
         error("Experimental platforms cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
     end
 
