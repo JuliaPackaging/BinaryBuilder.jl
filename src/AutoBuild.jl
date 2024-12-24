@@ -7,7 +7,7 @@ import LibGit2
 import PkgLicenses
 
 const DEFAULT_JULIA_VERSION_SPEC = "1.0"
-const DEFAULT_JLLWRAPPERS_VERSION_SPEC = "1.2.0"
+const DEFAULT_JLLWRAPPERS_VERSION_SPEC = "1.7.0"
 const PKG_VERSIONS = Base.VERSION >= v"1.7-" ? Pkg.Versions : Pkg.Types
 
 mutable struct BuildTimer
@@ -597,7 +597,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
     registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
-    jllwrappers_compat = isempty(augment_platform_block) ? DEFAULT_JLLWRAPPERS_VERSION_SPEC : "1.4.0"
+    jllwrappers_compat = DEFAULT_JLLWRAPPERS_VERSION_SPEC
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts, augment_platform_block))
     project_file = joinpath(mktempdir(), "Project.toml")
     Pkg.Types.write_project(project, project_file)
