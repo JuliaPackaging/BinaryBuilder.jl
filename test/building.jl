@@ -140,8 +140,17 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 if [[ "${target}" == i686-*-mingw* ]]; then
                     while which rustc &> /dev/null; do rm $(which rustc); done
                 fi
+
+                FLAGS=()
+                if [[ "${target}" == riscv*-linux-* ]]; then
+                    # There's currently a bug in the testsuite where we force linking to
+                    # libquadmath on RISC-V. We use this hack to quickly fix it here without
+                    # rebuilding the RootFS.
+                    FLAGS=(CFLDFLAGS="-lgfortran -lm")
+                fi
+
                 # Build testsuite
-                make -j${nproc} -sC /usr/share/testsuite install
+                make -j${nproc} -sC /usr/share/testsuite install "${FLAGS[@]}"
                 # Install fake license just to silence the warning
                 install_license /usr/share/licenses/libuv/LICENSE
                 """,
