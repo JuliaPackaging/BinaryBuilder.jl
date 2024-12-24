@@ -114,14 +114,17 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             ]
 
             if !(platforms_match(shard, Platform("i686", "windows")) ||
-                 platforms_match(shard, Platform("aarch64", "freebsd")))
-                # Rust is broken on 32-bit Windows and unavailable on FreeBSD AArch64, let's skip it
+                 platforms_match(shard, Platform("aarch64", "freebsd")) ||
+                 platforms_match(shard, Platform("riscv64", "linux")))
+                # Rust is broken on 32-bit Windows and unavailable on FreeBSD AArch64 and RISC-V, let's skip it
                 push!(products, ExecutableProduct("hello_world_rust", :hello_world_rust))
             end
 
             compilers = [:c, :go]
-            # Don't even ask for Rust on FreeBSD AArch64
-            if !platforms_match(shard, Platform("aarch64", "freebsd"))
+            # Don't even ask for Rust on FreeBSD AArch64 or RISC-V
+            if !(platforms_match(shard, Platform("aarch64", "freebsd")) ||
+                 platforms_match(shard, Platform("riscv64", "linux"))
+                 )
                 push!(compilers, :rust)
             end
 
@@ -137,8 +140,17 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 if [[ "${target}" == i686-*-mingw* ]]; then
                     while which rustc &> /dev/null; do rm $(which rustc); done
                 fi
+
+                FLAGS=()
+                if [[ "${target}" == riscv*-linux-* ]]; then
+                    # There's currently a bug in the testsuite where we force linking to
+                    # libquadmath on RISC-V. We use this hack to quickly fix it here without
+                    # rebuilding the RootFS.
+                    FLAGS=(CFLDFLAGS="-lgfortran -lm")
+                fi
+
                 # Build testsuite
-                make -j${nproc} -sC /usr/share/testsuite install
+                make -j${nproc} -sC /usr/share/testsuite install "${FLAGS[@]}"
                 # Install fake license just to silence the warning
                 install_license /usr/share/licenses/libuv/LICENSE
                 """,

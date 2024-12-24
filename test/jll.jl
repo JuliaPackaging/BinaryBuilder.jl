@@ -28,7 +28,7 @@ module TestJLL end
     @test project["compat"] == Dict(
         "julia" => "1.0",
         "XZ_jll" => "=2.4.6",
-        "JLLWrappers" => "1.2.0",
+        "JLLWrappers" => "1.7.0",
         "Libdl" => "< 0.0.1, 1",
         "Artifacts" => "< 0.0.1, 1",
         "Pkg" => "< 0.0.1, 1",
