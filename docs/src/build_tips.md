@@ -95,7 +95,7 @@ Examples of builds performed with Meson include:
 
 ## Go builds
 
-The Go toolchain provided by BinaryBuilder can be requested by adding `:go` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :go]`.  Go-based packages can usually be built and installed with `go`:
+The Go toolchain provided by BinaryBuilder can be requested by adding `:go` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :go]`, and a specific version of the toolchain can be selected by adding the `preferred_go_version` keyword argument to [`build_tarballs`](@ref).  Go-based packages can usually be built and installed with `go`:
 
 ```sh
 go build -o ${bindir}
@@ -109,7 +109,7 @@ Example of packages using Go:
 
 ## Rust builds
 
-The Rust toolchain provided by BinaryBuilder can be requested by adding `:rust` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :rust]`.  Rust-based packages can usually be built with `cargo`:
+The Rust toolchain provided by BinaryBuilder can be requested by adding `:rust` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :rust]`, and a specific version of the toolchain can be selected by adding the `preferred_rust_version` keyword argument to [`build_tarballs`](@ref).  Rust-based packages can usually be built with `cargo`:
 
 ```sh
 cargo build --release
@@ -212,7 +212,7 @@ If in your build you need to use a package to a BLAS/LAPACK library you have the
 * always use LP64 interface, also on 64-bit systems.
   This may be a simpler option if renamining the BLAS/LAPACK symbols is too cumbersome in your case.
   In terms of libraries to link to:
-  - also in this case you can link to `libblastrampoline`, however you _must_ make sure an LP64 BLAS/LAPACK library is backing `libblastrampoline`, otherwise all BLAS/LAPACK calls from the library will result in hard-to-debug segmentation faults, because in this case Julia does not provided a default backing LP64 BLAS/LAPACK library on 64-bit systems 
+  - also in this case you can link to `libblastrampoline`, however you _must_ make sure an LP64 BLAS/LAPACK library is backing `libblastrampoline`, otherwise all BLAS/LAPACK calls from the library will result in hard-to-debug segmentation faults, because in this case Julia does not provided a default backing LP64 BLAS/LAPACK library on 64-bit systems
   - alternatively, you can use builds of BLAS/LAPACK libraries which always use LP64 interface also on 64-bit platforms, like the package `OpenBLAS32_jll`.
 
 ## Dependencies for the target system vs host system
