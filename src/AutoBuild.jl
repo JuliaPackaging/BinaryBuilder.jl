@@ -1573,7 +1573,7 @@ function build_jll_package(src_name::String,
 
     # Add a Project.toml.  Note: here we list _all_ runtime dependencies, including those
     # that may be required only for some platforms.
-    jllwrappers_compat = isempty(augment_platform_block) ? "1.2.0" : "1.4.0"
+    jllwrappers_compat = DEFAULT_JLLWRAPPERS_VERSION_SPEC
     project = build_project_dict(src_name, build_version, dependencies, julia_compat; lazy_artifacts, jllwrappers_compat, augment_platform_block)
     open(joinpath(code_dir, "Project.toml"), "w") do io
         TOML.print(io, project)
