@@ -499,6 +499,8 @@ end
             export ver=$(cc -dumpversion)
             export shortver=${ver%.*.*}
 
+            echo "Compiler version: $shortver"
+
             if [[ "${target}" == *-linux-* ]]; then
                 if [[ $shortver == "10" ]]; then
                     # This is what we want
@@ -523,6 +525,8 @@ end
             Dependency[];
             # Don't do audit passes
             skip_audit=true,
+            # Make it verbose to see the results
+            verbose=true,
             # Specify the per-platform GCC versions
             preferred_gcc_version=c,
         )
