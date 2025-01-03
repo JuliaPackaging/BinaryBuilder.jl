@@ -137,9 +137,12 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     shlib_files = filter(f -> startswith(f, prefix.path) && valid_library_path(f, platform), collapse_symlinks(bin_files))
 
     for f in shlib_files
-        # Inspect all shared library files for our platform (but only if we're
-        # running native, don't try to load library files from other platforms)
-        if platforms_match(platform, HostPlatform())
+        # Always include microarchitecture in the host platform: we don't want to try and
+        # dlopen a library built for an incompatible microarchitecture.
+        hp = augment_microarchitecture!(HostPlatform())
+        # Inspect all shared library files for our platform (but only if we're running
+        # native, don't try to load library files from other platforms or incompatible ISAs)
+        if platforms_match(platform, hp)
             if verbose
                 @info("Checking shared library $(relpath(f, prefix.path))")
             end

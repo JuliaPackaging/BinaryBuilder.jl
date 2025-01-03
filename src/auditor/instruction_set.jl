@@ -1,4 +1,6 @@
 using JSON
+using Base.BinaryPlatforms: arch_march_isa_mapping, set_compare_strategy!
+using Base.BinaryPlatforms.CPUID
 
 ## We start with definitions of instruction mnemonics, broken down by category:
 const instruction_categories = JSON.parsefile(joinpath(@__DIR__, "instructions.json");
@@ -169,4 +171,47 @@ function analyze_instruction_set(oh::ObjectHandle, platform::AbstractPlatform; v
 
     # Otherwise, return `min_march` and let 'em know!
     return min_march
+end
+
+function march_comparison_strategy(a::String, b::String, a_requested::Bool, b_requested::Bool)
+    # If both b and a requested, then we fall back to equality:
+    if a_requested && b_requested
+        return a == b
+    end
+
+    function get_arch_isa(isa_name::String)
+        for (arch, isas) in arch_march_isa_mapping
+            for (name, isa) in isas
+                name == isa_name && return arch, isa
+            end
+        end
+        return nothing, nothing
+    end
+
+    a_arch, a_isa = get_arch_isa(a)
+    b_arch, b_isa = get_arch_isa(b)
+    if any(isnothing, (a_arch, b_arch)) || a_arch != b_arch
+        # Architectures are definitely not compatible, exit early
+        return false
+    end
+
+    if a_requested
+        # ISA `b` is compatible with ISA `a` only if it's a subset of `a`
+        return b_isa ≤ a_isa
+    else
+        # ISA `a` is compatible with ISA `b` only if it's a subset of `b`
+        return a_isa ≤ b_isa
+    end
+    return
+end
+
+function augment_microarchitecture!(platform::Platform)
+    haskey(platform, "march") && return platform
+
+    host_arch = arch(HostPlatform())
+    host_isas = arch_march_isa_mapping[host_arch]
+    idx = findlast(((name, isa),) -> isa <= CPUID.cpu_isa(), host_isas)
+    platform["march"] = first(host_isas[idx])
+    set_compare_strategy!(platform, "march", march_comparison_strategy)
+    return platform
 end
