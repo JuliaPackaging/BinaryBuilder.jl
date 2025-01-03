@@ -11,7 +11,7 @@ using BinaryBuilder, Test
 
     # Try the expanded platform list
     platforms = supported_platforms()
-    platforms = expand_gfortran_versions()
+    platforms = expand_gfortran_versions(platforms)
     pd = preferred_platform_compiler(platforms)
     @test length(platforms) == length(pd)
     @test all(isnothing.(values(pd)))
