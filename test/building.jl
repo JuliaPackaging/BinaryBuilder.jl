@@ -479,3 +479,53 @@ end
         )
     end
 end
+
+@testset "Different compiler versions" begin
+    platforms = [Platform("x86_64", "linux"),
+                 Platform("x86_64", "freebsd")]
+
+    # Use GCC 5 on FreeBSD and GCC 10 on Linux
+    c = preferred_platform_compiler(platforms, v"5")
+    set_preferred_compiler_version!(c, v"10", p ->Sys.islinux(p))
+
+    mktempdir() do build_path
+        build_output_meta = autobuild(
+            build_path,
+            "libfoo",
+            v"1.0.0",
+            [DirectorySource(build_tests_dir)],
+            # Include a GCC version check before we build
+            raw"""
+            export ver=$(cc -dumpversion)
+            export shortver=${ver%.*.*}
+
+            if [[ "${target}" == *-linux-* ]]; then
+                if [[ $shortver == "10" ]]; then
+                    # This is what we want
+                    echo "Success! GCC version correct"
+                else
+                    # This is not what we want
+                    exit 1
+                fi
+            else
+                if [[ $shortver == "5" ]]; then
+                    # This is what we want
+                    echo "Success! GCC version correct"
+                else
+                    # This is not what we want
+                    exit 1
+                fi
+            fi
+            """*libfoo_make_script,
+            platforms,
+            libfoo_products,
+            # No dependencies
+            Dependency[];
+            # Don't do audit passes
+            skip_audit=true,
+            # Specify the per-platform GCC versions
+            preferred_gcc_version=c,
+        )
+        @test haskey(build_output_meta, p)
+    end
+end
