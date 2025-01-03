@@ -482,11 +482,11 @@ end
 
 @testset "Different compiler versions" begin
     platforms = [Platform("x86_64", "linux"),
-                 Platform("x86_64", "freebsd")]
+                 Platform("aarch64", "linux")]
 
     # Use GCC 5 on FreeBSD and GCC 10 on Linux
     c = preferred_platform_compiler(platforms, v"5")
-    set_preferred_compiler_version!(c, v"10", p ->Sys.islinux(p))
+    set_preferred_compiler_version!(c, v"10", p -> arch(p) == "aarch64" )
 
     mktempdir() do build_path
         build_output_meta = autobuild(
@@ -501,7 +501,7 @@ end
 
             echo "Compiler version: $shortver"
 
-            if [[ "${target}" == *-linux-* ]]; then
+            if [[ "${target}" == aarch64-* ]]; then
                 if [[ $shortver == "10" ]]; then
                     # This is what we want
                     echo "Success! GCC version correct"
