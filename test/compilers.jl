@@ -22,6 +22,7 @@ using BinaryBuilder, Test
     @test all(values(pd) .== v"5")
 
     # Assign some compiler values
+    platforms = supported_platforms()
     pd = preferred_platform_compiler(platforms, v"5")
     set_preferred_compiler_version!(pd, v"10", p ->Sys.islinux(p))
     set_preferred_compiler_version!(pd, v"6", p ->Sys.isfreebsd(p))
