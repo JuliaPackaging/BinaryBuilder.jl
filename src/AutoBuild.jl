@@ -345,10 +345,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         dependencies,
     )
     extra_kwargs = extract_kwargs(kwargs, (:lazy_artifacts, :init_block, :augment_platform_block))
+    compiler_kwargs = extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:preferred_rust_version,:preferred_go_version,:compilers,:clang_use_lld))
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
-        dict = get_meta_json(args...; extra_kwargs..., julia_compat=julia_compat)
+        dict = get_meta_json(args...; extra_kwargs..., compiler_kwargs..., julia_compat=julia_compat)
         println(meta_json_stream, JSON.json(dict))
 
         if meta_json_stream !== stdout
@@ -665,6 +666,7 @@ function get_meta_json(
                    init_block::String = "",
                    augment_platform_block::String = "",
                    lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+                   kwargs...
     )
 
     dict = Dict(
@@ -683,6 +685,12 @@ function get_meta_json(
     if platforms != [AnyPlatform()]
         dict["platforms"] = triplet.(platforms)
     end
+
+    # Add any other optional things we want to include
+    for (k, v) in kwargs
+        dict["$k"] = v
+    end
+
     return dict
 end
 
