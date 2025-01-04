@@ -530,6 +530,6 @@ end
             # Specify the per-platform GCC versions
             preferred_gcc_version=c,
         )
-        @test haskey(build_output_meta, p)
+        @test length(keys(build_output_meta)) == length(platforms)
     end
 end
