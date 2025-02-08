@@ -1161,6 +1161,27 @@ function rebuild_jll_package(obj::Dict;
     )
 end
 
+# For each platform, we have two tarballs: the main with the full product,
+# and the logs-only one.  This function filters out the logs one, and
+# finds the tarball matching `platform`.
+function filter_main_tarball(tarball_filename, platform)
+    if occursin("-logs.", tarball_filename)
+        return false
+    end
+    tarball_filename_match = match(r"^(?<name>[\w_]+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>([^-]+-?)+).tar", tarball_filename)
+    if isnothing(tarball_filename_match)
+        @warn "Tarball filename does not match expected pattern: $(tarball_filename)"
+        return false
+    end
+    try
+        tarball_filename_platform = parse(Platform, tarball_filename_match[:platform_triplet])
+        return tarball_filename_platform == platform
+    catch
+        @warn "Failed to parse tarball filename: $(tarball_filename)"
+        return false
+    end
+end
+
 function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
@@ -1169,27 +1190,6 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                              kwargs...)
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
-
-    # For each platform, we have two tarballs: the main with the full product,
-    # and the logs-only one.  This function filters out the logs one, and
-    # finds the tarball matching `platform`.
-    function filter_main_tarball(tarball_filename, platform)
-        if occursin("-logs.", tarball_filename)
-            return false
-        end
-        tarball_filename_match = match(r"^(?<name>[\w_]+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>([^-]+-?)+).tar", tarball_filename)
-        if isnothing(tarball_filename_match)
-            @warn "Tarball filename does not match expected pattern: $(tarball_filename)"
-            return false
-        end
-        try
-            tarball_filename_platform = parse(Platform, tarball_filename_match[:platform_triplet])
-            return tarball_filename_platform == platform
-        catch
-            @warn "Failed to parse tarball filename: $(tarball_filename)"
-            return false
-        end
-    end
 
     # Then generate a JLL package for each platform
     downloaded_files = readdir(download_dir)

@@ -43,6 +43,14 @@ module TestJLL end
         @test !haskey(BinaryBuilder.build_project_dict("foo", v"1.2", Dependency[], "1.6")["deps"], "Pkg")
     end
 
+    @testset "filter_main_tarball" begin
+        @test !BinaryBuilder.filter_main_tarball("", AnyPlatform())
+        @test BinaryBuilder.filter_main_tarball("Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+        @test !BinaryBuilder.filter_main_tarball("Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+        @test BinaryBuilder.filter_main_tarball("Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
+        @test BinaryBuilder.filter_main_tarball("Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
+    end
+
     @testset "get_github_author_login" begin
         gh_auth = Wizard.github_auth(;allow_anonymous=true)
         @test get_github_author_login("JuliaPackaging/Yggdrasil", "invalid_hash"; gh_auth) === nothing
