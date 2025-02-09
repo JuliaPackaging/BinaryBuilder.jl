@@ -390,19 +390,20 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                                autofix::Bool = true,
                                src_name::AbstractString = "",
                                )
-    all_ok = true
+    all_ok = Threads.Atomic{Bool}(true)
     # If it's a dynamic binary, check its linkage
     if isdynamic(oh)
         rp = RPath(oh)
 
+        filename = relpath(path(oh), prefix.path)
         if verbose
-            @info("Checking $(relpath(path(oh), prefix.path)) with RPath list $(rpaths(rp))")
+            @info("Checking $(filename) with RPath list $(rpaths(rp))")
         end
 
         # Look at every dynamic link, and see if we should do anything about that link...
         libs = find_libraries(oh)
         ignored_libraries = String[]
-        for libname in keys(libs)
+        Threads.@threads for libname in collect(keys(libs))
             if should_ignore_lib(libname, oh, platform)
                 push!(ignored_libraries, libname)
                 continue
@@ -412,7 +413,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
             if is_default_lib(libname, oh)
                 if autofix
                     if verbose
-                        @info("Rpathify'ing default library $(libname)")
+                        @info("$(filename): Rpathify'ing default library $(libname)")
                     end
                     relink_to_rpath(prefix, platform, path(oh), libs[libname]; verbose, subdir=src_name)
                 end
@@ -431,33 +432,33 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                         new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose, subdir=src_name)
 
                         if verbose && new_link !== nothing
-                            @info("Linked library $(libname) has been auto-mapped to $(new_link)")
+                            @info("$(filename): Linked library $(libname) has been auto-mapped to $(new_link)")
                         end
                     else
                         if !silent
-                            @warn("Linked library $(libname) could not be resolved and could not be auto-mapped")
+                            @warn("$(filename): Linked library $(libname) could not be resolved and could not be auto-mapped")
                             if is_troublesome_library_link(libname, platform)
-                                @warn("Depending on $(libname) is known to cause problems at runtime, make sure to link against the JLL library instead")
+                                @warn("$(filename): Depending on $(libname) is known to cause problems at runtime, make sure to link against the JLL library instead")
                             end
                         end
-                        all_ok = false
+                        all_ok[] = false
                     end
                 else
                     if !silent
-                        @warn("Linked library $(libname) could not be resolved within the given prefix")
+                        @warn("$(filename): Linked library $(libname) could not be resolved within the given prefix")
                     end
-                    all_ok = false
+                    all_ok[] = false
                 end
             elseif !startswith(libs[libname], prefix.path)
                 if !silent
-                    @warn("Linked library $(libname) (resolved path $(libs[libname])) is not within the given prefix")
+                    @warn("$(filename): Linked library $(libname) (resolved path $(libs[libname])) is not within the given prefix")
                 end
-                all_ok = false
+                all_ok[] = false
             end
         end
 
         if verbose && !isempty(ignored_libraries)
-            @info("Ignored system libraries $(join(ignored_libraries, ", "))")
+            @info("$(filename): Ignored system libraries $(join(ignored_libraries, ", "))")
         end
 
         # If there is an identity mismatch (which only happens on macOS) fix it
@@ -465,7 +466,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
             fix_identity_mismatch(prefix, platform, path(oh), oh; verbose, subdir=src_name)
         end
     end
-    return all_ok
+    return all_ok[]
 end
 
 
