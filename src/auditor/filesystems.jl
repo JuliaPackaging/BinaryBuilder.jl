@@ -6,7 +6,7 @@ function check_case_sensitivity(prefix::Prefix)
         for f in list
             lf = lowercase(f)
             if lf in lowered
-                @warn("$(relpath(joinpath(root, f), prefix.path)) causes a case-sensitivity ambiguity!")
+                @lock AUDITOR_LOGGING_LOCK @warn("$(relpath(joinpath(root, f), prefix.path)) causes a case-sensitivity ambiguity!")
                 all_ok = false
             end
             push!(lowered, lf)
@@ -31,12 +31,12 @@ function check_absolute_paths(prefix::Prefix, all_files::Vector; silent::Bool = 
             file_contents = String(read(f))
             if occursin(prefix.path, file_contents)
                 if !silent
-                    @warn("$(relpath(f, prefix.path)) contains an absolute path")
+                    @lock AUDITOR_LOGGING_LOCK @warn("$(relpath(f, prefix.path)) contains an absolute path")
                 end
             end
         catch
             if !silent
-                @warn("Skipping abspath scanning of $(f), as we can't open it")
+                @lock AUDITOR_LOGGING_LOCK @warn("Skipping abspath scanning of $(f), as we can't open it")
             end
         end
     end
@@ -51,7 +51,7 @@ function ensure_executability(oh::ObjectHandle; verbose::Bool=false, silent::Boo
     # Check whether the file has executable permission for all
     if old_mode & read_mask != read_mask
         if verbose
-            @info "Making $(path(oh)) executable"
+            @lock AUDITOR_LOGGING_LOCK @info "Making $(path(oh)) executable"
         end
         try
             # Add executable permission for all users that can read the file
@@ -61,7 +61,7 @@ function ensure_executability(oh::ObjectHandle; verbose::Bool=false, silent::Boo
                 rethrow(e)
             end
             if !silent
-                @warn "$(path(oh)) could not be made executable!" exception=(e, catch_backtrace())
+                @lock AUDITOR_LOGGING_LOCK @warn "$(path(oh)) could not be made executable!" exception=(e, catch_backtrace())
             end
         end
     end

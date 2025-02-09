@@ -1,7 +1,7 @@
 import Base.BinaryPlatforms: detect_libstdcxx_version, detect_cxxstring_abi
 using ObjectFile
 
-csl_warning(lib) = @warn(
+csl_warning(lib) = @lock AUDITOR_LOGGING_LOCK @warn(
     """
     To ensure that the correct version of $(lib) is found at runtime, add the following entry to the list of dependencies of this builder
 
@@ -37,12 +37,12 @@ function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform;
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn "$(path(oh)) could not be scanned for libgfortran dependency!" exception=(e, catch_backtrace())
+        @lock AUDITOR_LOGGING_LOCK @warn "$(path(oh)) could not be scanned for libgfortran dependency!" exception=(e, catch_backtrace())
         return true
     end
 
     if verbose && version !== nothing
-        @info("$(path(oh)) locks us to libgfortran v$(version)")
+        @lock AUDITOR_LOGGING_LOCK @info("$(path(oh)) locks us to libgfortran v$(version)")
     end
 
     if !has_csl && version !== nothing
@@ -57,7 +57,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform;
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    platforms = expand_gfortran_versions(platforms)"
-        @warn(msg)
+        @lock AUDITOR_LOGGING_LOCK @warn(msg)
         return false
     end
 
@@ -67,7 +67,7 @@ function check_libgfortran_version(oh::ObjectHandle, platform::AbstractPlatform;
         for libgfortran$(libgfortran_version(platform).major). This usually indicates that
         the build system is somehow ignoring our choice of compiler!
         """, '\n' => ' '))
-        @warn(msg)
+        @lock AUDITOR_LOGGING_LOCK @warn(msg)
         return false
     end
     return true
@@ -87,7 +87,7 @@ function check_csl_libs(oh::ObjectHandle, platform::AbstractPlatform; verbose::B
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn "$(path(oh)) could not be scanned for $(lib) dependency!" exception=(e, catch_backtrace())
+        @lock AUDITOR_LOGGING_LOCK @warn "$(path(oh)) could not be scanned for $(lib) dependency!" exception=(e, catch_backtrace())
         return true
     end
 
@@ -140,12 +140,12 @@ function check_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform; v
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn "$(path(oh)) could not be scanned for libstdcxx dependency!" exception=(e, catch_backtrace())
+        @lock AUDITOR_LOGGING_LOCK @warn "$(path(oh)) could not be scanned for libstdcxx dependency!" exception=(e, catch_backtrace())
         return true
     end
 
     if verbose && libstdcxx_version != nothing
-        @info("$(path(oh)) locks us to libstdc++ v$(libstdcxx_version)+")
+        @lock AUDITOR_LOGGING_LOCK @info("$(path(oh)) locks us to libstdc++ v$(libstdcxx_version)+")
     end
 
     # This actually isn't critical, so we don't complain.  Yet.
@@ -218,7 +218,7 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform)
         if isa(e, InterruptException)
             rethrow(e)
         end
-        @warn "$(path(oh)) could not be scanned for cxx11 ABI!" exception=(e, catch_backtrace())
+        @lock AUDITOR_LOGGING_LOCK @warn "$(path(oh)) could not be scanned for cxx11 ABI!" exception=(e, catch_backtrace())
     end
     return nothing
 end
@@ -235,7 +235,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform; io::I
     end
 
     if verbose && cxx_abi != nothing
-        @info("$(path(oh)) locks us to $(cxx_abi)")
+        @lock AUDITOR_LOGGING_LOCK @info("$(path(oh)) locks us to $(cxx_abi)")
     end
 
     if cxxstring_abi(platform) == nothing && cxx_abi != nothing
@@ -246,7 +246,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform; io::I
         definition in your `build_tarballs.jl` file, add the line:
         """, '\n' => ' '))
         msg *= "\n\n    platforms = expand_cxxstring_abis(platforms)"
-        @warn(msg)
+        @lock AUDITOR_LOGGING_LOCK @warn(msg)
         return false
     end
 
@@ -257,7 +257,7 @@ function check_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform; io::I
         indicates that the build system is somehow ignoring our choice of compiler, as we manually
         insert the correct compiler flags for this ABI choice!
         """, '\n' => ' '))
-        @warn(msg)
+        @lock AUDITOR_LOGGING_LOCK @warn(msg)
         return false
     end
     return true

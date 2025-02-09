@@ -162,7 +162,7 @@ function analyze_instruction_set(oh::ObjectHandle, platform::AbstractPlatform; v
             the proper instruction set internally.  Would have chosen
             $(min_march), instead choosing $(generic_march(platform)).
             """, '\n' => ' ')
-            @warn(strip(msg))
+            @lock AUDITOR_LOGGING_LOCK @warn(strip(msg))
         end
         return generic_march(platform)
     end

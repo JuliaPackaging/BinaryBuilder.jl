@@ -13,7 +13,7 @@ function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::B
                 $(basename(path(oh))) has an ELF header OS/ABI value that is not set to FreeBSD
                 ($(ELF.ELFOSABI_FREEBSD)), this may be an issue at link time
                 """, '\n' => ' ')
-                @warn(strip(msg))
+                @lock AUDITOR_LOGGING_LOCK @warn(strip(msg))
             end
             return false
         end
@@ -24,7 +24,7 @@ function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::B
         # means "no specific float ABI", `0x400` == EF_ARM_ABI_FLOAT_HARD.
         if header(oh).e_flags & 0xF00 ∉ (0x000, 0x400)
             if verbose
-                @error("$(basename(path(oh))) does not match the hard-float ABI")
+                @lock AUDITOR_LOGGING_LOCK @error("$(basename(path(oh))) does not match the hard-float ABI")
             end
             return false
         end

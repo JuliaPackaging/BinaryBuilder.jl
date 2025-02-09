@@ -13,7 +13,8 @@ export audit, collect_files, collapse_symlinks
 # can't allow them to clash, otherwise one may be unmounting the filesystem while
 # another is still operating.
 const AUDITOR_SANDBOX_LOCK = ReentrantLock()
-
+# Logging is reportedly not thread-safe but guarding it with locks should help.
+const AUDITOR_LOGGING_LOCK = ReentrantLock()
 
 include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")

@@ -380,7 +380,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
     end
 
     if verbose
-        @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
+        @lock AUDITOR_LOGGING_LOCK @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
     end
 
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
