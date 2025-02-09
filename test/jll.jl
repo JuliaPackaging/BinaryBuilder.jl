@@ -7,43 +7,59 @@ using BinaryBuilder: jll_uuid, build_project_dict, get_github_author_login, Wiza
 module TestJLL end
 
 @testset "JLLs - utils" begin
-    @test jll_uuid("Zlib_jll") == UUID("83775a58-1f1d-513f-b197-d71354ab007a")
-    @test jll_uuid("FFMPEG_jll") == UUID("b22a6f82-2f65-5046-a5b2-351ab43fb4e5")
+    @testset "jll_uuid" begin
+        @test jll_uuid("Zlib_jll") == UUID("83775a58-1f1d-513f-b197-d71354ab007a")
+        @test jll_uuid("FFMPEG_jll") == UUID("b22a6f82-2f65-5046-a5b2-351ab43fb4e5")
+    end
 
-    project = build_project_dict("LibFoo", v"1.3.5",
-        [Dependency("Zlib_jll"),
-         Dependency(PackageSpec(name = "XZ_jll"), compat = "=2.4.6"),
-         Dependency(PackageSpec(name = "Preferences", uuid = parse(UUID, "21216c6a-2e73-6563-6e65-726566657250"))),
-         Dependency("Scratch"),])
-    @test project["deps"] == Dict("JLLWrappers" => "692b3bcd-3c85-4b1f-b108-f13ce0eb3210",
-                                  "Artifacts"   => "56f22d72-fd6d-98f1-02f0-08ddc0907c33",
-                                  "Pkg"         => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
-                                  "Zlib_jll"    => "83775a58-1f1d-513f-b197-d71354ab007a",
-                                  "Libdl"       => "8f399da3-3557-5675-b5ff-fb832c97cbdb",
-                                  "XZ_jll"      => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800",
-                                  "Preferences" => "21216c6a-2e73-6563-6e65-726566657250",
-                                  "Scratch"     => "6c6a2e73-6563-6170-7368-637461726353")
-    @test project["name"] == "LibFoo_jll"
-    @test project["uuid"] == "b250f842-3251-58d3-8ee4-9a24ab2bab3f"
-    @test project["compat"] == Dict(
-        "julia" => "1.0",
-        "XZ_jll" => "=2.4.6",
-        "JLLWrappers" => "1.7.0",
-        "Libdl" => "< 0.0.1, 1",
-        "Artifacts" => "< 0.0.1, 1",
-        "Pkg" => "< 0.0.1, 1",
-    )
-    @test project["version"] == "1.3.5"
-    # Make sure BuildDependency's don't find their way to the project
-    @test_throws AssertionError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
-    # `Pkg` should not be a dependency if we require Julia v1.6.
-    @test !haskey(BinaryBuilder.build_project_dict("foo", v"1.2", Dependency[], "1.6")["deps"], "Pkg")
+    @testset "build_project_dict" begin
+        project = build_project_dict("LibFoo", v"1.3.5",
+            [Dependency("Zlib_jll"),
+            Dependency(PackageSpec(name = "XZ_jll"), compat = "=2.4.6"),
+            Dependency(PackageSpec(name = "Preferences", uuid = parse(UUID, "21216c6a-2e73-6563-6e65-726566657250"))),
+            Dependency("Scratch"),])
+        @test project["deps"] == Dict("JLLWrappers" => "692b3bcd-3c85-4b1f-b108-f13ce0eb3210",
+                                    "Artifacts"   => "56f22d72-fd6d-98f1-02f0-08ddc0907c33",
+                                    "Pkg"         => "44cfe95a-1eb2-52ea-b672-e2afdf69b78f",
+                                    "Zlib_jll"    => "83775a58-1f1d-513f-b197-d71354ab007a",
+                                    "Libdl"       => "8f399da3-3557-5675-b5ff-fb832c97cbdb",
+                                    "XZ_jll"      => "ffd25f8a-64ca-5728-b0f7-c24cf3aae800",
+                                    "Preferences" => "21216c6a-2e73-6563-6e65-726566657250",
+                                    "Scratch"     => "6c6a2e73-6563-6170-7368-637461726353")
+        @test project["name"] == "LibFoo_jll"
+        @test project["uuid"] == "b250f842-3251-58d3-8ee4-9a24ab2bab3f"
+        @test project["compat"] == Dict(
+            "julia" => "1.0",
+            "XZ_jll" => "=2.4.6",
+            "JLLWrappers" => "1.7.0",
+            "Libdl" => "< 0.0.1, 1",
+            "Artifacts" => "< 0.0.1, 1",
+            "Pkg" => "< 0.0.1, 1",
+        )
+        @test project["version"] == "1.3.5"
+        # Make sure BuildDependency's don't find their way to the project
+        @test_throws AssertionError build_project_dict("LibFoo", v"1.3.5", [Dependency("Zlib_jll"), BuildDependency("Xorg_util_macros_jll")])
+        # `Pkg` should not be a dependency if we require Julia v1.6.
+        @test !haskey(BinaryBuilder.build_project_dict("foo", v"1.2", Dependency[], "1.6")["deps"], "Pkg")
+    end
 
-    gh_auth = Wizard.github_auth(;allow_anonymous=true)
-    @test get_github_author_login("JuliaPackaging/Yggdrasil", "invalid_hash"; gh_auth) === nothing
-    @test get_github_author_login("JuliaPackaging/Yggdrasil", "815de56a4440f4e05333c5295d74f1dc9b73ebe3"; gh_auth) === nothing
-    if gh_auth != GitHub.AnonymousAuth()
-        @test get_github_author_login("JuliaPackaging/Yggdrasil", "dea7c3fadad16281ead2427f7ab9b32f1c8cb664"; gh_auth) === "Pangoraw"
+    @testset "filter_main_tarball" begin
+        @test !BinaryBuilder.filter_main_tarball("", AnyPlatform())
+        @test BinaryBuilder.filter_main_tarball("Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+        @test !BinaryBuilder.filter_main_tarball("Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+        @test !BinaryBuilder.filter_main_tarball("Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"))
+        @test !BinaryBuilder.filter_main_tarball("Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
+        @test BinaryBuilder.filter_main_tarball("Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
+        @test BinaryBuilder.filter_main_tarball("Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
+    end
+
+    @testset "get_github_author_login" begin
+        gh_auth = Wizard.github_auth(;allow_anonymous=true)
+        @test get_github_author_login("JuliaPackaging/Yggdrasil", "invalid_hash"; gh_auth) === nothing
+        @test get_github_author_login("JuliaPackaging/Yggdrasil", "815de56a4440f4e05333c5295d74f1dc9b73ebe3"; gh_auth) === nothing
+        if gh_auth != GitHub.AnonymousAuth()
+            @test get_github_author_login("JuliaPackaging/Yggdrasil", "dea7c3fadad16281ead2427f7ab9b32f1c8cb664"; gh_auth) === "Pangoraw"
+        end
     end
 end
 
