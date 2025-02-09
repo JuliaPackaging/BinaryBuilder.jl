@@ -408,8 +408,8 @@ end
 
         # Test that having a LibraryProduct for AnyPlatform raises an error.
         # Note that the error is raised during audit, which is run in threads,
-        # so we raise an extremely generic `CompositeException`.
-        @test_throws CompositeException autobuild(
+        # so we raise an extremely generic `TaskFailedException`.
+        @test_throws TaskFailedException autobuild(
             build_path,
             "libfoo",
             v"1.0.0",
