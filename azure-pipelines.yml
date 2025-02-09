@@ -30,6 +30,8 @@ variables:
   BINARYBUILDER_AUTOMATIC_APPLE: true
   BINARYBUILDER_USE_CCACHE: true
   CI: true
+  # Auditor is now multi-threaded, run tests with multiple threads
+  JULIA_NUM_THREADS: 3
 
 jobs:
 - job: Info

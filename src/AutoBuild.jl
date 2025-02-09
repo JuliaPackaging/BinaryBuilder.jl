@@ -1033,7 +1033,7 @@ function autobuild(dir::AbstractString,
         if isempty(readdir(build_path))
             rm(build_path; recursive=true)
         end
-        verbose && @info timer
+        verbose && @info "$(timer)"
     end
 
     # Return our product hashes

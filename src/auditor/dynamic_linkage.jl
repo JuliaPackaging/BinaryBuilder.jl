@@ -1,4 +1,5 @@
 using ObjectFile.ELF
+using Patchelf_jll: patchelf
 
 """
     platform_for_object(oh::ObjectHandle)
@@ -346,17 +347,16 @@ function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::Abstr
     libname = basename(old_libpath)
     relink_cmd = ``
 
-    if Sys.isapple(platform)
-        install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
-        relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
-    elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        patchelf = "/usr/bin/patchelf"
-        relink_cmd = `$patchelf $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(rel_path)`
-    end
-
     # Create a new linkage that looks like @rpath/$lib on OSX
     with_logfile(prefix, "relink_to_rpath_$(basename(rel_path)).log"; subdir) do io
-        run(ur, relink_cmd, io; verbose=verbose)
+        if Sys.isapple(platform)
+            ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
+            install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
+            relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
+            @lock AUDITOR_SANDBOX_LOCK run(ur, relink_cmd, io; verbose=verbose)
+        elseif Sys.islinux(platform) || Sys.isbsd(platform)
+            run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(path)`)
+        end
     end
 end
 
@@ -380,7 +380,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
     end
 
     if verbose
-        @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
+        @lock AUDITOR_LOGGING_LOCK @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
     end
 
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
@@ -389,7 +389,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
 
     # Create a new linkage that looks like @rpath/$lib on OSX,
     with_logfile(prefix, "fix_identity_mismatch_$(basename(rel_path)).log"; subdir) do io
-        run(ur, id_cmd, io; verbose=verbose)
+        @lock AUDITOR_SANDBOX_LOCK run(ur, id_cmd, io; verbose=verbose)
     end
 end
 
@@ -417,7 +417,6 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     normalize_rpath = rp -> rp
     add_rpath = x -> ``
     relink = (x, y) -> ``
-    patchelf = "/usr/bin/patchelf"
     install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
     if Sys.isapple(platform)
         normalize_rpath = rp -> begin
@@ -459,9 +458,9 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
             filter!(rp -> !startswith(rp, "/workspace"), rpaths)
 
             rpath_str = join(rpaths, ':')
-            return `$patchelf $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(rel_path)`
+            return `$(patchelf()) $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(path)`
         end
-        relink = (op, np) -> `$patchelf $(patchelf_flags(platform)) --replace-needed $(op) $(np) $(rel_path)`
+        relink = (op, np) -> `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(op) $(np) $(path)`
     end
 
     # If the relative directory doesn't already exist within the RPATH of this
@@ -471,7 +470,11 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         libname = basename(old_libpath)
         cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
         with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io
-            run(ur, cmd, io; verbose=verbose)
+            if Sys.isapple(platform)
+                @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
+            elseif Sys.islinux(platform) || Sys.isbsd(platform)
+                run_with_io(io, cmd)
+            end
         end
     end
 
@@ -490,7 +493,11 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     end
     cmd = relink(old_libpath, new_libpath)
     with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log"; subdir) do io
-        run(ur, cmd, io; verbose=verbose)
+        if Sys.isapple(platform)
+            @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
+        elseif Sys.islinux(platform) || Sys.isbsd(platform)
+            run_with_io(io, cmd)
+        end
     end
 
     return new_libpath
