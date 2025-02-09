@@ -65,7 +65,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     end
 
     # If this is false then it's bedtime for bonzo boy
-    all_ok = true
+    all_ok = Threads.Atomic{Bool}(true)
 
     # Translate absolute symlinks to relative symlinks, if possible
     translate_symlinks(prefix.path; verbose=verbose)
@@ -73,7 +73,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_library_path(f, platform)
     bin_files = collect_files(prefix, predicate; exclude_externalities=false)
-    for f in collapse_symlinks(bin_files)
+    Threads.@threads for f in collapse_symlinks(bin_files)
         # If `f` is outside of our prefix, ignore it.  This happens with files from our dependencies
         if !startswith(f, prefix.path)
             continue
@@ -89,38 +89,38 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                         end
                     else
                         # Check that the ISA isn't too high
-                        all_ok &= check_isa(oh, platform, prefix; verbose, silent)
+                        all_ok[] &= check_isa(oh, platform, prefix; verbose, silent)
                         # Check that the OS ABI is set correctly (often indicates the wrong linker was used)
-                        all_ok &= check_os_abi(oh, platform; verbose)
+                        all_ok[] &= check_os_abi(oh, platform; verbose)
                         # Make sure all binary files are executables, if libraries aren't
                         # executables Julia may not be able to dlopen them:
                         # https://github.com/JuliaLang/julia/issues/38993.  In principle this
                         # should be done when autofix=true, but we have to run this fix on MKL
                         # for Windows, for which however we have to set autofix=false:
                         # https://github.com/JuliaPackaging/Yggdrasil/pull/922.
-                        all_ok &= ensure_executability(oh; verbose, silent)
+                        all_ok[] &= ensure_executability(oh; verbose, silent)
                     
                         # If this is a dynamic object, do the dynamic checks
                         if isdynamic(oh)
                             # Check that the libgfortran version matches
-                            all_ok &= check_libgfortran_version(oh, platform; verbose, has_csl)
+                            all_ok[] &= check_libgfortran_version(oh, platform; verbose, has_csl)
                             # Check whether the library depends on any of the most common
                             # libraries provided by `CompilerSupportLibraries_jll`.
-                            all_ok &= check_csl_libs(oh, platform; verbose, has_csl)
+                            all_ok[] &= check_csl_libs(oh, platform; verbose, has_csl)
                             # Check that the libstdcxx string ABI matches
-                            all_ok &= check_cxxstring_abi(oh, platform; verbose)
+                            all_ok[] &= check_cxxstring_abi(oh, platform; verbose)
                             # Check that this binary file's dynamic linkage works properly.  Note to always
                             # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
                             # checks to freak out a little bit.
-                            all_ok &= check_dynamic_linkage(oh, prefix, bin_files;
-                                                            platform, silent, verbose, autofix, src_name)
+                            all_ok[] &= check_dynamic_linkage(oh, prefix, bin_files;
+                                                              platform, silent, verbose, autofix, src_name)
                         end
                     end
                 end
             end
 
             # Ensure this file is codesigned (currently only does something on Apple platforms)
-            all_ok &= ensure_codesigned(f, prefix, platform; verbose, subdir=src_name)
+            all_ok[] &= ensure_codesigned(f, prefix, platform; verbose, subdir=src_name)
         catch e
             if !isa(e, ObjectFile.MagicMismatch)
                 rethrow(e)
@@ -136,7 +136,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     # Find all dynamic libraries
     shlib_files = filter(f -> startswith(f, prefix.path) && valid_library_path(f, platform), collapse_symlinks(bin_files))
 
-    for f in shlib_files
+    Threads.@threads for f in shlib_files
         # Inspect all shared library files for our platform (but only if we're
         # running native, don't try to load library files from other platforms)
         if platforms_match(platform, HostPlatform())
@@ -172,23 +172,23 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 if !silent
                     @warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 end
-                all_ok = false
+                all_ok[] = false
             end
         end
 
         # Ensure that all libraries have at least some kind of SONAME, if we're
         # on that kind of platform
         if !Sys.iswindows(platform)
-            all_ok &= ensure_soname(prefix, f, platform; verbose, autofix, subdir=src_name)
+            all_ok[] &= ensure_soname(prefix, f, platform; verbose, autofix, subdir=src_name)
         end
 
         # Ensure that this library is available at its own SONAME
-        all_ok &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
+        all_ok[] &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
     end
 
     # remove *.la files generated by GNU libtool
     la_files = collect_files(prefix, endswith(".la"))
-    for f in la_files
+    Threads.@threads for f in la_files
         # Make sure the file still exists on disk
         if isfile(f)
             # sanity check: first byte should be '#', first line should contain 'libtool'
@@ -211,34 +211,36 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
     # Make sure that `(exec_)prefix` in pkg-config files use a relative prefix
     pc_files = collect_files(prefix, endswith(".pc"))
-    for f in pc_files, var in ["prefix", "exec_prefix"]
-        pc_re = Regex("^$var=(/.*)\$")
-        # We want to replace every instance of `prefix=...` with
-        # `prefix=${pcfiledir}/../..`
-        changed = false
-        buf = IOBuffer()
-        for l in readlines(f)
-            m = match(pc_re, l)
-            if m !== nothing
-                # dealing with an absolute path we need to relativize;
-                # determine how many directories we need to go up.
-                dir = m.captures[1]
-                f_rel = relpath(f, prefix.path)
-                ndirs = count('/', f_rel)
-                prefix_rel = join([".." for _ in 1:ndirs], "/")
-                l = "$var=\${pcfiledir}/$prefix_rel"
-                changed = true
+    Threads.@threads for f in pc_files
+        for var in ["prefix", "exec_prefix"]
+            pc_re = Regex("^$var=(/.*)\$")
+            # We want to replace every instance of `prefix=...` with
+            # `prefix=${pcfiledir}/../..`
+            changed = false
+            buf = IOBuffer()
+            for l in readlines(f)
+                m = match(pc_re, l)
+                if m !== nothing
+                    # dealing with an absolute path we need to relativize;
+                    # determine how many directories we need to go up.
+                    dir = m.captures[1]
+                    f_rel = relpath(f, prefix.path)
+                    ndirs = count('/', f_rel)
+                    prefix_rel = join([".." for _ in 1:ndirs], "/")
+                    l = "$var=\${pcfiledir}/$prefix_rel"
+                    changed = true
+                end
+                println(buf, l)
             end
-            println(buf, l)
-        end
-        str = String(take!(buf))
+            str = String(take!(buf))
 
-        if changed
-            # Overwrite file
-            if verbose
-                @info("Relocatize pkg-config file $f")
+            if changed
+                # Overwrite file
+                if verbose
+                    @info("Relocatize pkg-config file $f")
+                end
+                write(f, str)
             end
-            write(f, str)
         end
     end
 
@@ -246,7 +248,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
         symlinks = collect_files(prefix, islink, exclude_dirs = false)
-        for f in symlinks
+        Threads.@threads for f in symlinks
             try
                 src_path = realpath(f)
                 if isfile(src_path) || isdir(src_path)
@@ -285,7 +287,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
         # Normalise timestamp of Windows import libraries.
         import_libraries = collect_files(prefix, endswith(".dll.a"))
-        for implib in import_libraries
+        Threads.@threads for implib in import_libraries
             if verbose
                 @info("Normalising timestamps in import library $(implib)")
             end
@@ -296,7 +298,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
     # Check that we're providing a license file
     if require_license
-        all_ok &= check_license(prefix, src_name; verbose=verbose, silent=silent)
+        all_ok[] &= check_license(prefix, src_name; verbose=verbose, silent=silent)
     end
 
     # Perform filesystem-related audit passes
@@ -304,11 +306,11 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     all_files = collect_files(prefix, predicate)
 
     # Search for absolute paths in this prefix
-    all_ok &= check_absolute_paths(prefix, all_files; silent=silent)
+    all_ok[] &= check_absolute_paths(prefix, all_files; silent=silent)
 
     # Search for case-sensitive ambiguities
-    all_ok &= check_case_sensitivity(prefix)
-    return all_ok
+    all_ok[] &= check_case_sensitivity(prefix)
+    return all_ok[]
 end
 
 
@@ -515,7 +517,7 @@ function collect_files(path::AbstractString, predicate::Function = f -> true;
             end
         end
     end
-    return collected
+    return unique!(collected)
 end
 # Unwrap Prefix objects automatically
 collect_files(prefix::Prefix, args...; kwargs...) = collect_files(prefix.path, args...; kwargs...)
@@ -544,7 +546,7 @@ function collapse_symlinks(files::Vector{String})
             return false
         end
     end
-    return filter(predicate, files)
+    return unique!(filter(predicate, files))
 end
 
 """
