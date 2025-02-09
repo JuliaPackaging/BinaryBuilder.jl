@@ -406,8 +406,10 @@ end
         @test haskey(build_output_meta, p)
         @test build_output_meta[p][3] == Base.SHA1("45c55bfed92bd890d6487c58c4c03e07f5fb8829")
 
-        # Test that having a LibraryProduct for AnyPlatform raises an error
-        @test_throws ErrorException autobuild(
+        # Test that having a LibraryProduct for AnyPlatform raises an error.
+        # Note that the error is raised during audit, which is run in threads,
+        # so we raise an extremely generic `TaskFailedException`.
+        @test_throws TaskFailedException autobuild(
             build_path,
             "libfoo",
             v"1.0.0",
