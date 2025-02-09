@@ -80,62 +80,64 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_library_path(f, platform)
     bin_files = collect_files(prefix, predicate; exclude_externalities=false)
-    Threads.@threads for f in collapse_symlinks(bin_files)
+    @sync for f in collapse_symlinks(bin_files)
         # If `f` is outside of our prefix, ignore it.  This happens with files from our dependencies
         if !startswith(f, prefix.path)
             continue
         end
 
-        # Peel this binary file open like a delicious tangerine
-        try
-            readmeta(f) do ohs
-                foreach(ohs) do oh
-                    if !is_for_platform(oh, platform)
-                        if verbose
-                            @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
-                        end
-                    else
-                        # Check that the ISA isn't too high
-                        all_ok[] &= check_isa(oh, platform, prefix; verbose, silent)
-                        # Check that the OS ABI is set correctly (often indicates the wrong linker was used)
-                        all_ok[] &= check_os_abi(oh, platform; verbose)
-                        # Make sure all binary files are executables, if libraries aren't
-                        # executables Julia may not be able to dlopen them:
-                        # https://github.com/JuliaLang/julia/issues/38993.  In principle this
-                        # should be done when autofix=true, but we have to run this fix on MKL
-                        # for Windows, for which however we have to set autofix=false:
-                        # https://github.com/JuliaPackaging/Yggdrasil/pull/922.
-                        all_ok[] &= ensure_executability(oh; verbose, silent)
-                    
-                        # If this is a dynamic object, do the dynamic checks
-                        if isdynamic(oh)
-                            # Check that the libgfortran version matches
-                            all_ok[] &= check_libgfortran_version(oh, platform; verbose, has_csl)
-                            # Check whether the library depends on any of the most common
-                            # libraries provided by `CompilerSupportLibraries_jll`.
-                            all_ok[] &= check_csl_libs(oh, platform; verbose, has_csl)
-                            # Check that the libstdcxx string ABI matches
-                            all_ok[] &= check_cxxstring_abi(oh, platform; verbose)
-                            # Check that this binary file's dynamic linkage works properly.  Note to always
-                            # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
-                            # checks to freak out a little bit.
-                            all_ok[] &= check_dynamic_linkage(oh, prefix, bin_files;
-                                                              platform, silent, verbose, autofix, src_name)
+        Threads.@spawn let
+            # Peel this binary file open like a delicious tangerine
+            try
+                readmeta(f) do ohs
+                    foreach(ohs) do oh
+                        if !is_for_platform(oh, platform)
+                            if verbose
+                                @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                            end
+                        else
+                            # Check that the ISA isn't too high
+                            all_ok[] &= check_isa(oh, platform, prefix; verbose, silent)
+                            # Check that the OS ABI is set correctly (often indicates the wrong linker was used)
+                            all_ok[] &= check_os_abi(oh, platform; verbose)
+                            # Make sure all binary files are executables, if libraries aren't
+                            # executables Julia may not be able to dlopen them:
+                            # https://github.com/JuliaLang/julia/issues/38993.  In principle this
+                            # should be done when autofix=true, but we have to run this fix on MKL
+                            # for Windows, for which however we have to set autofix=false:
+                            # https://github.com/JuliaPackaging/Yggdrasil/pull/922.
+                            all_ok[] &= ensure_executability(oh; verbose, silent)
+
+                            # If this is a dynamic object, do the dynamic checks
+                            if isdynamic(oh)
+                                # Check that the libgfortran version matches
+                                all_ok[] &= check_libgfortran_version(oh, platform; verbose, has_csl)
+                                # Check whether the library depends on any of the most common
+                                # libraries provided by `CompilerSupportLibraries_jll`.
+                                all_ok[] &= check_csl_libs(oh, platform; verbose, has_csl)
+                                # Check that the libstdcxx string ABI matches
+                                all_ok[] &= check_cxxstring_abi(oh, platform; verbose)
+                                # Check that this binary file's dynamic linkage works properly.  Note to always
+                                # DO THIS ONE LAST as it can actually mutate the file, which causes the previous
+                                # checks to freak out a little bit.
+                                all_ok[] &= check_dynamic_linkage(oh, prefix, bin_files;
+                                                                  platform, silent, verbose, autofix, src_name)
+                            end
                         end
                     end
                 end
-            end
 
-            # Ensure this file is codesigned (currently only does something on Apple platforms)
-            all_ok[] &= ensure_codesigned(f, prefix, platform; verbose, subdir=src_name)
-        catch e
-            if !isa(e, ObjectFile.MagicMismatch)
-                rethrow(e)
-            end
+                # Ensure this file is codesigned (currently only does something on Apple platforms)
+                all_ok[] &= ensure_codesigned(f, prefix, platform; verbose, subdir=src_name)
+            catch e
+                if !isa(e, ObjectFile.MagicMismatch)
+                    rethrow(e)
+                end
 
-            # If this isn't an actual binary file, skip it
-            if verbose
-                @info("Skipping binary analysis of $(relpath(f, prefix.path))")
+                # If this isn't an actual binary file, skip it
+                if verbose
+                    @info("Skipping binary analysis of $(relpath(f, prefix.path))")
+                end
             end
         end
     end
@@ -143,19 +145,20 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     # Find all dynamic libraries
     shlib_files = filter(f -> startswith(f, prefix.path) && valid_library_path(f, platform), collapse_symlinks(bin_files))
 
-    Threads.@threads for f in shlib_files
-        # Inspect all shared library files for our platform (but only if we're
-        # running native, don't try to load library files from other platforms)
-        if platforms_match(platform, HostPlatform())
-            if verbose
-                @info("Checking shared library $(relpath(f, prefix.path))")
-            end
+    @sync for f in shlib_files
+        Threads.@spawn let
+            # Inspect all shared library files for our platform (but only if we're
+            # running native, don't try to load library files from other platforms)
+            if platforms_match(platform, HostPlatform())
+                if verbose
+                    @info("Checking shared library $(relpath(f, prefix.path))")
+                end
 
-            # dlopen() this library in a separate Julia process so that if we
-            # try to do something silly like `dlopen()` a .so file that uses
-            # LLVM in interesting ways on startup, it doesn't kill our main
-            # Julia process.
-            dlopen_cmd = """
+                # dlopen() this library in a separate Julia process so that if we
+                # try to do something silly like `dlopen()` a .so file that uses
+                # LLVM in interesting ways on startup, it doesn't kill our main
+                # Julia process.
+                dlopen_cmd = """
                 using Libdl
                 try
                     dlopen($(repr(f)))
@@ -167,30 +170,31 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                     exit(1)
                 end
             """
-            try
-                p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
-                wait(p)
-                if p.exitcode != 0
-                    throw("Invalid exit code!")
+                try
+                    p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
+                    wait(p)
+                    if p.exitcode != 0
+                        throw("Invalid exit code!")
+                    end
+                catch
+                    # TODO: Use the relevant ObjFileBase packages to inspect why
+                    # this file is being nasty to us.
+                    if !silent
+                        @warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                    end
+                    all_ok[] = false
                 end
-            catch
-                # TODO: Use the relevant ObjFileBase packages to inspect why
-                # this file is being nasty to us.
-                if !silent
-                    @warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
-                end
-                all_ok[] = false
             end
-        end
 
-        # Ensure that all libraries have at least some kind of SONAME, if we're
-        # on that kind of platform
-        if !Sys.iswindows(platform)
-            all_ok[] &= ensure_soname(prefix, f, platform; verbose, autofix, subdir=src_name)
-        end
+            # Ensure that all libraries have at least some kind of SONAME, if we're
+            # on that kind of platform
+            if !Sys.iswindows(platform)
+                all_ok[] &= ensure_soname(prefix, f, platform; verbose, autofix, subdir=src_name)
+            end
 
-        # Ensure that this library is available at its own SONAME
-        all_ok[] &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
+            # Ensure that this library is available at its own SONAME
+            all_ok[] &= symlink_soname_lib(f; verbose=verbose, autofix=autofix)
+        end
     end
 
     # remove *.la files generated by GNU libtool
@@ -218,35 +222,37 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
     # Make sure that `(exec_)prefix` in pkg-config files use a relative prefix
     pc_files = collect_files(prefix, endswith(".pc"))
-    Threads.@threads for f in pc_files
-        for var in ["prefix", "exec_prefix"]
-            pc_re = Regex("^$var=(/.*)\$")
-            # We want to replace every instance of `prefix=...` with
-            # `prefix=${pcfiledir}/../..`
-            changed = false
-            buf = IOBuffer()
-            for l in readlines(f)
-                m = match(pc_re, l)
-                if m !== nothing
-                    # dealing with an absolute path we need to relativize;
-                    # determine how many directories we need to go up.
-                    dir = m.captures[1]
-                    f_rel = relpath(f, prefix.path)
-                    ndirs = count('/', f_rel)
-                    prefix_rel = join([".." for _ in 1:ndirs], "/")
-                    l = "$var=\${pcfiledir}/$prefix_rel"
-                    changed = true
+    @sync for f in pc_files
+        Threads.@spawn let
+            for var in ["prefix", "exec_prefix"]
+                pc_re = Regex("^$var=(/.*)\$")
+                # We want to replace every instance of `prefix=...` with
+                # `prefix=${pcfiledir}/../..`
+                changed = false
+                buf = IOBuffer()
+                for l in readlines(f)
+                    m = match(pc_re, l)
+                    if m !== nothing
+                        # dealing with an absolute path we need to relativize;
+                        # determine how many directories we need to go up.
+                        dir = m.captures[1]
+                        f_rel = relpath(f, prefix.path)
+                        ndirs = count('/', f_rel)
+                        prefix_rel = join([".." for _ in 1:ndirs], "/")
+                        l = "$var=\${pcfiledir}/$prefix_rel"
+                        changed = true
+                    end
+                    println(buf, l)
                 end
-                println(buf, l)
-            end
-            str = String(take!(buf))
+                str = String(take!(buf))
 
-            if changed
-                # Overwrite file
-                if verbose
-                    @info("Relocatize pkg-config file $f")
+                if changed
+                    # Overwrite file
+                    if verbose
+                        @info("Relocatize pkg-config file $f")
+                    end
+                    write(f, str)
                 end
-                write(f, str)
             end
         end
     end
@@ -255,14 +261,16 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # We also cannot allow any symlinks in Windows because it requires
         # Admin privileges to create them.  Orz
         symlinks = collect_files(prefix, islink, exclude_dirs = false)
-        Threads.@threads for f in symlinks
-            try
-                src_path = realpath(f)
-                if isfile(src_path) || isdir(src_path)
-                    rm(f; force=true)
-                    cp(src_path, f, follow_symlinks = true)
+        @sync for f in symlinks
+            Threads.@spawn let
+                try
+                    src_path = realpath(f)
+                    if isfile(src_path) || isdir(src_path)
+                        rm(f; force=true)
+                        cp(src_path, f, follow_symlinks = true)
+                    end
+                catch
                 end
-            catch
             end
         end
 
@@ -294,11 +302,13 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
         # Normalise timestamp of Windows import libraries.
         import_libraries = collect_files(prefix, endswith(".dll.a"))
-        Threads.@threads for implib in import_libraries
-            if verbose
-                @info("Normalising timestamps in import library $(implib)")
+        @sync for implib in import_libraries
+            Threads.@spawn let
+                if verbose
+                    @info("Normalising timestamps in import library $(implib)")
+                end
+                normalise_implib_timestamp(implib)
             end
-            normalise_implib_timestamp(implib)
         end
 
     end
@@ -404,6 +414,8 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         # Look at every dynamic link, and see if we should do anything about that link...
         libs = find_libraries(oh)
         ignored_libraries = String[]
+        # Note: there seems to be race conditions on the object handle `oh` if using
+        # `Threads.@spawn` instead of `Threads.@threads` (too much dynamism?).
         Threads.@threads for libname in collect(keys(libs))
             if should_ignore_lib(libname, oh, platform)
                 push!(ignored_libraries, libname)
