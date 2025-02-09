@@ -469,26 +469,6 @@ function check_dynamic_linkage(oh, prefix, bin_files;
     return all_ok[]
 end
 
-
-if VERSION < v"1.5-DEV"
-function walkdir_nosymlinks(path::String)
-    function adjuster(out_c::Channel)
-        for (root, dirs, files) in walkdir(path)
-            for d in dirs
-                if islink(joinpath(root, d))
-                    push!(files, d)
-                end
-            end
-            filter!(d -> !islink(joinpath(root, d)), dirs)
-            put!(out_c, (root, dirs, files))
-        end
-    end
-    return Channel(adjuster)
-end
-else
-# No adjustment necessary on 1.5+
-walkdir_nosymlinks(path) = walkdir(path)
-end
 """
     collect_files(path::AbstractString, predicate::Function = f -> true)
 
@@ -510,7 +490,7 @@ function collect_files(path::AbstractString, predicate::Function = f -> true;
         predicate = f -> old_predicate(f) && !(islink(f) && !startswith(Pkg.Types.safe_realpath(f), path))
     end
     collected = String[]
-    for (root, dirs, files) in walkdir_nosymlinks(path)
+    for (root, dirs, files) in walkdir(path)
         if exclude_dirs
             list = files
         else
