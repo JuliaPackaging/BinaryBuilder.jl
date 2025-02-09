@@ -1,12 +1,12 @@
+using ldid_jll: ldid
+
 function check_codesigned(path::AbstractString, platform::AbstractPlatform)
     # We only perform ad-hoc codesigning on Apple platforms
     if !Sys.isapple(platform)
         return true
     end
 
-    ur = preferred_runner()(dirname(path); cwd="/workspace/", platform=platform)
-    # TODO: can we run directly `ldid` with the JLL without entering the sandbox?
-    return run(ur, `/usr/local/bin/ldid -d $(basename(path))`)
+    return run(`$(ldid()) -d $(basename(path))`)
 end
 
 function ensure_codesigned(path::AbstractString, prefix::Prefix, platform::AbstractPlatform;
@@ -16,10 +16,7 @@ function ensure_codesigned(path::AbstractString, prefix::Prefix, platform::Abstr
         return true
     end
 
-    rel_path = relpath(path, prefix.path)
-    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
-    with_logfile(prefix, "ldid_$(basename(rel_path)).log"; subdir) do io
-        # TODO: can we run directly `ldid` with the JLL without entering the sandbox?
-        @lock AUDITOR_SANDBOX_LOCK run(ur, `/usr/local/bin/ldid -S -d $(rel_path)`, io; verbose=verbose)
+    with_logfile(prefix, "ldid_$(basename(path)).log"; subdir) do io
+        run(pipeline(`$(ldid()) -S -d $(path)`; stdout=io, stderr=io))
     end
 end
