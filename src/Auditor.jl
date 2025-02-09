@@ -16,6 +16,13 @@ const AUDITOR_SANDBOX_LOCK = ReentrantLock()
 # Logging is reportedly not thread-safe but guarding it with locks should help.
 const AUDITOR_LOGGING_LOCK = ReentrantLock()
 
+# Helper function to run a command and print to `io` its invocation and full
+# output (mimim what the sandbox does normally, but outside of it).
+function run_with_io(io::IO, cmd::Cmd)
+    println(io, "---> $(join(cmd.exec, " "))")
+    run(pipeline(cmd; stdout=io, stderr=io))
+end
+
 include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")
 include("auditor/symlink_translator.jl")
