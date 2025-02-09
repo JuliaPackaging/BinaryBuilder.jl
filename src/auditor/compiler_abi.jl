@@ -172,6 +172,8 @@ function cppfilt(symbol_names::Vector, platform::AbstractPlatform; strip_undersc
 
     output = IOBuffer()
     mktempdir() do dir
+        # No need to acquire a sandbox lock here because we use a (hopefully)
+        # different temporary directory for each run.
         ur = preferred_runner()(dir; cwd="/workspace/", platform=platform)
         cmd = Cmd(`/opt/bin/$(triplet(ur.platform))/c++filt`; ignorestatus=true)
         if strip_underscore

@@ -356,7 +356,7 @@ function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::Abstr
 
     # Create a new linkage that looks like @rpath/$lib on OSX
     with_logfile(prefix, "relink_to_rpath_$(basename(rel_path)).log"; subdir) do io
-        run(ur, relink_cmd, io; verbose=verbose)
+        @lock AUDITOR_SANDBOX_LOCK run(ur, relink_cmd, io; verbose=verbose)
     end
 end
 
@@ -389,7 +389,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
 
     # Create a new linkage that looks like @rpath/$lib on OSX,
     with_logfile(prefix, "fix_identity_mismatch_$(basename(rel_path)).log"; subdir) do io
-        run(ur, id_cmd, io; verbose=verbose)
+        @lock AUDITOR_SANDBOX_LOCK run(ur, id_cmd, io; verbose=verbose)
     end
 end
 
@@ -471,7 +471,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         libname = basename(old_libpath)
         cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
         with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io
-            run(ur, cmd, io; verbose=verbose)
+            @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
         end
     end
 
@@ -490,7 +490,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     end
     cmd = relink(old_libpath, new_libpath)
     with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log"; subdir) do io
-        run(ur, cmd, io; verbose=verbose)
+        @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
     end
 
     return new_libpath

@@ -9,6 +9,12 @@ using BinaryBuilderBase: march
 
 export audit, collect_files, collapse_symlinks
 
+# Some functions need to run commands in sandboxes mounted on the same prefix and we
+# can't allow them to clash, otherwise one may be unmounting the filesystem while
+# another is still operating.
+const AUDITOR_SANDBOX_LOCK = ReentrantLock()
+
+
 include("auditor/instruction_set.jl")
 include("auditor/dynamic_linkage.jl")
 include("auditor/symlink_translator.jl")

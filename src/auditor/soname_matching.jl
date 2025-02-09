@@ -76,7 +76,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
 
     # Create a new linkage that looks like @rpath/$lib on OSX, 
     retval = with_logfile(prefix, "set_soname_$(basename(rel_path))_$(soname).log"; subdir) do io
-        run(ur, set_soname_cmd, io; verbose=verbose)
+        @lock AUDITOR_SANDBOX_LOCK run(ur, set_soname_cmd, io; verbose=verbose)
     end
 
     if !retval

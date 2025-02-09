@@ -41,7 +41,7 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     else
         objdump_cmd = "\${target}-objdump -d $(basename(path))"
     end
-    run_interactive(ur, Cmd(`/bin/bash -c "$(objdump_cmd)"`; ignorestatus=true); stdout=output, stderr=devnull)
+    @lock AUDITOR_SANDBOX_LOCK run_interactive(ur, Cmd(`/bin/bash -c "$(objdump_cmd)"`; ignorestatus=true); stdout=output, stderr=devnull)
     seekstart(output)
 
     for line in eachline(output)
