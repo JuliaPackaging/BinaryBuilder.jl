@@ -1,5 +1,4 @@
 using JSON
-using Binutils_jll: Binutils_jll
 
 ## We start with definitions of instruction mnemonics, broken down by category:
 const instruction_categories = JSON.parsefile(joinpath(@__DIR__, "instructions.json");
@@ -37,17 +36,12 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     output = IOBuffer()
 
     # Run objdump to disassemble the input binary
-    objdump_args = `-d $(basename(path))`
-    if Binutils_jll.is_available() && (Sys.islinux(platform) || Sys.isfreebsd(platform))
-        run(pipeline(ignorestatus(`$(Binutils_jll.objdump()) $(objdump_args)`); stdout=output, stderr=devnull))
+    if Sys.isbsd(platform)
+        objdump_cmd = "llvm-objdump -d $(basename(path))"
     else
-        if Sys.isbsd(platform)
-            objdump_cmd = "llvm-objdump $(objdump_args)"
-        else
-            objdump_cmd = "\${target}-objdump $(objdump_args)"
-        end
-        @lock AUDITOR_SANDBOX_LOCK run_interactive(ur, Cmd(`/bin/bash -c "$(objdump_cmd)"`; ignorestatus=true); stdout=output, stderr=devnull)
+        objdump_cmd = "\${target}-objdump -d $(basename(path))"
     end
+    @lock AUDITOR_SANDBOX_LOCK run_interactive(ur, Cmd(`/bin/bash -c "$(objdump_cmd)"`; ignorestatus=true); stdout=output, stderr=devnull)
     seekstart(output)
 
     for line in eachline(output)
