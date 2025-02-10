@@ -18,9 +18,9 @@ const AUDITOR_LOGGING_LOCK = ReentrantLock()
 
 # Helper function to run a command and print to `io` its invocation and full
 # output (mimim what the sandbox does normally, but outside of it).
-function run_with_io(io::IO, cmd::Cmd)
+function run_with_io(io::IO, cmd::Cmd; wait::Bool=true)
     println(io, "---> $(join(cmd.exec, " "))")
-    run(pipeline(cmd; stdout=io, stderr=io))
+    run(pipeline(cmd; stdout=io, stderr=io); wait)
 end
 
 include("auditor/instruction_set.jl")

@@ -1,3 +1,5 @@
+using Patchelf_jll: patchelf
+
 # Not everything has an SONAME
 get_soname(oh::ObjectHandle) = nothing
 
@@ -63,20 +65,16 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
     end
 
     # Otherwise, set the SONAME
-    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
-    set_soname_cmd = ``
-    
-    if Sys.isapple(platform)
-        install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
-        set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
-    elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        patchelf = "/usr/bin/patchelf"
-        set_soname_cmd = `$patchelf $(patchelf_flags(platform)) --set-soname $(soname) $(rel_path)`
-    end
-
-    # Create a new linkage that looks like @rpath/$lib on OSX, 
+    # Create a new linkage that looks like @rpath/$lib on OSX,
     retval = with_logfile(prefix, "set_soname_$(basename(rel_path))_$(soname).log"; subdir) do io
-        @lock AUDITOR_SANDBOX_LOCK run(ur, set_soname_cmd, io; verbose=verbose)
+        if Sys.isapple(platform)
+            ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
+            install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
+            set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
+            @lock AUDITOR_SANDBOX_LOCK run(ur, set_soname_cmd, io; verbose=verbose)
+        elseif Sys.islinux(platform) || Sys.isbsd(platform)
+            success(run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --set-soname $(soname) $(realpath(path))`; wait=false))
+        end
     end
 
     if !retval

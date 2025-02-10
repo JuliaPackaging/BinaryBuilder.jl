@@ -6,6 +6,7 @@ version = "0.6.4"
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
 BinaryBuilderBase = "7f725544-6523-48cd-82d1-3fa08ff4056e"
+Binutils_jll = "489e263e-5428-50b0-a723-147a141b401e"
 Dates = "ade2ca70-3891-5945-98fb-dc099432e06a"
 Downloads = "f43a241f-c20a-4ad4-852c-f6b1247861c6"
 GitHub = "bc5e4493-9b4d-5f90-b8aa-2b2bcaad7a26"
@@ -34,6 +35,7 @@ ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
 [compat]
 ArgParse = "1.1"
+Binutils_jll = "2"
 BinaryBuilderBase = "1.35.2"
 Downloads = "1"
 GitHub = "5.1"

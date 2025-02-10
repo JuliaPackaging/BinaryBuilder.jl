@@ -1,5 +1,6 @@
 import Base.BinaryPlatforms: detect_libstdcxx_version, detect_cxxstring_abi
 using ObjectFile
+using Binutils_jll: Binutils_jll
 
 csl_warning(lib) = @lock AUDITOR_LOGGING_LOCK @warn(
     """
@@ -171,15 +172,24 @@ function cppfilt(symbol_names::Vector, platform::AbstractPlatform; strip_undersc
     seekstart(input)
 
     output = IOBuffer()
-    mktempdir() do dir
-        # No need to acquire a sandbox lock here because we use a (hopefully)
-        # different temporary directory for each run.
-        ur = preferred_runner()(dir; cwd="/workspace/", platform=platform)
-        cmd = Cmd(`/opt/bin/$(triplet(ur.platform))/c++filt`; ignorestatus=true)
-        if strip_underscore
-            cmd = `$(cmd) --strip-underscore`
+    cmd = if Binutils_jll.is_available()
+        ignorestatus(Binutils_jll.cxxfilt())
+    else
+        Cmd(`/opt/bin/$(triplet(platform))/c++filt`; ignorestatus=true)
+    end
+    if strip_underscore
+        cmd = `$(cmd) --strip-underscore`
+    end
+
+    if Binutils_jll.is_available()
+        run(pipeline(cmd; stdin=input, stdout=output))
+    else
+        mktempdir() do dir
+            # No need to acquire a sandbox lock here because we use a (hopefully)
+            # different temporary directory for each run.
+            ur = preferred_runner()(dir; cwd="/workspace/", platform=platform)
+            run_interactive(ur, cmd; stdin=input, stdout=output)
         end
-        run_interactive(ur, cmd; stdin=input, stdout=output)
     end
 
     return filter!(s -> !isempty(s), split(String(take!(output)), "\n"))
