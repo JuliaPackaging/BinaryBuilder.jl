@@ -161,6 +161,7 @@ function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
         "ld-linux.so.2",
         "ld-linux-armhf.so.3",
         "ld-linux-aarch64.so.1",
+        "ld-linux-riscv64-lp64d.so.1",
         "ld-musl-x86_64.so.1",
         "ld-musl-i386.so.1",
         "ld-musl-aarch64.so.1",
