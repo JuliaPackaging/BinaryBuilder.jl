@@ -1524,9 +1524,9 @@ function build_jll_package(src_name::String,
                 end
 
             else
-                # Julia ≥ 1.12, all is fine
+                # riscv64 is supported, all is fine
 
-                const bbparse = Base.parse
+                const bbparse = parse
 
             end
             """
