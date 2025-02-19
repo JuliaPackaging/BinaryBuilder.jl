@@ -1502,10 +1502,10 @@ function build_jll_package(src_name::String,
                         end
                         os_version = nothing
                         if os == "macos"
-                            os_version = extract_os_version("macos", r".*darwin([\d\.]+)")
+                            os_version = extract_os_version("macos", r".*darwin([\\d\\.]+)")
                         end
                         if os == "freebsd"
-                            os_version = extract_os_version("freebsd", r".*freebsd([\d.]+)")
+                            os_version = extract_os_version("freebsd", r".*freebsd([\\d.]+)")
                         end
                 
                         return Platform(
