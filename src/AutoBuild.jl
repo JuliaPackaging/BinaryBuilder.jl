@@ -1416,8 +1416,8 @@ function build_jll_package(src_name::String,
         !ispath(pkg_dir) && mkdir(pkg_dir)
         write(joinpath(pkg_dir, "platform_augmentation.jl"), augment_platform_block)
 
-        overload_parse = """
-            # Update Base.parse for Julia <1.12 to support riscv64
+        overload_parse = raw"""
+            # Update Base.parse to support riscv64, needed for Julia <1.12
             @static if !haskey(BinaryPlatforms.arch_mapping, "riscv64")
 
                 function bbparse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
@@ -1433,7 +1433,7 @@ function build_jll_package(src_name::String,
                 
                     # Helper function to collapse dictionary of mappings down into a regex of
                     # named capture groups joined by "|" operators
-                    c(mapping) = string("(",join(["(?<\$k>\$v)" for (k, v) in mapping], "|"), ")")
+                    c(mapping) = string("(",join(["(?<$k>$v)" for (k, v) in mapping], "|"), ")")
                 
                     # We're going to build a mondo regex here to parse everything:
                     triplet_regex = Regex(string(
@@ -1448,8 +1448,8 @@ function build_jll_package(src_name::String,
                         c(cxxstring_abi_mapping),
                         c(libstdcxx_version_mapping),
                         # Finally, the catch-all for extended tags
-                        "(?<tags>(?:-[^-]+\\\\+[^-]+)*)?",
-                        "\\\$",
+                        "(?<tags>(?:-[^-]+\\+[^-]+)*)?",
+                        "\$",
                     ))
                 
                     m = match(triplet_regex, triplet)
@@ -1502,10 +1502,13 @@ function build_jll_package(src_name::String,
                         end
                         os_version = nothing
                         if os == "macos"
-                            os_version = extract_os_version("macos", r".*darwin([\\d\\.]+)")
+                            os_version = extract_os_version("macos", r".*darwin([\d.]+)"sa)
                         end
                         if os == "freebsd"
-                            os_version = extract_os_version("freebsd", r".*freebsd([\\d.]+)")
+                            os_version = extract_os_version("freebsd", r".*freebsd([\d.]+)"sa)
+                        end
+                        if os == "openbsd"
+                            os_version = extract_os_version("openbsd", r".*openbsd([\d.]+)"sa)
                         end
                 
                         return Platform(
