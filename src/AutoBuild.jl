@@ -1420,9 +1420,9 @@ function build_jll_package(src_name::String,
             # Update Base.parse to support riscv64, needed for Julia <1.12
             @static if !haskey(BinaryPlatforms.arch_mapping, "riscv64")
 
+                BinaryPlatforms.arch_mapping["riscv64"] = "(rv64|riscv64)"
+
                 function bbparse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
-                    # setup_riscv64()
-                
                     arch_mapping = BinaryPlatforms.arch_mapping
                     os_mapping = BinaryPlatforms.os_mapping
                     libc_mapping = BinaryPlatforms.libc_mapping
