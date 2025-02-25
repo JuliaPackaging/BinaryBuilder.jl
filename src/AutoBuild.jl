@@ -1168,12 +1168,15 @@ function filter_main_tarball(tarball_filename, platform)
     if occursin("-logs.", tarball_filename)
         return false
     end
-    tarball_filename_match = match(r"^(?<name>[\w_]+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>([^-]+-?)+).tar", tarball_filename)
+    tarball_filename_match = match(r"^(.*/)?(?<name>[\w_]+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>([^-]+-?)+).tar", tarball_filename)
     if isnothing(tarball_filename_match)
         @warn "Tarball filename does not match expected pattern: $(tarball_filename)"
         return false
     end
     try
+        if platform isa AnyPlatform
+            return tarball_filename_match[:platform_triplet] == "any"
+        end
         tarball_filename_platform = parse(Platform, tarball_filename_match[:platform_triplet])
         return tarball_filename_platform == platform
     catch
