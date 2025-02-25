@@ -1174,6 +1174,9 @@ function filter_main_tarball(tarball_filename, platform)
         return false
     end
     try
+        if platform isa AnyPlatform
+            return tarball_filename_match[:platform_triplet] == "any"
+        end
         tarball_filename_platform = parse(Platform, tarball_filename_match[:platform_triplet])
         return tarball_filename_platform == platform
     catch
