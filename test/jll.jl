@@ -45,12 +45,15 @@ module TestJLL end
 
     @testset "filter_main_tarball" begin
         @test !BinaryBuilder.filter_main_tarball("", AnyPlatform())
-        @test BinaryBuilder.filter_main_tarball("Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
-        @test BinaryBuilder.filter_main_tarball("Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
-        @test BinaryBuilder.filter_main_tarball("Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
+        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.any.tar.gz", AnyPlatform())
+        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"))
+        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
+        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
+        @test BinaryBuilder.filter_main_tarball("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
+        @test BinaryBuilder.filter_main_tarball("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
+        @test BinaryBuilder.filter_main_tarball("F/Foo/Foo@1.2/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
     end
 
     @testset "get_github_author_login" begin
