@@ -862,6 +862,8 @@ end
                     echo 'int wrong() { return 0; }' | cc -shared -fPIC -o "libwrong.${dlext}" -x c -
                     echo 'int right() { return 0; }' | cc -shared -fPIC -o "libright.${dlext}" -x c -
                     cp "libwrong.${dlext}" "libnonote.${dlext}"
+                    # We only check for a branded ELF note when the OS/ABI is 0
+                    elfedit --output-osabi=none "libnonote.${dlext}"
                     strip --remove-section=.note.tag "libnonote.${dlext}"
                     mv "libwrong.${dlext}" "libbadosabi.${dlext}"
                     # NetBSD runs anywhere, which implies that anything that runs is for NetBSD, right?
