@@ -2,7 +2,7 @@ using ObjectFile.ELF
 
 function os_from_elf_note(oh::ELFHandle)
     for section in Sections(oh)
-        section_handle(section) == ELF.SHT_NOTE || continue
+        section_type(section) == ELF.SHT_NOTE || continue
         seek(oh, section_offset(section))
         name_length = read(oh, UInt32)
         iszero(name_length) && continue

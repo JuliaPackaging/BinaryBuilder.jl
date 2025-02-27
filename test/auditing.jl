@@ -846,7 +846,7 @@ end
     @testset "OS/ABI: $platform" for platform in [Platform("x86_64", "freebsd"),
                                                   Platform("aarch64", "freebsd")]
         mktempdir() do build_path
-            build_output_meta = @test_logs (:warn, r"libwrong.so has an ELF header OS/ABI value that is not set to FreeBSD") match_mode=:any begin
+            build_output_meta = @test_logs (:warn, r"Skipping binary analysis of lib/lib(nonote|badosabi)\.so \(incorrect platform\)") match_mode=:any begin
                 autobuild(
                     build_path,
                     "OSABI",
@@ -858,16 +858,20 @@ end
                     apk update
                     apk add binutils
                     mkdir -p "${libdir}"
-                    echo 'int wrong() { return 0; }' | cc -shared -fPIC -o "${libdir}/libwrong.${dlext}" -x c -
-                    echo 'int right() { return 0; }' | cc -shared -fPIC -o "${libdir}/libright.${dlext}" -x c -
+                    cd "${libdir}"
+                    echo 'int wrong() { return 0; }' | cc -shared -fPIC -o "libwrong.${dlext}" -x c -
+                    echo 'int right() { return 0; }' | cc -shared -fPIC -o "libright.${dlext}" -x c -
+                    cp "libwrong.${dlext}" "libnonote.${dlext}"
+                    strip --remove-section=.note.tag "libnonote.${dlext}"
+                    mv "libwrong.${dlext}" "libbadosabi.${dlext}"
                     # NetBSD runs anywhere, which implies that anything that runs is for NetBSD, right?
-                    elfedit --output-osabi=NetBSD "${libdir}/libwrong.${dlext}"
-                    strip --remove-section=.note.tag "${libdir}/libwrong.${dlext}"
+                    elfedit --output-osabi=NetBSD "libbadosabi.${dlext}"
                     """,
                     [platform],
                     # Ensure our library product is built
                     [
-                        LibraryProduct("libwrong", :libwrong),
+                        LibraryProduct("libbadosabi", :libbadosabi),
+                        LibraryProduct("libnonote", :libnonote),
                         LibraryProduct("libright", :libright),
                     ],
                     # No dependencies
@@ -891,13 +895,24 @@ end
                 @test is_for_platform(oh, platform)
                 @test check_os_abi(oh, platform)
             end
-            readmeta(joinpath(testdir, "lib", "libwrong.so")) do ohs
+            readmeta(joinpath(testdir, "lib", "libnonote.so")) do ohs
                 oh = only(ohs)
                 @test !is_for_platform(oh, platform)
                 @test !check_os_abi(oh, platform)
+                @test_logs((:warn, r"libnonote.so does not have a FreeBSD-branded ELF note"),
+                           match_mode=:any, check_os_abi(oh, platform; verbose=true))
+            end
+            readmeta(joinpath(testdir, "lib", "libbadosabi.so")) do ohs
+                oh = only(ohs)
+                @test !is_for_platform(oh, platform)
+                @test !check_os_abi(oh, platform)
+                @test_logs((:warn, r"libbadosabi.so has an ELF header OS/ABI value that is not set to FreeBSD"),
+                           match_mode=:any, check_os_abi(oh, platform; verbose=true))
             end
             # Only audit the library we didn't mess with in the recipe
-            rm(joinpath(testdir, "lib", "libwrong.so"))
+            for bad in ("nonote", "badosabi")
+                rm(joinpath(testdir, "lib", "lib$bad.so"))
+            end
             @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
         end
     end
