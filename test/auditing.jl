@@ -862,8 +862,8 @@ end
                     echo 'int right() { return 0; }' | cc -shared -fPIC -o "${libdir}/libright.${dlext}" -x c -
                     # NetBSD runs anywhere, which implies that anything that runs is for NetBSD, right?
                     elfedit --output-osabi=NetBSD "${libdir}/libwrong.${dlext}"
+                    strip --remove-section=.note.tag "${libdir}/libwrong.${dlext}"
                     """,
-                    # Build for Linux armv7l hard-float
                     [platform],
                     # Ensure our library product is built
                     [
@@ -886,11 +886,13 @@ end
             testdir = joinpath(build_path, "testdir")
             mkdir(testdir)
             unpack(tarball_path, testdir)
-            readmeta(joinpath(testdir, "lib", "libright.so")) do oh
+            readmeta(joinpath(testdir, "lib", "libright.so")) do ohs
+                oh = only(ohs)
                 @test is_for_platform(oh, platform)
                 @test check_os_abi(oh, platform)
             end
-            readmeta(joinpath(testdir, "lib", "libwrong.so")) do oh
+            readmeta(joinpath(testdir, "lib", "libwrong.so")) do ohs
+                oh = only(ohs)
                 @test !is_for_platform(oh, platform)
                 @test !check_os_abi(oh, platform)
             end
