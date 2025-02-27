@@ -855,11 +855,13 @@ end
                     FileSource[],
                     # Build a library with a mismatched OS/ABI in the ELF header
                     raw"""
+                    apk update
+                    apk add binutils
                     mkdir -p "${libdir}"
                     echo 'int wrong() { return 0; }' | cc -shared -fPIC -o "${libdir}/libwrong.${dlext}" -x c -
                     echo 'int right() { return 0; }' | cc -shared -fPIC -o "${libdir}/libright.${dlext}" -x c -
                     # NetBSD runs anywhere, which implies that anything that runs is for NetBSD, right?
-                    patchelf --set-os-abi 2 "${libdir}/libwrong.${dlext}"
+                    elfedit --output-osabi=NetBSD "${libdir}/libwrong.${dlext}"
                     """,
                     # Build for Linux armv7l hard-float
                     [platform],
