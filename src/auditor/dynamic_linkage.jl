@@ -1,6 +1,31 @@
 using ObjectFile.ELF
 using Patchelf_jll: patchelf
 
+function os_from_elf_note(oh::ELFHandle)
+    for section in Sections(oh)
+        section_type(section) == ELF.SHT_NOTE || continue
+        seek(oh, section_offset(section))
+        name_length = read(oh, UInt32)
+        iszero(name_length) && continue
+        descriptor_length = read(oh, UInt32)
+        note_type = read(oh, UInt32)
+        name = String(read(oh, name_length - 1))  # skip trailing NUL
+        if note_type == 1
+            # Technically it's part of the Linux specification that any executable should
+            # have an ELF note with type 1, name GNU, and descriptor length ≥4, but in
+            # practice I haven't observed that consistently, especially on musl. So for
+            # now, only bother checking FreeBSD, which uses an ELF note rather than OS/ABI
+            # to identify itself on AArch64 and RISC-V.
+            if name == "FreeBSD" && descriptor_length == 4
+                return name
+            end
+        end
+    end
+    return nothing
+end
+
+os_from_elf_note(::ObjectHandle) = nothing
+
 """
     platform_for_object(oh::ObjectHandle)
 
@@ -41,7 +66,9 @@ function platform_for_object(oh::ObjectHandle)
             end
         end
 
-        if oh.ei.osabi == ELF.ELFOSABI_LINUX || oh.ei.osabi == ELF.ELFOSABI_NONE
+        if oh.ei.osabi == ELF.ELFOSABI_NONE
+            return Platform(arch, os_from_elf_note(oh) == "FreeBSD" ? "freebsd" : "linux")
+        elseif oh.ei.osabi == ELF.ELFOSABI_LINUX
             return Platform(arch, "linux")
         elseif oh.ei.osabi == ELF.ELFOSABI_FREEBSD
             return Platform(arch, "freebsd")
@@ -109,6 +136,13 @@ function is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
                 end
             else
                 error("Unknown OS ABI type $(typeof(platform))")
+            end
+        else
+            # If no OSABI, check whether it has a matching ELF note
+            if Sys.isfreebsd(platform)
+                if os_from_elf_note(h) != "FreeBSD"
+                    return false
+                end
             end
         end
         # Check that the ELF arch matches our own
