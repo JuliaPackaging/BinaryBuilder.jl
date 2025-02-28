@@ -8,7 +8,7 @@ function check_os_abi(oh::ObjectHandle, p::AbstractPlatform, rest...; verbose::B
         # On AArch64 and RISC-V, FreeBSD uses an ELF note section to identify itself rather
         # than OS/ABI in the ELF header. In that case, the OS/ABI will be generic Unix (NONE).
         # See https://bugs.freebsd.org/bugzilla/show_bug.cgi?id=252490 and
-        # https://github.com/freebsd/freebsd-src/blob/main/lib/csu/common/crtbrand.S
+        # https://github.com/freebsd/freebsd-src/blob/d3c4b002d1fd54ac69c1714e208051867ee56dc4/lib/csu/common/crtbrand.S
         if oh.ei.osabi == ELF.ELFOSABI_NONE
             if os_from_elf_note(oh) != "FreeBSD"
                 if verbose
