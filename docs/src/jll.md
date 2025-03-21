@@ -166,13 +166,16 @@ defines the following variables:
 
 An [`ExecutableProduct`](@ref) is a binary executable that can be run on the
 current platform.  If, for example, the `ExecutableProduct` has been called
-`mungify_exe`, the wrapper defines an exported function named `mungify_exe` that
-should run by the user in one the following ways:
+`mungify_exe`, the wrapper defines an exported function named `mungify_exe`.
+To run that the recommended way is the following:
 
 ```julia
-# Only available in Julia v1.6+
 run(`$(mungify_exe()) $arguments`)
 ```
+
+However, this is only available in Julia v1.6 and later. If you really must
+support older Julia versions, you can also use the following syntax, which
+however is not thread-safe and generally less flexible.
 
 ```julia
 mungify_exe() do exe
@@ -186,9 +189,6 @@ with the
 syntax you are defining the name of the variable that will be used to actually
 call the binary with
 [`run`](https://docs.julialang.org/en/v1/base/base/#Base.run).
-
-The former form is only available when using Julia v1.6, but should be
-preferred going forward, as it is thread-safe and generally more flexible.
 
 A common point of confusion about `ExecutableProduct`s in JLL packages is why
 these function wrappers are needed: while in principle you could run the
