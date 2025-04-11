@@ -460,7 +460,12 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
             end
             return rp
         end
-        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
+        add_rpath = rp -> begin
+            # Remove paths starting with `/workspace`: they will not work outisde of the
+            # build environment and only create noise when debugging.
+            startswith(rp, "/workspace") && return
+            `$install_name_tool -add_rpath $(rp) $(rel_path)`
+        end
         relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
     elseif Sys.islinux(platform) || Sys.isbsd(platform)
         normalize_rpath = rp -> begin
