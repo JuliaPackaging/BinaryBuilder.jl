@@ -693,7 +693,7 @@ end
             libfoo_rpaths = Auditor._rpaths(joinpath(testdir, "lib", "libfoo.$(platform_dlext(platform))"))
             @test (Sys.isapple(platform) ? "@loader_path" : "\$ORIGIN") * "/qux" in libfoo_rpaths
             # Currently we don't filter out absolute rpaths for macOS libraries, no good.
-            @test length(libfoo_rpaths) == 1 broken=Sys.isapple(platform)
+            @test length(libfoo_rpaths) == 1
         end
     end
 
