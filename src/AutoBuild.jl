@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json
+export build_tarballs, autobuild, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using TOML, Dates, UUIDs
@@ -378,6 +378,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         )
     end
 
+    products_dir = joinpath(pwd(), "products")
     if deploy_jll
         if verbose
             @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
@@ -386,8 +387,13 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # For deploy keep only runtime  dependencies.
         dependencies = [dep for dep in dependencies if is_runtime_dependency(dep)]
 
+
         # The location the binaries will be available from
-        bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
+        bin_path = if deploy_jll_repo == "local"
+            "file://$(products_dir)"
+        else
+            "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
+        end
 
         if !skip_build
             # Build JLL package based on output of autobuild
@@ -396,7 +402,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         else
             # Rebuild output meta data from the information we have here
             rebuild_jll_package(src_name, build_version, sources, platforms, products, dependencies,
-                                joinpath(pwd(), "products"), bin_path;
+                                products_dir, bin_path;
                                 code_dir, verbose, from_scratch=false,
                                 julia_compat, extra_kwargs...)
         end
@@ -418,7 +424,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
         end
-        upload_to_github_releases(deploy_bin_repo, tag, joinpath(pwd(), "products"); verbose=verbose)
+        upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
     end
 
     return build_output_meta
@@ -1003,6 +1009,7 @@ function autobuild(dir::AbstractString,
             # Do not include logs into the main tarball
             filter=exclude_logs,
         )
+
         # Create another tarball only for the logs
         package(
             dest_prefix,
