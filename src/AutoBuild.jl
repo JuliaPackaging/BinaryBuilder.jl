@@ -588,7 +588,7 @@ yggdrasil_head() = get(ENV, "BUILDKITE_COMMIT", "")
 
 function register_jll(name, build_version, dependencies, julia_compat;
                       deploy_repo="JuliaBinaryWrappers/$(namejll(name)).jl",
-                      code_dir=_code_dir(name),
+                      code_dir=codedir(name),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
