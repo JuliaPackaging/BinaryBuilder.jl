@@ -1,32 +1,3 @@
-@testset "Local libfoo" begin
-    mktempdir() do dn
-        let saved_devdir = BinaryBuilder.devdir[]
-            BinaryBuilder.devdir[] = dn  # avoid polluting Pkg.devdir() with our test files
-            mktempdir() do build_path
-                name = "libfoo"
-                build_output_meta = build_tarballs(
-                    ["--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
-                    libfoo_make_script, [platform], libfoo_products, Dependency[];
-                    skip_audit = true,
-                )
-                artifacts_toml = TOML.parsefile(joinpath(BinaryBuilder.codedir(name), "Artifacts.toml"))
-                testdir = joinpath(build_path, "testdir")
-                mkdir(testdir)
-                for artifact in artifacts_toml[name]
-                    for dl in artifact["download"]
-                        url = dl["url"]
-                        path = joinpath(build_path, basename(url))
-                        Downloads.download(url, path)
-                        unpack(path, testdir)
-                    end
-                end
-                @test isfile(joinpath(Prefix(testdir), "share", "licenses", "libfoo", "LICENSE.md"))  # libfoo_make_script
-            end
-            BinaryBuilder.devdir[] = String(saved_devdir)  # restore default value
-        end
-    end
-end
-
 @testset "Building libfoo" begin
 	# Test building with both `make` and `cmake`, using directory and git repository
     for script in (libfoo_make_script, libfoo_cmake_script, libfoo_meson_script)
@@ -114,6 +85,35 @@ end
                 @test ccall(foo, Cdouble, (Cdouble, Cdouble), 2.2, 1.1) ≈ result
                 Libdl.dlclose(libfoo)
             end
+        end
+    end
+end
+
+@testset "Local libfoo" begin
+    mktempdir() do dn
+        let saved_devdir = BinaryBuilder.devdir[]
+            BinaryBuilder.devdir[] = dn  # avoid polluting Pkg.devdir() with our test files
+            mktempdir() do build_path
+                name = "libfoo"
+                build_output_meta = build_tarballs(
+                    ["--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
+                    libfoo_make_script, [platform], libfoo_products, Dependency[];
+                    skip_audit = true,
+                )
+                artifacts_toml = TOML.parsefile(joinpath(BinaryBuilder.codedir(name), "Artifacts.toml"))
+                testdir = joinpath(build_path, "testdir")
+                mkdir(testdir)
+                for artifact in artifacts_toml[name]
+                    for dl in artifact["download"]
+                        url = dl["url"]
+                        path = joinpath(build_path, basename(url))
+                        Downloads.download(url, path)
+                        unpack(path, testdir)
+                    end
+                end
+                @test isfile(joinpath(Prefix(testdir), "share", "licenses", "libfoo", "LICENSE.md"))  # libfoo_make_script
+            end
+            BinaryBuilder.devdir[] = String(saved_devdir)  # restore default value
         end
     end
 end
