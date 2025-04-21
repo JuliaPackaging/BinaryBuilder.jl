@@ -4,7 +4,7 @@
         mktempdir() do build_path
             name = "libfoo"
             build_output_meta = build_tarballs(
-                ["--verbose", "--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
+                ["--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
                 libfoo_make_script, [platform], libfoo_products, Dependency[];
                 skip_audit = true,
             )
@@ -14,9 +14,9 @@
             for artifact in artifacts_toml[name]
                 for dl in artifact["download"]
                     url = dl["url"]
-                    tarball_path = joinpath(build_path, basename(url))
-                    Downloads.download(url, tarball_path)
-                    unpack(tarball_path, testdir)
+                    path = joinpath(build_path, basename(url))
+                    Downloads.download(url, path)
+                    unpack(path, testdir)
                 end
             end
             @test isfile(joinpath(Prefix(testdir), "share", "licenses", "libfoo", "LICENSE.md"))  # libfoo_make_script
