@@ -1,28 +1,30 @@
 @testset "Local libfoo" begin
-    mktempdir() do dev_dir
-        BinaryBuilder.devdir[] = dev_dir  # avoid polluting Pkg.devdir()
-        mktempdir() do build_path
-            name = "libfoo"
-            build_output_meta = build_tarballs(
-                ["--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
-                libfoo_make_script, [platform], libfoo_products, Dependency[];
-                skip_audit = true,
-            )
-            artifacts_toml = TOML.parsefile(joinpath(BinaryBuilder.codedir(name), "Artifacts.toml"))
-            testdir = joinpath(build_path, "testdir")
-            mkdir(testdir)
-            for artifact in artifacts_toml[name]
-                for dl in artifact["download"]
-                    url = dl["url"]
-                    path = joinpath(build_path, basename(url))
-                    Downloads.download(url, path)
-                    unpack(path, testdir)
+    mktempdir() do dn
+        let saved_devdir = BinaryBuilder.devdir[]
+            BinaryBuilder.devdir[] = dn  # avoid polluting Pkg.devdir() with our test files
+            mktempdir() do build_path
+                name = "libfoo"
+                build_output_meta = build_tarballs(
+                    ["--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
+                    libfoo_make_script, [platform], libfoo_products, Dependency[];
+                    skip_audit = true,
+                )
+                artifacts_toml = TOML.parsefile(joinpath(BinaryBuilder.codedir(name), "Artifacts.toml"))
+                testdir = joinpath(build_path, "testdir")
+                mkdir(testdir)
+                for artifact in artifacts_toml[name]
+                    for dl in artifact["download"]
+                        url = dl["url"]
+                        path = joinpath(build_path, basename(url))
+                        Downloads.download(url, path)
+                        unpack(path, testdir)
+                    end
                 end
+                @test isfile(joinpath(Prefix(testdir), "share", "licenses", "libfoo", "LICENSE.md"))  # libfoo_make_script
             end
-            @test isfile(joinpath(Prefix(testdir), "share", "licenses", "libfoo", "LICENSE.md"))  # libfoo_make_script
+            BinaryBuilder.devdir[] = String(saved_devdir)  # restore default value
         end
     end
-    BinaryBuilder.devdir[] = Pkg.devdir()  # restore
 end
 
 @testset "Building libfoo" begin
