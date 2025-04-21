@@ -1,3 +1,30 @@
+@testset "Local libfoo" begin
+    mktempdir() do dev_dir
+        BinaryBuilder.devdir[] = dev_dir  # avoid polluting Pkg.devdir()
+        mktempdir() do build_path
+            name = "libfoo"
+            build_output_meta = build_tarballs(
+                ["--verbose", "--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
+                libfoo_make_script, [platform], libfoo_products, Dependency[];
+                skip_audit = true,
+            )
+            artifacts_toml = TOML.parsefile(joinpath(BinaryBuilder.codedir(name), "Artifacts.toml"))
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            for artifact in artifacts_toml[name]
+                for dl in artifact["download"]
+                    url = dl["url"]
+                    tarball_path = joinpath(build_path, basename(url))
+                    Downloads.download(url, tarball_path)
+                    unpack(tarball_path, testdir)
+                end
+            end
+            @test isfile(joinpath(Prefix(testdir), "share", "licenses", "libfoo", "LICENSE.md"))  # libfoo_make_script
+        end
+    end
+    BinaryBuilder.devdir[] = Pkg.devdir()  # restore
+end
+
 @testset "Building libfoo" begin
 	# Test building with both `make` and `cmake`, using directory and git repository
     for script in (libfoo_make_script, libfoo_cmake_script, libfoo_meson_script)

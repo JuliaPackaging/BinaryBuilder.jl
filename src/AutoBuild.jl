@@ -43,6 +43,10 @@ function Base.show(io::IO, t::BuildTimer)
     end
 end
 
+const devdir = Ref(Pkg.devdir())
+
+codedir(name) = joinpath(devdir[], "$(name)_jll")
+
 exclude_logs(_, f) = f != "logs"
 only_logs(_, f)    = f == "logs"
 
@@ -266,7 +270,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     skip_build = check_flag!(ARGS, "--skip-build")
 
     if deploy_bin || deploy_jll
-        code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
+        code_dir = codedir(src_name)
 
         # Shove them into `kwargs` so that we are conditionally passing them along
         kwargs = (; kwargs..., code_dir = code_dir)
@@ -584,7 +588,7 @@ yggdrasil_head() = get(ENV, "BUILDKITE_COMMIT", "")
 
 function register_jll(name, build_version, dependencies, julia_compat;
                       deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
-                      code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
+                      code_dir=_code_dir(name),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
@@ -1195,7 +1199,7 @@ end
 function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
-                             code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
+                             code_dir::String = codedir(name),
                              verbose::Bool = false, from_scratch::Bool = true,
                              kwargs...)
     # We're going to recreate "build_output_meta"
@@ -1299,6 +1303,7 @@ function build_jll_package(src_name::String,
                            )
     # Make way, for prince artifacti
     mkpath(joinpath(code_dir, "src", "wrappers"))
+    @show code_dir
 
     # Drop build dependencies
     dependencies = [d for d in dependencies if is_runtime_dependency(d)]
@@ -1733,7 +1738,7 @@ function build_jll_package(src_name::String,
 end
 
 function push_jll_package(name, build_version;
-                          code_dir = joinpath(Pkg.devdir(), "$(name)_jll"),
+                          code_dir = codedir(name),
                           deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
                           gh_auth = Wizard.github_auth(;allow_anonymous=false))
     # Next, push up the wrapper code repository
