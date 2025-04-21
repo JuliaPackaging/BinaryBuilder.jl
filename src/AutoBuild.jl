@@ -1008,7 +1008,6 @@ function autobuild(dir::AbstractString,
             # Do not include logs into the main tarball
             filter=exclude_logs,
         )
-
         # Create another tarball only for the logs
         package(
             dest_prefix,
@@ -1595,7 +1594,7 @@ function build_jll_package(src_name::String,
         import JLLWrappers
 
         JLLWrappers.@generate_main_file_header($(repr(src_name)))
-        JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid("$(namejll(src_name))"))))
+        JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid(namejll(src_name)))))
         end  # module $(namejll(src_name))
         """)
     end
