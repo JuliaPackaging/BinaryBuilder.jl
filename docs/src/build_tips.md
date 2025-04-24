@@ -130,6 +130,7 @@ Example of packages using Rust:
  ## C builds
 
  If your library has no build system like Make, CMake, Meson, or Autoconf, you may need to use the C compiler directly.  The C compiler is stored in the `CC` environment variable, and you can direct output to `libdir` (shared libraries) and `bindir` (executables).
+As a high-level example:
 
  ```sh
 # this assumes you are operating out of a Git source named `hello`
@@ -144,13 +145,14 @@ This is simply compiling a single shared library, `libhello`, from `hello.c`.
 ## C++ builds
 
 Similarly to C builds, sometimes your C++ libraries will not have a build system associated with them.  The C++ compiler is stored in the `CXX` environment variable.
+As a high-level example:
 
 ```sh
 # this assumes you are operating out of a Git source named `hello`
 # adjust your `cd` appropriately
 cd $WORKSPACE/srcdir/hello
 mkdir -p ${libdir}
-$CXX -shared -std=c++11 -O3 -fPIC -o ${libdir}/libhello.${dlext} src/hello.cpp # you may want to edit the `std` flag, for exampLE
+$CXX -shared -std=c++11 -O3 -fPIC -o ${libdir}/libhello.${dlext} src/hello.cpp # you may want to edit the `std` flag, for example
 ```
 
 This is simply compiling a single shared library, `libhello`, from `hello.cpp`.
