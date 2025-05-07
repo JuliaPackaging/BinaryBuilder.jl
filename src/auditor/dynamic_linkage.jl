@@ -302,6 +302,7 @@ function should_ignore_lib(lib, ::COFFHandle, platform::AbstractPlatform)
         "ntdll.dll",
         "msvcrt.dll",
         "kernel32.dll",
+        "version.dll",
         "user32.dll",
         "shell32.dll",
         "shlwapi.dll",
@@ -345,7 +346,8 @@ function should_ignore_lib(lib, ::COFFHandle, platform::AbstractPlatform)
         # This one needs some special attention, eventually
         "libgomp-1.dll",
     ]
-    return lowercase(basename(lib)) in ignore_libs
+    libname = lowercase(basename(lib))
+    return libname in ignore_libs || startswith(libname, "api-ms-win-")
 end
 
 # Determine whether a library is a "default" library or not, if it is we need
