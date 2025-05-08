@@ -480,3 +480,57 @@ end
         )
     end
 end
+
+@testset "Different compiler versions" begin
+    platforms = [Platform("x86_64", "linux"),
+                 Platform("aarch64", "linux")]
+
+    # Use GCC 5 on FreeBSD and GCC 10 on Linux
+    c = preferred_platform_compiler(platforms, v"5")
+    set_preferred_compiler_version!(c, v"10", p -> arch(p) == "aarch64" )
+
+    mktempdir() do build_path
+        build_output_meta = autobuild(
+            build_path,
+            "libfoo",
+            v"1.0.0",
+            [DirectorySource(build_tests_dir)],
+            # Include a GCC version check before we build
+            raw"""
+            export ver=$(cc -dumpversion)
+            export shortver=${ver%.*.*}
+
+            echo "Compiler version: $shortver"
+
+            if [[ "${target}" == aarch64-* ]]; then
+                if [[ $shortver == "10" ]]; then
+                    # This is what we want
+                    echo "Success! GCC version correct"
+                else
+                    # This is not what we want
+                    exit 1
+                fi
+            else
+                if [[ $shortver == "5" ]]; then
+                    # This is what we want
+                    echo "Success! GCC version correct"
+                else
+                    # This is not what we want
+                    exit 1
+                fi
+            fi
+            """*libfoo_make_script,
+            platforms,
+            libfoo_products,
+            # No dependencies
+            Dependency[];
+            # Don't do audit passes
+            skip_audit=true,
+            # Make it verbose to see the results
+            verbose=true,
+            # Specify the per-platform GCC versions
+            preferred_gcc_version=c,
+        )
+        @test length(keys(build_output_meta)) == length(platforms)
+    end
+end
