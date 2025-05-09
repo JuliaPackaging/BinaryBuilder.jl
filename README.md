@@ -32,4 +32,4 @@ Building binary packages is a pain.  `BinaryBuilder` follows a philosophy that i
 
 All packages are cross compiled. If a package does not support cross compilation, we patch the package or, in extreme cases, rebundle prebuilt executables.
 
-The cross-compilation environment that we use is a homegrown Linux environment with many different compilers built for it, including various versions of `gcc`, `clang`, `gfortran`, `rustc` and `go`.  You can read more about this in [the `RootFS.md` file](https://github.com/JuliaPackaging/Yggdrasil/blob/master/RootFS.md) within the Yggdrasil repository.
+The cross-compilation environment that we use is a homegrown Linux environment with many different compilers built for it, including various versions of `gcc`, `clang`, `gfortran`, `rustc`, `go`, and `ocaml`.  You can read more about this in [the `RootFS.md` file](https://github.com/JuliaPackaging/Yggdrasil/blob/master/RootFS.md) within the Yggdrasil repository.
