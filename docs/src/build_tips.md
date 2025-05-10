@@ -127,6 +127,12 @@ Example of packages using Rust:
 
 	The Rust toolchain currently used does not work with the `i686-w64-mingw32` (32-bit Windows) platform.
 
+## OCaml builds
+
+The OCaml toolchain provided by BinaryBuilder can be requested by adding `:ocaml` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :ocaml]`, and a specific version of the toolchain can be selected by adding the `preferred_ocaml_version` keyword argument to [`build_tarballs`](@ref).
+
+The OCaml toolchain provided by BinaryBuilder automatically selects the appropriate target.
+
 ## Editing files in the wizard
 
 In the wizard, the `vim` editor is available for editing files. But, it doesn't leave any record in the build script. One generally needs to provide patch files or use something like `sed`. If a file needs patching, we suggest using `git` to add the entire worktree to a new repo, make the changes you need, then use `git diff -p` to output a patch that can be included alongside your build recipe.
