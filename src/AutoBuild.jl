@@ -1561,7 +1561,7 @@ function build_jll_package(src_name::String,
               """)
     else
         # If no augmentation exists, ensure that the pkg_dir get's removed again.
-        rm(pkg_dir, recursive=true), force=true
+        Base.rm(pkg_dir, recursive=true, force=true)
     end
 
     # Generate target-demuxing main source file.
