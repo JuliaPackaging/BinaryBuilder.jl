@@ -1559,6 +1559,9 @@ function build_jll_package(src_name::String,
               # Output the result to `stdout` as a TOML dictionary
               TOML.print(stdout, artifacts)
               """)
+    else
+        # If no augmentation exists, ensure that the pkg_dir gets removed again.
+        Base.rm(pkg_dir, recursive=true, force=true)
     end
 
     # Generate target-demuxing main source file.
