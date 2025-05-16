@@ -1560,7 +1560,7 @@ function build_jll_package(src_name::String,
               TOML.print(stdout, artifacts)
               """)
     else
-        # If no augmentation exists, ensure that the pkg_dir get's removed again.
+        # If no augmentation exists, ensure that the pkg_dir gets removed again.
         Base.rm(pkg_dir, recursive=true, force=true)
     end
 
