@@ -164,7 +164,7 @@ end
             lazy_artifacts = merged["lazy_artifacts"]
             build_version = BinaryBuilder.get_next_wrapper_version(name, version)
             repo = "JuliaBinaryWrappers/$(name)_jll.jl"
-            code_dir = joinpath(Pkg.devdir(), "$(name)_jll")
+            code_dir = BinaryBuilder.codedir(name)
             download_dir = joinpath(build_path, "products")
 
             # Skip init of the remote repository
