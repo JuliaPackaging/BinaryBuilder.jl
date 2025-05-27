@@ -4,6 +4,8 @@ import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
 
+const DO_DEBUG=false
+
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
     pty = VT100.create_pty(false)
@@ -16,8 +18,7 @@ function with_wizard_output(f::Function, state, step_func::Function)
         while isopen(pty.master)
             z = String(readavailable(pty.master))
 
-            # Un-comment this to figure out what on earth is going wrong
-            # print(z)
+            DO_DEBUG && print(z)
             write(out_buff, z)
         end
     end
@@ -238,13 +239,16 @@ end
         call_response(ins, outs, "Do you require any (binary) dependencies", "Y")
 
         call_response(ins, outs, "Enter JLL package name:", "ghr_jll")
+        call_response(ins, outs, "What kind of dependency is this?", "\r"; newline=false)
         call_response(ins, outs, "Would you like to provide additional dependencies?", "Y")
         # Test auto-JLL suffixing
         call_response(ins, outs, "Enter JLL package name:", "Zlib")
+        call_response(ins, outs, "What kind of dependency is this?", "\r"; newline=false)
         call_response(ins, outs, "Would you like to provide additional dependencies?", "Y")
 
         # Test typo detection
         call_response(ins, outs, "Enter JLL package name:", "iso_codez_jll")
+        call_response(ins, outs, "What kind of dependency is this?", "\r"; newline=false)
         call_response(ins, outs, "Unable to resolve", "N")
 
         call_response(ins, outs, "Enter a name for this project", "check_deps")

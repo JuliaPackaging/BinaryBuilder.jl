@@ -58,7 +58,7 @@ function print_build_tarballs(io::IO, state::WizardState)
 
     if length(state.dependencies) >= 1
         function psrepr(ps)
-            s = "\n    Dependency(PackageSpec(name=\"$(getname(ps))\""
+            s = "\n    $(typeof(ps))(PackageSpec(name=\"$(getname(ps))\""
             if !isnothing(getpkg(ps).uuid)
                 s *= ", uuid=\"$(getpkg(ps).uuid)\""
             end
