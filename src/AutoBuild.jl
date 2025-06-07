@@ -1413,9 +1413,8 @@ function build_jll_package(src_name::String,
             """)
         end
     end
-
+    pkg_dir = joinpath(code_dir, ".pkg")
     if !isempty(augment_platform_block)
-        pkg_dir = joinpath(code_dir, ".pkg")
         !ispath(pkg_dir) && mkdir(pkg_dir)
         write(joinpath(pkg_dir, "platform_augmentation.jl"), augment_platform_block)
 
