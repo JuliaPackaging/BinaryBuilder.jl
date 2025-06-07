@@ -38,3 +38,40 @@ function enable_azure_logging()
         AzureSinkLogger(),
     ))
 end
+
+struct BuildkiteLogger <: Logging.AbstractLogger
+end
+
+function annotate(annotation; context="default", style="info", append=true)
+    @assert style in ("success", "info", "warning", "error")
+    append = append ? `--append` : ``
+    cmd = `buildkite-agent annotate --style $(style) --context $(context) $(append)`
+    open(cmd, stdout, write=true) do io
+        write(io, annotation)
+    end
+end
+
+function Logging.handle_message(logger::BuildkiteLogger, args...; kwargs...)
+    #Make it a named tuple for easier working
+    log = LoggingExtras.handle_message_args(args...)
+
+    # Buildkite calls it `style` not level`, and `warning` not `warn`:
+    log[:level]
+    stylemap = Dict(Logging.Error => "error", Logging.Warn => "warning")
+    style = stylemap[log[:level]]
+
+    # TODO pretty rendering of properties
+    annotate(log.message; context="BinaryBuilder", style)
+    return nothing
+end
+Logging.shouldlog(::BuildkiteLogger, arg...) = true
+Logging.min_enabled_level(::BuildkiteLogger) = Logging.Warn
+Logging.catch_exceptions(::BuildkiteLogger) = true
+
+function enable_buildkite_logging()
+    # Tee-in BuildkiteLogger so that `@warn` and `@error` are printed out nicely
+     global_logger(TeeLogger(
+        global_logger(),
+        BuildkiteLogger(),
+    ))
+end
