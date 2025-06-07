@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json
+export build_tarballs, autobuild, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using TOML, Dates, UUIDs
@@ -42,6 +42,11 @@ function Base.show(io::IO, t::BuildTimer)
               )
     end
 end
+
+const devdir = Ref(Pkg.devdir())
+
+namejll(name::AbstractString) = name * "_jll"
+codedir(name::AbstractString) = joinpath(devdir[], namejll(name))
 
 exclude_logs(_, f) = f != "logs"
 only_logs(_, f)    = f == "logs"
@@ -233,9 +238,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     meta_json, meta_json_file = extract_flag!(ARGS, "--meta-json")
 
     # This sets whether we are going to deploy our binaries/wrapper code to GitHub releases
-    deploy, deploy_repo = extract_flag!(ARGS, "--deploy", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    deploy_bin, deploy_bin_repo = extract_flag!(ARGS, "--deploy-bin", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    deploy_jll, deploy_jll_repo = extract_flag!(ARGS, "--deploy-jll", "JuliaBinaryWrappers/$(src_name)_jll.jl")
+    deploy, deploy_repo = extract_flag!(ARGS, "--deploy", "JuliaBinaryWrappers/$(namejll(src_name)).jl")
+    deploy_bin, deploy_bin_repo = extract_flag!(ARGS, "--deploy-bin", "JuliaBinaryWrappers/$(namejll(src_name)).jl")
+    deploy_jll, deploy_jll_repo = extract_flag!(ARGS, "--deploy-jll", "JuliaBinaryWrappers/$(namejll(src_name)).jl")
 
     # Resolve deploy settings
     if deploy
@@ -266,7 +271,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     skip_build = check_flag!(ARGS, "--skip-build")
 
     if deploy_bin || deploy_jll
-        code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
+        code_dir = codedir(src_name)
 
         # Shove them into `kwargs` so that we are conditionally passing them along
         kwargs = (; kwargs..., code_dir = code_dir)
@@ -378,16 +383,22 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         )
     end
 
+    products_dir = joinpath(pwd(), "products")
     if deploy_jll
         if verbose
-            @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
+            @info("Committing and pushing $(namejll(src_name)).jl wrapper code version $(build_version)...")
         end
 
         # For deploy keep only runtime  dependencies.
         dependencies = [dep for dep in dependencies if is_runtime_dependency(dep)]
 
+
         # The location the binaries will be available from
-        bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
+        bin_path = if deploy_jll_repo == "local"
+            "file://$(products_dir)"
+        else
+            "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
+        end
 
         if !skip_build
             # Build JLL package based on output of autobuild
@@ -396,7 +407,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         else
             # Rebuild output meta data from the information we have here
             rebuild_jll_package(src_name, build_version, sources, platforms, products, dependencies,
-                                joinpath(pwd(), "products"), bin_path;
+                                products_dir, bin_path;
                                 code_dir, verbose, from_scratch=false,
                                 julia_compat, extra_kwargs...)
         end
@@ -418,7 +429,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
         end
-        upload_to_github_releases(deploy_bin_repo, tag, joinpath(pwd(), "products"); verbose=verbose)
+        upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
     end
 
     return build_output_meta
@@ -518,12 +529,11 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
     # Force-update the registry here, since we may have pushed a new version recently
     update_registry(devnull)
 
-    jll_name = "$(src_name)_jll"
-    uuid = jll_uuid(jll_name)
+    uuid = jll_uuid(namejll(src_name))
 
     # If it does, we need to bump the build number up to the next value
     build_number = UInt64(0)
-    if uuid in Pkg.Types.registered_uuids(ctx.registries, jll_name)
+    if uuid in Pkg.Types.registered_uuids(ctx.registries, namejll(src_name))
         # Collect all version numbers of the package across all registries.
         versions = VersionNumber[]
         for reg in ctx.registries
@@ -577,8 +587,8 @@ is_yggdrasil() = get(ENV, "YGGDRASIL", "false") == "true"
 yggdrasil_head() = get(ENV, "BUILDKITE_COMMIT", "")
 
 function register_jll(name, build_version, dependencies, julia_compat;
-                      deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
-                      code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
+                      deploy_repo="JuliaBinaryWrappers/$(namejll(name)).jl",
+                      code_dir=codedir(name),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
@@ -615,12 +625,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
         @error(reg_branch.metadata["error"])
     else
         upstream_registry_url = "https://github.com/JuliaRegistries/General"
-        name_jll = "$(name)_jll"
-        if _package_is_registered(upstream_registry_url, name_jll)
-            pr_title = "New version: $(name_jll) v$(build_version)"
-        else
-            pr_title = "New package: $(name_jll) v$(build_version)"
-        end
+        pr_title = "New $(_package_is_registered(upstream_registry_url, namejll(name)) ? "version" : "package"): $(namejll(name)) v$(build_version)"
         # Open pull request against JuliaRegistries/General
         body = """
         Autogenerated JLL package registration
@@ -1132,7 +1137,7 @@ function rebuild_jll_package(obj::Dict;
     end
     if download_dir === nothing
         download_dir = mktempdir()
-        repo = "$(gh_org)/$(obj["name"])_jll.jl"
+        repo = "$(gh_org)/$(namejll(obj["name"])).jl"
         tag = "$(obj["name"])-v$(build_version)"
         download_github_release(download_dir, repo, tag; verbose=verbose)
         upload_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
@@ -1188,7 +1193,7 @@ end
 function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
-                             code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
+                             code_dir::String = codedir(name),
                              verbose::Bool = false, from_scratch::Bool = true,
                              kwargs...)
     # We're going to recreate "build_output_meta"
@@ -1321,7 +1326,7 @@ function build_jll_package(src_name::String,
 
         # Generate the platform-specific wrapper code
         open(joinpath(code_dir, "src", "wrappers", "$(triplet(platform)).jl"), "w") do io
-            println(io, "# Autogenerated wrapper script for $(src_name)_jll for $(triplet(platform))")
+            println(io, "# Autogenerated wrapper script for $(namejll(src_name)) for $(triplet(platform))")
             if !isempty(products_info)
                 println(io, """
                 export $(join(sort(variable_name.(first.(collect(products_info)))), ", "))
@@ -1564,10 +1569,10 @@ function build_jll_package(src_name::String,
     end
 
     # Generate target-demuxing main source file.
-    open(joinpath(code_dir, "src", "$(src_name)_jll.jl"), "w") do io
+    open(joinpath(code_dir, "src", "$(namejll(src_name)).jl"), "w") do io
         print(io, """
         # Use baremodule to shave off a few KB from the serialized `.ji` file
-        baremodule $(src_name)_jll
+        baremodule $(namejll(src_name))
         using Base
         using Base: UUID
         """)
@@ -1591,8 +1596,8 @@ function build_jll_package(src_name::String,
         import JLLWrappers
 
         JLLWrappers.@generate_main_file_header($(repr(src_name)))
-        JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid("$(src_name)_jll"))))
-        end  # module $(src_name)_jll
+        JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid(namejll(src_name)))))
+        end  # module $(namejll(src_name))
         """)
     end
 
@@ -1621,10 +1626,10 @@ function build_jll_package(src_name::String,
     open(joinpath(code_dir, "README.md"), "w") do io
         println(io,
                 """
-                # `$(src_name)_jll.jl` (v$(build_version))
+                # `$(namejll(src_name)).jl` (v$(build_version))
                 """)
         if is_yggdrasil()
-            println(io, "[![deps](https://juliahub.com/docs/$(src_name)_jll/deps.svg)](https://juliahub.com/ui/Packages/General/$(src_name)_jll/)\n")
+            println(io, "[![deps](https://juliahub.com/docs/$(namejll(src_name))/deps.svg)](https://juliahub.com/ui/Packages/General/$(namejll(src_name))/)\n")
         end
         println(io, """
                 This is an autogenerated package constructed using [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/BinaryBuilder.jl).
@@ -1648,7 +1653,7 @@ function build_jll_package(src_name::String,
             println(io, """
                         ## Sources
 
-                        The tarballs for `$(src_name)_jll.jl` have been built from these sources:""")
+                        The tarballs for `$(namejll(src_name)).jl` have been built from these sources:""")
             println(io)
             print_source.(Ref(io), sources)
             println(io)
@@ -1656,7 +1661,7 @@ function build_jll_package(src_name::String,
         println(io, """
                     ## Platforms
 
-                    `$(src_name)_jll.jl` is available for the following platforms:
+                    `$(namejll(src_name)).jl` is available for the following platforms:
                     """)
         for p in sort(collect(platforms), by = triplet)
             println(io, "* `", p, "` (`", triplet(p), "`)")
@@ -1668,7 +1673,7 @@ function build_jll_package(src_name::String,
             println(io, """
                         ## Dependencies
 
-                        The following JLL packages are required by `$(src_name)_jll.jl`:""")
+                        The following JLL packages are required by `$(namejll(src_name)).jl`:""")
             println(io)
             print_jll.(Ref(io), sort(dependencies, by = getname))
         end
@@ -1728,13 +1733,13 @@ function build_jll_package(src_name::String,
 end
 
 function push_jll_package(name, build_version;
-                          code_dir = joinpath(Pkg.devdir(), "$(name)_jll"),
-                          deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
+                          code_dir = codedir(name),
+                          deploy_repo = "JuliaBinaryWrappers/$(namejll(name)).jl",
                           gh_auth = Wizard.github_auth(;allow_anonymous=false))
     # Next, push up the wrapper code repository
     wrapper_repo = LibGit2.GitRepo(code_dir)
     LibGit2.add!(wrapper_repo, ".")
-    commit = LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
+    commit = LibGit2.commit(wrapper_repo, "$(namejll(name)) build $(build_version)")
     Wizard.with_gitcreds("x-access-token", gh_auth.token) do creds
         refspecs = ["refs/heads/main"]
         # Fetch the remote repository, to have the relevant refspecs up to date.
@@ -1764,7 +1769,7 @@ end
 const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # For even more interesting historical reasons, we append an extra
 # "_jll" to the name of the new package before computing its UUID.
-jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
+jll_uuid(name) = bb_specific_uuid5(uuid_package, namejll(name))
 
 function find_uuid(ctx, pkg)
     if Pkg.Types.has_uuid(pkg)
@@ -1799,8 +1804,8 @@ function build_project_dict(name, version, dependencies::Array{<:AbstractDepende
 
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(
-        "name" => "$(name)_jll",
-        "uuid" => string(jll_uuid("$(name)_jll")),
+        "name" => namejll(name),
+        "uuid" => string(jll_uuid(namejll(name))),
         "version" => string(version),
         "deps" => Dict{String,Any}(),
         # We require at least Julia 1.3+, for Pkg.Artifacts support, but we only claim
