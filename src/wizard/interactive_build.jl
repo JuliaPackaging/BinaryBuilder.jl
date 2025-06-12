@@ -74,7 +74,7 @@ function step4(state::WizardState, ur::Runner, platform::AbstractPlatform,
         if choice == 1
             # Link dependencies into the prefix again
             concrete_platform = get_concrete_platform(platform, state)
-            artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
+            artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(dep) for dep in state.dependencies], concrete_platform)
             return step3_interactive(state, prefix, platform, ur, build_path, artifact_paths)
         elseif choice == 2
             state.step = :step3
@@ -213,7 +213,10 @@ function diff_srcdir(state::WizardState, prefix::Prefix, ur::Runner)
     return false
 end
 
-function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Union{Dict{Prefix,Vector{String}}, Nothing}, platform::AbstractPlatform, jll::AbstractString)
+function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Union{Dict{Prefix,Vector{String}}, Nothing}, platform::AbstractPlatform, dep_kind::Type, jll::AbstractString)
+    if !endswith(jll, "_jll")
+        jll *= "_jll"
+    end
     if any(dep->getpkg(dep).name == jll, state.dependencies)
         println(client, "ERROR: Package was already added")
         return
@@ -222,18 +225,19 @@ function bb_add(client, state::WizardState, prefix::Prefix, prefix_artifacts::Un
         println(client, "ERROR: `bb add` not available in this context (if you think it should be, file an issue)!")
         return
     end
-    new_dep = Dependency(jll)
+    new_dep = dep_kind(jll)
     try
         # This will redo some work, but that may be ok
         concrete_platform = get_concrete_platform(platform, state)
         # Clear out the prefix artifacts directory in case this change caused
         # any previous dependencies to change
         cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
-        pkgs = getpkg.([state.dependencies; new_dep])
+        pkgs = Pkg.Types.PackageSpec[getpkg(dep) for dep in [state.dependencies; new_dep]]
         prefix_artifacts[prefix] = setup_dependencies(prefix, pkgs, concrete_platform)
         push!(state.dependencies, new_dep)
+        println(client, "[bb] Added dependency $jll. The dependency is available for use.")
     catch e
-        showerror(client, e)
+        showerror(client, e, catch_backtrace())
     end
 end
 
@@ -248,10 +252,24 @@ function bb_parser()
             action = :command
     end
 
+    add_arg_group!(s["add"], "dependency kind", exclusive=true)
+    @add_arg_table! s["add"] begin
+        "--build"
+            help = "This is a build-only dependency (e.g. for header-only libraries)"
+            nargs = 0
+        "--runtime"
+            help = "This is a runtime-only dependency (e.g. for runtime assets)"
+            nargs = 0
+        "--hostbuild"
+            help = "This is a host build-time dependency (e.g. cross-compile build tools)"
+            nargs = 0
+    end
+
+    add_arg_group!(s["add"], "jll name")
     @add_arg_table! s["add"] begin
         "jll"
-        help = "The jll to add"
-        required = true
+            help = "The jll to add"
+            required = true
     end
 
     s
@@ -277,7 +295,11 @@ function setup_bb_service(state::WizardState, prefix, platform, prefix_artifacts
                         parsed = parse_args(ARGS, s)
                         if parsed == nothing
                         elseif parsed["%COMMAND%"] == "add"
-                            bb_add(client, state, prefix, prefix_artifacts, platform, parsed["add"]["jll"])
+                            dep_kind = parsed["add"]["build"] ? BuildDependency :
+                                       parsed["add"]["runtime"] ? RuntimeDependency :
+                                       parsed["add"]["hostbuild"] ? HostBuildDependency :
+                                                                    Dependency
+                            bb_add(client, state, prefix, prefix_artifacts, platform, dep_kind, parsed["add"]["jll"])
                         end
                         close(client)
                     catch e
@@ -440,7 +462,7 @@ function step3_retry(state::WizardState)
     mkpath(build_path)
     concrete_platform = get_concrete_platform(platform, state)
     prefix = setup_workspace(build_path, vcat(state.source_files, state.patches), concrete_platform; verbose=false)
-    artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform)
+    artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(dep) for dep in state.dependencies], concrete_platform)
 
     ur = preferred_runner()(
         prefix.path;
@@ -527,7 +549,7 @@ function step34(state::WizardState)
         concrete_platform;
         verbose=false
     )
-    artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
+    artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(dep) for dep in state.dependencies], concrete_platform; verbose=true)
 
     provide_hints(state, joinpath(prefix, "srcdir"))
 
@@ -572,7 +594,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
             prefix = setup_workspace(build_path, vcat(state.source_files, state.patches), concrete_platform; verbose=true)
             # Clean up artifacts in case there are some
             cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
-            artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=true)
+            artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(dep) for dep in state.dependencies], concrete_platform; verbose=true)
             # Record newly added artifacts for this prefix
             prefix_artifacts[prefix] = artifact_paths
             ur = preferred_runner()(
@@ -649,7 +671,7 @@ function step5_internal(state::WizardState, platform::AbstractPlatform)
                         )
                         # Clean up artifacts in case there are some
                         cleanup_dependencies(prefix, get(prefix_artifacts, prefix, String[]), concrete_platform)
-                        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), platform; verbose=true)
+                        artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(dep) for dep in state.dependencies], platform; verbose=true)
                         # Record newly added artifacts for this prefix
                         prefix_artifacts[prefix] = artifact_paths
 
@@ -783,7 +805,7 @@ function step5c(state::WizardState)
             concrete_platform;
             verbose=false,
         )
-        artifact_paths = setup_dependencies(prefix, getpkg.(state.dependencies), concrete_platform; verbose=false)
+        artifact_paths = setup_dependencies(prefix, Pkg.Types.PackageSpec[getpkg(dep) for dep in state.dependencies], concrete_platform; verbose=false)
         ur = preferred_runner()(
             prefix.path;
             cwd="/workspace/srcdir",
