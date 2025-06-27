@@ -147,7 +147,6 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                  platforms_match(shard, Platform("riscv64", "linux")))
                 # Rust is broken on 32-bit Windows and unavailable on FreeBSD AArch64 and Linux RISC-V, let's skip it
                 push!(products, ExecutableProduct("hello_world_rust", :hello_world_rust))
-                push!(products, ExecutableProduct("hello_world_ocaml", :hello_world_ocaml))
             end
 
             compilers = [:c, :go]
@@ -155,6 +154,15 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             if !(platforms_match(shard, Platform("aarch64", "freebsd")) ||
                  platforms_match(shard, Platform("riscv64", "linux")))
                 push!(compilers, :rust)
+            end
+
+            # OCaml is not available on 32-bit platforms, and our shards aren't for FreeBSD
+            if !(platforms_match(shard, Platform("i686", "windows")) ||
+                 platforms_match(shard, Platform("i686", "linux")) ||
+                 platforms_match(shard, Platform("armv6l", "linux")) ||
+                 platforms_match(shard, Platform("armv7l", "linux")) ||
+                 platforms_match(shard, Platform("aarch64", "freebsd")))
+                push!(products, ExecutableProduct("hello_world_ocaml", :hello_world_ocaml))
                 push!(compilers, :ocaml)
             end
 
