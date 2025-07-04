@@ -1,7 +1,6 @@
 *.jl.cov
 *.jl.*.cov
 *.jl.mem
-/Manifest.toml
 global_prefix
 .vscode/
 
