@@ -156,6 +156,16 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 push!(compilers, :rust)
             end
 
+            # OCaml is not available on 32-bit platforms, and our shards aren't for FreeBSD
+            if !(platforms_match(shard, Platform("i686", "windows")) ||
+                 platforms_match(shard, Platform("i686", "linux")) ||
+                 platforms_match(shard, Platform("armv6l", "linux")) ||
+                 platforms_match(shard, Platform("armv7l", "linux")) ||
+                 platforms_match(shard, Platform("aarch64", "freebsd")))
+                push!(products, ExecutableProduct("hello_world_ocaml", :hello_world_ocaml))
+                push!(compilers, :ocaml)
+            end
+
             build_output_meta = autobuild(
                 build_path,
                 "testsuite",

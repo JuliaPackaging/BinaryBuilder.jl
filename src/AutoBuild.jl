@@ -488,6 +488,13 @@ function get_compilers_versions(; compilers = [:c])
             go version
             """
     end
+    if :ocaml in compilers
+        output *=
+            """
+            ocamlc -v
+            ocamlopt -v
+            """
+    end
     if :rust in compilers
         output *=
             """
@@ -824,7 +831,15 @@ function autobuild(dir::AbstractString,
         build_path = joinpath(dir, "build", triplet(platform))
         mkpath(build_path)
 
-        shards = choose_shards(platform; extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:preferred_rust_version,:preferred_go_version,:bootstrap_list,:compilers))...)
+        shards = choose_shards(platform; extract_kwargs(kwargs, (
+            :preferred_gcc_version,
+            :preferred_llvm_version,
+            :preferred_rust_version,
+            :preferred_go_version,
+            :preferred_ocaml_version,
+            :bootstrap_list,
+            :compilers,
+        ))...)
         concrete_platform = get_concrete_platform(platform, shards)
 
         prefix = setup_workspace(
