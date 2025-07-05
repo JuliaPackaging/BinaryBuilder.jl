@@ -147,6 +147,25 @@ end
     end
     @test state.name == "cuba"
     @test state.version == v"1.2.3"
+
+    state = Wizard.WizardState()
+    with_wizard_output(state, Wizard.step1) do ins, outs
+        call_response(ins, outs, "Make a platform selection", "\r")
+    end
+    @test state.platforms == supported_platforms()
+
+    state = Wizard.WizardState()
+    with_wizard_output(state, Wizard.step1) do ins, outs
+        call_response(ins, outs, "Make a platform selection", "\e[B\r")
+        call_response(ins, outs, "Select operating systems", "\e[B\rd"; newline = false)
+    end
+
+    state = Wizard.WizardState()
+    with_wizard_output(state, Wizard.step1) do ins, outs
+        call_response(ins, outs, "Make a platform selection", "\e[B\e[B\r")
+        call_response(ins, outs, "Select platforms", "\e[B\rd"; newline = false)
+    end
+    @test length(state.platforms) == 1
 end
 
 # Set the state up
