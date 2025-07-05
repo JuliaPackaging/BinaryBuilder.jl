@@ -65,6 +65,8 @@ make install
 install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 """
 
+BinaryBuilderBase.versioninfo()  # print some context for the current runner
+
 # Run all our tests
 include("basic.jl")
 include("building.jl")
