@@ -44,7 +44,7 @@ include("Declarative.jl")
 include("Logging.jl")
 
 function __init__()
-    if Base.thisminor(VERSION) >= v"1.7" && get(ENV, "JULIA_REGISTRYCI_AUTOMERGE", "false") != "true"
+    if Base.thisminor(VERSION) >= v"1.8" && get(ENV, "JULIA_REGISTRYCI_AUTOMERGE", "false") != "true"
         error("""
         BinaryBuilder supports only Julia v1.7.
         Contribute to JuliaPackaging/JLLPrefixes.jl#6 (<https://github.com/JuliaPackaging/JLLPrefixes.jl/issues/6>)
