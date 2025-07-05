@@ -54,7 +54,7 @@ SHA = "0.7, 1"
 Scratch = "1.0"
 TOML = "1"
 ghr_jll = "0.13, 0.14, 0.17"
-julia = "1.7"
+julia = "1.8"
 
 [extras]
 JLLWrappers = "692b3bcd-3c85-4b1f-b108-f13ce0eb3210"
