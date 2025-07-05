@@ -9,8 +9,6 @@ import Libdl
 const platform = HostPlatform()
 const build_tests_dir = joinpath(@__DIR__, "build_tests")
 
-BinaryBuilderBase.versioninfo()  # print some context for the current runner
-
 # Helper function to run fortran code with the path to libgfortran/libquadmath
 # embedded in the appropriate environment variables (JLL packages we love you so)
 csl_path = dirname(first(filter(x -> occursin("libgfortran", x), Libdl.dllist())))
