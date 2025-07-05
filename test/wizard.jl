@@ -4,6 +4,12 @@ import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
 
+# cursor movement in the terminal
+const UP = "\e[A"
+const DOWN = "\e[B"
+const RGHT = "\e[C"
+const LEFR = "\e[D"
+
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
     pty = VT100.create_pty(false)
@@ -156,14 +162,14 @@ end
 
     state = Wizard.WizardState()
     with_wizard_output(state, Wizard.step1) do ins, outs
-        call_response(ins, outs, "Make a platform selection", "\e[B\r")
-        call_response(ins, outs, "Select operating systems", "\e[B\rd"; newline = false)
+        call_response(ins, outs, "Make a platform selection", "$DOWN\r")
+        call_response(ins, outs, "Select operating systems", "$DOWN\rd"; newline = false)
     end
 
     state = Wizard.WizardState()
     with_wizard_output(state, Wizard.step1) do ins, outs
-        call_response(ins, outs, "Make a platform selection", "\e[B\e[B\r")
-        call_response(ins, outs, "Select platforms", "\e[B\rd"; newline = false)
+        call_response(ins, outs, "Make a platform selection", "$DOWN$DOWN\r")
+        call_response(ins, outs, "Select platforms", "$DOWN\rd"; newline = false)
     end
     @test length(state.platforms) == 1
 end
@@ -194,7 +200,7 @@ end
         call_response(ins, outs, "Do you want to customize the set of compilers?", "Y")
         call_response(ins, outs, "Select compilers for the project", "ad")
         call_response(ins, outs, "Select the preferred GCC version", "\r")
-        call_response(ins, outs, "Select the preferred LLVM version", "\e[B\e[B\e[B\r")
+        call_response(ins, outs, "Select the preferred LLVM version", "$DOWN$DOWN$DOWN\r")
     end
     # Check that the state is modified appropriately
     @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
@@ -400,7 +406,7 @@ end
             call_response(ins, outs, "Would you like to edit this script now?", "N")
 
             # Clean environment
-            call_response(ins, outs, "Return to build environment", "\e[B\r")
+            call_response(ins, outs, "Return to build environment", "$DOWN\r")
         end
         @test state.step === :step3
     end
@@ -496,7 +502,7 @@ end
         state = step5_state("exit 1")
         with_wizard_output(state, state->Wizard.step5_internal(state, first(state.platforms))) do ins, outs
             call_response(ins, outs, "Press Enter to continue...", "\n")
-            call_response(ins, outs, "How would you like to proceed?", "\e[B\e[B\r")
+            call_response(ins, outs, "How would you like to proceed?", "$DOWN$DOWN\r")
         end
         @test isempty(state.platforms)
     end
@@ -549,7 +555,7 @@ end
     # First, test local deployment
     mktempdir() do out_dir
         with_wizard_output(state, state->Wizard._deploy(state)) do ins, outs
-            call_response(ins, outs, "How should we deploy this build recipe?", "\e[B\r")
+            call_response(ins, outs, "How should we deploy this build recipe?", "$DOWN\r")
             call_response(ins, outs, "Enter directory to write build_tarballs.jl to:", "$(out_dir)\r")
         end
         @test isfile(joinpath(out_dir, "build_tarballs.jl"))
@@ -559,7 +565,7 @@ end
     # Next, test writing out to stdout
     state = step7_state()
     with_wizard_output(state, state->Wizard._deploy(state)) do ins, outs
-        call_response(ins, outs, "How should we deploy this build recipe?", "\e[B\e[B\r")
+        call_response(ins, outs, "How should we deploy this build recipe?", "$DOWN$DOWN\r")
         @test readuntil_sift(outs, "Your generated build_tarballs.jl:") !== nothing
         @test readuntil_sift(outs, "name = \"libfoo\"") !== nothing
         @test readuntil_sift(outs, "make install") !== nothing
