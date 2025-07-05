@@ -437,7 +437,8 @@ end
         # Test that having a LibraryProduct for AnyPlatform raises an error.
         # Note that the error is raised during audit, which is run in threads,
         # so we raise an extremely generic `TaskFailedException`.
-        @test_throws TaskFailedException autobuild(
+        exc = VERSION < v"1.9" ? TaskFailedException : CompositeException
+        @test_throws exc autobuild(
             build_path,
             "libfoo",
             v"1.0.0",

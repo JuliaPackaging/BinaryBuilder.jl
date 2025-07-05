@@ -4,6 +4,8 @@ import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
 
+const debug = Ref(true)
+
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
     pty = VT100.create_pty(false)
@@ -17,7 +19,7 @@ function with_wizard_output(f::Function, state, step_func::Function)
             z = String(readavailable(pty.master))
 
             # Un-comment this to figure out what on earth is going wrong
-            # print(z)
+            debug[] && print(z)
             write(out_buff, z)
         end
     end
@@ -86,38 +88,63 @@ for i in available_ports
     break
 end
 
-function readuntil_sift(io::IO, needle)
-    # N.B.: This is a terrible way to do this and works around the fact that our `IOBuffer`
-    # does not block. It works fine here, but do not copy this to other places.
-    needle = codeunits(needle)
-    buffer = zeros(UInt8, length(needle))
-    all_buffer = UInt8[]
-    while isopen(io)
-        new_c = read(io, 1)
-        append!(all_buffer, new_c)
-        if isempty(new_c)
-            # We need to wait for more data, sleep for a bit
-            sleep(0.01)
-            continue
+@static if true
+    function readuntil_sift(io::IO, needle)
+        # N.B.: This is a terrible way to do this and works around the fact that our `IOBuffer`
+        # does not block. It works fine here, but do not copy this to other places.
+        needle = codeunits(needle)
+        buffer = zeros(UInt8, length(needle))
+        all_buffer = UInt8[]
+        while isopen(io)
+            new_c = read(io, 1)
+            if isempty(new_c)
+                # We need to wait for more data, sleep for a bit
+                sleep(0.001)
+                continue
+            else
+                append!(all_buffer, new_c)
+            end
+            buffer = vcat(@view(buffer[2:end]), new_c)
+            any(buffer .!= needle) || return String(all_buffer)
         end
-
-        buffer = [buffer[2:end]; new_c]
-        if !any(buffer .!= needle)
-            return all_buffer
-        end
+        return nothing
     end
-    return nothing
+else
+    readuntil_sift(io::IO, needle) = readuntil(io, needle; keep = true)
 end
 
 function call_response(ins, outs, question, answer; newline=true)
-    @assert readuntil_sift(outs, question) !== nothing
+    buf = readuntil_sift(outs, question)
+    @assert buf !== nothing
+    debug[] && println(buf)
     # Because we occasionally are dealing with things that do strange
     # stdin tricks like reading raw stdin buffers, we sleep here for safety.
-    sleep(0.1)
-    print(ins, answer)
-    if newline
-        println(ins)
+    sleep(0.01)
+    if debug[]
+        print(answer)
+        newline && println()
     end
+    print(ins, answer)
+    newline && println(ins)
+end
+
+function succcess_path_call_response(ins, outs)
+    output = readuntil_sift(outs, "Build complete")
+    if contains(output, "Warning:")
+        close(ins)
+        return false
+    end
+    call_response(ins, outs, "Would you like to edit this script now?", "N")
+    # MultiSelectMenu (https://docs.julialang.org/en/v1/stdlib/REPL/#MultiSelectMenu)
+    needle = if VERSION < v"1.9"
+        "[press: d=done, a=all, n=none]"
+    else
+        "[press: Enter=toggle, a=all, n=none, d=done, q=abort]"
+    end
+    call_response(ins, outs, needle, "ad"; newline=false)
+    call_response(ins, outs, "lib/libfoo.so", "libfoo")
+    call_response(ins, outs, "bin/fooifier", "fooifier")
+    return true
 end
 
 @testset "Wizard - Obtain source" begin
@@ -321,19 +348,6 @@ function step3_test(state)
 end
 
 @testset "Wizard - Building" begin
-    function succcess_path_call_response(ins, outs)
-        output = readuntil_sift(outs, "Build complete")
-        if contains(String(output), "Warning:")
-            close(ins)
-            return false
-        end
-        call_response(ins, outs, "Would you like to edit this script now?", "N")
-        call_response(ins, outs, "d=done, a=all", "ad"; newline=false)
-        call_response(ins, outs, "lib/libfoo.so", "libfoo")
-        call_response(ins, outs, "bin/fooifier", "fooifier")
-        return true
-    end
-
     # Test step3 success path
     state = step3_state()
     with_wizard_output(state, Wizard.step34) do ins, outs
