@@ -4,7 +4,7 @@ import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
 
-const debug = Ref(true)
+const debug = Ref(false)
 
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
