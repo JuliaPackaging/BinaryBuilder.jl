@@ -8,7 +8,7 @@ import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_bui
 const UP = "\e[A"
 const DOWN = "\e[B"
 const RGHT = "\e[C"
-const LEFR = "\e[D"
+const LEFT = "\e[D"
 
 function with_wizard_output(f::Function, state, step_func::Function)
     # Create fake terminal to communicate with BinaryBuilder over
