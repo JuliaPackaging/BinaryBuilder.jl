@@ -56,7 +56,7 @@ end
     mktempdir() do build_path
         platform = Platform("x86_64", "linux"; march="avx")
         build_output_meta = nothing
-        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is avx512, not avx as desired.$") match_mode=:any begin
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is avx512, not avx as desired\.$") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
@@ -105,7 +105,7 @@ end
     mktempdir() do build_path
         platform = Platform("x86_64", "linux"; march="avx512")
         build_output_meta = nothing
-        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is avx, not avx512 as desired. You may be missing some optimization flags during compilation.$") match_mode=:any begin
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is avx, not avx512 as desired\. You may be missing some optimization flags during compilation\.$") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
@@ -240,7 +240,7 @@ end
                     make install
                     install_license /usr/share/licenses/libuv/LICENSE
                 """
-                build_output_meta = @test_logs (:info, "Building for $(triplet(platform))") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any do_build(build_path, script, platform, gcc_version)
+                build_output_meta = @test_logs (:info, "Building for $(triplet(platform))") (:warn, r"Linked library libgcc_s\.so\.1") match_mode=:any do_build(build_path, script, platform, gcc_version)
                 # Extract our platform's build
                 @test haskey(build_output_meta, platform)
                 tarball_path, tarball_hash = build_output_meta[platform][1:2]
@@ -299,7 +299,7 @@ end
         platform = Platform("x86_64", os)
         mktempdir() do build_path
             build_output_meta = nothing
-            @test_logs (:info, r"Removing libtool file .*/destdir/lib/libfoo.la$") (:info, r"Removing libtool file .*/destdir/lib/libqux.la$") match_mode=:any begin
+            @test_logs (:info, r"Removing libtool file .*/destdir/lib/libfoo\.la$") (:info, r"Removing libtool file .*/destdir/lib/libqux\.la$") match_mode=:any begin
                 build_output_meta = autobuild(
                     build_path,
                     "libfoo",
@@ -342,7 +342,7 @@ end
         platform = Platform("x86_64", os)
         mktempdir() do build_path
             build_output_meta = nothing
-            @test_logs (:info, r"Relocatize pkg-config file .*/destdir/lib/pkgconfig/libfoo.pc$") match_mode=:any begin
+            @test_logs (:info, r"Relocatize pkg-config file .*/destdir/lib/pkgconfig/libfoo\.pc$") match_mode=:any begin
                 build_output_meta = autobuild(
                     build_path,
                     "libfoo",
@@ -387,7 +387,7 @@ end
     for platform in [Platform("x86_64", "windows")]
         mktempdir() do build_path
             build_output_meta = nothing
-            @test_logs (:warn, r"lib/libfoo.dll should be in `bin`") (:warn, r"Simple buildsystem detected") match_mode=:any begin
+            @test_logs (:warn, r"lib/libfoo\.dll should be in `bin`") (:warn, r"Simple buildsystem detected") match_mode=:any begin
                 build_output_meta = autobuild(
                     build_path,
                     "dll_moving",
@@ -502,7 +502,7 @@ end
         end
 
         # Test that `audit()` warns about an absolute path within the prefix
-        @test_logs (:warn, r"share/foo.conf contains an absolute path") match_mode=:any begin
+        @test_logs (:warn, r"share/foo\.conf contains an absolute path") match_mode=:any begin
             Auditor.audit(Prefix(build_path); verbose=true)
         end
     end
@@ -519,7 +519,7 @@ end
         symlink("libfoo.so.1.2.3", joinpath(bindir, "libfoo.so"))
 
         # Test that `audit()` warns about broken symlinks
-        @test_logs (:warn, r"Broken symlink: bin/libzmq.dll.a") match_mode=:any begin
+        @test_logs (:warn, r"Broken symlink: bin/libzmq\.dll\.a") match_mode=:any begin
             Auditor.warn_deadlinks(build_path)
         end
     end
@@ -532,7 +532,7 @@ end
 
     mktempdir() do build_path
         hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
-        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s\.so\.1") match_mode=:any begin
+        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath\.so\.0") (:warn, r"Linked library libgcc_s\.so\.1") match_mode=:any begin
             autobuild(
                 build_path,
                 "hello_fortran",
@@ -595,7 +595,7 @@ end
         # audit should warn us.
         libgfortran_versions = (3, 4, 5)
         other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
-        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran.so.(4|5)") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") readmeta(hello_world_path) do ohs
+        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath\.so\.0") (:warn, r"Linked library libgcc_s\.so\.1") readmeta(hello_world_path) do ohs
             foreach(ohs) do oh
                 p = deepcopy(platform)
                 p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
@@ -842,7 +842,7 @@ end
     @testset "hard-float ABI" begin
         platform = Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")
         mktempdir() do build_path
-            build_output_meta = @test_logs (:error, r"libsoft.so does not match the hard-float ABI") match_mode=:any begin
+            build_output_meta = @test_logs (:error, r"libsoft\.so does not match the hard-float ABI") match_mode=:any begin
                 autobuild(
                     build_path,
                     "hard_float_ABI",
@@ -951,14 +951,14 @@ end
                 oh = only(ohs)
                 @test !is_for_platform(oh, platform)
                 @test !check_os_abi(oh, platform)
-                @test_logs((:warn, r"libnonote.so does not have a FreeBSD-branded ELF note"),
+                @test_logs((:warn, r"libnonote\.so does not have a FreeBSD-branded ELF note"),
                            match_mode=:any, check_os_abi(oh, platform; verbose=true))
             end
             readmeta(joinpath(testdir, "lib", "libbadosabi.so")) do ohs
                 oh = only(ohs)
                 @test !is_for_platform(oh, platform)
                 @test !check_os_abi(oh, platform)
-                @test_logs((:warn, r"libbadosabi.so has an ELF header OS/ABI value that is not set to FreeBSD"),
+                @test_logs((:warn, r"libbadosabi\.so has an ELF header OS/ABI value that is not set to FreeBSD"),
                            match_mode=:any, check_os_abi(oh, platform; verbose=true))
             end
             # Only audit the library we didn't mess with in the recipe
