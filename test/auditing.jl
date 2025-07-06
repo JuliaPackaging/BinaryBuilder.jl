@@ -532,7 +532,7 @@ end
 
     mktempdir() do build_path
         hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
-        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran.so.(4|5)") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any begin
+        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s\.so\.1") match_mode=:any begin
             autobuild(
                 build_path,
                 "hello_fortran",
