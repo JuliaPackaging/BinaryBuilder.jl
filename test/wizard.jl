@@ -117,7 +117,7 @@ function call_response(ins, outs, question, answer; newline=true)
     debug[] && println(String(buf))
     # Because we occasionally are dealing with things that do strange
     # stdin tricks like reading raw stdin buffers, we sleep here for safety.
-    sleep(0.01)
+    sleep(0.1)
     if debug[]
         print(answer)
         newline && println()
