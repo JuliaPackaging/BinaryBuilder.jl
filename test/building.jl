@@ -161,7 +161,8 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                  platforms_match(shard, Platform("i686", "linux")) ||
                  platforms_match(shard, Platform("armv6l", "linux")) ||
                  platforms_match(shard, Platform("armv7l", "linux")) ||
-                 platforms_match(shard, Platform("aarch64", "freebsd")))
+                 platforms_match(shard, Platform("aarch64", "freebsd")) ||
+                 platforms_match(shard, Platform("x86_64", "freebsd")))
                 push!(products, ExecutableProduct("hello_world_ocaml", :hello_world_ocaml))
                 push!(compilers, :ocaml)
             end
