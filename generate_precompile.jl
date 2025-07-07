@@ -9,6 +9,7 @@ using SnoopCompile
         ExecutableProduct("hello_world_fortran", :hello_world_fortran),
         ExecutableProduct("hello_world_go", :hello_world_go),
         ExecutableProduct("hello_world_rust", :hello_world_rust),
+        ExecutableProduct("hello_world_ocaml", :hello_world_ocaml),
     ]
 
     # First, do the build, but only output the meta json, since we definitely want that to be fast
@@ -55,7 +56,7 @@ using SnoopCompile
         Dependency[
             Dependency("Zlib_jll"),
         ];
-        compilers=[:c, :rust, :go],
+        compilers=[:c, :rust, :go, :ocaml],
     )
 
     rm("build"; recursive=true, force=true)

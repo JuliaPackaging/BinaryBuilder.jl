@@ -127,6 +127,12 @@ Example of packages using Rust:
 
 	The Rust toolchain currently used does not work with the `i686-w64-mingw32` (32-bit Windows) platform.
 
+## OCaml builds
+
+The OCaml toolchain provided by BinaryBuilder can be requested by adding `:ocaml` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :ocaml]`, and a specific version of the toolchain can be selected by adding the `preferred_ocaml_version` keyword argument to [`build_tarballs`](@ref).
+
+The OCaml toolchain provided by BinaryBuilder automatically selects the appropriate target.
+
  ## C builds
 
  If your library has no build system like Make, CMake, Meson, or Autoconf, you may need to use the C compiler directly.  The C compiler is stored in the `CC` environment variable, and you can direct output to `libdir` (shared libraries) and `bindir` (executables).
@@ -135,7 +141,7 @@ As a high-level example:
  ```sh
 # this assumes you are operating out of a Git source named `hello`
 # adjust your `cd` appropriately
-cd $WORKSPACE/srcdir/hello 
+cd $WORKSPACE/srcdir/hello
 mkdir -p ${libdir}                                         # make sure the libdir is instantiated
 ${CC} -shared -o ${libdir}/libhello.${dlext} -fPIC hello.c # compile the library, save to `libdir`
 ```

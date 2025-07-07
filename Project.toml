@@ -36,7 +36,7 @@ ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 [compat]
 ArgParse = "1.1"
 Binutils_jll = "2"
-BinaryBuilderBase = "1.35.2"
+BinaryBuilderBase = "1.38"
 Downloads = "1"
 GitHub = "5.1"
 HTTP = "0.8, 0.9, 1"
