@@ -88,35 +88,33 @@ for i in available_ports
     break
 end
 
-@static if true
-    function readuntil_sift(io::IO, needle)
-        # N.B.: This is a terrible way to do this and works around the fact that our `IOBuffer`
-        # does not block. It works fine here, but do not copy this to other places.
-        needle = codeunits(needle)
-        buffer = zeros(UInt8, length(needle))
-        all_buffer = UInt8[]
-        while isopen(io)
-            new_c = read(io, 1)
-            if isempty(new_c)
-                # We need to wait for more data, sleep for a bit
-                sleep(0.001)
-                continue
-            else
-                append!(all_buffer, new_c)
-            end
-            buffer = vcat(@view(buffer[2:end]), new_c)
-            any(buffer .!= needle) || return String(all_buffer)
+function readuntil_sift(io::IO, needle)
+    # N.B.: This is a terrible way to do this and works around the fact that our `IOBuffer`
+    # does not block. It works fine here, but do not copy this to other places.
+    needle = codeunits(needle)
+    buffer = zeros(UInt8, length(needle))
+    all_buffer = UInt8[]
+    while isopen(io)
+        new_c = read(io, 1)
+        append!(all_buffer, new_c)
+        if isempty(new_c)
+            # We need to wait for more data, sleep for a bit
+            sleep(0.01)
+            continue
         end
-        return nothing
+
+        buffer = [buffer[2:end]; new_c]
+        if !any(buffer .!= needle)
+            return all_buffer
+        end
     end
-else
-    readuntil_sift(io::IO, needle) = readuntil(io, needle; keep = true)
+    return nothing
 end
 
 function call_response(ins, outs, question, answer; newline=true)
     buf = readuntil_sift(outs, question)
     @assert buf !== nothing
-    debug[] && println(buf)
+    debug[] && println(String(buf))
     # Because we occasionally are dealing with things that do strange
     # stdin tricks like reading raw stdin buffers, we sleep here for safety.
     sleep(0.01)
@@ -130,7 +128,7 @@ end
 
 function succcess_path_call_response(ins, outs)
     output = readuntil_sift(outs, "Build complete")
-    if contains(output, "Warning:")
+    if contains(String(output), "Warning:")
         close(ins)
         return false
     end
