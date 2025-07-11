@@ -65,7 +65,7 @@ end
             exit 0
             """,
             # Build for this platform
-            [platform],
+            [HOST_PLATFORM],
             # No products
             Product[],
             # No dependencies
@@ -82,13 +82,13 @@ end
             MARKER=1
             exit 1
             """,
-            [platform],
+            [HOST_PLATFORM],
             Product[],
             Dependency[],
         )
 
         # build_path is the nonce'd build directory
-        build_path = joinpath(temp_path, "build", triplet(platform))
+        build_path = joinpath(temp_path, "build", triplet(HOST_PLATFORM))
         build_path = joinpath(build_path, first(readdir(build_path)))
 
         # Ensure that we get a metadir, and that our history and .env files are in there!

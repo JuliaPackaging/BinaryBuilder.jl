@@ -61,7 +61,7 @@ end
                 build_path,
                 "isa_tests",
                 v"1.0.0",
-                [DirectorySource(build_tests_dir)],
+                [DirectorySource(BUILD_TESTS_DIR)],
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
                 cd ${WORKSPACE}/srcdir/isa_tests
@@ -110,7 +110,7 @@ end
                 build_path,
                 "isa_tests",
                 v"1.0.0",
-                [DirectorySource(build_tests_dir)],
+                [DirectorySource(BUILD_TESTS_DIR)],
                 # Build the test suite, install the binaries into our prefix's `bin`
                 raw"""
                 cd ${WORKSPACE}/srcdir/isa_tests
@@ -159,7 +159,7 @@ end
                     build_path,
                     "isa_tests",
                     v"1.0.0",
-                    [DirectorySource(build_tests_dir)],
+                    [DirectorySource(BUILD_TESTS_DIR)],
                     # Build the test suite, install the binaries into our prefix's `bin`
                     raw"""
                     cd ${WORKSPACE}/srcdir/isa_tests
@@ -217,7 +217,7 @@ end
             "libcxxstringabi_test",
             v"1.0.0",
             # Copy in the build_tests sources
-            [DirectorySource(build_tests_dir)],
+            [DirectorySource(BUILD_TESTS_DIR)],
             script,
             # Build for this platform
             [platform],
@@ -305,7 +305,7 @@ end
                     "libfoo",
                     v"1.0.0",
                     # Copy in the libfoo sources
-                    [DirectorySource(build_tests_dir)],
+                    [DirectorySource(BUILD_TESTS_DIR)],
                     # Build libfoo using autotools to create a real .la file, and also
                     # create a fake .la file (which should not be removed).  Create also a
                     # symlink libqux.la -> libfoo.la, which will be broken after libfoo.la
@@ -348,7 +348,7 @@ end
                     "libfoo",
                     v"1.0.0",
                     # Copy in the libfoo sources
-                    [DirectorySource(build_tests_dir)],
+                    [DirectorySource(BUILD_TESTS_DIR)],
                     libfoo_autotools_script,
                     # Build for our platform
                     [platform],
@@ -996,7 +996,7 @@ end
 end
 
 @testset "platform_for_object" begin
-    arch_host = arch(HostPlatform())
+    arch_host = arch(HOST_PLATFORM)
     bin = Base.julia_cmd().exec |> first
     BinaryBuilder.readmeta(bin) do ohs
         foreach(ohs) do oh

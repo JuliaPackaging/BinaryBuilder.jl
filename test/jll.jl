@@ -70,7 +70,7 @@ end
     mktempdir() do build_path
         name = "libfoo"
         version = v"1.0.0"
-        sources = [DirectorySource(build_tests_dir)]
+        sources = [DirectorySource(BUILD_TESTS_DIR)]
         # Build for this platform and a platform that isn't this one for sure:
         # FreeBSD.
         freebsd = Platform("x86_64", "freebsd")
