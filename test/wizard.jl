@@ -23,7 +23,7 @@ function with_wizard_output(f::Function, state, step_func::Function)
             z = String(readavailable(pty.master))
 
             # Un-comment this to figure out what on earth is going wrong
-            # print(z)
+            print(z)
             write(out_buff, z)
         end
     end

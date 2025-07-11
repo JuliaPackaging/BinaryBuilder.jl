@@ -527,7 +527,7 @@ end
 
 @testset "Auditor - gcc version" begin
     # These tests assume our gcc version is concrete (e.g. that Julia is linked against libgfortran)
-    our_libgfortran_version = libgfortran_version(platform)
+    our_libgfortran_version = libgfortran_version(HOST_PLATFORM)
     @test our_libgfortran_version != nothing
 
     mktempdir() do build_path
@@ -547,7 +547,7 @@ end
                     install_license /usr/share/licenses/libuv/LICENSE
                     """,
                 # Build for our platform
-                [platform],
+                [HOST_PLATFORM],
                 #
                 Product[hello_world],
                 # Note: we purposefully don't require CompilerSupportLibraries, even if we
@@ -558,7 +558,7 @@ end
         end
 
         # Extract our platform's build, run the hello_world tests:
-        output_meta = select_platform(build_output_meta, platform)
+        output_meta = select_platform(build_output_meta, HOST_PLATFORM)
         @test output_meta != nothing
         tarball_path, tarball_hash = output_meta[1:2]
 
@@ -572,7 +572,7 @@ end
         unpack(tarball_path, testdir)
 
         # Attempt to run the executable, we expect it to work since it's our platform:
-        hello_world_path = locate(hello_world, Prefix(testdir); platform=platform)
+        hello_world_path = locate(hello_world, Prefix(testdir); platform=HOST_PLATFORM)
         with_libgfortran() do
             @test readchomp(`$hello_world_path`) == "Hello, World!"
         end
@@ -580,7 +580,7 @@ end
         # If we audit the testdir, pretending that we're trying to build an ABI-agnostic
         # tarball, make sure it warns us about it.
         @test_logs (:warn, r"links to libgfortran!") match_mode=:any begin
-            @test !Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(platform), autofix=false)
+            @test !Auditor.audit(Prefix(testdir); platform=BinaryBuilderBase.abi_agnostic(HOST_PLATFORM), autofix=false)
             # Make sure audit is otherwise happy with the executable
             # Note by Mosè: this test was introduced before
             # https://github.com/JuliaPackaging/BinaryBuilder.jl/pull/1240 and relied on the
@@ -588,7 +588,7 @@ end
             # libraries, but that was a fallacious expectation.  At the moment I don't know
             # how to meaningfully use this test, leaving here as broken until we come up
             # with better ideas (just remove the test?).
-            @test Auditor.audit(Prefix(testdir); platform=platform, autofix=false) broken=true
+            @test Auditor.audit(Prefix(testdir); platform=HOST_PLATFORM, autofix=false) broken=true
         end
 
         # Let's pretend that we're building for a different libgfortran version:
@@ -597,7 +597,7 @@ end
         other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
         @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") readmeta(hello_world_path) do ohs
             foreach(ohs) do oh
-                p = deepcopy(platform)
+                p = deepcopy(HOST_PLATFORM)
                 p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
                 @test !Auditor.audit(Prefix(testdir); platform=p, autofix=false)
             end
@@ -650,7 +650,7 @@ end
 end
 
 @testset "Auditor - rpaths" begin
-    @testset "$platform" for platform in (Platform("x86_64", "linux"; libc="glibc"), Platform("x86_64", "macos"))
+    @testset "$HOST_PLATFORM" for platform in (Platform("x86_64", "linux"; libc="glibc"), Platform("x86_64", "macos"))
         mktempdir() do build_path
             build_output_meta = nothing
             @test_logs (:info, "Building for $(triplet(platform))") match_mode=:any begin
@@ -762,7 +762,7 @@ end
                 chmod 640 "${libdir}/libfoo.${dlext}"
                 """,
                 # Build for our platform
-                [platform],
+                [HOST_PLATFORM],
                 # Ensure our library product is built
                 [product],
                 # No dependencies
@@ -773,8 +773,8 @@ end
         end
 
         # Extract our platform's build
-        @test haskey(build_output_meta, platform)
-        tarball_path, tarball_hash = build_output_meta[platform][1:2]
+        @test haskey(build_output_meta, HOST_PLATFORM)
+        tarball_path, tarball_hash = build_output_meta[HOST_PLATFORM][1:2]
         @test isfile(tarball_path)
 
         # Unpack it somewhere else
@@ -782,7 +782,7 @@ end
         testdir = joinpath(build_path, "testdir")
         mkdir(testdir)
         unpack(tarball_path, testdir)
-        libfoo_path = joinpath(testdir, build_output_meta[platform][4][product]["path"])
+        libfoo_path = joinpath(testdir, build_output_meta[HOST_PLATFORM][4][product]["path"])
         # Tar.jl normalizes permissions of executable files to 0o755, instead of
         # recording exact original permissions:
         # https://github.com/JuliaIO/Tar.jl/blob/37766a22f5a6ac9f07022d83debd5db7d7a4b896/README.md#permissions
