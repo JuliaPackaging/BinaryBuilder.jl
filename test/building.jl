@@ -156,6 +156,12 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 push!(compilers, :rust)
             end
 
+            # OCaml is not available on 32-bit platforms, and our shards aren't for FreeBSD
+            if !(nbits(shard) == 32 || Sys.isfreebsd(shard))
+                push!(products, ExecutableProduct("hello_world_ocaml", :hello_world_ocaml))
+                push!(compilers, :ocaml)
+            end
+
             build_output_meta = autobuild(
                 build_path,
                 "testsuite",

@@ -207,7 +207,7 @@ end
     # Check that the state is modified appropriately
     @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
     @test getfield.(state.source_files, :hash) == [libfoo_tarball_hash]
-    @test Set(state.compilers) == Set([:c, :rust, :go])
+    @test Set(state.compilers) == Set([:c, :rust, :go, :ocaml])
     @test state.preferred_gcc_version == getversion(available_gcc_builds[1])
     # The default LLVM shard is the latest one, and above we pressed three times
     # arrow down in the reverse order list.

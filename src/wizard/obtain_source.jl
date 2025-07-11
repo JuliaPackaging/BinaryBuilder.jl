@@ -334,11 +334,11 @@ function get_name_and_version(state::WizardState)
     end
 end
 
-@enum Compilers C=1 Go Rust
+@enum Compilers C=1 Go Rust OCaml
 function get_compilers(state::WizardState)
     while state.compilers === nothing
-        compiler_descriptions = Dict(C => "C/C++/Fortran", Go => "Go", Rust => "Rust")
-        compiler_symbols = Dict(Int(C) => :c, Int(Go) => :go, Int(Rust) => :rust)
+        compiler_descriptions = Dict(C => "C/C++/Fortran", Go => "Go", Rust => "Rust", OCaml => "OCaml")
+        compiler_symbols = Dict(Int(C) => :c, Int(Go) => :go, Int(Rust) => :rust, Int(OCaml) => :ocaml)
         terminal = TTYTerminal("xterm", state.ins, state.outs, state.outs)
         result = nothing
         while true
