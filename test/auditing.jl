@@ -994,3 +994,13 @@ end
     @test !valid_library_path("/usr/libc.so", macos)
     @test !valid_library_path("/usr/libc.so", windows)
 end
+
+@testset "platform_for_object" begin
+    arch_host = arch(HostPlatform())
+    bin = Base.julia_cmd().exec |> first
+    BinaryBuilder.readmeta(bin) do ohs
+        foreach(ohs) do oh
+            @test arch(Auditor.platform_for_object(oh)) == arch_host
+        end
+    end
+end
