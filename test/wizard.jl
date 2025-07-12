@@ -23,8 +23,6 @@ function with_wizard_output(f::Function, state, step_func::Function)
     reader_task = @async begin
         while isopen(pty.master)
             z = String(readavailable(pty.master))
-
-            # Un-comment this to figure out what on earth is going wrong
             debug[] && print(z)
             write(out_buff, z)
         end
@@ -37,16 +35,13 @@ function with_wizard_output(f::Function, state, step_func::Function)
         catch e
             bt = catch_backtrace()
             Base.display_error(stderr, e, bt)
-
-            # If this fails, panic
-            Test.@test false
+            Test.@test false  # If this fails, panic
         end
     end
 
     f(pty.master, out_buff)
 
-    # Wait for the wizard to finish
-    wait(wizard_task)
+    wait(wizard_task)  # Wait for the wizard to finish
 
     # Once that's done, kill the reader task
     close(pty.master)
