@@ -1,6 +1,5 @@
-import Base.BinaryPlatforms: detect_libstdcxx_version, detect_cxxstring_abi
-using ObjectFile
 using Binutils_jll: Binutils_jll
+using ObjectFile
 
 csl_warning(lib) = @lock AUDITOR_LOGGING_LOCK @warn(
     """
