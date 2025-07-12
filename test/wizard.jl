@@ -127,7 +127,6 @@ function call_response(ins, outs, question, answer; newline=true)
 end
 
 @testset "Wizard - Obtain source" begin
-    return
     state = Wizard.WizardState()
     # Use a non existing name
     with_wizard_output(state, Wizard.get_name_and_version) do ins, outs
@@ -185,7 +184,6 @@ function step2_state()
 end
 
 @testset "Wizard - Downloading" begin
-    return
     state = step2_state()
     with_wizard_output(state, Wizard.step2) do ins, outs
         call_response(ins, outs, "Please enter a URL", "http://127.0.0.1:$(port)/a/source.tar.gz")
@@ -344,7 +342,6 @@ function step3_test(state)
 end
 
 @testset "Wizard - Building" begin
-    return
     function succcess_path_call_response(ins, outs)
         output = readuntil_sift(outs, "Build complete")
         if contains(String(output), "Warning:")
