@@ -4,6 +4,12 @@ import Pkg: PackageSpec
 
 import BinaryBuilder.BinaryBuilderBase: available_gcc_builds, available_llvm_builds, getversion
 
+# cursor movement in the terminal
+const UP = "\e[A"
+const DOWN = "\e[B"
+const RGHT = "\e[C"
+const LEFT = "\e[D"
+
 const debug = Ref(false)
 
 function with_wizard_output(f::Function, state, step_func::Function)
@@ -17,8 +23,6 @@ function with_wizard_output(f::Function, state, step_func::Function)
     reader_task = @async begin
         while isopen(pty.master)
             z = String(readavailable(pty.master))
-
-            # Un-comment this to figure out what on earth is going wrong
             debug[] && print(z)
             write(out_buff, z)
         end
@@ -31,16 +35,13 @@ function with_wizard_output(f::Function, state, step_func::Function)
         catch e
             bt = catch_backtrace()
             Base.display_error(stderr, e, bt)
-
-            # If this fails, panic
-            Test.@test false
+            Test.@test false  # If this fails, panic
         end
     end
 
     f(pty.master, out_buff)
 
-    # Wait for the wizard to finish
-    wait(wizard_task)
+    wait(wizard_task)  # Wait for the wizard to finish
 
     # Once that's done, kill the reader task
     close(pty.master)
@@ -50,7 +51,7 @@ end
 # Test the download stage
 r = HTTP.Router()
 io = IOBuffer()
-Tar.create(joinpath(build_tests_dir, "libfoo"), pipeline(`gzip -9`, io))
+Tar.create(joinpath(BUILD_TESTS_DIR, "libfoo"), pipeline(`gzip -9`, io))
 libfoo_tarball_data = take!(io)
 libfoo_tarball_hash = bytes2hex(sha256(libfoo_tarball_data))
 function serve_tgz(req)
@@ -172,6 +173,25 @@ end
     end
     @test state.name == "cuba"
     @test state.version == v"1.2.3"
+
+    state = Wizard.WizardState()
+    with_wizard_output(state, Wizard.step1) do ins, outs
+        call_response(ins, outs, "Make a platform selection", "\r")
+    end
+    @test state.platforms == supported_platforms()
+
+    state = Wizard.WizardState()
+    with_wizard_output(state, Wizard.step1) do ins, outs
+        call_response(ins, outs, "Make a platform selection", "$DOWN\r")
+        call_response(ins, outs, "Select operating systems", "$DOWN\rd"; newline = false)
+    end
+
+    state = Wizard.WizardState()
+    with_wizard_output(state, Wizard.step1) do ins, outs
+        call_response(ins, outs, "Make a platform selection", "$DOWN$DOWN\r")
+        call_response(ins, outs, "Select platforms", "$DOWN\rd"; newline = false)
+    end
+    @test length(state.platforms) == 1
 end
 
 # Set the state up
@@ -200,7 +220,7 @@ end
         call_response(ins, outs, "Do you want to customize the set of compilers?", "Y")
         call_response(ins, outs, "Select compilers for the project", "ad")
         call_response(ins, outs, "Select the preferred GCC version", "\r")
-        call_response(ins, outs, "Select the preferred LLVM version", "\e[B\e[B\e[B\r")
+        call_response(ins, outs, "Select the preferred LLVM version", "$DOWN$DOWN$DOWN\r")
     end
     # Check that the state is modified appropriately
     @test state.source_urls == ["http://127.0.0.1:$(port)/a/source.tar.gz"]
@@ -306,15 +326,11 @@ end
     end
 end
 
-
-
 # Dump the tarball to disk so that we can use it directly in the future
 tempspace = tempname()
 mkdir(tempspace)
 libfoo_tarball_path = joinpath(tempspace, "source.tar.gz")
 open(f -> write(f, libfoo_tarball_data), libfoo_tarball_path, "w")
-
-
 
 function step3_state()
     state = Wizard.WizardState()
@@ -339,123 +355,142 @@ function step3_test(state)
 
     libfoo_idx = findfirst(state.files .== "lib/libfoo.so")
     fooifier_idx = findfirst(state.files .== "bin/fooifier")
-    @test state.file_kinds[libfoo_idx] == :library
-    @test state.file_kinds[fooifier_idx] == :executable
-    @test state.file_varnames[libfoo_idx] == :libfoo
-    @test state.file_varnames[fooifier_idx] == :fooifier
+    @test state.file_kinds[libfoo_idx] === :library
+    @test state.file_kinds[fooifier_idx] === :executable
+    @test state.file_varnames[libfoo_idx] === :libfoo
+    @test state.file_varnames[fooifier_idx] === :fooifier
 end
 
 @testset "Wizard - Building" begin
-    # Test step3 success path
-    state = step3_state()
-    with_wizard_output(state, Wizard.step34) do ins, outs
-        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
-        cd libfoo
+    @testset "Test step3 success path" begin
+        state = step3_state()
+        with_wizard_output(state, Wizard.step34) do ins, outs
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+            make install
+            exit
+            """)
+            @test succcess_path_call_response(ins, outs)
+        end
+        @test state.history == """
+        cd \$WORKSPACE/srcdir
         make install
         exit
-        """)
-        @test succcess_path_call_response(ins, outs)
+        """
+        step3_test(state)
     end
-    @test state.history == """
-    cd \$WORKSPACE/srcdir
-    cd libfoo
-    make install
-    exit
-    """
-    step3_test(state)
 
-    # Step 3 failure path (no binary in destdir -> return to build)
-    state = step3_state()
-    with_wizard_output(state, Wizard.step34) do ins, outs
-        # Don't build anything
-        call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
-        call_response(ins, outs, "Would you like to edit this script now?", "N")
+    @testset "Step 3 failure path (no binary in destdir -> return to build)" begin
+        state = step3_state()
+        with_wizard_output(state, Wizard.step34) do ins, outs
+            # Don't build anything
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
+            call_response(ins, outs, "Would you like to edit this script now?", "N")
 
-        # Return to build environment
-        call_response(ins, outs, "Return to build environment", "\r", newline=false)
-        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
-        cd libfoo
+            # Return to build environment
+            call_response(ins, outs, "Return to build environment", "\r", newline=false)
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+            make install
+            exit
+            """)
+
+            @test succcess_path_call_response(ins, outs)
+        end
+        @test state.history == """
+        cd \$WORKSPACE/srcdir
+        exit
+        cd \$WORKSPACE/srcdir
         make install
         exit
-        """)
-
-        @test succcess_path_call_response(ins, outs)
+        """
+        step3_test(state)
     end
-    @test state.history == """
-    cd \$WORKSPACE/srcdir
-    exit
-    cd \$WORKSPACE/srcdir
-    cd libfoo
-    make install
-    exit
-    """
-    step3_test(state)
 
-    # Step 3 failure path (no binary in destdir -> retry with a clean build environment)
-    state = step3_state()
-    with_wizard_output(state, Wizard.step34) do ins, outs
-        # Don't build anything
-        call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
-        call_response(ins, outs, "Would you like to edit this script now?", "N")
+    @testset "Step 3 failure path (no binary in destdir -> retry with a clean build environment)" begin
+        state = step3_state()
+        with_wizard_output(state, Wizard.step34) do ins, outs
+            # Don't build anything
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", "exit")
+            call_response(ins, outs, "Would you like to edit this script now?", "N")
 
-        # Clean environment
-        call_response(ins, outs, "Return to build environment", "\e[B\r")
+            # Clean environment
+            call_response(ins, outs, "Return to build environment", "$DOWN\r")
+        end
+        @test state.step === :step3
     end
-    @test state.step == :step3
 
-    # Step 3 with a failing script
-    state = step3_state()
-    with_wizard_output(state, Wizard.step34) do ins, outs
+    @testset "Step 3 with a failing script" begin
+        state = step3_state()
+        with_wizard_output(state, Wizard.step34) do ins, outs
+            # Build ok, but then indicate a failure
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+            make install
+            exit 1
+            """)
+
+            @test readuntil_sift(outs, "Warning:") !== nothing
+            @test succcess_path_call_response(ins, outs)
+        end
+        step3_test(state)
+    end
+
+    @testset " Step 3 - retry" begin
+        state = step3_state()
         # Build ok, but then indicate a failure
-        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
-        cd libfoo
-        make install
-        exit 1
-        """)
-
-        @test readuntil_sift(outs, "Warning:") !== nothing
-
-        @test succcess_path_call_response(ins, outs)
-    end
-    step3_test(state)
-
-    # Step 3 dependency download
-    state = step3_state()
-    state.dependencies = [Dependency(PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a"))]
-    with_wizard_output(state, Wizard.step34) do ins, outs
-        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
-        if [[ ! -f \${libdir}/libz.\${dlext} ]]; then
-            echo "ERROR: Could not find libz.\${dlext}" >&2
+        with_wizard_output(state, Wizard.step34) do ins, outs
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+            make install
+            install_license LICENSE.md
             exit 1
-        fi
-        cd libfoo
-        make install
-        exit
-        """)
-        @test succcess_path_call_response(ins, outs)
+            """)
+            @test readuntil_sift(outs, "Warning:") !== nothing
+            @test succcess_path_call_response(ins, outs)
+        end
+        with_wizard_output(state, Wizard.step3_retry) do ins, outs
+            call_response(ins, outs, "bin/fooifier", "ad"; newline = false)
+            call_response(ins, outs, "lib/libfoo", "libfoo")
+            call_response(ins, outs, "bin/fooifier", "fooifier")
+        end
+        step3_test(state)
     end
 
-    # Step 3 - `bb add`
-    state = step3_state()
-    state.dependencies = [Dependency(PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a"))]
-    with_wizard_output(state, Wizard.step34) do ins, outs
-        call_response(ins, outs, "\${WORKSPACE}/srcdir", """
-        if [[ ! -f \${libdir}/libz.\${dlext} ]]; then
-            echo "ERROR: Could not find libz.\${dlext}" >&2
-            exit 1
-        fi
-        bb add Xorg_xorgproto_jll
-        if [[ ! -d \${includedir}/X11 ]]; then
-            echo "ERROR: Could not find include/X11" >&2
-            exit 1
-        fi
-        bb add Zlib_jll
-        cd libfoo
-        make install
-        exit
-        """)
-        @test succcess_path_call_response(ins, outs)
+    @testset "Step 3 dependency download" begin
+        state = step3_state()
+        state.dependencies = [Dependency(PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a"))]
+        with_wizard_output(state, Wizard.step34) do ins, outs
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+            if [[ ! -f \${libdir}/libz.\${dlext} ]]; then
+                echo "ERROR: Could not find libz.\${dlext}" >&2
+                exit 1
+            fi
+            make install
+            exit
+            """)
+            @test succcess_path_call_response(ins, outs)
+        end
     end
+
+    @testset " Step 3 - `bb add`" begin
+        state = step3_state()
+        state.dependencies = [Dependency(PackageSpec(name="Zlib_jll", uuid="83775a58-1f1d-513f-b197-d71354ab007a"))]
+        with_wizard_output(state, Wizard.step34) do ins, outs
+            call_response(ins, outs, "\${WORKSPACE}/srcdir", """
+            if [[ ! -f \${libdir}/libz.\${dlext} ]]; then
+                echo "ERROR: Could not find libz.\${dlext}" >&2
+                exit 1
+            fi
+            bb add Xorg_xorgproto_jll
+            if [[ ! -d \${includedir}/X11 ]]; then
+                echo "ERROR: Could not find include/X11" >&2
+                exit 1
+            fi
+            bb add Zlib_jll
+            make install
+            exit
+            """)
+            @test succcess_path_call_response(ins, outs)
+        end
+    end
+
 end
 
 function step5_state(script)
@@ -468,26 +503,66 @@ function step5_state(script)
 end
 
 @testset "Wizard - Generalizing" begin
-    # Check that with a failing script, step 5 rejects,
-    # even if all artifacts are present.
-    state = step5_state("""
-        cd libfoo
-        make install
-        exit 1
-    """)
-
-    with_wizard_output(state, state->Wizard.step5_internal(state, first(state.platforms))) do ins, outs
-        call_response(ins, outs, "Press Enter to continue...", "\n")
-        call_response(ins, outs, "How would you like to proceed?", "\e[B\e[B\r")
+    @testset "step5_internal (failure)" begin
+        # Check that with a failing script, step 5 rejects,
+        # even if all artifacts are present.
+        state = step5_state("exit 1")
+        with_wizard_output(state, state->Wizard.step5_internal(state, first(state.platforms))) do ins, outs
+            call_response(ins, outs, "Press Enter to continue...", "\n")
+            call_response(ins, outs, "How would you like to proceed?", "$DOWN$DOWN\r")
+        end
+        @test isempty(state.platforms)
     end
-    @test isempty(state.platforms)
+
+    @testset "step 5 sequence (failure)" begin
+        state = step5_state("exit 1")
+        empty!(state.platforms)
+
+        Wizard.step5a(state)
+        @test state.step === :step5b
+
+        Wizard.step5b(state)
+        @test state.step === :step5c
+
+        with_wizard_output(state, Wizard.step5c) do ins, outs
+            call_response(ins, outs, "Press Enter to continue...", "\n")
+        end
+        @test state.step === :step5c
+    end
+
+    @testset "step 5/6 sequence (success)" begin
+        state = step5_state("""
+            cd \$WORKSPACE/srcdir
+            make install
+            install_license LICENSE.md
+            exit 0
+        """)
+
+        with_wizard_output(state, Wizard.step5a) do ins, outs
+            call_response(ins, outs, "Press Enter to continue...", "\n")
+        end
+        @test state.step === :step5b
+
+        Wizard.step5b(state)
+        @test state.step === :step5c
+
+        with_wizard_output(state, Wizard.step5c) do ins, outs
+            call_response(ins, outs, "Press Enter to continue...", "\n")
+        end
+        push!(state.failed_platforms, first(filter(x -> x != HOST_PLATFORM, supported_platforms())))
+        @show state.platforms state.validated_platforms state.failed_platforms
+
+        with_wizard_output(state, Wizard.step6) do ins, outs
+            call_response(ins, outs, "How would you like to proceed? (CTRL-C to exit)", "\r")
+        end
+        @test state.step === :step7
+    end
 end
 
 function step7_state()
     state = step5_state("""
-    cd libfoo
-    make install
-    exit 1
+        make install
+        exit 1
     """)
     state.patches = [PatchSource("foo.patch", "this is a patch")]
     return state
@@ -498,7 +573,7 @@ end
     # First, test local deployment
     mktempdir() do out_dir
         with_wizard_output(state, state->Wizard._deploy(state)) do ins, outs
-            call_response(ins, outs, "How should we deploy this build recipe?", "\e[B\r")
+            call_response(ins, outs, "How should we deploy this build recipe?", "$DOWN\r")
             call_response(ins, outs, "Enter directory to write build_tarballs.jl to:", "$(out_dir)\r")
         end
         @test isfile(joinpath(out_dir, "build_tarballs.jl"))
@@ -508,7 +583,7 @@ end
     # Next, test writing out to stdout
     state = step7_state()
     with_wizard_output(state, state->Wizard._deploy(state)) do ins, outs
-        call_response(ins, outs, "How should we deploy this build recipe?", "\e[B\e[B\r")
+        call_response(ins, outs, "How should we deploy this build recipe?", "$DOWN$DOWN\r")
         @test readuntil_sift(outs, "Your generated build_tarballs.jl:") !== nothing
         @test readuntil_sift(outs, "name = \"libfoo\"") !== nothing
         @test readuntil_sift(outs, "make install") !== nothing
@@ -527,6 +602,12 @@ end
             @test Wizard.load_wizard_state(dir; as_is=true) == state
         end
     end
+end
+
+@testset "Logo" begin
+    io = PipeBuffer()
+    Wizard.print_wizard_logo(io)
+    @test contains(read(io, String), "https://github.com/JuliaPackaging/BinaryBuilder.jl")
 end
 
 close(server)
