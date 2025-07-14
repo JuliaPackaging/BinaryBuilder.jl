@@ -195,6 +195,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 [Dependency("CompilerSupportLibraries_jll")];
                 # We need to be able to build go and rust and whatnot
                 compilers,
+                compression_format="xz",
             )
 
             # Test that we built everything (I'm not entirely sure how I expect

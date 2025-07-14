@@ -178,6 +178,8 @@ supported ones. A few additional keyword arguments are accept:
   Since the generated JLL package is named according to `src_name`, this should
   only be set to `false` if you _really_ know what you're doing.
 
+* `compression_format`: the compression format used for the generated tarballs.
+
 !!! note
 
     The `init_block` and `augment_platform_block` keyword arguments are experimental
@@ -187,13 +189,19 @@ supported ones. A few additional keyword arguments are accept:
 function build_tarballs(ARGS, src_name, src_version, sources, script,
                         platforms, products, dependencies;
                         julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                        validate_name::Bool=true, kwargs...)
+                        validate_name::Bool=true,
+                        compression_format::String="gzip",
+                        kwargs...)
     @nospecialize
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
         println(BUILD_HELP)
         return nothing
+    end
+
+    if compression_format != "gzip" && minimum_compat(julia_compat) < v"1.6"
+        error("Compression formats different from gzip are supported only from Julia v1.6, increase the Julia compat if you want to use a non-default format")
     end
 
     if validate_name && !Base.isidentifier(src_name)
@@ -379,6 +387,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             verbose,
             debug,
             skip_audit,
+            compression_format,
             kwargs...,
         )
     end
@@ -733,7 +742,9 @@ end
               skip_audit = false, ignore_audit_errors = true,
               autofix = true, code_dir = nothing,
               meta_json_file = nothing, require_license = true,
-              dont_dlopen = false, kwargs...)
+              dont_dlopen = false,
+              compression_format = "gzip",
+              kwargs...)
 
 Runs the boiler plate code to download, build, and package a source package
 for a list of platforms.  This method takes a veritable truckload of arguments,
@@ -781,6 +792,8 @@ here are the relevant actors, broken down in brief:
    the generated JLL loading the library at run time, and only prevents
    BinaryBuilder from doing so during JLL generation.
 
+* `compression_format`: the compression format used for the generated tarballs.
+
 """
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
@@ -798,6 +811,7 @@ function autobuild(dir::AbstractString,
                    code_dir::Union{String,Nothing} = nothing,
                    require_license::Bool = true,
                    dont_dlopen::Bool = false,
+                   compression_format::String = "gzip",
                    kwargs...)
     @nospecialize
 
@@ -1020,6 +1034,7 @@ function autobuild(dir::AbstractString,
             platform=platform,
             verbose=verbose,
             force=true,
+            compression_format,
             # Do not include logs into the main tarball
             filter=exclude_logs,
         )
@@ -1031,6 +1046,7 @@ function autobuild(dir::AbstractString,
             platform=platform,
             verbose=verbose,
             force=true,
+            compression_format,
             filter=only_logs,
         )
         timer.end_package = time()
@@ -1062,7 +1078,7 @@ end
 
 function download_github_release(download_dir, repo, tag; gh_auth=Wizard.github_auth(), verbose::Bool=false)
     release = gh_get_json(DEFAULT_API, "/repos/$(repo)/releases/tags/$(tag)", auth=gh_auth)
-    assets = [a for a in release["assets"] if endswith(a["name"], ".tar.gz")]
+    assets = [a for a in release["assets"] if endswith(a["name"], r"\.tar\.(gz|xz|bz2)")]
 
     for asset in assets
         if verbose
