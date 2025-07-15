@@ -1,3 +1,5 @@
+using BinaryBuilderBase: detect_compressor
+
 @testset "Building libfoo" begin
 	# Test building with both `make` and `cmake`, using directory and git repository
     for script in (libfoo_make_script, libfoo_cmake_script, libfoo_meson_script)
@@ -210,6 +212,12 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
                 # Ensure the build products were created
                 @test isfile(tarball_path)
+
+                compressor = open(tarball_path) do io
+                    detect_compressor(read(io, 6))
+                end
+                # Make sure the compression format is what we expect
+                @test compressor == "xz"
 
                 # Unpack it somewhere else
                 @test verify(tarball_path, tarball_hash)
