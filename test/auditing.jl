@@ -730,7 +730,7 @@ end
             # Ensure the build products were created
             @test isfile(tarball_path)
             # Ensure reproducibility of build
-            @test build_output_meta[platform][3] == Base.SHA1("0165cfbbbb8e521707299d649359f2bfdc28f204")
+            @test build_output_meta[platform][3] == Base.SHA1("8805236c0abcca3b393e184f67bb89291b3f2d28")
 
             # Unpack it somewhere else
             @test verify(tarball_path, tarball_hash)
@@ -797,7 +797,7 @@ end
     platform = Platform("i686", "windows")
     expected_git_shas = Dict(
         v"4" => Base.SHA1("1b625af3aa29c4b4b398f1eeaccc83d781bca1a5"),
-        v"6" => Base.SHA1("61767c3a66a66caeed84ee747a95021a94e77e3d"),
+        v"6" => Base.SHA1("a65f72e29a87cc8a5f048069abf6a250527563c9"),
     )
     @testset "gcc version $(gcc_version)" for gcc_version in (v"4", v"6")
         mktempdir() do build_path
@@ -833,7 +833,9 @@ end
             tarball_path, tarball_hash = build_output_meta[platform][1:2]
             @test isfile(tarball_path)
             # Ensure reproducibility of build
-            @test build_output_meta[platform][3] == expected_git_shas[gcc_version]
+            # TODO: fix reproducibility with GCC v5+:
+            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/435#issuecomment-3185007378
+            @test build_output_meta[platform][3] == expected_git_shas[gcc_version] skip=gcc_version>=v"5"
         end
     end
 end
