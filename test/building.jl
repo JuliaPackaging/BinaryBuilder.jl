@@ -257,26 +257,26 @@ end
     ]
     expected_git_shas = Dict(
         v"4" => Dict(
-            x86_64_linux  => Base.SHA1("fb3897274fe9b293eb6bfb65063895946e655114"),
-            ppc64le_linux => Base.SHA1("53a4e6c7e7d05bf245a8b794133b963bb1ebb1c2"),
-            armv7l_linux  => Base.SHA1("28fc03c35a4d30da70fbdefc69ecc6b6bf93f2fb"),
-            aarch64_linux => Base.SHA1("c1c06efddc8bdce7b33fc9d8b6859f3c63e429ea"),
+            x86_64_linux  => Base.SHA1("cc2ad05285813f6b70bac6241a8fc869c5d331ee"),
+            ppc64le_linux => Base.SHA1("d53d766c5a098420dbdc8fa7b79e343860096ac4"),
+            armv7l_linux  => Base.SHA1("673b4a548ef7dbc07a9230e094b199c48018bc6e"),
+            aarch64_linux => Base.SHA1("8938e2f1f3c25ebfa4fb1f5fceb2dacc241c95c4"),
             x86_64_macos  => Base.SHA1("b0f9ef3b42b30f9085d4f9d60c3ea441554c442f"),
             i686_windows  => Base.SHA1("f39858ccc34a63a648cf21d33ae236bfdd706d09"),
         ),
         v"5" => Dict(
-            x86_64_linux  => Base.SHA1("743b2eac2e096281a2c69f95a2f58a4583824a84"),
-            ppc64le_linux => Base.SHA1("b663282a6101647c0aa87043a632b6cdc08f761f"),
-            armv7l_linux  => Base.SHA1("9a3273d5c7a41e7c2a5ab58b6b69db49a8533bc1"),
-            aarch64_linux => Base.SHA1("4bab3a85aceb3e589989f1a11a2f092c5038a6e0"),
+            x86_64_linux  => Base.SHA1("a92857b327fcaddfe0e31081ac8cd96e3e0ec2ea"),
+            ppc64le_linux => Base.SHA1("e47c4e8ba3cd44a13b2e0eeb49f28fe0f958e25b"),
+            armv7l_linux  => Base.SHA1("6e5a108b68b2f12dae88a21b756e15c61eaefd6b"),
+            aarch64_linux => Base.SHA1("b1afb1cbfa5a919528c869cedf96a8fe70687a27"),
             x86_64_macos  => Base.SHA1("9ddfd323ed25fc02394067c6e863f1cf826a9e5e"),
             i686_windows  => Base.SHA1("9390a3c24a8e274e6d7245c6c977f97b406bc3f5"),
         ),
         v"6" => Dict(
-            x86_64_linux  => Base.SHA1("0b152c2cc8ff2af82f8d2d0adbbe26e0961131ed"),
-            ppc64le_linux => Base.SHA1("97b7e5682b3cadc873644931b17894fa2ff05335"),
-            armv7l_linux  => Base.SHA1("267b443b17b99ca2a14ea93d2afc2cce51cad05e"),
-            aarch64_linux => Base.SHA1("b396b1d94aba8642a68122a3515b26e4397217a0"),
+            x86_64_linux  => Base.SHA1("8e18b9a6fd6bebcbf350f4605f59da588c3f91d8"),
+            ppc64le_linux => Base.SHA1("5595cc99163816896ba3982e458a92086dea590d"),
+            armv7l_linux  => Base.SHA1("f485bbe50a8fc242a40c2a67ca6f23225f5cfcd7"),
+            aarch64_linux => Base.SHA1("839b5fb66e49f38700c8f6cacadd3cc11785c3bb"),
             x86_64_macos  => Base.SHA1("b211e8c87b83e820416757d6d2985bcd19db7f24"),
             i686_windows  => Base.SHA1("ae50af4ca8651cb3c8f71f34d0b66ca0d8f14a99"),
         ),
@@ -340,7 +340,7 @@ end
                 Dependency[],
             )
             # Test build reproducibility
-            @test build_output_meta[p][3] == Base.SHA1("95e005d9b057b3a28af61189b9af5613127416a6")
+            @test build_output_meta[p][3] == Base.SHA1("f347485b5f271afa04dcec5b9645550664d5e6dc")
         end
     end
 end
