@@ -609,6 +609,8 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
                       lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+                      registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General",
+                      registry_fork_url = registry_url,
                       kwargs...)
     if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
         error("Augmentation blocks cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
@@ -621,7 +623,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
     # Use RegistryTools to push up a new `General` branch with this JLL package registered within it
     # TODO: Update our fork periodically from upstream `General`.
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
-    registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
     jllwrappers_compat = DEFAULT_JLLWRAPPERS_VERSION_SPEC
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts, augment_platform_block))
@@ -633,6 +634,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
         project_file,
         wrapper_tree_hash;
         registry=registry_url,
+        registry_fork=registry_fork_url,
         cache=cache,
         push=true,
         checks_triggering_error = errors,
