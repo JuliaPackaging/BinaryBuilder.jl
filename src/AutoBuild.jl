@@ -631,7 +631,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
     project_file = joinpath(mktempdir(), "Project.toml")
     Pkg.Types.write_project(project, project_file)
     errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
-    @show registry_url, registry_fork_url
     reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
         project_file,
