@@ -611,6 +611,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                       registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General",
                       registry_fork_url = registry_url,
+                      registry_fork_org = "General",
                       gh_auth_pr=gh_auth, # To open a PR we may in principle need a different token.
                       kwargs...)
     if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
@@ -630,6 +631,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
     project_file = joinpath(mktempdir(), "Project.toml")
     Pkg.Types.write_project(project, project_file)
     errors = setdiff(RegistryTools.registrator_errors, [:version_less_than_all_existing])
+    @show registry_url, registry_fork_url
     reg_branch = RegistryTools.register(
         "https://github.com/$(deploy_repo).git",
         project_file,
@@ -668,7 +670,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
         end
         params = Dict(
             "base" => "master",
-            "head" => "$(reg_branch.branch)",
+            "head" => "$(registry_fork_org):$(reg_branch.branch)",
             "maintainer_can_modify" => true,
             "title" => pr_title,
             "body" => body,
