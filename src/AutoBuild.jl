@@ -673,6 +673,9 @@ function register_jll(name, build_version, dependencies, julia_compat;
             "title" => pr_title,
             "body" => body,
         )
+        @show params
+        @show reg_branch
+        @show deploy_repo
         Wizard.create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth_pr)
     end
 end
