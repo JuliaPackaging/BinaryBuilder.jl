@@ -611,7 +611,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                       registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General",
                       registry_fork_url = registry_url,
-                      registry_fork_org = "General",
+                      registry_fork_org = "JuliaRegistries",
                       gh_auth_pr=gh_auth, # To open a PR we may in principle need a different token.
                       kwargs...)
     if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
