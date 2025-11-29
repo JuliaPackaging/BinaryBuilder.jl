@@ -47,13 +47,14 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
         return true
     end
 
-    # For Linux/BSD, wrap the entire read-modify-verify cycle in the file lock
-    if Sys.islinux(platform) || Sys.isbsd(platform)
-        return with_patchelf_lock(path) do
-            _ensure_soname_elf(prefix, path, platform; verbose, autofix, subdir)
-        end
-    else
+    # macOS uses install_name_tool (check first since Sys.isbsd is true for macOS too)
+    if Sys.isapple(platform)
         return _ensure_soname_macho(prefix, path, platform; verbose, autofix, subdir)
+    end
+
+    # For Linux/FreeBSD, wrap the entire read-modify-verify cycle in the file lock
+    return with_patchelf_lock(path) do
+        _ensure_soname_elf(prefix, path, platform; verbose, autofix, subdir)
     end
 end
 

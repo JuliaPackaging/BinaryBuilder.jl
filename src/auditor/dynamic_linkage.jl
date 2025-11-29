@@ -450,14 +450,15 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         return
     end
 
-    # For Linux/BSD, wrap the entire read-modify-write cycle in the file lock
-    # to prevent concurrent access while reading rpaths and running patchelf
-    if Sys.islinux(platform) || Sys.isbsd(platform)
-        return with_patchelf_lock(path) do
-            _update_linkage_elf(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
-        end
-    else
+    # macOS uses install_name_tool (check first since Sys.isbsd is true for macOS too)
+    if Sys.isapple(platform)
         return _update_linkage_macho(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+    end
+
+    # For Linux/FreeBSD, wrap the entire read-modify-write cycle in the file lock
+    # to prevent concurrent access while reading rpaths and running patchelf
+    return with_patchelf_lock(path) do
+        _update_linkage_elf(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
     end
 end
 
