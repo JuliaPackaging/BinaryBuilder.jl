@@ -450,57 +450,31 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         return
     end
 
+    # For Linux/BSD, wrap the entire read-modify-write cycle in the file lock
+    # to prevent concurrent access while reading rpaths and running patchelf
+    if Sys.islinux(platform) || Sys.isbsd(platform)
+        return with_patchelf_lock(path) do
+            _update_linkage_elf(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+        end
+    else
+        return _update_linkage_macho(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+    end
+end
+
+function _update_linkage_macho(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
+                               old_libpath, new_libpath; verbose::Bool=false, subdir::AbstractString="")
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
-
-    normalize_rpath = rp -> rp
-    add_rpath = x -> ``
-    relink = (x, y) -> ``
     install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
-    if Sys.isapple(platform)
-        normalize_rpath = rp -> begin
-            if !startswith(rp, "@loader_path")
-                return "@loader_path/$(rp)"
-            end
-            return rp
-        end
-        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
-        relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
-    elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        normalize_rpath = rp -> begin
-            if rp == "."
-                return "\$ORIGIN"
-            end
-            if startswith(rp, ".") || !startswith(rp, "/")
-                # Relative paths starting with `.`, or anything which isn't an absolute
-                # path.  It may also be a relative path without the leading `./`
-                return "\$ORIGIN/$(rp)"
-            end
-            return rp
-        end
-        current_rpaths = [r for r in _rpaths(path) if !isempty(r)]
-        add_rpath = rp -> begin
-            # Join together RPaths to set new one
-            rpaths = unique(vcat(current_rpaths, rp))
 
-            # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
-            # it semantically makes a difference, but why not be correct AND beautiful?
-            chomp_slashdot = path -> begin
-                if length(path) > 2 && path[end-1:end] == "/."
-                    return path[1:end-2]
-                end
-                return path
-            end
-            rpaths = chomp_slashdot.(rpaths)
-            # Remove paths starting with `/workspace`: they will not work outisde of the
-            # build environment and only create noise when debugging.
-            filter!(rp -> !startswith(rp, "/workspace"), rpaths)
-
-            rpath_str = join(rpaths, ':')
-            return `$(patchelf()) $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(path)`
+    normalize_rpath = rp -> begin
+        if !startswith(rp, "@loader_path")
+            return "@loader_path/$(rp)"
         end
-        relink = (op, np) -> `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(op) $(np) $(path)`
+        return rp
     end
+    add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
+    relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
 
     # If the relative directory doesn't already exist within the RPATH of this
     # binary, then add it in.
@@ -509,13 +483,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         libname = basename(old_libpath)
         cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
         with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io
-            if Sys.isapple(platform)
-                @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
-            elseif Sys.islinux(platform) || Sys.isbsd(platform)
-                with_patchelf_lock(path) do
-                    run_with_io(io, cmd)
-                end
-            end
+            @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
         end
     end
 
@@ -523,24 +491,76 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     # This allows us to split things up into multiple packages, and as long as the
     # libraries that this guy is interested in have been `dlopen()`'ed previously,
     # (and have the appropriate SONAME) things should "just work".
-    if Sys.isapple(platform)
-        # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
-        # Note that this is still overridable through DYLD_FALLBACK_LIBRARY_PATH
-        new_libpath = joinpath("@rpath", basename(new_libpath))
-    else
-        # We just use the basename on all other systems (e.g. Linux).  Note that using
-        # $ORIGIN, while cute, doesn't allow for overrides via LD_LIBRARY_PATH.  :[
-        new_libpath = basename(new_libpath)
-    end
+    # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
+    # Note that this is still overridable through DYLD_FALLBACK_LIBRARY_PATH
+    new_libpath = joinpath("@rpath", basename(new_libpath))
     cmd = relink(old_libpath, new_libpath)
     with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log"; subdir) do io
-        if Sys.isapple(platform)
-            @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
-        elseif Sys.islinux(platform) || Sys.isbsd(platform)
-            with_patchelf_lock(path) do
-                run_with_io(io, cmd)
-            end
+        @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
+    end
+
+    return new_libpath
+end
+
+# This function is called with the patchelf lock already held
+function _update_linkage_elf(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
+                             old_libpath, new_libpath; verbose::Bool=false, subdir::AbstractString="")
+    normalize_rpath = rp -> begin
+        if rp == "."
+            return "\$ORIGIN"
         end
+        if startswith(rp, ".") || !startswith(rp, "/")
+            # Relative paths starting with `.`, or anything which isn't an absolute
+            # path.  It may also be a relative path without the leading `./`
+            return "\$ORIGIN/$(rp)"
+        end
+        return rp
+    end
+
+    current_rpaths = [r for r in _rpaths(path) if !isempty(r)]
+
+    add_rpath = rp -> begin
+        # Join together RPaths to set new one
+        rpaths = unique(vcat(current_rpaths, rp))
+        # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
+        # it semantically makes a difference, but why not be correct AND beautiful?
+        chomp_slashdot = p -> begin
+            if length(p) > 2 && p[end-1:end] == "/."
+                return p[1:end-2]
+            end
+            return p
+        end
+        rpaths = chomp_slashdot.(rpaths)
+        # Remove paths starting with `/workspace`: they will not work outside of the
+        # build environment and only create noise when debugging.
+        filter!(rp -> !startswith(rp, "/workspace"), rpaths)
+        rpath_str = join(rpaths, ':')
+        return `$(patchelf()) $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(path)`
+    end
+
+    relink = (op, np) -> `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(op) $(np) $(path)`
+
+    # If the relative directory doesn't already exist within the RPATH of this
+    # binary, then add it in.
+    new_libdir = abspath(dirname(new_libpath) * "/")
+    if !(new_libdir in _canonical_rpaths(path))
+        libname = basename(old_libpath)
+        cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
+        with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io
+            run_with_io(io, cmd)
+        end
+    end
+
+    # Create a new linkage that uses the RPATH and/or environment variables to find things.
+    # This allows us to split things up into multiple packages, and as long as the
+    # libraries that this guy is interested in have been `dlopen()`'ed previously,
+    # (and have the appropriate SONAME) things should "just work".
+    # We just use the basename on Linux/BSD.  Note that using $ORIGIN, while cute,
+    # doesn't allow for overrides via LD_LIBRARY_PATH.  :[
+    new_libpath = basename(new_libpath)
+    cmd = relink(old_libpath, new_libpath)
+    with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log"; subdir) do io
+        run_with_io(io, cmd)
     end
 
     return new_libpath
