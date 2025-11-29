@@ -525,11 +525,11 @@ function _update_linkage_elf(prefix::Prefix, platform::AbstractPlatform, path::A
         rpaths = unique(vcat(current_rpaths, rp))
         # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
         # it semantically makes a difference, but why not be correct AND beautiful?
-        chomp_slashdot = p -> begin
-            if length(p) > 2 && p[end-1:end] == "/."
-                return p[1:end-2]
+        chomp_slashdot = path -> begin
+            if length(path) > 2 && path[end-1:end] == "/."
+                return path[1:end-2]
             end
-            return p
+            return path
         end
         rpaths = chomp_slashdot.(rpaths)
         # Remove paths starting with `/workspace`: they will not work outside of the
