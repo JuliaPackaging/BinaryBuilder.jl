@@ -183,9 +183,9 @@ You should be aware of two incompatibilities in particular:
   the `std::string` ABI, you must make sure that the user will run a binary
   matching their `std::string` ABI.  You can manually specify the `std::string`
   ABI in the `compiler_abi` part of the platform, but `BinaryBuilder` lets you
-  automatically expand the list of platform to include an entry for the C++03
-  `std::string` ABI and another one for the C++11 `std::string` ABI, by using
-  the [`expand_cxxstring_abis`](@ref) function:
+  automatically expand the list of platform to include an entry for the
+  supported C++ `std::string` ABIs (by default only C++11), by using the
+  [`expand_cxxstring_abis`](@ref) function:
 
   ```jldoctest
   julia> using BinaryBuilder
@@ -195,8 +195,7 @@ You should be aware of two incompatibilities in particular:
    Linux x86_64 {libc=glibc}
 
   julia> expand_cxxstring_abis(platforms)
-  2-element Vector{Platform}:
-   Linux x86_64 {cxxstring_abi=cxx03, libc=glibc}
+  1-element Vector{Platform}:
    Linux x86_64 {cxxstring_abi=cxx11, libc=glibc}
   ```
 
@@ -216,7 +215,8 @@ You should be aware of two incompatibilities in particular:
   version compatible with their own.  Also in this case you can either manually
   specify the `libgfortran` version in the `compiler_abi` part fo the platform
   or use a function, [`expand_gfortran_versions`](@ref), to automatically expand
-  the list of platform to include all possible `libgfortran` versions:
+  the list of platform to include all supported `libgfortran` versions (by
+  default v5 and later):
 
   ```jldoctest
   julia> using BinaryBuilder
@@ -226,9 +226,7 @@ You should be aware of two incompatibilities in particular:
    Linux x86_64 {libc=glibc}
 
   julia> expand_gfortran_versions(platforms)
-  3-element Vector{Platform}:
-   Linux x86_64 {libc=glibc, libgfortran_version=3.0.0}
-   Linux x86_64 {libc=glibc, libgfortran_version=4.0.0}
+  1-element Vector{Platform}:
    Linux x86_64 {libc=glibc, libgfortran_version=5.0.0}
   ```
 
