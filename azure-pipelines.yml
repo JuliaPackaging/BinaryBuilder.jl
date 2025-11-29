@@ -26,7 +26,7 @@ pr:
 pool: BinaryBuilder
 
 variables:
-  JULIA: unbuffer julia-1.7 --project=$(Build.SourcesDirectory) --color=yes
+  JULIA: unbuffer julia-1.12 --project=$(Build.SourcesDirectory) --color=yes
   BINARYBUILDER_AUTOMATIC_APPLE: true
   BINARYBUILDER_USE_CCACHE: true
   CI: true
