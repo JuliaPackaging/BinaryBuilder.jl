@@ -302,3 +302,21 @@ In addition to the standard Unix tools, in the build environment there are some 
   ```sh
   update_configure_scripts --reconf
   ```
+  
+## Get inspiration from apk's build scripts
+
+You can find the build scripts for Alpine packages here: [here](https://git.alpinelinux.org/aports/tree/) (usually in the folders main, community, or testing). These build scripts are not written for cross-compilation; however, they can contain helpful ideas and patches.
+
+## Open draft pull requests before asking questions
+
+It's easier to stay on the same page if maintainers can run your build script, even if it is incomplete. Use another build script as a template and fill in as much information as you can. Don't forget to add the [hash](#What-are-those-numbers-in-the-list-of-sources?-How-do-I-get-them?), otherwise CI won't run.
+
+## Make your script work for different versions
+
+To make it easier to update the version:
+
+- Replace the version number with * when changing directories, e.g. `cd my-package-*`
+- Interpolate version number into urls, for example, `"http://...my-package-$(version).tar.gz"`. You can also use just parts of the version number, like `"http://...my-package-$(version.major).$(version.minor).tar.gz"`.
+
+
+
