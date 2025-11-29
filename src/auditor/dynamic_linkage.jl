@@ -450,7 +450,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         return
     end
 
-    # macOS uses install_name_tool (check first since Sys.isbsd is true for macOS too)
+    # macOS uses install_name_tool
     if Sys.isapple(platform)
         return _update_linkage_macho(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
     end
