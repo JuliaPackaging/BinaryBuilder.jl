@@ -419,12 +419,9 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         # Look at every dynamic link, and see if we should do anything about that link...
         libs = find_libraries(oh)
         ignored_libraries = String[]
-        ignored_libraries_lock = Threads.ReentrantLock()
-        Threads.@threads for libname in collect(keys(libs))
+        for libname in collect(keys(libs))
             if should_ignore_lib(libname, oh, platform)
-                lock(ignored_libraries_lock) do
-                    push!(ignored_libraries, libname)
-                end
+                push!(ignored_libraries, libname)
                 continue
             end
 
