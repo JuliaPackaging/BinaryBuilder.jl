@@ -1,0 +1,136 @@
+name: Tests
+
+on:
+  push:
+    branches: "master"
+    tags: ["*"]
+    paths:
+      - '.github/workflows/Tests.yml'
+      - '*.toml'
+      - 'src/**'
+      - 'test/**'
+  pull_request:
+    paths:
+      - '.github/workflows/Tests.yml'
+      - '*.toml'
+      - 'src/**'
+      - 'test/**'
+  release:
+
+concurrency:
+  # Skip intermediate builds: always.
+  # Cancel intermediate builds: always.
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  BINARYBUILDER_AUTOMATIC_APPLE: true
+  # Auditor is now multi-threaded, run tests with multiple threads
+  JULIA_NUM_THREADS: 3
+
+jobs:
+  test:
+    name: Julia ${{ matrix.julia-version }} - x64 - runner ${{ matrix.runner }} - SquashFS ${{ matrix.squashfs }}
+    timeout-minutes: 60
+    # With unprivileged runner on Ubuntu 24.04 we run into
+    #
+    #     --> Creating overlay workdir at /proc
+    #     At line 572, ABORTED (13: Permission denied)!
+    runs-on: ubuntu-22.04
+    env:
+      BINARYBUILDER_RUNNER: ${{ matrix.runner }}
+      BINARYBUILDER_USE_SQUASHFS: ${{ matrix.squashfs }}
+      # Run full tests only when we use the packed shards, because we constantly
+      # run out of disk on the free GitHub-hosted runners.
+      BINARYBUILDER_FULL_SHARD_TEST: ${{ matrix.squashfs }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Add a job that uses the privileged builder with squashfs shards
+          - runner: privileged
+            squashfs: true
+            julia-version: "1.12"
+
+          # Add a job that uses the unprivileged builder with unpacked shards
+          - runner: unprivileged
+            squashfs: false
+            julia-version: "1.12"
+
+          # Add a job that uses the docker builder with unpacked shards
+          - runner: docker
+            squashfs: false
+            julia-version: "1.12"
+
+    steps:
+      - name: Show available storage before cleanup
+        run: |
+          echo " --> df -h /"
+          df -h /
+          echo " --> df -a /"
+          df -a /
+      - name: Free Disk Space
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          tool-cache: true
+          # Removing "large packages" alone takes a couple of minutes, it could
+          # be switched to true if more space is needed (it'd save ~5 GB or so)
+          large-packages: false
+      - name: Cleanup /opt
+        run: |
+          sudo rm -rf /opt/*
+      - name: Show available storage after cleanup
+        run: |
+          echo " --> df -h /"
+          df -h /
+          echo " --> df -a /"
+          df -a /
+      - uses: actions/checkout@v6
+      - uses: julia-actions/setup-julia@v2
+        with:
+          version: ${{ matrix.julia-version }}
+          arch: x64
+      # We can't cache artifacts at the moment, it'd require more than 10 GiB.
+      # - uses: julia-actions/cache@v2
+      #   # For the time being cache artifacts only for squashfs, we need too much
+      #   # storage for the unpacked shards
+      #   if: ${{ matrix.squashfs == true }}
+      #   with:
+      #     # Reserve entire cache to artifacts
+      #     cache-name: ${{ matrix.squashfs }}
+      #     cache-artifacts: "true"
+      #     cache-packages: "false"
+      #     cache-registries: "false"
+      - name: System info
+        run: |
+          args=(--check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. --code-coverage="@${PWD}")
+          julia "${args[@]}" -e "using Pkg; Pkg.Registry.update(); Pkg.instantiate()"
+          julia "${args[@]}" -e "using BinaryBuilder; BinaryBuilder.versioninfo()"
+          julia "${args[@]}" -e "using Pkg; Pkg.status(; mode=PKGMODE_MANIFEST)"
+      - name: Configure Git
+        # These options are expect to exists during some of the tests.
+        run: |
+          git config --global user.name "${{github.actor}}"
+          git config --global user.email "${{github.actor_id}}+${{github.actor}}@users.noreply.github.com"
+      - name: Run tests
+        run: |
+          julia --check-bounds=yes --color=yes --depwarn=yes --inline=yes --project=@. -e 'using Pkg; Pkg.instantiate(); Pkg.test(coverage=true)'
+      - uses: julia-actions/julia-processcoverage@v1
+      - uses: codecov/codecov-action@v5
+        continue-on-error: true
+        with:
+          files: lcov.info
+      - uses: coverallsapp/github-action@v2
+        continue-on-error: true
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          path-to-lcov: lcov.info
+          flag-name: run-${{ join(matrix.*, '-') }}
+          parallel: true
+      - name: Show available storage at the end
+        if: always()
+        run: |
+          echo " --> df -h /"
+          df -h /
+          echo " --> df -a /"
+          df -a /
