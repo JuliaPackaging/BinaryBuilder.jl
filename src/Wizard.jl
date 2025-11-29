@@ -1,6 +1,6 @@
 module Wizard
 
-using BinaryBuilderBase, OutputCollectors, ..Auditor
+using BinaryBuilderBase, ..Auditor
 using Random
 using GitHub, LibGit2, Pkg, Sockets, ObjectFile
 import GitHub: gh_get_json, DEFAULT_API
