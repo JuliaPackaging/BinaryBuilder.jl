@@ -73,7 +73,9 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
             set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
             @lock AUDITOR_SANDBOX_LOCK run(ur, set_soname_cmd, io; verbose=verbose)
         elseif Sys.islinux(platform) || Sys.isbsd(platform)
-            success(run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --set-soname $(soname) $(realpath(path))`; wait=false))
+            with_patchelf_lock(path) do
+                success(run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --set-soname $(soname) $(realpath(path))`; wait=false))
+            end
         end
     end
 

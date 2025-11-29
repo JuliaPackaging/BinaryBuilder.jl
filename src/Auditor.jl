@@ -16,6 +16,33 @@ const AUDITOR_SANDBOX_LOCK = ReentrantLock()
 # Logging is reportedly not thread-safe but guarding it with locks should help.
 const AUDITOR_LOGGING_LOCK = ReentrantLock()
 
+# Per-file locks for patchelf operations. Multiple threads may try to modify
+# the same binary file (e.g., relinking different libraries), so we need to
+# serialize access per file.
+const PATCHELF_FILE_LOCKS = Dict{String,ReentrantLock}()
+const PATCHELF_FILE_LOCKS_LOCK = ReentrantLock()
+
+"""
+    with_patchelf_lock(f, path::AbstractString)
+
+Execute `f()` while holding a lock specific to the file at `path`.
+This prevents concurrent patchelf operations on the same file.
+"""
+function with_patchelf_lock(f, path::AbstractString)
+    # Normalize the path to ensure consistent locking
+    path = realpath(path)
+    
+    # Get or create the lock for this file
+    file_lock = Base.@lock PATCHELF_FILE_LOCKS_LOCK begin
+        get!(PATCHELF_FILE_LOCKS, path) do
+            ReentrantLock()
+        end
+    end
+    
+    # Execute with the file-specific lock held
+    Base.@lock file_lock f()
+end
+
 # Helper function to run a command and print to `io` its invocation and full
 # output (mimic what the sandbox does normally, but outside of it).
 function run_with_io(io::IO, cmd::Cmd; wait::Bool=true)

@@ -392,7 +392,9 @@ function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::Abstr
             relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
             @lock AUDITOR_SANDBOX_LOCK run(ur, relink_cmd, io; verbose=verbose)
         elseif Sys.islinux(platform) || Sys.isbsd(platform)
-            run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(path)`)
+            with_patchelf_lock(path) do
+                run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(path)`)
+            end
         end
     end
 end
@@ -510,7 +512,9 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
             if Sys.isapple(platform)
                 @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
             elseif Sys.islinux(platform) || Sys.isbsd(platform)
-                run_with_io(io, cmd)
+                with_patchelf_lock(path) do
+                    run_with_io(io, cmd)
+                end
             end
         end
     end
@@ -533,7 +537,9 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         if Sys.isapple(platform)
             @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
         elseif Sys.islinux(platform) || Sys.isbsd(platform)
-            run_with_io(io, cmd)
+            with_patchelf_lock(path) do
+                run_with_io(io, cmd)
+            end
         end
     end
 
