@@ -34,7 +34,7 @@ const runshell = BinaryBuilderBase.runshell
 include("Auditor.jl")
 include("Wizard.jl")
 
-using OutputCollectors, BinaryBuilderBase, .Auditor, .Wizard
+using BinaryBuilderBase, .Auditor, .Wizard
 
 # Autocomplete BinaryBuilder.run_wizard
 const run_wizard = Wizard.run_wizard
