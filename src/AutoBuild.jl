@@ -196,6 +196,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                         kwargs...)
     @nospecialize
     reset_bbb_timer!()
+    @timeit BBB_TIMER "build_tarballs" begin
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
@@ -444,6 +445,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
     end
 
+    end  # @timeit build_tarballs
     print_timer(BBB_TIMER; sortby=:firstexec)
     println()
     return build_output_meta
