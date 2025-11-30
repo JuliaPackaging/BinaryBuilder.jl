@@ -1,7 +1,7 @@
 name = "BinaryBuilder"
 uuid = "12aac903-9f7c-5d81-afc2-d9565ea332ae"
-authors = ["Elliot Saba <staticfloat@gmail.com>"]
 version = "0.6.5"
+authors = ["Elliot Saba <staticfloat@gmail.com>"]
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -29,6 +29,7 @@ SHA = "ea8e919c-243c-51af-8825-aaa63cd721ce"
 Scratch = "6c6a2e73-6563-6170-7368-637461726353"
 Sockets = "6462fe0b-24de-5631-8697-dd941f90decc"
 TOML = "fa267f1f-6049-4f14-aa54-33bafae1ed76"
+TimerOutputs = "a759f4b9-e2f1-59dc-863e-4aeb61b1ea8f"
 UUIDs = "cf7118a7-6976-5b1a-9a39-7adc72f591a4"
 ghr_jll = "07c12ed4-43bc-5495-8a2a-d5838ef8d533"
 
@@ -51,6 +52,7 @@ RegistryTools = "2.1"
 SHA = "0.7, 1"
 Scratch = "1.0"
 TOML = "1"
+TimerOutputs = "0.5"
 ghr_jll = "0.13, 0.14, 0.17"
 julia = "1.7"
 

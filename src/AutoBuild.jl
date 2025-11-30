@@ -2,6 +2,8 @@ export build_tarballs, autobuild, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using TOML, Dates, UUIDs
+using TimerOutputs: @timeit, print_timer
+using BinaryBuilderBase: BBB_TIMER, reset_bbb_timer!
 using RegistryTools
 import LibGit2
 import PkgLicenses
@@ -193,6 +195,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                         compression_format::String="gzip",
                         kwargs...)
     @nospecialize
+    reset_bbb_timer!()
+    @timeit BBB_TIMER "build_tarballs" begin
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
@@ -441,6 +445,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
     end
 
+    end  # @timeit build_tarballs
+    print_timer(IOContext(stdout, :limit => false), BBB_TIMER; sortby=:firstexec)
+    println()
     return build_output_meta
 end
 
@@ -515,7 +522,7 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
-function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
+@timeit BBB_TIMER function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
                                    attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
@@ -602,7 +609,7 @@ is_yggdrasil() = get(ENV, "YGGDRASIL", "false") == "true"
 # Use a Buildkite environment variable to get the current commit hash
 yggdrasil_head() = get(ENV, "BUILDKITE_COMMIT", "")
 
-function register_jll(name, build_version, dependencies, julia_compat;
+@timeit BBB_TIMER function register_jll(name, build_version, dependencies, julia_compat;
                       deploy_repo="JuliaBinaryWrappers/$(namejll(name)).jl",
                       code_dir=codedir(name),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
@@ -800,7 +807,7 @@ here are the relevant actors, broken down in brief:
 * `compression_format`: the compression format used for the generated tarballs.
 
 """
-function autobuild(dir::AbstractString,
+@timeit BBB_TIMER function autobuild(dir::AbstractString,
                    src_name::AbstractString,
                    src_version::VersionNumber,
                    sources::Vector{<:AbstractSource},
@@ -836,13 +843,14 @@ function autobuild(dir::AbstractString,
     end
 
     # We must prepare our sources.  Download them, hash them, etc...
-    source_files = download_source.(sources; verbose=verbose)
+    source_files = @timeit BBB_TIMER "Downloading sources" download_source.(sources; verbose=verbose)
 
     # Our build products will go into ./products
     out_path = joinpath(dir, "products")
     try mkpath(out_path) catch; end
 
     for platform in sort(collect(platforms), by = triplet)
+        @timeit BBB_TIMER "Building for $(triplet(platform))" begin
         timer = BuildTimer()
         timer.begin_setup = time()
 
@@ -874,7 +882,7 @@ function autobuild(dir::AbstractString,
         target_artifact_paths = setup_deps(is_target_dependency, prefix, dependencies, concrete_platform, verbose)
 
         # Create a runner to work inside this workspace with the nonce built-in
-        ur = preferred_runner()(
+        ur = @timeit BBB_TIMER "Creating runner" preferred_runner()(
             prefix.path;
             cwd = "/workspace/srcdir",
             platform = concrete_platform,
@@ -928,7 +936,7 @@ function autobuild(dir::AbstractString,
         """
 
         dest_prefix = Prefix(BinaryBuilderBase.destdir(prefix.path, concrete_platform))
-        did_succeed = with_logfile(dest_prefix, "$(src_name).log"; subdir=src_name) do io
+        did_succeed = @timeit BBB_TIMER "Running build script" with_logfile(dest_prefix, "$(src_name).log"; subdir=src_name) do io
             # Let's start the presentations with BinaryBuilder.jl
             write(io, "BinaryBuilder.jl version: $(get_bb_version())\n\n")
             # Get the list of compilers...
@@ -959,6 +967,7 @@ function autobuild(dir::AbstractString,
         # Run an audit of the prefix to ensure it is properly relocatable
         timer.begin_audit = time()
         if !skip_audit
+            @timeit BBB_TIMER "Auditing build artifacts" begin
             audit_result = audit(dest_prefix, src_name;
                                  platform=platform, verbose=verbose,
                                  has_csl = any(getname.(dependencies) .== "CompilerSupportLibraries_jll"),
@@ -971,10 +980,12 @@ function autobuild(dir::AbstractString,
                 """, '\n' => ' ')
                 error(strip(msg))
             end
+            end  # @timeit audit
         end
         timer.end_audit = time()
 
         # Finally, error out if something isn't satisfied
+        @timeit BBB_TIMER "Checking products" begin
         unsatisfied_so_die = false
         for p in products
             if platform isa AnyPlatform && !(p isa FileProduct)
@@ -1009,8 +1020,10 @@ function autobuild(dir::AbstractString,
                 )
             end
         end
+        end  # @timeit Checking products
 
         # Unsymlink all the deps from the dest_prefix
+        @timeit BBB_TIMER "Cleaning up" begin
         cleanup_dependencies(prefix, host_artifact_paths, default_host_platform)
         cleanup_dependencies(prefix, target_artifact_paths, concrete_platform)
 
@@ -1029,6 +1042,7 @@ function autobuild(dir::AbstractString,
 
         # Compress log files
         compress_dir(logdir(dest_prefix; subdir=src_name); verbose)
+        end  # @timeit Cleaning up
 
         # Once we're built up, go ahead and package this dest_prefix out
         timer.begin_package = time()
@@ -1065,6 +1079,7 @@ function autobuild(dir::AbstractString,
 
         # Destroy the workspace, taking care to make sure that we don't run into any
         # permissions errors while we do so.
+        @timeit BBB_TIMER "Destroying workspace" begin
         Base.Filesystem.prepare_for_deletion(prefix.path)
         rm(prefix.path; recursive=true)
 
@@ -1074,7 +1089,9 @@ function autobuild(dir::AbstractString,
         if isempty(readdir(build_path))
             rm(build_path; recursive=true)
         end
+        end  # @timeit Destroying workspace
         verbose && @info "$(timer)"
+        end  # @timeit platform
     end
 
     # Return our product hashes
@@ -1226,7 +1243,7 @@ function filter_main_tarball(tarball_filename, platform)
     end
 end
 
-function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
+@timeit BBB_TIMER function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
                              code_dir::String = codedir(name),
@@ -1316,7 +1333,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                       kwargs...)
 end
 
-function build_jll_package(src_name::String,
+@timeit BBB_TIMER function build_jll_package(src_name::String,
                            build_version::VersionNumber,
                            sources::Vector,
                            code_dir::String,
@@ -1473,11 +1490,11 @@ function build_jll_package(src_name::String,
                     libgfortran_version_mapping = BinaryPlatforms.libgfortran_version_mapping
                     cxxstring_abi_mapping = BinaryPlatforms.cxxstring_abi_mapping
                     libstdcxx_version_mapping = BinaryPlatforms.libstdcxx_version_mapping
-                
+
                     # Helper function to collapse dictionary of mappings down into a regex of
                     # named capture groups joined by "|" operators
                     c(mapping) = string("(",join(["(?<$k>$v)" for (k, v) in mapping], "|"), ")")
-                
+
                     # We're going to build a mondo regex here to parse everything:
                     triplet_regex = Regex(string(
                         "^",
@@ -1494,7 +1511,7 @@ function build_jll_package(src_name::String,
                         "(?<tags>(?:-[^-]+\\+[^-]+)*)?",
                         "\$",
                     ))
-                
+
                     m = match(triplet_regex, triplet)
                     if m !== nothing
                         # Helper function to find the single named field within the giant regex
@@ -1517,7 +1534,7 @@ function build_jll_package(src_name::String,
                                 end
                             end
                         end
-                
+
                         # Extract the information we're interested in:
                         arch = get_field(m, arch_mapping)
                         os = get_field(m, os_mapping)
@@ -1534,7 +1551,7 @@ function build_jll_package(src_name::String,
                             return map(v -> Symbol(v[1]) => v[2], split.(tag_fields, "+"))
                         end
                         tags = split_tags(m["tags"])
-                
+
                         # Special parsing of os version number, if any exists
                         function extract_os_version(os_name, pattern)
                             m_osvn = match(pattern, m[os_name])
@@ -1553,7 +1570,7 @@ function build_jll_package(src_name::String,
                         if os == "openbsd"
                             os_version = extract_os_version("openbsd", r".*openbsd([\d.]+)"sa)
                         end
-                
+
                         return Platform(
                             arch, os;
                             validate_strict,
@@ -1768,7 +1785,7 @@ function build_jll_package(src_name::String,
     end
 end
 
-function push_jll_package(name, build_version;
+@timeit BBB_TIMER function push_jll_package(name, build_version;
                           code_dir = codedir(name),
                           deploy_repo = "JuliaBinaryWrappers/$(namejll(name)).jl",
                           gh_auth = Wizard.github_auth(;allow_anonymous=false))
