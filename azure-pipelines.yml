@@ -42,6 +42,7 @@ jobs:
   - bash: |
       set -e
       $(JULIA) -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate()'
+      $(JULIA) -e 'using Pkg; Pkg.add(name="BinaryBuilderBase", rev="ib/timeroutputs")'
       $(JULIA) -e 'using BinaryBuilder; BinaryBuilder.versioninfo()'
       $(JULIA) -e 'using Pkg; Pkg.status(; mode=PKGMODE_MANIFEST)'
     name: SystemInfo
@@ -66,7 +67,7 @@ jobs:
   - bash: |
       set -e
       $(JULIA) -e 'using Pkg; Pkg.gc()'
-      $(JULIA) --check-bounds=yes --inline=yes -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.test(coverage=true)'
+      $(JULIA) --check-bounds=yes --inline=yes -e 'using Pkg; Pkg.Registry.update(); Pkg.add(name="BinaryBuilderBase", rev="ib/timeroutputs"); Pkg.instantiate(); Pkg.test(coverage=true)'
       $(JULIA) -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())' || true
     name: Test
 

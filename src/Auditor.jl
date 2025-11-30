@@ -5,7 +5,8 @@ using Base.BinaryPlatforms
 using Pkg
 using ObjectFile
 
-using BinaryBuilderBase: march
+using BinaryBuilderBase: march, BBB_TIMER
+using TimerOutputs: @timeit
 
 export audit, collect_files, collapse_symlinks
 
@@ -31,16 +32,21 @@ This prevents concurrent patchelf operations on the same file.
 function with_patchelf_lock(f, path::AbstractString)
     # Normalize the path to ensure consistent locking
     path = realpath(path)
-    
+    filename = basename(path)
+
     # Get or create the lock for this file
     file_lock = Base.@lock PATCHELF_FILE_LOCKS_LOCK begin
         get!(PATCHELF_FILE_LOCKS, path) do
             ReentrantLock()
         end
     end
-    
-    # Execute with the file-specific lock held
-    Base.@lock file_lock f()
+
+    # Execute with the file-specific lock held, timing both the lock wait and the inner operation
+    @timeit BBB_TIMER "patchelf $(filename) (incl. lock)" begin
+        Base.@lock file_lock begin
+            @timeit BBB_TIMER "patchelf $(filename)" f()
+        end
+    end
 end
 
 # Helper function to run a command and print to `io` its invocation and full
@@ -148,7 +154,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                         # for Windows, for which however we have to set autofix=false:
                         # https://github.com/JuliaPackaging/Yggdrasil/pull/922.
                         all_ok[] &= ensure_executability(oh; verbose, silent)
-                    
+
                         # If this is a dynamic object, do the dynamic checks
                         if isdynamic(oh)
                             # Check that the libgfortran version matches
