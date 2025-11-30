@@ -381,7 +381,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         end
     else
         # Build the given platforms using the given sources
-        build_output_meta = @timeit BBB_TIMER autobuild(
+        build_output_meta = @timeit BBB_TIMER "autobuild" autobuild(
             # Controls output product placement, mount directory placement, etc...
             pwd(),
 
