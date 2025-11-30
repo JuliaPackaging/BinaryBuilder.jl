@@ -5,10 +5,17 @@ using Base.BinaryPlatforms
 using Pkg
 using ObjectFile
 
-using BinaryBuilderBase: march, BBB_TIMER
-using TimerOutputs: @timeit
+using BinaryBuilderBase: march, BBB_TIMER, merge_bbb_timer!
+using TimerOutputs: TimerOutput, @timeit, reset_timer!
 
 export audit, collect_files, collapse_symlinks
+
+"""
+    current_timer_path(to::TimerOutput)
+
+Get the current tree path as a vector of section names from the timer's stack.
+"""
+current_timer_path(to::TimerOutput) = [t.name for t in to.timer_stack]
 
 # Some functions need to run commands in sandboxes mounted on the same prefix and we
 # can't allow them to clash, otherwise one may be unmounting the filesystem while
@@ -22,6 +29,37 @@ const AUDITOR_LOGGING_LOCK = ReentrantLock()
 # serialize access per file.
 const PATCHELF_FILE_LOCKS = Dict{String,ReentrantLock}()
 const PATCHELF_FILE_LOCKS_LOCK = ReentrantLock()
+
+# Collect thread-local timers for merging
+const THREAD_TIMERS = Set{TimerOutput}()
+const THREAD_TIMERS_LOCK = ReentrantLock()
+
+"""
+    get_thread_timer()
+
+Get or create a thread-local TimerOutput, registering it for later merging.
+"""
+function get_thread_timer()
+    get!(task_local_storage(), :auditor_timer) do
+        timer = TimerOutput()
+        Base.@lock THREAD_TIMERS_LOCK push!(THREAD_TIMERS, timer)
+        timer
+    end::TimerOutput
+end
+
+"""
+    merge_thread_timers!(tree_point::Vector{String})
+
+Merge all thread-local timers into BBB_TIMER at the given tree_point and reset them.
+"""
+function merge_thread_timers!(tree_point::Vector{String})
+    Base.@lock THREAD_TIMERS_LOCK begin
+        for timer in THREAD_TIMERS
+            merge_bbb_timer!(timer; tree_point)
+            reset_timer!(timer)
+        end
+    end
+end
 
 """
     with_patchelf_lock(f, path::AbstractString)
@@ -42,9 +80,10 @@ function with_patchelf_lock(f, path::AbstractString)
     end
 
     # Execute with the file-specific lock held, timing both the lock wait and the inner operation
-    @timeit BBB_TIMER "patchelf $(filename) (incl. lock)" begin
+    timer = get_thread_timer()
+    @timeit timer "patchelf $(filename) (incl. lock)" begin
         Base.@lock file_lock begin
-            @timeit BBB_TIMER "patchelf $(filename)" f()
+            @timeit timer "patchelf $(filename)" f()
         end
     end
 end
@@ -108,6 +147,9 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                                has_csl::Bool = true,
                                require_license::Bool = true,
                )
+    # Capture the current timer tree path for merging thread-local timers later
+    timer_tree_point = current_timer_path(BBB_TIMER)
+
     # This would be really weird, but don't let someone set `silent` and `verbose` to true
     if silent
         verbose = false
@@ -365,6 +407,10 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
     # Search for case-sensitive ambiguities
     all_ok[] &= check_case_sensitivity(prefix)
+
+    # Merge thread-local timers back into the main timer
+    merge_thread_timers!(timer_tree_point)
+
     return all_ok[]
 end
 
