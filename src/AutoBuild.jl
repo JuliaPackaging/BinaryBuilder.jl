@@ -2,6 +2,8 @@ export build_tarballs, autobuild, build, get_meta_json
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using TOML, Dates, UUIDs
+using TimerOutputs: @timeit, print_timer
+using BinaryBuilderBase: BBB_TIMER, reset_bbb_timer!
 using RegistryTools
 import LibGit2
 import PkgLicenses
@@ -193,6 +195,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                         compression_format::String="gzip",
                         kwargs...)
     @nospecialize
+    reset_bbb_timer!()
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
@@ -441,6 +444,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
     end
 
+    print_timer(BBB_TIMER; sortby=:firstexec)
+    println()
     return build_output_meta
 end
 
@@ -836,13 +841,14 @@ function autobuild(dir::AbstractString,
     end
 
     # We must prepare our sources.  Download them, hash them, etc...
-    source_files = download_source.(sources; verbose=verbose)
+    source_files = @timeit BBB_TIMER "Downloading sources" download_source.(sources; verbose=verbose)
 
     # Our build products will go into ./products
     out_path = joinpath(dir, "products")
     try mkpath(out_path) catch; end
 
     for platform in sort(collect(platforms), by = triplet)
+        @timeit BBB_TIMER "Building for $(triplet(platform))" begin
         timer = BuildTimer()
         timer.begin_setup = time()
 
@@ -928,7 +934,7 @@ function autobuild(dir::AbstractString,
         """
 
         dest_prefix = Prefix(BinaryBuilderBase.destdir(prefix.path, concrete_platform))
-        did_succeed = with_logfile(dest_prefix, "$(src_name).log"; subdir=src_name) do io
+        did_succeed = @timeit BBB_TIMER "Running build script" with_logfile(dest_prefix, "$(src_name).log"; subdir=src_name) do io
             # Let's start the presentations with BinaryBuilder.jl
             write(io, "BinaryBuilder.jl version: $(get_bb_version())\n\n")
             # Get the list of compilers...
@@ -959,6 +965,7 @@ function autobuild(dir::AbstractString,
         # Run an audit of the prefix to ensure it is properly relocatable
         timer.begin_audit = time()
         if !skip_audit
+            @timeit BBB_TIMER "Auditing build artifacts" begin
             audit_result = audit(dest_prefix, src_name;
                                  platform=platform, verbose=verbose,
                                  has_csl = any(getname.(dependencies) .== "CompilerSupportLibraries_jll"),
@@ -971,6 +978,7 @@ function autobuild(dir::AbstractString,
                 """, '\n' => ' ')
                 error(strip(msg))
             end
+            end  # @timeit audit
         end
         timer.end_audit = time()
 
@@ -1075,6 +1083,7 @@ function autobuild(dir::AbstractString,
             rm(build_path; recursive=true)
         end
         verbose && @info "$(timer)"
+        end  # @timeit platform
     end
 
     # Return our product hashes
@@ -1473,11 +1482,11 @@ function build_jll_package(src_name::String,
                     libgfortran_version_mapping = BinaryPlatforms.libgfortran_version_mapping
                     cxxstring_abi_mapping = BinaryPlatforms.cxxstring_abi_mapping
                     libstdcxx_version_mapping = BinaryPlatforms.libstdcxx_version_mapping
-                
+
                     # Helper function to collapse dictionary of mappings down into a regex of
                     # named capture groups joined by "|" operators
                     c(mapping) = string("(",join(["(?<$k>$v)" for (k, v) in mapping], "|"), ")")
-                
+
                     # We're going to build a mondo regex here to parse everything:
                     triplet_regex = Regex(string(
                         "^",
@@ -1494,7 +1503,7 @@ function build_jll_package(src_name::String,
                         "(?<tags>(?:-[^-]+\\+[^-]+)*)?",
                         "\$",
                     ))
-                
+
                     m = match(triplet_regex, triplet)
                     if m !== nothing
                         # Helper function to find the single named field within the giant regex
@@ -1517,7 +1526,7 @@ function build_jll_package(src_name::String,
                                 end
                             end
                         end
-                
+
                         # Extract the information we're interested in:
                         arch = get_field(m, arch_mapping)
                         os = get_field(m, os_mapping)
@@ -1534,7 +1543,7 @@ function build_jll_package(src_name::String,
                             return map(v -> Symbol(v[1]) => v[2], split.(tag_fields, "+"))
                         end
                         tags = split_tags(m["tags"])
-                
+
                         # Special parsing of os version number, if any exists
                         function extract_os_version(os_name, pattern)
                             m_osvn = match(pattern, m[os_name])
@@ -1553,7 +1562,7 @@ function build_jll_package(src_name::String,
                         if os == "openbsd"
                             os_version = extract_os_version("openbsd", r".*openbsd([\d.]+)"sa)
                         end
-                
+
                         return Platform(
                             arch, os;
                             validate_strict,
