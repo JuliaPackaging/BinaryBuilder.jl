@@ -856,7 +856,7 @@ function autobuild(dir::AbstractString,
         build_path = joinpath(dir, "build", triplet(platform))
         mkpath(build_path)
 
-        shards = choose_shards(platform; extract_kwargs(kwargs, (
+        shards = @timeit BBB_TIMER "Choosing compiler shards" choose_shards(platform; extract_kwargs(kwargs, (
             :preferred_gcc_version,
             :preferred_llvm_version,
             :preferred_rust_version,
@@ -880,7 +880,7 @@ function autobuild(dir::AbstractString,
         target_artifact_paths = setup_deps(is_target_dependency, prefix, dependencies, concrete_platform, verbose)
 
         # Create a runner to work inside this workspace with the nonce built-in
-        ur = preferred_runner()(
+        ur = @timeit BBB_TIMER "Creating runner" preferred_runner()(
             prefix.path;
             cwd = "/workspace/srcdir",
             platform = concrete_platform,
@@ -983,6 +983,7 @@ function autobuild(dir::AbstractString,
         timer.end_audit = time()
 
         # Finally, error out if something isn't satisfied
+        @timeit BBB_TIMER "Checking products" begin
         unsatisfied_so_die = false
         for p in products
             if platform isa AnyPlatform && !(p isa FileProduct)
@@ -1017,8 +1018,10 @@ function autobuild(dir::AbstractString,
                 )
             end
         end
+        end  # @timeit Checking products
 
         # Unsymlink all the deps from the dest_prefix
+        @timeit BBB_TIMER "Cleaning up" begin
         cleanup_dependencies(prefix, host_artifact_paths, default_host_platform)
         cleanup_dependencies(prefix, target_artifact_paths, concrete_platform)
 
@@ -1037,6 +1040,7 @@ function autobuild(dir::AbstractString,
 
         # Compress log files
         compress_dir(logdir(dest_prefix; subdir=src_name); verbose)
+        end  # @timeit Cleaning up
 
         # Once we're built up, go ahead and package this dest_prefix out
         timer.begin_package = time()
@@ -1073,6 +1077,7 @@ function autobuild(dir::AbstractString,
 
         # Destroy the workspace, taking care to make sure that we don't run into any
         # permissions errors while we do so.
+        @timeit BBB_TIMER "Destroying workspace" begin
         Base.Filesystem.prepare_for_deletion(prefix.path)
         rm(prefix.path; recursive=true)
 
@@ -1082,6 +1087,7 @@ function autobuild(dir::AbstractString,
         if isempty(readdir(build_path))
             rm(build_path; recursive=true)
         end
+        end  # @timeit Destroying workspace
         verbose && @info "$(timer)"
         end  # @timeit platform
     end
