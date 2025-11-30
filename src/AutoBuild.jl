@@ -415,24 +415,24 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
 
         if !skip_build
             # Build JLL package based on output of autobuild
-            @timeit BBB_TIMER build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
+            build_jll_package(src_name, build_version, sources, code_dir, build_output_meta,
                               dependencies, bin_path; verbose, julia_compat, extra_kwargs...)
         else
             # Rebuild output meta data from the information we have here
-            @timeit BBB_TIMER rebuild_jll_package(src_name, build_version, sources, platforms, products, dependencies,
+            rebuild_jll_package(src_name, build_version, sources, platforms, products, dependencies,
                                 products_dir, bin_path;
                                 code_dir, verbose, from_scratch=false,
                                 julia_compat, extra_kwargs...)
         end
         if deploy_jll_repo != "local"
-            @timeit BBB_TIMER push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
+            push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
         end
         if register
             if verbose
                 @info("Registering new wrapper code version $(build_version)...")
             end
 
-            @timeit BBB_TIMER register_jll(src_name, build_version, dependencies, julia_compat;
+            register_jll(src_name, build_version, dependencies, julia_compat;
                          deploy_repo=deploy_jll_repo, code_dir=code_dir, extra_kwargs...)
         end
     end
@@ -442,7 +442,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
         end
-        @timeit BBB_TIMER upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
+        upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
     end
 
     end  # @timeit build_tarballs
@@ -522,7 +522,7 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
-function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
+@timeit BBB_TIMER function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
                                    attempts::Int = 3, verbose::Bool = false)
     for attempt in 1:attempts
         try
@@ -609,7 +609,7 @@ is_yggdrasil() = get(ENV, "YGGDRASIL", "false") == "true"
 # Use a Buildkite environment variable to get the current commit hash
 yggdrasil_head() = get(ENV, "BUILDKITE_COMMIT", "")
 
-function register_jll(name, build_version, dependencies, julia_compat;
+@timeit BBB_TIMER function register_jll(name, build_version, dependencies, julia_compat;
                       deploy_repo="JuliaBinaryWrappers/$(namejll(name)).jl",
                       code_dir=codedir(name),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
@@ -807,7 +807,7 @@ here are the relevant actors, broken down in brief:
 * `compression_format`: the compression format used for the generated tarballs.
 
 """
-function autobuild(dir::AbstractString,
+@timeit BBB_TIMER function autobuild(dir::AbstractString,
                    src_name::AbstractString,
                    src_version::VersionNumber,
                    sources::Vector{<:AbstractSource},
@@ -858,7 +858,7 @@ function autobuild(dir::AbstractString,
         build_path = joinpath(dir, "build", triplet(platform))
         mkpath(build_path)
 
-        shards = @timeit BBB_TIMER choose_shards(platform; extract_kwargs(kwargs, (
+        shards = choose_shards(platform; extract_kwargs(kwargs, (
             :preferred_gcc_version,
             :preferred_llvm_version,
             :preferred_rust_version,
@@ -1243,7 +1243,7 @@ function filter_main_tarball(tarball_filename, platform)
     end
 end
 
-function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
+@timeit BBB_TIMER function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
                              code_dir::String = codedir(name),
@@ -1333,7 +1333,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                       kwargs...)
 end
 
-function build_jll_package(src_name::String,
+@timeit BBB_TIMER function build_jll_package(src_name::String,
                            build_version::VersionNumber,
                            sources::Vector,
                            code_dir::String,
@@ -1785,7 +1785,7 @@ function build_jll_package(src_name::String,
     end
 end
 
-function push_jll_package(name, build_version;
+@timeit BBB_TIMER function push_jll_package(name, build_version;
                           code_dir = codedir(name),
                           deploy_repo = "JuliaBinaryWrappers/$(namejll(name)).jl",
                           gh_auth = Wizard.github_auth(;allow_anonymous=false))
