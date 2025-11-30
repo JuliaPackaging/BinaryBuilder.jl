@@ -446,7 +446,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     end  # @timeit build_tarballs
-    print_timer(BBB_TIMER; sortby=:firstexec)
+    print_timer(IOContext(stdout, :limit => false), BBB_TIMER; sortby=:firstexec)
     println()
     return build_output_meta
 end
