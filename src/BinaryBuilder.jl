@@ -34,7 +34,7 @@ const runshell = BinaryBuilderBase.runshell
 include("Auditor.jl")
 include("Wizard.jl")
 
-using OutputCollectors, BinaryBuilderBase, .Auditor, .Wizard
+using BinaryBuilderBase, .Auditor, .Wizard
 
 # Autocomplete BinaryBuilder.run_wizard
 const run_wizard = Wizard.run_wizard
@@ -44,13 +44,6 @@ include("Declarative.jl")
 include("Logging.jl")
 
 function __init__()
-    if Base.thisminor(VERSION) >= v"1.8" && get(ENV, "JULIA_REGISTRYCI_AUTOMERGE", "false") != "true"
-        error("""
-        BinaryBuilder supports only Julia v1.7.
-        Contribute to JuliaPackaging/JLLPrefixes.jl#6 (<https://github.com/JuliaPackaging/JLLPrefixes.jl/issues/6>)
-        if you care about supporting newer versions of Julia.
-        """)
-    end
     # If we're running on Azure, enable azure logging:
     if !isempty(get(ENV, "AZP_TOKEN", ""))
         enable_azure_logging()

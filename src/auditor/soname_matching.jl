@@ -65,7 +65,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
     end
 
     # Otherwise, set the SONAME
-    # Create a new linkage that looks like @rpath/$lib on OSX,
+    # Create a new linkage that looks like @rpath/$lib on OSX
     retval = with_logfile(prefix, "set_soname_$(basename(rel_path))_$(soname).log"; subdir) do io
         if Sys.isapple(platform)
             ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
@@ -73,7 +73,10 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
             set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
             @lock AUDITOR_SANDBOX_LOCK run(ur, set_soname_cmd, io; verbose=verbose)
         elseif Sys.islinux(platform) || Sys.isbsd(platform)
-            success(run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --set-soname $(soname) $(realpath(path))`; wait=false))
+            # For Linux/FreeBSD, wrap the entire read-modify-verify cycle in the file lock
+            with_patchelf_lock(path) do
+                success(run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --set-soname $(soname) $(realpath(path))`; wait=false))
+            end
         end
     end
 

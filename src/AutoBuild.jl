@@ -609,6 +609,10 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
                       lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+                      registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General",
+                      registry_fork_url = registry_url,
+                      registry_fork_org = "JuliaRegistries",
+                      gh_auth_pr=gh_auth, # To open a PR we may in principle need a different token.
                       kwargs...)
     if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
         error("Augmentation blocks cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
@@ -621,7 +625,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
     # Use RegistryTools to push up a new `General` branch with this JLL package registered within it
     # TODO: Update our fork periodically from upstream `General`.
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
-    registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
     jllwrappers_compat = DEFAULT_JLLWRAPPERS_VERSION_SPEC
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts, augment_platform_block))
@@ -633,6 +636,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
         project_file,
         wrapper_tree_hash;
         registry=registry_url,
+        registry_fork=registry_fork_url,
         cache=cache,
         push=true,
         checks_triggering_error = errors,
@@ -665,12 +669,13 @@ function register_jll(name, build_version, dependencies, julia_compat;
         end
         params = Dict(
             "base" => "master",
-            "head" => "$(reg_branch.branch)",
+            "head" => "$(registry_fork_org):$(reg_branch.branch)",
             "maintainer_can_modify" => true,
             "title" => pr_title,
             "body" => body,
         )
-        Wizard.create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth)
+        @debug "Opening pull request" params reg_branch deploy_repo
+        Wizard.create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth_pr)
     end
 end
 
@@ -1771,8 +1776,10 @@ function push_jll_package(name, build_version;
     wrapper_repo = LibGit2.GitRepo(code_dir)
     LibGit2.add!(wrapper_repo, ".")
     commit = LibGit2.commit(wrapper_repo, "$(namejll(name)) build $(build_version)")
+    refspecs = ["refs/heads/main"]
+    remoteurl = "https://github.com/$(deploy_repo).git"
+    @debug "Pushing the JLL" wrapper_repo refspecs commit remoteurl
     Wizard.with_gitcreds("x-access-token", gh_auth.token) do creds
-        refspecs = ["refs/heads/main"]
         # Fetch the remote repository, to have the relevant refspecs up to date.
         LibGit2.fetch(
             wrapper_repo;
@@ -1783,7 +1790,7 @@ function push_jll_package(name, build_version;
         LibGit2.push(
             wrapper_repo;
             refspecs=refspecs,
-            remoteurl="https://github.com/$(deploy_repo).git",
+            remoteurl,
             credentials=creds,
         )
     end
