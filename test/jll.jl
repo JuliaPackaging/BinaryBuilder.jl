@@ -70,14 +70,14 @@ end
     mktempdir() do build_path
         name = "libfoo"
         version = v"1.0.0"
-        sources = [DirectorySource(build_tests_dir)]
+        sources = [DirectorySource(BUILD_TESTS_DIR)]
         # Build for this platform and a platform that isn't this one for sure:
         # FreeBSD.
         freebsd = Platform("x86_64", "freebsd")
-        platforms = [platform, freebsd]
+        platforms = [HOST_PLATFORM, freebsd]
         # We depend on Zlib_jll only on the host platform, but not on FreeBSD
         dependencies = [
-            Dependency("Zlib_jll"; platforms=[platform]),
+            Dependency("Zlib_jll"; platforms=[HOST_PLATFORM]),
             RuntimeDependency("Preferences"; top_level=true)
         ]
         # Augment platform
@@ -205,7 +205,7 @@ end
             end
             # Make sure we use Zlib_jll only in the wrapper for the host
             # platform and not the FreeBSD one.
-            platform_wrapper = joinpath(code_dir, "src", "wrappers", triplet(platform) * ".jl")
+            platform_wrapper = joinpath(code_dir, "src", "wrappers", triplet(HOST_PLATFORM) * ".jl")
             freebsd_wrapper = joinpath(code_dir, "src", "wrappers", triplet(freebsd) * ".jl")
             main_src = joinpath(code_dir, "src", name * "_jll.jl")
             @test contains(readchomp(platform_wrapper), "using Zlib_jll")
