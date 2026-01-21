@@ -21,6 +21,7 @@ pr:
     - src
     - test
     - Project.toml
+    - Manifest.toml
 
 # By default, use the `Native` pool of agents
 pool: BinaryBuilder
