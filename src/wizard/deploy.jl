@@ -21,7 +21,16 @@ function print_build_tarballs(io::IO, state::WizardState)
     else
         platforms_string = """
         [
-            $(strip(join(repr.(state.platforms),",\n    ")))
+        """
+        for platform in state.platforms
+            rp = repr(platform)
+            if platform in state.failed_platforms
+                platforms_string *= "# $rp,\n"
+            else
+                platforms_string *= "  $rp,\n"
+            end
+        end
+        platforms_string *= """
         ]
         """
     end
