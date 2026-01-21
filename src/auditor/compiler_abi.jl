@@ -1,6 +1,5 @@
-import Base.BinaryPlatforms: detect_libstdcxx_version, detect_cxxstring_abi
-using ObjectFile
 using Binutils_jll: Binutils_jll
+using ObjectFile
 
 csl_warning(lib) = @lock AUDITOR_LOGGING_LOCK @warn(
     """
@@ -101,66 +100,6 @@ function check_csl_libs(oh::ObjectHandle, platform::AbstractPlatform; verbose::B
         end
     end
 
-    return true
-end
-
-"""
-    detect_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform)
-
-Given an ObjectFile, examine its dynamic linkage to discover which (if any)
-`libgfortran` it's linked against.  The major SOVERSION will determine which
-GCC version we're restricted to.
-"""
-function detect_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform)
-    # We look for linkage to libstdc++
-    libs = basename.(path.(DynamicLinks(oh)))
-    libstdcxx_libs = filter(l -> occursin("libstdc++", l), libs)
-    if isempty(libstdcxx_libs)
-        return nothing
-    end
-
-    # Extract all pieces of `.gnu.version_d` from libstdc++.so, find the `GLIBCXX_*`
-    # symbols, and use the maximum version of that to find the GLIBCXX ABI version number
-    version_symbols = readmeta(first(libstdcxx_libs)) do ohs
-        unique(vcat((x -> x.names).(vcat(ELFVersionData.(ohs)...))...))
-    end
-    version_symbols = filter(x -> startswith(x, "GLIBCXX_"), version_symbols)
-    if isempty(version_symbols)
-        # This would be weird, but let's be prepared
-        return nothing
-    end
-    return maximum([VersionNumber(split(v, "_")[2]) for v in version_symbols])
-end
-
-function check_libstdcxx_version(oh::ObjectHandle, platform::AbstractPlatform; verbose::Bool = false)
-    libstdcxx_version = nothing
-
-    try
-        libstdcxx_version = detect_libstdcxx_version(oh, platform)
-    catch e
-        if isa(e, InterruptException)
-            rethrow(e)
-        end
-        @lock AUDITOR_LOGGING_LOCK @warn "$(path(oh)) could not be scanned for libstdcxx dependency!" exception=(e, catch_backtrace())
-        return true
-    end
-
-    if verbose && libstdcxx_version != nothing
-        @lock AUDITOR_LOGGING_LOCK @info("$(path(oh)) locks us to libstdc++ v$(libstdcxx_version)+")
-    end
-
-    # This actually isn't critical, so we don't complain.  Yet.
-    # if libstdcxx_version(platform) === nothing && libstdcxx_version != nothing
-    #     msg = strip(replace("""
-    #     $(path(oh)) links to libstdc++!  This causes incompatibilities across
-    #     major versions of GCC.  To remedy this, you must build a tarball for
-    #     each major version of GCC.  To do this, immediately after your `platforms`
-    #     definition in your `build_tarballs.jl` file, add the line:
-    #     """, '\n' => ' '))
-    #     msg *= "\n\n    platforms = expand_cxxstring_abis(platforms)"
-    #     warn(io, msg)
-    #     return false
-    # end
     return true
 end
 
