@@ -95,7 +95,7 @@ Examples of builds performed with Meson include:
 
 ## Go builds
 
-The Go toolchain provided by BinaryBuilder can be requested by adding `:go` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :go]`.  Go-based packages can usually be built and installed with `go`:
+The Go toolchain provided by BinaryBuilder can be requested by adding `:go` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :go]`, and a specific version of the toolchain can be selected by adding the `preferred_go_version` keyword argument to [`build_tarballs`](@ref).  Go-based packages can usually be built and installed with `go`:
 
 ```sh
 go build -o ${bindir}
@@ -109,7 +109,7 @@ Example of packages using Go:
 
 ## Rust builds
 
-The Rust toolchain provided by BinaryBuilder can be requested by adding `:rust` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :rust]`.  Rust-based packages can usually be built with `cargo`:
+The Rust toolchain provided by BinaryBuilder can be requested by adding `:rust` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :rust]`, and a specific version of the toolchain can be selected by adding the `preferred_rust_version` keyword argument to [`build_tarballs`](@ref).  Rust-based packages can usually be built with `cargo`:
 
 ```sh
 cargo build --release
@@ -126,6 +126,42 @@ Example of packages using Rust:
 !!! warn
 
 	The Rust toolchain currently used does not work with the `i686-w64-mingw32` (32-bit Windows) platform.
+
+## OCaml builds
+
+The OCaml toolchain provided by BinaryBuilder can be requested by adding `:ocaml` to the `compilers` keyword argument to [`build_tarballs`](@ref): `compilers=[:c, :ocaml]`, and a specific version of the toolchain can be selected by adding the `preferred_ocaml_version` keyword argument to [`build_tarballs`](@ref).
+
+The OCaml toolchain provided by BinaryBuilder automatically selects the appropriate target.
+
+ ## C builds
+
+ If your library has no build system like Make, CMake, Meson, or Autoconf, you may need to use the C compiler directly.  The C compiler is stored in the `CC` environment variable, and you can direct output to `libdir` (shared libraries) and `bindir` (executables).
+As a high-level example:
+
+ ```sh
+# this assumes you are operating out of a Git source named `hello`
+# adjust your `cd` appropriately
+cd $WORKSPACE/srcdir/hello
+mkdir -p ${libdir}                                         # make sure the libdir is instantiated
+${CC} -shared -o ${libdir}/libhello.${dlext} -fPIC hello.c # compile the library, save to `libdir`
+```
+
+This is simply compiling a single shared library, `libhello`, from `hello.c`.
+
+## C++ builds
+
+Similarly to C builds, sometimes your C++ libraries will not have a build system associated with them.  The C++ compiler is stored in the `CXX` environment variable.
+As a high-level example:
+
+```sh
+# this assumes you are operating out of a Git source named `hello`
+# adjust your `cd` appropriately
+cd $WORKSPACE/srcdir/hello
+mkdir -p ${libdir}
+$CXX -shared -std=c++11 -O3 -fPIC -o ${libdir}/libhello.${dlext} src/hello.cpp # you may want to edit the `std` flag, for example
+```
+
+This is simply compiling a single shared library, `libhello`, from `hello.cpp`.
 
 ## Editing files in the wizard
 
@@ -212,7 +248,7 @@ If in your build you need to use a package to a BLAS/LAPACK library you have the
 * always use LP64 interface, also on 64-bit systems.
   This may be a simpler option if renamining the BLAS/LAPACK symbols is too cumbersome in your case.
   In terms of libraries to link to:
-  - also in this case you can link to `libblastrampoline`, however you _must_ make sure an LP64 BLAS/LAPACK library is backing `libblastrampoline`, otherwise all BLAS/LAPACK calls from the library will result in hard-to-debug segmentation faults, because in this case Julia does not provided a default backing LP64 BLAS/LAPACK library on 64-bit systems 
+  - also in this case you can link to `libblastrampoline`, however you _must_ make sure an LP64 BLAS/LAPACK library is backing `libblastrampoline`, otherwise all BLAS/LAPACK calls from the library will result in hard-to-debug segmentation faults, because in this case Julia does not provided a default backing LP64 BLAS/LAPACK library on 64-bit systems
   - alternatively, you can use builds of BLAS/LAPACK libraries which always use LP64 interface also on 64-bit platforms, like the package `OpenBLAS32_jll`.
 
 ## Dependencies for the target system vs host system

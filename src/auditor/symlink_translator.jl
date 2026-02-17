@@ -11,7 +11,7 @@ function translate_symlinks(root::AbstractString; verbose::Bool=false)
         if isabspath(link_target) && startswith(link_target, "/workspace")
             new_link_target = relpath(link_target, replace(dirname(f), root => "/workspace/destdir"))
             if verbose
-                @info("Translating $f to point to $(new_link_target)")
+                @lock AUDITOR_LOGGING_LOCK @info("Translating $f to point to $(new_link_target)")
             end
             rm(f; force=true)
             symlink(new_link_target, f)
@@ -39,7 +39,7 @@ function warn_deadlinks(root::AbstractString)
             link_target = joinpath(dirname(f), link_target)
         end
         if !ispath(link_target)
-            @warn("Broken symlink: $(relpath(f, root))")
+            @lock AUDITOR_LOGGING_LOCK @warn("Broken symlink: $(relpath(f, root))")
         end
     end
 end

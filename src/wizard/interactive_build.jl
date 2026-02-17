@@ -467,7 +467,7 @@ Pick the first platform for use to run on. We prefer Linux x86_64 because
 that's generally the host platform, so it's usually easiest. After that we
 go by the following preferences:
 * OS (in order): Linux, Windows, OSX
-* Architecture: x86_64, i686, aarch64, powerpc64le, armv7l
+* Architecture: x86_64, i686, aarch64, powerpc64le, armv7l, riscv64
 * The first remaining after this selection
 """
 function pick_preferred_platform(platforms)
@@ -480,7 +480,7 @@ function pick_preferred_platform(platforms)
             platforms = plats
         end
     end
-    for a in ("x86_64", "i686", "aarch64", "powerpc64le", "armv7l")
+    for a in ("x86_64", "i686", "aarch64", "powerpc64le", "armv7l", "riscv64")
         plats = filter(p->arch(p) == a, platforms)
         if !isempty(plats)
             platforms = plats

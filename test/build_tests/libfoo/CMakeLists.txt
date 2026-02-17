@@ -15,6 +15,7 @@ elseif (UNIX)
     set_target_properties(fooifier PROPERTIES INSTALL_RPATH "$ORIGIN/../lib")
 endif()
 
+install(FILES libfoo.pc DESTINATION lib/pkgconfig)
 install(TARGETS foo DESTINATION lib)
 install(TARGETS fooFramework DESTINATION lib)
 install(TARGETS fooifier RUNTIME DESTINATION bin)

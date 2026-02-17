@@ -1,3 +1,5 @@
+using Patchelf_jll: patchelf
+
 # Not everything has an SONAME
 get_soname(oh::ObjectHandle) = nothing
 
@@ -6,7 +8,7 @@ function get_soname(path::AbstractString)
     try
         only(readmeta(ns -> get_soname.(ns), path))
     catch e
-        @warn "Could not probe $(path) for an SONAME!" exception=(e, catch_backtrace())
+        @lock AUDITOR_LOGGING_LOCK @warn "Could not probe $(path) for an SONAME!" exception=(e, catch_backtrace())
         return nothing
     end
 end
@@ -50,7 +52,7 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
     soname = get_soname(path)
     if soname != nothing
         if verbose
-            @info("$(rel_path) already has SONAME \"$(soname)\"")
+            @lock AUDITOR_LOGGING_LOCK @info("$(rel_path) already has SONAME \"$(soname)\"")
         end
         return true
     else
@@ -63,36 +65,35 @@ function ensure_soname(prefix::Prefix, path::AbstractString, platform::AbstractP
     end
 
     # Otherwise, set the SONAME
-    ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
-    set_soname_cmd = ``
-    
-    if Sys.isapple(platform)
-        install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
-        set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
-    elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        patchelf = "/usr/bin/patchelf"
-        set_soname_cmd = `$patchelf $(patchelf_flags(platform)) --set-soname $(soname) $(rel_path)`
-    end
-
-    # Create a new linkage that looks like @rpath/$lib on OSX, 
+    # Create a new linkage that looks like @rpath/$lib on OSX
     retval = with_logfile(prefix, "set_soname_$(basename(rel_path))_$(soname).log"; subdir) do io
-        run(ur, set_soname_cmd, io; verbose=verbose)
+        if Sys.isapple(platform)
+            ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
+            install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
+            set_soname_cmd = `$install_name_tool -id $(soname) $(rel_path)`
+            @lock AUDITOR_SANDBOX_LOCK run(ur, set_soname_cmd, io; verbose=verbose)
+        elseif Sys.islinux(platform) || Sys.isbsd(platform)
+            # For Linux/FreeBSD, wrap the entire read-modify-verify cycle in the file lock
+            with_patchelf_lock(path) do
+                success(run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --set-soname $(soname) $(realpath(path))`; wait=false))
+            end
+        end
     end
 
     if !retval
-        @warn("Unable to set SONAME on $(rel_path)")
+        @lock AUDITOR_LOGGING_LOCK @warn("Unable to set SONAME on $(rel_path)")
         return false
     end
 
     # Read the SONAME back in and ensure it's set properly
     new_soname = get_soname(path)
     if new_soname != soname
-        @warn("Set SONAME on $(rel_path) to $(soname), but read back $(string(new_soname))!")
+        @lock AUDITOR_LOGGING_LOCK @warn("Set SONAME on $(rel_path) to $(soname), but read back $(string(new_soname))!")
         return false
     end
 
     if verbose
-        @info("Set SONAME of $(rel_path) to \"$(soname)\"")
+        @lock AUDITOR_LOGGING_LOCK @info("Set SONAME of $(rel_path) to \"$(soname)\"")
     end
 
     return true
@@ -119,12 +120,12 @@ function symlink_soname_lib(path::AbstractString; verbose::Bool = false,
         if autofix
             target = basename(path)
             if verbose
-                @info("Library $(soname) does not exist, creating link to $(target)...")
+                @lock AUDITOR_LOGGING_LOCK @info("Library $(soname) does not exist, creating link to $(target)...")
             end
             symlink(target, soname_path)
         else
             if verbose
-                @info("Library $(soname) does not exist, failing out...")
+                @lock AUDITOR_LOGGING_LOCK @info("Library $(soname) does not exist, failing out...")
             end
             return false
         end
