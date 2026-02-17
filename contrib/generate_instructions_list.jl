@@ -57,6 +57,13 @@ function generate_dict()
                 end
             end
         end
+        if name == "bmi1"
+            # `tzcnt` can be legally emitted by compilers in some cases even when
+            # the BMI1 feature is not available, so do not audit it.
+            #
+            # see: https://stackoverflow.com/questions/61422827/does-x64-support-imply-bmi1-support
+            deleteat!(instructions, findfirst(==("tzcnt"), instructions))
+        end
         dict[name] = instructions
     end
     free(xml)

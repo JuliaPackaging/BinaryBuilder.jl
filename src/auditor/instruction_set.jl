@@ -41,7 +41,7 @@ function instruction_mnemonics(path::AbstractString, platform::AbstractPlatform)
     else
         objdump_cmd = "\${target}-objdump -d $(basename(path))"
     end
-    run_interactive(ur, Cmd(`/bin/bash -c "$(objdump_cmd)"`; ignorestatus=true); stdout=output, stderr=devnull)
+    @lock AUDITOR_SANDBOX_LOCK run_interactive(ur, Cmd(`/bin/bash -c "$(objdump_cmd)"`; ignorestatus=true); stdout=output, stderr=devnull)
     seekstart(output)
 
     for line in eachline(output)
@@ -162,7 +162,7 @@ function analyze_instruction_set(oh::ObjectHandle, platform::AbstractPlatform; v
             the proper instruction set internally.  Would have chosen
             $(min_march), instead choosing $(generic_march(platform)).
             """, '\n' => ' ')
-            @warn(strip(msg))
+            @lock AUDITOR_LOGGING_LOCK @warn(strip(msg))
         end
         return generic_march(platform)
     end

@@ -1,4 +1,30 @@
 using ObjectFile.ELF
+using Patchelf_jll: patchelf
+
+function os_from_elf_note(oh::ELFHandle)
+    for section in Sections(oh)
+        section_type(section) == ELF.SHT_NOTE || continue
+        seek(oh, section_offset(section))
+        name_length = read(oh, UInt32)
+        iszero(name_length) && continue
+        descriptor_length = read(oh, UInt32)
+        note_type = read(oh, UInt32)
+        name = String(read(oh, name_length - 1))  # skip trailing NUL
+        if note_type == 1
+            # Technically it's part of the Linux specification that any executable should
+            # have an ELF note with type 1, name GNU, and descriptor length ≥4, but in
+            # practice I haven't observed that consistently, especially on musl. So for
+            # now, only bother checking FreeBSD, which uses an ELF note rather than OS/ABI
+            # to identify itself on AArch64 and RISC-V.
+            if name == "FreeBSD" && descriptor_length == 4
+                return name
+            end
+        end
+    end
+    return nothing
+end
+
+os_from_elf_note(::ObjectHandle) = nothing
 
 """
     platform_for_object(oh::ObjectHandle)
@@ -40,7 +66,9 @@ function platform_for_object(oh::ObjectHandle)
             end
         end
 
-        if oh.ei.osabi == ELF.ELFOSABI_LINUX || oh.ei.osabi == ELF.ELFOSABI_NONE
+        if oh.ei.osabi == ELF.ELFOSABI_NONE
+            return Platform(arch, os_from_elf_note(oh) == "FreeBSD" ? "freebsd" : "linux")
+        elseif oh.ei.osabi == ELF.ELFOSABI_LINUX
             return Platform(arch, "linux")
         elseif oh.ei.osabi == ELF.ELFOSABI_FREEBSD
             return Platform(arch, "freebsd")
@@ -109,6 +137,13 @@ function is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
             else
                 error("Unknown OS ABI type $(typeof(platform))")
             end
+        else
+            # If no OSABI, check whether it has a matching ELF note
+            if Sys.isfreebsd(platform)
+                if os_from_elf_note(h) != "FreeBSD"
+                    return false
+                end
+            end
         end
         # Check that the ELF arch matches our own
         m = h.header.e_machine
@@ -160,6 +195,7 @@ function should_ignore_lib(lib, ::ELFHandle, platform::AbstractPlatform)
         "ld-linux.so.2",
         "ld-linux-armhf.so.3",
         "ld-linux-aarch64.so.1",
+        "ld-linux-riscv64-lp64d.so.1",
         "ld-musl-x86_64.so.1",
         "ld-musl-i386.so.1",
         "ld-musl-aarch64.so.1",
@@ -266,6 +302,7 @@ function should_ignore_lib(lib, ::COFFHandle, platform::AbstractPlatform)
         "ntdll.dll",
         "msvcrt.dll",
         "kernel32.dll",
+        "version.dll",
         "user32.dll",
         "shell32.dll",
         "shlwapi.dll",
@@ -309,7 +346,8 @@ function should_ignore_lib(lib, ::COFFHandle, platform::AbstractPlatform)
         # This one needs some special attention, eventually
         "libgomp-1.dll",
     ]
-    return lowercase(basename(lib)) in ignore_libs
+    libname = lowercase(basename(lib))
+    return libname in ignore_libs || startswith(libname, "api-ms-win-")
 end
 
 # Determine whether a library is a "default" library or not, if it is we need
@@ -346,17 +384,18 @@ function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::Abstr
     libname = basename(old_libpath)
     relink_cmd = ``
 
-    if Sys.isapple(platform)
-        install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
-        relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
-    elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        patchelf = "/usr/bin/patchelf"
-        relink_cmd = `$patchelf $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(rel_path)`
-    end
-
     # Create a new linkage that looks like @rpath/$lib on OSX
     with_logfile(prefix, "relink_to_rpath_$(basename(rel_path)).log"; subdir) do io
-        run(ur, relink_cmd, io; verbose=verbose)
+        if Sys.isapple(platform)
+            ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
+            install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
+            relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
+            @lock AUDITOR_SANDBOX_LOCK run(ur, relink_cmd, io; verbose=verbose)
+        elseif Sys.islinux(platform) || Sys.isbsd(platform)
+            with_patchelf_lock(path) do
+                run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(path)`)
+            end
+        end
     end
 end
 
@@ -380,7 +419,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
     end
 
     if verbose
-        @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
+        @lock AUDITOR_LOGGING_LOCK @info("Modifying dylib id from \"$(old_id)\" to \"$(new_id)\"")
     end
 
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
@@ -389,7 +428,7 @@ function fix_identity_mismatch(prefix::Prefix, platform::AbstractPlatform, path:
 
     # Create a new linkage that looks like @rpath/$lib on OSX,
     with_logfile(prefix, "fix_identity_mismatch_$(basename(rel_path)).log"; subdir) do io
-        run(ur, id_cmd, io; verbose=verbose)
+        @lock AUDITOR_SANDBOX_LOCK run(ur, id_cmd, io; verbose=verbose)
     end
 end
 
@@ -411,58 +450,32 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         return
     end
 
+    # macOS uses install_name_tool
+    if Sys.isapple(platform)
+        return _update_linkage_macho(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+    end
+
+    # For Linux/FreeBSD, wrap the entire read-modify-write cycle in the file lock
+    # to prevent concurrent access while reading rpaths and running patchelf
+    return with_patchelf_lock(path) do
+        _update_linkage_elf(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+    end
+end
+
+function _update_linkage_macho(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
+                               old_libpath, new_libpath; verbose::Bool=false, subdir::AbstractString="")
     ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
     rel_path = relpath(path, prefix.path)
-
-    normalize_rpath = rp -> rp
-    add_rpath = x -> ``
-    relink = (x, y) -> ``
-    patchelf = "/usr/bin/patchelf"
     install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
-    if Sys.isapple(platform)
-        normalize_rpath = rp -> begin
-            if !startswith(rp, "@loader_path")
-                return "@loader_path/$(rp)"
-            end
-            return rp
-        end
-        add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
-        relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
-    elseif Sys.islinux(platform) || Sys.isbsd(platform)
-        normalize_rpath = rp -> begin
-            if rp == "."
-                return "\$ORIGIN"
-            end
-            if startswith(rp, ".") || !startswith(rp, "/")
-                # Relative paths starting with `.`, or anything which isn't an absolute
-                # path.  It may also be a relative path without the leading `./`
-                return "\$ORIGIN/$(rp)"
-            end
-            return rp
-        end
-        current_rpaths = [r for r in _rpaths(path) if !isempty(r)]
-        add_rpath = rp -> begin
-            # Join together RPaths to set new one
-            rpaths = unique(vcat(current_rpaths, rp))
 
-            # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
-            # it semantically makes a difference, but why not be correct AND beautiful?
-            chomp_slashdot = path -> begin
-                if length(path) > 2 && path[end-1:end] == "/."
-                    return path[1:end-2]
-                end
-                return path
-            end
-            rpaths = chomp_slashdot.(rpaths)
-            # Remove paths starting with `/workspace`: they will not work outisde of the
-            # build environment and only create noise when debugging.
-            filter!(rp -> !startswith(rp, "/workspace"), rpaths)
-
-            rpath_str = join(rpaths, ':')
-            return `$patchelf $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(rel_path)`
+    normalize_rpath = rp -> begin
+        if !startswith(rp, "@loader_path")
+            return "@loader_path/$(rp)"
         end
-        relink = (op, np) -> `$patchelf $(patchelf_flags(platform)) --replace-needed $(op) $(np) $(rel_path)`
+        return rp
     end
+    add_rpath = rp -> `$install_name_tool -add_rpath $(rp) $(rel_path)`
+    relink = (op, np) -> `$install_name_tool -change $(op) $(np) $(rel_path)`
 
     # If the relative directory doesn't already exist within the RPATH of this
     # binary, then add it in.
@@ -471,7 +484,7 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         libname = basename(old_libpath)
         cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
         with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io
-            run(ur, cmd, io; verbose=verbose)
+            @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
         end
     end
 
@@ -479,18 +492,76 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
     # This allows us to split things up into multiple packages, and as long as the
     # libraries that this guy is interested in have been `dlopen()`'ed previously,
     # (and have the appropriate SONAME) things should "just work".
-    if Sys.isapple(platform)
-        # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
-        # Note that this is still overridable through DYLD_FALLBACK_LIBRARY_PATH
-        new_libpath = joinpath("@rpath", basename(new_libpath))
-    else
-        # We just use the basename on all other systems (e.g. Linux).  Note that using
-        # $ORIGIN, while cute, doesn't allow for overrides via LD_LIBRARY_PATH.  :[
-        new_libpath = basename(new_libpath)
-    end
+    # On MacOS, we need to explicitly add `@rpath/` before our library linkage path.
+    # Note that this is still overridable through DYLD_FALLBACK_LIBRARY_PATH
+    new_libpath = joinpath("@rpath", basename(new_libpath))
     cmd = relink(old_libpath, new_libpath)
     with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log"; subdir) do io
-        run(ur, cmd, io; verbose=verbose)
+        @lock AUDITOR_SANDBOX_LOCK run(ur, cmd, io; verbose=verbose)
+    end
+
+    return new_libpath
+end
+
+# This function is called with the patchelf lock already held
+function _update_linkage_elf(prefix::Prefix, platform::AbstractPlatform, path::AbstractString,
+                             old_libpath, new_libpath; verbose::Bool=false, subdir::AbstractString="")
+    normalize_rpath = rp -> begin
+        if rp == "."
+            return "\$ORIGIN"
+        end
+        if startswith(rp, ".") || !startswith(rp, "/")
+            # Relative paths starting with `.`, or anything which isn't an absolute
+            # path.  It may also be a relative path without the leading `./`
+            return "\$ORIGIN/$(rp)"
+        end
+        return rp
+    end
+
+    current_rpaths = [r for r in _rpaths(path) if !isempty(r)]
+
+    add_rpath = rp -> begin
+        # Join together RPaths to set new one
+        rpaths = unique(vcat(current_rpaths, rp))
+        # I don't like strings ending in '/.', like '$ORIGIN/.'.  I don't think
+        # it semantically makes a difference, but why not be correct AND beautiful?
+        chomp_slashdot = path -> begin
+            if length(path) > 2 && path[end-1:end] == "/."
+                return path[1:end-2]
+            end
+            return path
+        end
+        rpaths = chomp_slashdot.(rpaths)
+        # Remove paths starting with `/workspace`: they will not work outside of the
+        # build environment and only create noise when debugging.
+        filter!(rp -> !startswith(rp, "/workspace"), rpaths)
+        rpath_str = join(rpaths, ':')
+        return `$(patchelf()) $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(path)`
+    end
+
+    relink = (op, np) -> `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(op) $(np) $(path)`
+
+    # If the relative directory doesn't already exist within the RPATH of this
+    # binary, then add it in.
+    new_libdir = abspath(dirname(new_libpath) * "/")
+    if !(new_libdir in _canonical_rpaths(path))
+        libname = basename(old_libpath)
+        cmd = add_rpath(normalize_rpath(relpath(new_libdir, dirname(path))))
+        with_logfile(prefix, "update_rpath_$(basename(path))_$(libname).log"; subdir) do io
+            run_with_io(io, cmd)
+        end
+    end
+
+    # Create a new linkage that uses the RPATH and/or environment variables to find things.
+    # This allows us to split things up into multiple packages, and as long as the
+    # libraries that this guy is interested in have been `dlopen()`'ed previously,
+    # (and have the appropriate SONAME) things should "just work".
+    # We just use the basename on Linux/BSD.  Note that using $ORIGIN, while cute,
+    # doesn't allow for overrides via LD_LIBRARY_PATH.  :[
+    new_libpath = basename(new_libpath)
+    cmd = relink(old_libpath, new_libpath)
+    with_logfile(prefix, "update_linkage_$(basename(path))_$(basename(old_libpath)).log"; subdir) do io
+        run_with_io(io, cmd)
     end
 
     return new_libpath

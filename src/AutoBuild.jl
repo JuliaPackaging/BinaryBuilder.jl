@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, print_artifacts_toml, build, get_meta_json, preferred_platform_compiler, set_preferred_compiler_version!
+export build_tarballs, autobuild, build, get_meta_json, preferred_platform_compiler, set_preferred_compiler_version!
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using TOML, Dates, UUIDs
@@ -42,6 +42,11 @@ function Base.show(io::IO, t::BuildTimer)
               )
     end
 end
+
+const devdir = Ref(Pkg.devdir())
+
+namejll(name::AbstractString) = name * "_jll"
+codedir(name::AbstractString) = joinpath(devdir[], namejll(name))
 
 exclude_logs(_, f) = f != "logs"
 only_logs(_, f)    = f == "logs"
@@ -173,6 +178,8 @@ supported ones. A few additional keyword arguments are accept:
   Since the generated JLL package is named according to `src_name`, this should
   only be set to `false` if you _really_ know what you're doing.
 
+* `compression_format`: the compression format used for the generated tarballs.
+
 !!! note
 
     The `init_block` and `augment_platform_block` keyword arguments are experimental
@@ -182,13 +189,19 @@ supported ones. A few additional keyword arguments are accept:
 function build_tarballs(ARGS, src_name, src_version, sources, script,
                         platforms, products, dependencies;
                         julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
-                        validate_name::Bool=true, kwargs...)
+                        validate_name::Bool=true,
+                        compression_format::String="gzip",
+                        kwargs...)
     @nospecialize
     # See if someone has passed in `--help`, and if so, give them the
     # assistance they so clearly long for
     if "--help" in ARGS
         println(BUILD_HELP)
         return nothing
+    end
+
+    if compression_format != "gzip" && minimum_compat(julia_compat) < v"1.6"
+        error("Compression formats different from gzip are supported only from Julia v1.6, increase the Julia compat if you want to use a non-default format")
     end
 
     if validate_name && !Base.isidentifier(src_name)
@@ -233,9 +246,9 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     meta_json, meta_json_file = extract_flag!(ARGS, "--meta-json")
 
     # This sets whether we are going to deploy our binaries/wrapper code to GitHub releases
-    deploy, deploy_repo = extract_flag!(ARGS, "--deploy", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    deploy_bin, deploy_bin_repo = extract_flag!(ARGS, "--deploy-bin", "JuliaBinaryWrappers/$(src_name)_jll.jl")
-    deploy_jll, deploy_jll_repo = extract_flag!(ARGS, "--deploy-jll", "JuliaBinaryWrappers/$(src_name)_jll.jl")
+    deploy, deploy_repo = extract_flag!(ARGS, "--deploy", "JuliaBinaryWrappers/$(namejll(src_name)).jl")
+    deploy_bin, deploy_bin_repo = extract_flag!(ARGS, "--deploy-bin", "JuliaBinaryWrappers/$(namejll(src_name)).jl")
+    deploy_jll, deploy_jll_repo = extract_flag!(ARGS, "--deploy-jll", "JuliaBinaryWrappers/$(namejll(src_name)).jl")
 
     # Resolve deploy settings
     if deploy
@@ -266,7 +279,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     skip_build = check_flag!(ARGS, "--skip-build")
 
     if deploy_bin || deploy_jll
-        code_dir = joinpath(Pkg.devdir(), "$(src_name)_jll")
+        code_dir = codedir(src_name)
 
         # Shove them into `kwargs` so that we are conditionally passing them along
         kwargs = (; kwargs..., code_dir = code_dir)
@@ -375,20 +388,27 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
             verbose,
             debug,
             skip_audit,
+            compression_format,
             kwargs...,
         )
     end
 
+    products_dir = joinpath(pwd(), "products")
     if deploy_jll
         if verbose
-            @info("Committing and pushing $(src_name)_jll.jl wrapper code version $(build_version)...")
+            @info("Committing and pushing $(namejll(src_name)).jl wrapper code version $(build_version)...")
         end
 
         # For deploy keep only runtime  dependencies.
         dependencies = [dep for dep in dependencies if is_runtime_dependency(dep)]
 
+
         # The location the binaries will be available from
-        bin_path = "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
+        bin_path = if deploy_jll_repo == "local"
+            "file://$(products_dir)"
+        else
+            "https://github.com/$(deploy_jll_repo)/releases/download/$(tag)"
+        end
 
         if !skip_build
             # Build JLL package based on output of autobuild
@@ -397,7 +417,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         else
             # Rebuild output meta data from the information we have here
             rebuild_jll_package(src_name, build_version, sources, platforms, products, dependencies,
-                                joinpath(pwd(), "products"), bin_path;
+                                products_dir, bin_path;
                                 code_dir, verbose, from_scratch=false,
                                 julia_compat, extra_kwargs...)
         end
@@ -419,7 +439,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
         end
-        upload_to_github_releases(deploy_bin_repo, tag, joinpath(pwd(), "products"); verbose=verbose)
+        upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
     end
 
     return build_output_meta
@@ -478,6 +498,13 @@ function get_compilers_versions(; compilers = [:c])
             go version
             """
     end
+    if :ocaml in compilers
+        output *=
+            """
+            ocamlc -v
+            ocamlopt -v
+            """
+    end
     if :rust in compilers
         output *=
             """
@@ -519,12 +546,11 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
     # Force-update the registry here, since we may have pushed a new version recently
     update_registry(devnull)
 
-    jll_name = "$(src_name)_jll"
-    uuid = jll_uuid(jll_name)
+    uuid = jll_uuid(namejll(src_name))
 
     # If it does, we need to bump the build number up to the next value
     build_number = UInt64(0)
-    if uuid in Pkg.Types.registered_uuids(ctx.registries, jll_name)
+    if uuid in Pkg.Types.registered_uuids(ctx.registries, namejll(src_name))
         # Collect all version numbers of the package across all registries.
         versions = VersionNumber[]
         for reg in ctx.registries
@@ -578,12 +604,16 @@ is_yggdrasil() = get(ENV, "YGGDRASIL", "false") == "true"
 yggdrasil_head() = get(ENV, "BUILDKITE_COMMIT", "")
 
 function register_jll(name, build_version, dependencies, julia_compat;
-                      deploy_repo="JuliaBinaryWrappers/$(name)_jll.jl",
-                      code_dir=joinpath(Pkg.devdir(), "$(name)_jll"),
+                      deploy_repo="JuliaBinaryWrappers/$(namejll(name)).jl",
+                      code_dir=codedir(name),
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
                       lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+                      registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General",
+                      registry_fork_url = registry_url,
+                      registry_fork_org = "JuliaRegistries",
+                      gh_auth_pr=gh_auth, # To open a PR we may in principle need a different token.
                       kwargs...)
     if !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.6"
         error("Augmentation blocks cannot be used with Julia v1.5-.\nChange `julia_compat` to require at least Julia v1.6")
@@ -596,7 +626,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
     # Use RegistryTools to push up a new `General` branch with this JLL package registered within it
     # TODO: Update our fork periodically from upstream `General`.
     cache = RegistryTools.RegistryCache(joinpath(Pkg.depots1(), "registries_binarybuilder"))
-    registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General"
     cache.registries[registry_url] = Base.UUID("23338594-aafe-5451-b93e-139f81909106")
     jllwrappers_compat = DEFAULT_JLLWRAPPERS_VERSION_SPEC
     project = Pkg.Types.Project(build_project_dict(name, build_version, dependencies, julia_compat; jllwrappers_compat, lazy_artifacts, augment_platform_block))
@@ -608,6 +637,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
         project_file,
         wrapper_tree_hash;
         registry=registry_url,
+        registry_fork=registry_fork_url,
         cache=cache,
         push=true,
         checks_triggering_error = errors,
@@ -616,12 +646,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
         @error(reg_branch.metadata["error"])
     else
         upstream_registry_url = "https://github.com/JuliaRegistries/General"
-        name_jll = "$(name)_jll"
-        if _package_is_registered(upstream_registry_url, name_jll)
-            pr_title = "New version: $(name_jll) v$(build_version)"
-        else
-            pr_title = "New package: $(name_jll) v$(build_version)"
-        end
+        pr_title = "New $(_package_is_registered(upstream_registry_url, namejll(name)) ? "version" : "package"): $(namejll(name)) v$(build_version)"
         # Open pull request against JuliaRegistries/General
         body = """
         Autogenerated JLL package registration
@@ -645,12 +670,13 @@ function register_jll(name, build_version, dependencies, julia_compat;
         end
         params = Dict(
             "base" => "master",
-            "head" => "$(reg_branch.branch)",
+            "head" => "$(registry_fork_org):$(reg_branch.branch)",
             "maintainer_can_modify" => true,
             "title" => pr_title,
             "body" => body,
         )
-        Wizard.create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth)
+        @debug "Opening pull request" params reg_branch deploy_repo
+        Wizard.create_or_update_pull_request("JuliaRegistries/General", params; auth=gh_auth_pr)
     end
 end
 
@@ -772,7 +798,9 @@ end
               skip_audit = false, ignore_audit_errors = true,
               autofix = true, code_dir = nothing,
               meta_json_file = nothing, require_license = true,
-              dont_dlopen = false, kwargs...)
+              dont_dlopen = false,
+              compression_format = "gzip",
+              kwargs...)
 
 Runs the boiler plate code to download, build, and package a source package
 for a list of platforms.  This method takes a veritable truckload of arguments,
@@ -820,6 +848,8 @@ here are the relevant actors, broken down in brief:
    the generated JLL loading the library at run time, and only prevents
    BinaryBuilder from doing so during JLL generation.
 
+* `compression_format`: the compression format used for the generated tarballs.
+
 """
 function autobuild(dir::AbstractString,
                    src_name::AbstractString,
@@ -837,6 +867,7 @@ function autobuild(dir::AbstractString,
                    code_dir::Union{String,Nothing} = nothing,
                    require_license::Bool = true,
                    dont_dlopen::Bool = false,
+                   compression_format::String = "gzip",
                    kwargs...)
     @nospecialize
 
@@ -868,7 +899,12 @@ function autobuild(dir::AbstractString,
 
         compiler_args = Dict()
 
-        for (k, v) in extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:preferred_rust_version,:preferred_go_version))
+        for (k, v) in extract_kwargs(kwargs, (
+            :preferred_gcc_version,
+            :preferred_llvm_version,
+            :preferred_rust_version,
+            :preferred_go_version,
+            :preferred_ocaml_version))
             get_platform_compiler_version!(compiler_args, k, platform, kwargs[k])
         end
 
@@ -1058,6 +1094,7 @@ function autobuild(dir::AbstractString,
             platform=platform,
             verbose=verbose,
             force=true,
+            compression_format,
             # Do not include logs into the main tarball
             filter=exclude_logs,
         )
@@ -1069,6 +1106,7 @@ function autobuild(dir::AbstractString,
             platform=platform,
             verbose=verbose,
             force=true,
+            compression_format,
             filter=only_logs,
         )
         timer.end_package = time()
@@ -1091,7 +1129,7 @@ function autobuild(dir::AbstractString,
         if isempty(readdir(build_path))
             rm(build_path; recursive=true)
         end
-        verbose && @info timer
+        verbose && @info "$(timer)"
     end
 
     # Return our product hashes
@@ -1100,7 +1138,7 @@ end
 
 function download_github_release(download_dir, repo, tag; gh_auth=Wizard.github_auth(), verbose::Bool=false)
     release = gh_get_json(DEFAULT_API, "/repos/$(repo)/releases/tags/$(tag)", auth=gh_auth)
-    assets = [a for a in release["assets"] if endswith(a["name"], ".tar.gz")]
+    assets = [a for a in release["assets"] if endswith(a["name"], r"\.tar\.(gz|xz|bz2)")]
 
     for asset in assets
         if verbose
@@ -1190,7 +1228,7 @@ function rebuild_jll_package(obj::Dict;
     end
     if download_dir === nothing
         download_dir = mktempdir()
-        repo = "$(gh_org)/$(obj["name"])_jll.jl"
+        repo = "$(gh_org)/$(namejll(obj["name"])).jl"
         tag = "$(obj["name"])-v$(build_version)"
         download_github_release(download_dir, repo, tag; verbose=verbose)
         upload_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
@@ -1219,18 +1257,38 @@ function rebuild_jll_package(obj::Dict;
     )
 end
 
+# For each platform, we have two tarballs: the main with the full product,
+# and the logs-only one.  This function filters out the logs one, and
+# finds the tarball matching `platform`.
+function filter_main_tarball(tarball_filename, platform)
+    if occursin("-logs.", tarball_filename)
+        return false
+    end
+    tarball_filename_match = match(r"^(.*/)?(?<name>[\w_]+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>([^-]+-?)+).tar", tarball_filename)
+    if isnothing(tarball_filename_match)
+        @warn "Tarball filename does not match expected pattern: $(tarball_filename)"
+        return false
+    end
+    try
+        if platform isa AnyPlatform
+            return tarball_filename_match[:platform_triplet] == "any"
+        end
+        tarball_filename_platform = parse(Platform, tarball_filename_match[:platform_triplet])
+        return tarball_filename_platform == platform
+    catch
+        @warn "Failed to parse tarball filename: $(tarball_filename)"
+        return false
+    end
+end
+
 function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
-                             code_dir::String = joinpath(Pkg.devdir(), "$(name)_jll"),
+                             code_dir::String = codedir(name),
                              verbose::Bool = false, from_scratch::Bool = true,
                              kwargs...)
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
-
-    # For each platform, we have two tarballs: the main with the full product,
-    # and the logs-only one.  This function filters out the logs one.
-    filter_main_tarball(f, platform) = occursin(".$(triplet(platform)).tar", f) && !occursin("-logs.", f)
 
     # Then generate a JLL package for each platform
     downloaded_files = readdir(download_dir)
@@ -1359,7 +1417,7 @@ function build_jll_package(src_name::String,
 
         # Generate the platform-specific wrapper code
         open(joinpath(code_dir, "src", "wrappers", "$(triplet(platform)).jl"), "w") do io
-            println(io, "# Autogenerated wrapper script for $(src_name)_jll for $(triplet(platform))")
+            println(io, "# Autogenerated wrapper script for $(namejll(src_name)) for $(triplet(platform))")
             if !isempty(products_info)
                 println(io, """
                 export $(join(sort(variable_name.(first.(collect(products_info)))), ", "))
@@ -1451,11 +1509,128 @@ function build_jll_package(src_name::String,
             """)
         end
     end
-
+    pkg_dir = joinpath(code_dir, ".pkg")
     if !isempty(augment_platform_block)
-        pkg_dir = joinpath(code_dir, ".pkg")
         !ispath(pkg_dir) && mkdir(pkg_dir)
         write(joinpath(pkg_dir, "platform_augmentation.jl"), augment_platform_block)
+
+        overload_parse = raw"""
+            # Update Base.parse to support riscv64, needed for Julia <1.12
+            @static if !haskey(BinaryPlatforms.arch_mapping, "riscv64")
+
+                BinaryPlatforms.arch_mapping["riscv64"] = "(rv64|riscv64)"
+
+                function bbparse(::Type{Platform}, triplet::AbstractString; validate_strict::Bool = false)
+                    arch_mapping = BinaryPlatforms.arch_mapping
+                    os_mapping = BinaryPlatforms.os_mapping
+                    libc_mapping = BinaryPlatforms.libc_mapping
+                    call_abi_mapping = BinaryPlatforms.call_abi_mapping
+                    libgfortran_version_mapping = BinaryPlatforms.libgfortran_version_mapping
+                    cxxstring_abi_mapping = BinaryPlatforms.cxxstring_abi_mapping
+                    libstdcxx_version_mapping = BinaryPlatforms.libstdcxx_version_mapping
+                
+                    # Helper function to collapse dictionary of mappings down into a regex of
+                    # named capture groups joined by "|" operators
+                    c(mapping) = string("(",join(["(?<$k>$v)" for (k, v) in mapping], "|"), ")")
+                
+                    # We're going to build a mondo regex here to parse everything:
+                    triplet_regex = Regex(string(
+                        "^",
+                        # First, the core triplet; arch/os/libc/call_abi
+                        c(arch_mapping),
+                        c(os_mapping),
+                        c(libc_mapping),
+                        c(call_abi_mapping),
+                        # Next, optional things, like libgfortran/libstdcxx/cxxstring abi
+                        c(libgfortran_version_mapping),
+                        c(cxxstring_abi_mapping),
+                        c(libstdcxx_version_mapping),
+                        # Finally, the catch-all for extended tags
+                        "(?<tags>(?:-[^-]+\\+[^-]+)*)?",
+                        "\$",
+                    ))
+                
+                    m = match(triplet_regex, triplet)
+                    if m !== nothing
+                        # Helper function to find the single named field within the giant regex
+                        # that is not `nothing` for each mapping we give it.
+                        get_field(m, mapping) = begin
+                            for k in keys(mapping)
+                                if m[k] !== nothing
+                                    # Convert our sentinel `nothing` values to actual `nothing`
+                                    if endswith(k, "_nothing")
+                                        return nothing
+                                    end
+                                    # Convert libgfortran/libstdcxx version numbers
+                                    if startswith(k, "libgfortran")
+                                        return VersionNumber(parse(Int,k[12:end]))
+                                    elseif startswith(k, "libstdcxx")
+                                        return VersionNumber(3, 4, parse(Int,m[k][11:end]))
+                                    else
+                                        return k
+                                    end
+                                end
+                            end
+                        end
+                
+                        # Extract the information we're interested in:
+                        arch = get_field(m, arch_mapping)
+                        os = get_field(m, os_mapping)
+                        libc = get_field(m, libc_mapping)
+                        call_abi = get_field(m, call_abi_mapping)
+                        libgfortran_version = get_field(m, libgfortran_version_mapping)
+                        libstdcxx_version = get_field(m, libstdcxx_version_mapping)
+                        cxxstring_abi = get_field(m, cxxstring_abi_mapping)
+                        function split_tags(tagstr)
+                            tag_fields = filter(!isempty, split(tagstr, "-"))
+                            if isempty(tag_fields)
+                                return Pair{String,String}[]
+                            end
+                            return map(v -> Symbol(v[1]) => v[2], split.(tag_fields, "+"))
+                        end
+                        tags = split_tags(m["tags"])
+                
+                        # Special parsing of os version number, if any exists
+                        function extract_os_version(os_name, pattern)
+                            m_osvn = match(pattern, m[os_name])
+                            if m_osvn !== nothing
+                                return VersionNumber(m_osvn.captures[1])
+                            end
+                            return nothing
+                        end
+                        os_version = nothing
+                        if os == "macos"
+                            os_version = extract_os_version("macos", r".*darwin([\d.]+)"sa)
+                        end
+                        if os == "freebsd"
+                            os_version = extract_os_version("freebsd", r".*freebsd([\d.]+)"sa)
+                        end
+                        if os == "openbsd"
+                            os_version = extract_os_version("openbsd", r".*openbsd([\d.]+)"sa)
+                        end
+                
+                        return Platform(
+                            arch, os;
+                            validate_strict,
+                            libc,
+                            call_abi,
+                            libgfortran_version,
+                            cxxstring_abi,
+                            libstdcxx_version,
+                            os_version,
+                            tags...,
+                        )
+                    end
+                    throw(ArgumentError("Platform `$(triplet)` is not an officially supported platform"))
+                end
+
+            else
+                # riscv64 is supported, all is fine
+
+                const bbparse = parse
+
+            end
+            """
 
         write(joinpath(pkg_dir, "select_artifacts.jl"),
               """
@@ -1465,25 +1640,30 @@ function build_jll_package(src_name::String,
               include("./platform_augmentation.jl")
               artifacts_toml = joinpath(dirname(@__DIR__), "Artifacts.toml")
 
+              $(overload_parse)
+
               # Get "target triplet" from ARGS, if given (defaulting to the host triplet otherwise)
               target_triplet = get(ARGS, 1, Base.BinaryPlatforms.host_triplet())
 
               # Augment this platform object with any special tags we require
-              platform = augment_platform!(HostPlatform(parse(Platform, target_triplet)))
+              platform = augment_platform!(HostPlatform(bbparse(Platform, target_triplet)))
 
               # Select all downloadable artifacts that match that platform
               artifacts = select_downloadable_artifacts(artifacts_toml; platform, include_lazy=true)
 
-              #Output the result to `stdout` as a TOML dictionary
+              # Output the result to `stdout` as a TOML dictionary
               TOML.print(stdout, artifacts)
               """)
+    else
+        # If no augmentation exists, ensure that the pkg_dir gets removed again.
+        Base.rm(pkg_dir, recursive=true, force=true)
     end
 
     # Generate target-demuxing main source file.
-    open(joinpath(code_dir, "src", "$(src_name)_jll.jl"), "w") do io
+    open(joinpath(code_dir, "src", "$(namejll(src_name)).jl"), "w") do io
         print(io, """
         # Use baremodule to shave off a few KB from the serialized `.ji` file
-        baremodule $(src_name)_jll
+        baremodule $(namejll(src_name))
         using Base
         using Base: UUID
         """)
@@ -1507,8 +1687,8 @@ function build_jll_package(src_name::String,
         import JLLWrappers
 
         JLLWrappers.@generate_main_file_header($(repr(src_name)))
-        JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid("$(src_name)_jll"))))
-        end  # module $(src_name)_jll
+        JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid(namejll(src_name)))))
+        end  # module $(namejll(src_name))
         """)
     end
 
@@ -1537,10 +1717,10 @@ function build_jll_package(src_name::String,
     open(joinpath(code_dir, "README.md"), "w") do io
         println(io,
                 """
-                # `$(src_name)_jll.jl` (v$(build_version))
+                # `$(namejll(src_name)).jl` (v$(build_version))
                 """)
         if is_yggdrasil()
-            println(io, "[![deps](https://juliahub.com/docs/$(src_name)_jll/deps.svg)](https://juliahub.com/ui/Packages/General/$(src_name)_jll/)\n")
+            println(io, "[![deps](https://juliahub.com/docs/$(namejll(src_name))/deps.svg)](https://juliahub.com/ui/Packages/General/$(namejll(src_name))/)\n")
         end
         println(io, """
                 This is an autogenerated package constructed using [`BinaryBuilder.jl`](https://github.com/JuliaPackaging/BinaryBuilder.jl).
@@ -1564,7 +1744,7 @@ function build_jll_package(src_name::String,
             println(io, """
                         ## Sources
 
-                        The tarballs for `$(src_name)_jll.jl` have been built from these sources:""")
+                        The tarballs for `$(namejll(src_name)).jl` have been built from these sources:""")
             println(io)
             print_source.(Ref(io), sources)
             println(io)
@@ -1572,7 +1752,7 @@ function build_jll_package(src_name::String,
         println(io, """
                     ## Platforms
 
-                    `$(src_name)_jll.jl` is available for the following platforms:
+                    `$(namejll(src_name)).jl` is available for the following platforms:
                     """)
         for p in sort(collect(platforms), by = triplet)
             println(io, "* `", p, "` (`", triplet(p), "`)")
@@ -1584,7 +1764,7 @@ function build_jll_package(src_name::String,
             println(io, """
                         ## Dependencies
 
-                        The following JLL packages are required by `$(src_name)_jll.jl`:""")
+                        The following JLL packages are required by `$(namejll(src_name)).jl`:""")
             println(io)
             print_jll.(Ref(io), sort(dependencies, by = getname))
         end
@@ -1644,15 +1824,17 @@ function build_jll_package(src_name::String,
 end
 
 function push_jll_package(name, build_version;
-                          code_dir = joinpath(Pkg.devdir(), "$(name)_jll"),
-                          deploy_repo = "JuliaBinaryWrappers/$(name)_jll.jl",
+                          code_dir = codedir(name),
+                          deploy_repo = "JuliaBinaryWrappers/$(namejll(name)).jl",
                           gh_auth = Wizard.github_auth(;allow_anonymous=false))
     # Next, push up the wrapper code repository
     wrapper_repo = LibGit2.GitRepo(code_dir)
     LibGit2.add!(wrapper_repo, ".")
-    commit = LibGit2.commit(wrapper_repo, "$(name)_jll build $(build_version)")
+    commit = LibGit2.commit(wrapper_repo, "$(namejll(name)) build $(build_version)")
+    refspecs = ["refs/heads/main"]
+    remoteurl = "https://github.com/$(deploy_repo).git"
+    @debug "Pushing the JLL" wrapper_repo refspecs commit remoteurl
     Wizard.with_gitcreds("x-access-token", gh_auth.token) do creds
-        refspecs = ["refs/heads/main"]
         # Fetch the remote repository, to have the relevant refspecs up to date.
         LibGit2.fetch(
             wrapper_repo;
@@ -1663,7 +1845,7 @@ function push_jll_package(name, build_version;
         LibGit2.push(
             wrapper_repo;
             refspecs=refspecs,
-            remoteurl="https://github.com/$(deploy_repo).git",
+            remoteurl,
             credentials=creds,
         )
     end
@@ -1680,7 +1862,7 @@ end
 const uuid_package = UUID("cfb74b52-ec16-5bb7-a574-95d9e393895e")
 # For even more interesting historical reasons, we append an extra
 # "_jll" to the name of the new package before computing its UUID.
-jll_uuid(name) = bb_specific_uuid5(uuid_package, "$(name)_jll")
+jll_uuid(name) = bb_specific_uuid5(uuid_package, namejll(name))
 
 function find_uuid(ctx, pkg)
     if Pkg.Types.has_uuid(pkg)
@@ -1715,8 +1897,8 @@ function build_project_dict(name, version, dependencies::Array{<:AbstractDepende
 
     Pkg.Types.semver_spec(julia_compat) # verify julia_compat is valid
     project = Dict(
-        "name" => "$(name)_jll",
-        "uuid" => string(jll_uuid("$(name)_jll")),
+        "name" => namejll(name),
+        "uuid" => string(jll_uuid(namejll(name))),
         "version" => string(version),
         "deps" => Dict{String,Any}(),
         # We require at least Julia 1.3+, for Pkg.Artifacts support, but we only claim

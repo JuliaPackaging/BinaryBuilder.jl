@@ -1,5 +1,6 @@
 using BinaryBuilder.Auditor
-using BinaryBuilder.Auditor: compatible_marchs, valid_library_path
+using BinaryBuilder.Auditor: check_os_abi, compatible_marchs, is_for_platform, valid_library_path
+using ObjectFile
 
 # Tests for our auditing infrastructure
 
@@ -27,8 +28,12 @@ using BinaryBuilder.Auditor: compatible_marchs, valid_library_path
         "__ZNSt8_Rb_treeINSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEEESt4pairIKS5_S5_ESt10_Select1stIS8_ESt4lessIS5_ESaIS8_EE7_M_copyINSE_11_Alloc_nodeEEEPSt13_Rb_tree_nodeIS8_EPKSI_PSt18_Rb_tree_node_baseRT_",
     ]
     unmangled_symbol_names = Auditor.cppfilt(mangled_symbol_names, Platform("x86_64", "macos"); strip_underscore=true)
-    @test all(unmangled_symbol_names .== [
-        "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&) (.isra.41)",
+    # binutils and llvm c++filt slightly disagree on the formatting of final annotation of
+    # this symbol (`[clone .isra.41]` for the former, `(.isra.41)` for the latter), so we
+    # only compare the rest.
+    @test startswith(unmangled_symbol_names[1],
+                     "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::basic_string(char const*, std::allocator<char> const&)")
+    @test all(unmangled_symbol_names[2:end] .== [
         "std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > std::operator+<char, std::char_traits<char>, std::allocator<char> >(std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >&&, char const*)",
         "std::vector<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::map<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > > > > >::~vector()",
         "std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >* std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_M_copy<std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_Alloc_node>(std::_Rb_tree_node<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > const*, std::_Rb_tree_node_base*, std::_Rb_tree<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >, std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::_Select1st<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > >, std::less<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > >, std::allocator<std::pair<std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > const, std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> > > > >::_Alloc_node&)",
@@ -51,7 +56,7 @@ end
     mktempdir() do build_path
         platform = Platform("x86_64", "linux"; march="avx")
         build_output_meta = nothing
-        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is avx512, not avx as desired.$") match_mode=:any begin
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx") (:warn, r"is avx512, not avx as desired\.$") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
@@ -100,7 +105,7 @@ end
     mktempdir() do build_path
         platform = Platform("x86_64", "linux"; march="avx512")
         build_output_meta = nothing
-        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is avx, not avx512 as desired. You may be missing some optimization flags during compilation.$") match_mode=:any begin
+        @test_logs (:info, "Building for x86_64-linux-gnu-march+avx512") (:warn, r"is avx, not avx512 as desired\. You may be missing some optimization flags during compilation\.$") match_mode=:any begin
             build_output_meta = autobuild(
                 build_path,
                 "isa_tests",
@@ -235,7 +240,7 @@ end
                     make install
                     install_license /usr/share/licenses/libuv/LICENSE
                 """
-                build_output_meta = @test_logs (:info, "Building for $(triplet(platform))") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any do_build(build_path, script, platform, gcc_version)
+                build_output_meta = @test_logs (:info, "Building for $(triplet(platform))") (:warn, r"Linked library libgcc_s\.so\.1") match_mode=:any do_build(build_path, script, platform, gcc_version)
                 # Extract our platform's build
                 @test haskey(build_output_meta, platform)
                 tarball_path, tarball_hash = build_output_meta[platform][1:2]
@@ -294,7 +299,7 @@ end
         platform = Platform("x86_64", os)
         mktempdir() do build_path
             build_output_meta = nothing
-            @test_logs (:info, r"Removing libtool file .*/destdir/lib/libfoo.la$") (:info, r"Removing libtool file .*/destdir/lib/libqux.la$") match_mode=:any begin
+            @test_logs (:info, r"Removing libtool file .*/destdir/lib/libfoo\.la$") (:info, r"Removing libtool file .*/destdir/lib/libqux\.la$") match_mode=:any begin
                 build_output_meta = autobuild(
                     build_path,
                     "libfoo",
@@ -337,7 +342,7 @@ end
         platform = Platform("x86_64", os)
         mktempdir() do build_path
             build_output_meta = nothing
-            @test_logs (:info, r"Relocatize pkg-config file .*/destdir/lib/pkgconfig/libfoo.pc$") match_mode=:any begin
+            @test_logs (:info, r"Relocatize pkg-config file .*/destdir/lib/pkgconfig/libfoo\.pc$") match_mode=:any begin
                 build_output_meta = autobuild(
                     build_path,
                     "libfoo",
@@ -382,7 +387,7 @@ end
     for platform in [Platform("x86_64", "windows")]
         mktempdir() do build_path
             build_output_meta = nothing
-            @test_logs (:warn, r"lib/libfoo.dll should be in `bin`") (:warn, r"Simple buildsystem detected") match_mode=:any begin
+            @test_logs (:warn, r"lib/libfoo\.dll should be in `bin`") (:warn, r"Simple buildsystem detected") match_mode=:any begin
                 build_output_meta = autobuild(
                     build_path,
                     "dll_moving",
@@ -497,7 +502,7 @@ end
         end
 
         # Test that `audit()` warns about an absolute path within the prefix
-        @test_logs (:warn, r"share/foo.conf contains an absolute path") match_mode=:any begin
+        @test_logs (:warn, r"share/foo\.conf contains an absolute path") match_mode=:any begin
             Auditor.audit(Prefix(build_path); verbose=true)
         end
     end
@@ -514,7 +519,7 @@ end
         symlink("libfoo.so.1.2.3", joinpath(bindir, "libfoo.so"))
 
         # Test that `audit()` warns about broken symlinks
-        @test_logs (:warn, r"Broken symlink: bin/libzmq.dll.a") match_mode=:any begin
+        @test_logs (:warn, r"Broken symlink: bin/libzmq\.dll\.a") match_mode=:any begin
             Auditor.warn_deadlinks(build_path)
         end
     end
@@ -527,7 +532,7 @@ end
 
     mktempdir() do build_path
         hello_world = ExecutableProduct("hello_world_fortran", :hello_world_fortran)
-        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") match_mode=:any begin
+        build_output_meta = @test_logs (:warn, r"CompilerSupportLibraries_jll") (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath\.so\.0") (:warn, r"Linked library libgcc_s\.so\.1") match_mode=:any begin
             autobuild(
                 build_path,
                 "hello_fortran",
@@ -590,7 +595,7 @@ end
         # audit should warn us.
         libgfortran_versions = (3, 4, 5)
         other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
-        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran.so.5") (:warn, r"Linked library libquadmath.so.0") (:warn, r"Linked library libgcc_s.so.1") readmeta(hello_world_path) do ohs
+        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath\.so\.0") (:warn, r"Linked library libgcc_s\.so\.1") readmeta(hello_world_path) do ohs
             foreach(ohs) do oh
                 p = deepcopy(platform)
                 p["libgfortran_version"] = "$(other_libgfortran_version).0.0"
@@ -725,7 +730,7 @@ end
             # Ensure the build products were created
             @test isfile(tarball_path)
             # Ensure reproducibility of build
-            @test build_output_meta[platform][3] == Base.SHA1("0165cfbbbb8e521707299d649359f2bfdc28f204")
+            @test build_output_meta[platform][3] == Base.SHA1("8805236c0abcca3b393e184f67bb89291b3f2d28")
 
             # Unpack it somewhere else
             @test verify(tarball_path, tarball_hash)
@@ -792,7 +797,7 @@ end
     platform = Platform("i686", "windows")
     expected_git_shas = Dict(
         v"4" => Base.SHA1("1b625af3aa29c4b4b398f1eeaccc83d781bca1a5"),
-        v"6" => Base.SHA1("61767c3a66a66caeed84ee747a95021a94e77e3d"),
+        v"6" => Base.SHA1("a65f72e29a87cc8a5f048069abf6a250527563c9"),
     )
     @testset "gcc version $(gcc_version)" for gcc_version in (v"4", v"6")
         mktempdir() do build_path
@@ -828,63 +833,142 @@ end
             tarball_path, tarball_hash = build_output_meta[platform][1:2]
             @test isfile(tarball_path)
             # Ensure reproducibility of build
-            @test build_output_meta[platform][3] == expected_git_shas[gcc_version]
+            # TODO: fix reproducibility with GCC v5+:
+            # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/435#issuecomment-3185007378
+            @test build_output_meta[platform][3] == expected_git_shas[gcc_version] skip=gcc_version>=v"5"
         end
     end
 end
 
 @testset "Auditor - other checks" begin
-    platform = Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")
-    mktempdir() do build_path
-        build_output_meta = @test_logs (:error, r"libsoft.so does not match the hard-float ABI") match_mode=:any begin
-            autobuild(
-                build_path,
-                "hard_float_ABI",
-                v"1.0.0",
-                # No sources
-                FileSource[],
-                # Build a library which doesn't link to the standard library and
-                # forces the soft-float ABI
-                raw"""
-                mkdir -p "${libdir}" "${bindir}"
-                # This library has hard-float ABI
-                echo 'int test() { return 0; }' | cc -shared -fPIC -o "${libdir}/libhard.${dlext}" -x c -
-                # This library has soft-float ABI
-                echo 'int _start() { return 0; }' | /opt/${target}/bin/${target}-gcc -nostdlib -shared -mfloat-abi=soft -o "${libdir}/libsoft.${dlext}" -x c -
-                # hello_world built by Go doesn't specify any float ABI
-                make -C /usr/share/testsuite/go/hello_world/
-                cp "/tmp/testsuite/${target}/go/hello_world/hello_world" "${bindir}/hello_world"
-                """,
-                # Build for Linux armv7l hard-float
-                [platform],
-                # Ensure our library product is built
-                [
-                    LibraryProduct("libhard", :libhard),
-                    LibraryProduct("libsoft", :libsoft),
-                    ExecutableProduct("hello_world", :hello_world),
-                ],
-                # No dependencies
-                Dependency[];
-                compilers = [:c, :go],
-                verbose = true,
-                require_license = false
-            )
+    @testset "hard-float ABI" begin
+        platform = Platform("armv7l", "linux"; call_abi = "eabihf", libc = "glibc")
+        mktempdir() do build_path
+            build_output_meta = @test_logs (:error, r"libsoft\.so does not match the hard-float ABI") match_mode=:any begin
+                autobuild(
+                    build_path,
+                    "hard_float_ABI",
+                    v"1.0.0",
+                    # No sources
+                    FileSource[],
+                    # Build a library which doesn't link to the standard library and
+                    # forces the soft-float ABI
+                    raw"""
+                    mkdir -p "${libdir}" "${bindir}"
+                    # This library has hard-float ABI
+                    echo 'int test() { return 0; }' | cc -shared -fPIC -o "${libdir}/libhard.${dlext}" -x c -
+                    # This library has soft-float ABI
+                    echo 'int _start() { return 0; }' | /opt/${target}/bin/${target}-gcc -nostdlib -shared -mfloat-abi=soft -o "${libdir}/libsoft.${dlext}" -x c -
+                    # hello_world built by Go doesn't specify any float ABI
+                    make -C /usr/share/testsuite/go/hello_world/
+                    cp "/tmp/testsuite/${target}/go/hello_world/hello_world" "${bindir}/hello_world"
+                    """,
+                    # Build for Linux armv7l hard-float
+                    [platform],
+                    # Ensure our library product is built
+                    [
+                        LibraryProduct("libhard", :libhard),
+                        LibraryProduct("libsoft", :libsoft),
+                        ExecutableProduct("hello_world", :hello_world),
+                    ],
+                    # No dependencies
+                    Dependency[];
+                    compilers = [:c, :go],
+                    verbose = true,
+                    require_license = false
+                )
+            end
+
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
+
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            # Remove libsoft.so, we want to run audit only on the other products
+            rm(joinpath(testdir, "lib", "libsoft.so"))
+            # Make sure `hello_world` passes the float ABI check even if it doesn't
+            # set `EF_ARM_ABI_FLOAT_HARD`.
+            @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
         end
+    end
+    @testset "OS/ABI: $platform" for platform in [Platform("x86_64", "freebsd"),
+                                                  Platform("aarch64", "freebsd")]
+        mktempdir() do build_path
+            build_output_meta = @test_logs (:warn, r"Skipping binary analysis of lib/lib(nonote|badosabi)\.so \(incorrect platform\)") match_mode=:any begin
+                autobuild(
+                    build_path,
+                    "OSABI",
+                    v"4.2.0",
+                    # No sources
+                    FileSource[],
+                    # Build a library with a mismatched OS/ABI in the ELF header
+                    raw"""
+                    apk update
+                    apk add binutils
+                    mkdir -p "${libdir}"
+                    cd "${libdir}"
+                    echo 'int wrong() { return 0; }' | cc -shared -fPIC -o "libwrong.${dlext}" -x c -
+                    echo 'int right() { return 0; }' | cc -shared -fPIC -o "libright.${dlext}" -x c -
+                    cp "libwrong.${dlext}" "libnonote.${dlext}"
+                    # We only check for a branded ELF note when the OS/ABI is 0
+                    elfedit --output-osabi=none "libnonote.${dlext}"
+                    strip --remove-section=.note.tag "libnonote.${dlext}"
+                    mv "libwrong.${dlext}" "libbadosabi.${dlext}"
+                    # NetBSD runs anywhere, which implies that anything that runs is for NetBSD, right?
+                    elfedit --output-osabi=NetBSD "libbadosabi.${dlext}"
+                    """,
+                    [platform],
+                    # Ensure our library product is built
+                    [
+                        LibraryProduct("libbadosabi", :libbadosabi),
+                        LibraryProduct("libnonote", :libnonote),
+                        LibraryProduct("libright", :libright),
+                    ],
+                    # No dependencies
+                    Dependency[];
+                    verbose=true,
+                    require_license=false,
+                )
+            end
 
-        @test haskey(build_output_meta, platform)
-        tarball_path, tarball_hash = build_output_meta[platform][1:2]
-        @test isfile(tarball_path)
+            @test haskey(build_output_meta, platform)
+            tarball_path, tarball_hash = build_output_meta[platform][1:2]
+            @test isfile(tarball_path)
 
-        # Unpack it somewhere else
-        @test verify(tarball_path, tarball_hash)
-        testdir = joinpath(build_path, "testdir")
-        mkdir(testdir)
-        unpack(tarball_path, testdir)
-        # Remove libsoft.so, we want to run audit only on the other products
-        rm(joinpath(testdir, "lib", "libsoft.so"))
-        # Make sure `hello_world` passes the float ABI check even if it doesn't
-        # set `EF_ARM_ABI_FLOAT_HARD`.
-        @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
+            # Unpack it somewhere else
+            @test verify(tarball_path, tarball_hash)
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            readmeta(joinpath(testdir, "lib", "libright.so")) do ohs
+                oh = only(ohs)
+                @test is_for_platform(oh, platform)
+                @test check_os_abi(oh, platform)
+            end
+            readmeta(joinpath(testdir, "lib", "libnonote.so")) do ohs
+                oh = only(ohs)
+                @test !is_for_platform(oh, platform)
+                @test !check_os_abi(oh, platform)
+                @test_logs((:warn, r"libnonote\.so does not have a FreeBSD-branded ELF note"),
+                           match_mode=:any, check_os_abi(oh, platform; verbose=true))
+            end
+            readmeta(joinpath(testdir, "lib", "libbadosabi.so")) do ohs
+                oh = only(ohs)
+                @test !is_for_platform(oh, platform)
+                @test !check_os_abi(oh, platform)
+                @test_logs((:warn, r"libbadosabi\.so has an ELF header OS/ABI value that is not set to FreeBSD"),
+                           match_mode=:any, check_os_abi(oh, platform; verbose=true))
+            end
+            # Only audit the library we didn't mess with in the recipe
+            for bad in ("nonote", "badosabi")
+                rm(joinpath(testdir, "lib", "lib$bad.so"))
+            end
+            @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false)
+        end
     end
 end
 

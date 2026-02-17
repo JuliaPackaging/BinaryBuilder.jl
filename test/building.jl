@@ -1,3 +1,5 @@
+using BinaryBuilderBase: detect_compressor
+
 @testset "Building libfoo" begin
 	# Test building with both `make` and `cmake`, using directory and git repository
     for script in (libfoo_make_script, libfoo_cmake_script, libfoo_meson_script)
@@ -89,6 +91,35 @@
     end
 end
 
+@testset "Local libfoo" begin
+    mktempdir() do dn
+        let saved_devdir = BinaryBuilder.devdir[]
+            BinaryBuilder.devdir[] = dn  # avoid polluting Pkg.devdir() with our test files
+            mktempdir() do build_path
+                name = "libfoo"
+                build_output_meta = build_tarballs(
+                    ["--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
+                    libfoo_make_script, [platform], libfoo_products, Dependency[];
+                    skip_audit = true,
+                )
+                artifacts_toml = TOML.parsefile(joinpath(BinaryBuilder.codedir(name), "Artifacts.toml"))
+                testdir = joinpath(build_path, "testdir")
+                mkdir(testdir)
+                for artifact in artifacts_toml[name]
+                    for dl in artifact["download"]
+                        url = dl["url"]
+                        path = joinpath(build_path, basename(url))
+                        Downloads.download(url, path)
+                        unpack(path, testdir)
+                    end
+                end
+                @test isfile(joinpath(Prefix(testdir), "share", "licenses", "libfoo", "LICENSE.md"))  # libfoo_make_script
+            end
+            BinaryBuilder.devdir[] = String(saved_devdir)  # restore default value
+        end
+    end
+end
+
 shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(platform))
 if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
     @info("Beginning full shard test... (this can take a while)")
@@ -116,16 +147,21 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             if !(platforms_match(shard, Platform("i686", "windows")) ||
                  platforms_match(shard, Platform("aarch64", "freebsd")) ||
                  platforms_match(shard, Platform("riscv64", "linux")))
-                # Rust is broken on 32-bit Windows and unavailable on FreeBSD AArch64 and RISC-V, let's skip it
+                # Rust is broken on 32-bit Windows and unavailable on FreeBSD AArch64 and Linux RISC-V, let's skip it
                 push!(products, ExecutableProduct("hello_world_rust", :hello_world_rust))
             end
 
             compilers = [:c, :go]
-            # Don't even ask for Rust on FreeBSD AArch64 or RISC-V
+            # Don't even ask for Rust on FreeBSD AArch64 and Linux RISC-V
             if !(platforms_match(shard, Platform("aarch64", "freebsd")) ||
-                 platforms_match(shard, Platform("riscv64", "linux"))
-                 )
+                 platforms_match(shard, Platform("riscv64", "linux")))
                 push!(compilers, :rust)
+            end
+
+            # OCaml is not available on 32-bit platforms, and our shards aren't for FreeBSD
+            if !(nbits(shard) == 32 || Sys.isfreebsd(shard))
+                push!(products, ExecutableProduct("hello_world_ocaml", :hello_world_ocaml))
+                push!(compilers, :ocaml)
             end
 
             build_output_meta = autobuild(
@@ -161,6 +197,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                 [Dependency("CompilerSupportLibraries_jll")];
                 # We need to be able to build go and rust and whatnot
                 compilers,
+                compression_format="xz",
             )
 
             # Test that we built everything (I'm not entirely sure how I expect
@@ -175,6 +212,12 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
 
                 # Ensure the build products were created
                 @test isfile(tarball_path)
+
+                compressor = open(tarball_path) do io
+                    detect_compressor(read(io, 6))
+                end
+                # Make sure the compression format is what we expect
+                @test compressor == "xz"
 
                 # Unpack it somewhere else
                 @test verify(tarball_path, tarball_hash)
@@ -214,26 +257,26 @@ end
     ]
     expected_git_shas = Dict(
         v"4" => Dict(
-            x86_64_linux  => Base.SHA1("fb3897274fe9b293eb6bfb65063895946e655114"),
-            ppc64le_linux => Base.SHA1("53a4e6c7e7d05bf245a8b794133b963bb1ebb1c2"),
-            armv7l_linux  => Base.SHA1("28fc03c35a4d30da70fbdefc69ecc6b6bf93f2fb"),
-            aarch64_linux => Base.SHA1("c1c06efddc8bdce7b33fc9d8b6859f3c63e429ea"),
+            x86_64_linux  => Base.SHA1("cc2ad05285813f6b70bac6241a8fc869c5d331ee"),
+            ppc64le_linux => Base.SHA1("d53d766c5a098420dbdc8fa7b79e343860096ac4"),
+            armv7l_linux  => Base.SHA1("673b4a548ef7dbc07a9230e094b199c48018bc6e"),
+            aarch64_linux => Base.SHA1("8938e2f1f3c25ebfa4fb1f5fceb2dacc241c95c4"),
             x86_64_macos  => Base.SHA1("b0f9ef3b42b30f9085d4f9d60c3ea441554c442f"),
             i686_windows  => Base.SHA1("f39858ccc34a63a648cf21d33ae236bfdd706d09"),
         ),
         v"5" => Dict(
-            x86_64_linux  => Base.SHA1("743b2eac2e096281a2c69f95a2f58a4583824a84"),
-            ppc64le_linux => Base.SHA1("b663282a6101647c0aa87043a632b6cdc08f761f"),
-            armv7l_linux  => Base.SHA1("9a3273d5c7a41e7c2a5ab58b6b69db49a8533bc1"),
-            aarch64_linux => Base.SHA1("4bab3a85aceb3e589989f1a11a2f092c5038a6e0"),
+            x86_64_linux  => Base.SHA1("a92857b327fcaddfe0e31081ac8cd96e3e0ec2ea"),
+            ppc64le_linux => Base.SHA1("e47c4e8ba3cd44a13b2e0eeb49f28fe0f958e25b"),
+            armv7l_linux  => Base.SHA1("6e5a108b68b2f12dae88a21b756e15c61eaefd6b"),
+            aarch64_linux => Base.SHA1("b1afb1cbfa5a919528c869cedf96a8fe70687a27"),
             x86_64_macos  => Base.SHA1("9ddfd323ed25fc02394067c6e863f1cf826a9e5e"),
             i686_windows  => Base.SHA1("9390a3c24a8e274e6d7245c6c977f97b406bc3f5"),
         ),
         v"6" => Dict(
-            x86_64_linux  => Base.SHA1("0b152c2cc8ff2af82f8d2d0adbbe26e0961131ed"),
-            ppc64le_linux => Base.SHA1("97b7e5682b3cadc873644931b17894fa2ff05335"),
-            armv7l_linux  => Base.SHA1("267b443b17b99ca2a14ea93d2afc2cce51cad05e"),
-            aarch64_linux => Base.SHA1("b396b1d94aba8642a68122a3515b26e4397217a0"),
+            x86_64_linux  => Base.SHA1("8e18b9a6fd6bebcbf350f4605f59da588c3f91d8"),
+            ppc64le_linux => Base.SHA1("5595cc99163816896ba3982e458a92086dea590d"),
+            armv7l_linux  => Base.SHA1("f485bbe50a8fc242a40c2a67ca6f23225f5cfcd7"),
+            aarch64_linux => Base.SHA1("839b5fb66e49f38700c8f6cacadd3cc11785c3bb"),
             x86_64_macos  => Base.SHA1("b211e8c87b83e820416757d6d2985bcd19db7f24"),
             i686_windows  => Base.SHA1("ae50af4ca8651cb3c8f71f34d0b66ca0d8f14a99"),
         ),
@@ -297,7 +340,7 @@ end
                 Dependency[],
             )
             # Test build reproducibility
-            @test build_output_meta[p][3] == Base.SHA1("95e005d9b057b3a28af61189b9af5613127416a6")
+            @test build_output_meta[p][3] == Base.SHA1("f347485b5f271afa04dcec5b9645550664d5e6dc")
         end
     end
 end
@@ -406,8 +449,11 @@ end
         @test haskey(build_output_meta, p)
         @test build_output_meta[p][3] == Base.SHA1("45c55bfed92bd890d6487c58c4c03e07f5fb8829")
 
-        # Test that having a LibraryProduct for AnyPlatform raises an error
-        @test_throws ErrorException autobuild(
+        # Test that having a LibraryProduct for AnyPlatform raises an error.
+        # Note that the error is raised during audit, which is run in threads,
+        # so we raise an extremely generic `TaskFailedException`.
+        exc = VERSION < v"1.9" ? TaskFailedException : CompositeException
+        @test_throws exc autobuild(
             build_path,
             "libfoo",
             v"1.0.0",

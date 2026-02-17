@@ -2,7 +2,7 @@ using Pkg
 using BinaryBuilder, BinaryBuilder.BinaryBuilderBase
 using BinaryBuilder.BinaryBuilderBase: preferred_runner, platform_dlext, platform_exeext
 using Base.BinaryPlatforms
-using Random, LibGit2, Test, ObjectFile, SHA
+using Random, LibGit2, Test, ObjectFile, SHA, Downloads, TOML
 import Libdl
 
 # The platform we're running on
@@ -64,6 +64,8 @@ autoreconf -fiv
 make install
 install_license ${WORKSPACE}/srcdir/libfoo/LICENSE.md
 """
+
+BinaryBuilderBase.versioninfo()  # print some context for the current runner
 
 # Run all our tests
 include("basic.jl")
