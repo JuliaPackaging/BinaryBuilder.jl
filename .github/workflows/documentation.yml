@@ -21,7 +21,7 @@ jobs:
       - uses: julia-actions/setup-julia@latest
         with:
           version: "1.12"
-      - uses: julia-actions/cache@v2
+      - uses: julia-actions/cache@v3
         with:
           cache-registries: "true"
       - name: Install dependencies
