@@ -12,7 +12,7 @@ using BinaryBuilderBase: detect_compressor
             # Copy files in, commit them.  This is the commit we will build.
             repo = LibGit2.init(git_path)
             LibGit2.commit(repo, "Initial empty commit")
-            libfoo_src_dir = joinpath(build_tests_dir, "libfoo")
+            libfoo_src_dir = joinpath(BUILD_TESTS_DIR, "libfoo")
             run(`cp -r $(libfoo_src_dir)/$(readdir(libfoo_src_dir)) $(git_path)/`)
             for file in readdir(git_path)
                 LibGit2.add!(repo, file)
@@ -26,7 +26,7 @@ using BinaryBuilderBase: detect_compressor
             LibGit2.add!(repo, "Makefile")
             LibGit2.commit(repo, "Break Makefile")
 
-            for source in (DirectorySource(build_tests_dir),
+            for source in (DirectorySource(BUILD_TESTS_DIR),
                            GitSource(git_path, bytes2hex(LibGit2.raw(LibGit2.GitHash(commit)))))
                 build_output_meta = autobuild(
                     build_path,
@@ -37,7 +37,7 @@ using BinaryBuilderBase: detect_compressor
                     # Use the particular build script we're interested in
                     script,
                     # Build for this platform
-                    [platform],
+                    [HOST_PLATFORM],
                     # The products we expect to be build
                     libfoo_products,
                     # No dependencies
@@ -48,16 +48,16 @@ using BinaryBuilderBase: detect_compressor
                     verbose=true,
                 )
 
-                @test haskey(build_output_meta, platform)
-                tarball_path, tarball_hash = build_output_meta[platform][1:2]
+                @test haskey(build_output_meta, HOST_PLATFORM)
+                tarball_path, tarball_hash = build_output_meta[HOST_PLATFORM][1:2]
 
                 # Ensure the build products were created
                 @test isfile(tarball_path)
 
                 # Ensure that the file contains what we expect
                 contents = list_tarball_files(tarball_path)
-                @test "bin/fooifier$(platform_exeext(platform))" in contents
-                @test "lib/libfoo.$(platform_dlext(platform))" in contents
+                @test "bin/fooifier$(platform_exeext(HOST_PLATFORM))" in contents
+                @test "lib/libfoo.$(platform_dlext(HOST_PLATFORM))" in contents
 
                 # Unpack it somewhere else
                 @test verify(tarball_path, tarball_hash)
@@ -68,8 +68,8 @@ using BinaryBuilderBase: detect_compressor
 
                 # Ensure we can use it
                 prefix = Prefix(testdir)
-                fooifier_path = joinpath(bindir(prefix), "fooifier$(platform_exeext(platform))")
-                libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(platform_dlext(platform))")))
+                fooifier_path = joinpath(bindir(prefix), "fooifier$(platform_exeext(HOST_PLATFORM))")
+                libfoo_path = first(filter(f -> isfile(f), joinpath.(libdirs(prefix), "libfoo.$(platform_dlext(HOST_PLATFORM))")))
 
                 # We know that foo(a, b) returns 2*a^2 - b
                 result = 2*2.2^2 - 1.1
@@ -98,8 +98,8 @@ end
             mktempdir() do build_path
                 name = "libfoo"
                 build_output_meta = build_tarballs(
-                    ["--deploy=local"], name, v"1.0.0", [DirectorySource(build_tests_dir)],
-                    libfoo_make_script, [platform], libfoo_products, Dependency[];
+                    ["--deploy=local"], name, v"1.0.0", [DirectorySource(BUILD_TESTS_DIR)],
+                    libfoo_make_script, [HOST_PLATFORM], libfoo_products, Dependency[];
                     skip_audit = true,
                 )
                 artifacts_toml = TOML.parsefile(joinpath(BinaryBuilder.codedir(name), "Artifacts.toml"))
@@ -120,12 +120,12 @@ end
     end
 end
 
-shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(platform))
+shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(HOST_PLATFORM))
 if lowercase(get(ENV, "BINARYBUILDER_FULL_SHARD_TEST", "false")) == "true"
     @info("Beginning full shard test... (this can take a while)")
     shards_to_test = supported_platforms()
 else
-    shards_to_test = [platform]
+    shards_to_test = [HOST_PLATFORM]
 end
 
 # Expand to all platforms
@@ -206,7 +206,7 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
             @test length(keys(platforms)) == length(keys(build_output_meta))
 
             # Extract our platform's build, run the hello_world tests:
-            output_meta = select_platform(build_output_meta, platform)
+            output_meta = select_platform(build_output_meta, HOST_PLATFORM)
             if !isnothing(output_meta)
                 tarball_path, tarball_hash = output_meta[1:2]
 
@@ -385,7 +385,7 @@ end
                 # No sources
                 FileSource[],
                 "true",
-                [HostPlatform()],
+                [HOST_PLATFORM],
                 Product[],
                 # Three dependencies; one good, two bad
                 [
@@ -404,7 +404,7 @@ end
             v"1.1.1+c",
             GitSource[],
             "true",
-            [HostPlatform()],
+            [HOST_PLATFORM],
             Product[],
             Dependency[],
         )
@@ -414,7 +414,7 @@ end
             v"1.2.3-4",
             GitSource[],
             "true",
-            [HostPlatform()],
+            [HOST_PLATFORM],
             Product[],
             Dependency[],
         )
@@ -457,7 +457,7 @@ end
             build_path,
             "libfoo",
             v"1.0.0",
-            [DirectorySource(build_tests_dir)],
+            [DirectorySource(BUILD_TESTS_DIR)],
             libfoo_cmake_script,
             [AnyPlatform()],
             libfoo_products,
@@ -485,7 +485,7 @@ end
             make install
             """,
             # Build for this platform
-            [platform],
+            [HOST_PLATFORM],
             # The products we expect to be build
             [LibraryProduct("libconfuse", :libconfuse)],
             # No dependencies
@@ -494,7 +494,7 @@ end
             skip_audit=true,
         )
     end
-    @test haskey(build_output_meta, platform)
+    @test haskey(build_output_meta, HOST_PLATFORM)
 end
 
 @testset "Building framework" begin
@@ -513,7 +513,7 @@ end
             build_path,
             "libfoo",
             v"1.0.0",
-            [DirectorySource(build_tests_dir)],
+            [DirectorySource(BUILD_TESTS_DIR)],
             # Build the test suite, install the binaries into our prefix's `bin`
             libfoo_cmake_script,
             # Build for ALL the platforms
