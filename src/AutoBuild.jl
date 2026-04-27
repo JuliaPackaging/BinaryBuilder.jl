@@ -104,7 +104,7 @@ const BUILD_HELP = (
 
         --register=<depot>  Register into the given depot.  If no path is
                             given, defaults to `~/.julia`.  Registration
-                            requires deployment of the JLL wrapper code, so
+                            requires deployment of the JLL wrapper code,
                             so using `--register` without `--deploy` or the
                             more specific `--deploy-jll` is an error.
 
