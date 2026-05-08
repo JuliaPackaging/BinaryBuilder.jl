@@ -525,6 +525,27 @@ end
     end
 end
 
+@testset "Auditor - symlinks replaced with copies on $platform" for platform in (
+        Platform("x86_64", "windows"),
+        AnyPlatform(),
+    )
+    mktempdir() do build_path
+        build_path = realpath(build_path)
+        sharedir = joinpath(build_path, "share")
+        mkpath(sharedir)
+        target = joinpath(sharedir, "data.txt")
+        write(target, "hello")
+        link = joinpath(sharedir, "data-link.txt")
+        symlink("data.txt", link)
+
+        Auditor.audit(Prefix(build_path); platform, require_license=false, silent=true)
+
+        @test !islink(link)
+        @test isfile(link)
+        @test read(link, String) == "hello"
+    end
+end
+
 @testset "Auditor - gcc version" begin
     # These tests assume our gcc version is concrete (e.g. that Julia is linked against libgfortran)
     our_libgfortran_version = libgfortran_version(platform)

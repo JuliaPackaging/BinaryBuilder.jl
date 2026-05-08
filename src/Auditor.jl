@@ -293,9 +293,10 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         end
     end
 
-    if Sys.iswindows(platform)
-        # We also cannot allow any symlinks in Windows because it requires
-        # Admin privileges to create them.  Orz
+    # We cannot allow any symlinks on Windows because creating them requires
+    # Admin privileges.  Orz.  This also applies to `AnyPlatform()`, since
+    # that tarball may end up being extracted on Windows.
+    if Sys.iswindows(platform) || platform isa AnyPlatform
         symlinks = collect_files(prefix, islink, exclude_dirs = false)
         Threads.@threads for f in symlinks
             try
@@ -307,7 +308,9 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
             catch
             end
         end
+    end
 
+    if Sys.iswindows(platform)
         # If we're targeting a windows platform, check to make sure no .dll
         # files are sitting in `$prefix/lib`, as that's a no-no.  This is
         # not a fatal offense, but we'll yell about it.
