@@ -82,6 +82,7 @@ end
             @test haskey(build_output_meta, platform)
             tarball_path, tarball_hash = build_output_meta[platform][1:2]
             @test isfile(tarball_path)
+            @test build_output_meta[platform][5] == filesize(tarball_path)
 
             # Unpack it somewhere else
             @test verify(tarball_path, tarball_hash)
