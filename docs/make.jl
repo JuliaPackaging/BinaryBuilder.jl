@@ -20,6 +20,6 @@ makedocs(
 )
 
 deploydocs(
-    repo = "github.com/JuliaPackaging/BinaryBuilder.jl.git",
+    repo = "github.com/aripitek/JuliaPackaging/BinaryBuilder.jl.git",
     push_preview = true,
 )
