@@ -448,6 +448,15 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         ignored_libraries = String[]
         ignored_libraries_lock = Threads.ReentrantLock()
         Threads.@threads for libname in collect(keys(libs))
+            disallowed_reason = disallowed_linked_library(libname, platform)
+            if disallowed_reason !== nothing
+                if !silent
+                    @lock AUDITOR_LOGGING_LOCK @error("$(filename): $(disallowed_reason)")
+                end
+                all_ok[] = false
+                continue
+            end
+
             if should_ignore_lib(libname, oh, platform)
                 lock(ignored_libraries_lock) do
                     push!(ignored_libraries, libname)
