@@ -475,9 +475,61 @@ You can also provide the target triplet `Base.BinaryPlatforms.host_triplet()`
 if you run the script in the command line.
 
 ## Deploying local builds without recreating the tarballs
+
 Sometimes all tarballs have already been created successfully locally but not
 deployed to GitHub. This can happen, e.g., if it is tricky to figure out the
 correct build script for all platforms, or if each platform build takes a long
 time. In this case, it is possible to skip the build process and just deploy
 the JLL package by providing the `--skip-build` flag to the `build_tarballs.jl`
 script. Read the help (`--help`) for more information.
+
+## Using a locally-deployed JLL package as dependency for another JLL package
+
+It is possible to use a locally-deployed JLL package (built with
+`--deploy=local`) as dependency for another JLL package that is also
+built locally. This is useful for testing dependencies, e.g. to check
+whether a change to one package `A_jll` will break a dependency
+`B_jll`.
+
+To build JLL `A` and use it as dependency when building JLL `B`, do
+the following:
+
+1. Build JLL `A` with the option `--deploy-local`. This will (as
+   described above) create or update a package `A_jll` as
+   `.julia/dev/A_jll`.
+1. You can check that the file `Artifacts.toml` in this directory
+   points to the build products you just created. These need to be
+   `file://` urls, with paths pointing into your Yggdrasil directory
+   tree. They should look like `url =
+   "file:///home/USER/Yggdrasil/H/HelloWorld/products/hello_world.v1.0.0.riscv64-linux-gnu.tar.gz"`.
+   If the architecture for which you just built has an `https` url,
+   then something went wrong -- maybe you used `--deploy` instead of
+   `--deploy=local`.
+1. Turn this package into a git repository (if it is not one already)
+   and commit its current state:
+   - `cd .julia/dev/A_jll`
+   - `git init    # careful, this will destroy an existing repo`
+   - `git add .   # capture the current state`
+   - `git commit -m 'update'`
+1. Now modify the dependency specification in the Yggdrasil recipe of
+   package `B`. Presumably there is a line `Dependency("A_jll")`
+   there. Temporarily change this line to
+   `Dependency(PackageSpec(name="A_jll",
+   path="/home/USER/.julia/dev/A_jll", uuid="UUID"))`.
+   - Make sure that all three of `name`, `path`, and `uuid` are given.
+     Otherwise, either BinaryBuilder or Pkg might get confused when
+     trying to retrieve this information from the registry, which will
+     obviously not work (since your package is local).
+   - Replace `/home/USER` with the path to your `.julia` directory.
+   - Replace `UUID` with the actual UUID, which you can look up in
+     `/home/USER/.julia/dev/A_jll/Project.toml`.
+   - Do _not_ specify a compat entry for the dependency. If you do,
+     BinaryBuilder will automatically add a version specifier. This
+     does not make sense for a package given as a repo, and Pkg will
+     then report an error.
+   - Add `using Pkg` to the top of your build script to make the
+     constructor `PackageSpec` visible.
+   - Obviously, these changes need to be undone when pushing the
+     change to Yggdrasil.
+ 1. Build your JLL package `B`, preferably also with `--deploy=local`.
+ 1. You can now test this package `B_jll` as described above.
