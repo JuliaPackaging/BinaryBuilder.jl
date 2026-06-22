@@ -83,6 +83,7 @@ function obtain_token(; outs=stdout, github_api=GitHub.DEFAULT_API)
             elseif error_kind == "slow_down"
                 @warn "GitHub Auth rate limit exceeded. Waiting 10s. (This shouldn't happen)"
                 sleep(10)
+                continue
             elseif error_kind == "expired_token"
                 @error "Token request expired. Starting over!"
                 @goto retry
