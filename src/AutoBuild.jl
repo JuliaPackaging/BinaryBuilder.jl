@@ -1,4 +1,4 @@
-export build_tarballs, autobuild, build, get_meta_json
+export build_tarballs, autobuild, build, get_meta_json, preferred_platform_compiler, set_preferred_compiler_version!
 import GitHub: gh_get_json, DEFAULT_API
 import SHA: sha256, sha1
 using TOML, Dates, UUIDs
@@ -358,10 +358,11 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         dependencies,
     )
     extra_kwargs = extract_kwargs(kwargs, (:lazy_artifacts, :init_block, :augment_platform_block))
+    compiler_kwargs = extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:preferred_rust_version,:preferred_go_version,:compilers,:clang_use_lld))
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
-        dict = get_meta_json(args...; extra_kwargs..., julia_compat=julia_compat)
+        dict = get_meta_json(args...; extra_kwargs..., compiler_kwargs..., julia_compat=julia_compat)
         println(meta_json_stream, JSON.json(dict))
 
         if meta_json_stream !== stdout
@@ -691,6 +692,7 @@ function get_meta_json(
                    init_block::String = "",
                    augment_platform_block::String = "",
                    lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+                   kwargs...
     )
 
     dict = Dict(
@@ -709,6 +711,12 @@ function get_meta_json(
     if platforms != [AnyPlatform()]
         dict["platforms"] = triplet.(platforms)
     end
+
+    # Add any other optional things we want to include
+    for (k, v) in kwargs
+        dict["$k"] = v
+    end
+
     return dict
 end
 
@@ -736,6 +744,49 @@ function compose_debug_prompt(workspace)
     end
 
     return debug_shell_prompt
+end
+
+"""
+    preferred_platform_compiler(platforms::Vector{<:Platform}, version::Union{Nothing,VersionNumber}=nothing)
+
+Initializes a dictionary with an entry for every platform given
+that will store platform-specific compiler versions (if any).
+"""
+function preferred_platform_compiler(platforms::Vector{<:Platform}, version::Union{Nothing,VersionNumber}=nothing)
+    compiler_versions = Dict{Platform, Union{Nothing,VersionNumber}}(p => version for p in platforms)
+    return compiler_versions
+end
+
+"""
+    set_preferred_compiler_version!(compiler_versions::Dict{Platform, Union{Nothing,VersionNumber}},
+                                    version::VersionNumber,
+                                    selector::Union{Vector{<:Platform},Function})
+
+Set the preferred compiler version for the platforms matching `selector` to `version`.
+"""
+function set_preferred_compiler_version!(compiler_versions::Dict{Platform, Union{Nothing,VersionNumber}},
+                                         version::VersionNumber,
+                                         selector::Union{Vector{<:Platform},Function})
+    matching_platform(selector::Function, platform) = selector(platform)
+    matching_platform(selector::Vector{<:Platform}, platform) = platform in selector
+
+    for (platform, compiler) in compiler_versions
+        if matching_platform(selector, platform)
+            compiler_versions[platform] = version
+        end
+    end
+
+    return compiler_versions
+end
+
+function get_platform_compiler_version!(compiler_args, key, platform, version)
+    if version isa VersionNumber
+        compiler_args[key] = version
+    elseif version isa Dict
+        if !isnothing(version[platform])
+            compiler_args[key] = version[platform]
+        end
+    end
 end
 
 """
@@ -846,19 +897,22 @@ function autobuild(dir::AbstractString,
         timer = BuildTimer()
         timer.begin_setup = time()
 
-        # We build in a platform-specific directory
-        build_path = joinpath(dir, "build", triplet(platform))
-        mkpath(build_path)
+        compiler_args = Dict()
 
-        shards = choose_shards(platform; extract_kwargs(kwargs, (
+        for (k, v) in extract_kwargs(kwargs, (
             :preferred_gcc_version,
             :preferred_llvm_version,
             :preferred_rust_version,
             :preferred_go_version,
-            :preferred_ocaml_version,
-            :bootstrap_list,
-            :compilers,
-        ))...)
+            :preferred_ocaml_version))
+            get_platform_compiler_version!(compiler_args, k, platform, kwargs[k])
+        end
+
+        # We build in a platform-specific directory
+        build_path = joinpath(dir, "build", triplet(platform))
+        mkpath(build_path)
+
+        shards = choose_shards(platform; compiler_args..., extract_kwargs(kwargs, (:bootstrap_list,:compilers))...)
         concrete_platform = get_concrete_platform(platform, shards)
 
         prefix = setup_workspace(
@@ -885,7 +939,8 @@ function autobuild(dir::AbstractString,
             compiler_wrapper_dir = joinpath(prefix, "compiler_wrappers"),
             src_name = src_name,
             shards = shards,
-            extract_kwargs(kwargs, (:preferred_gcc_version,:preferred_llvm_version,:compilers,:allow_unsafe_flags,:lock_microarchitecture,:clang_use_lld))...,
+            compiler_args...,
+            extract_kwargs(kwargs, (:compilers,:allow_unsafe_flags,:lock_microarchitecture,:clang_use_lld))...,
         )
 
         # Set up some bash traps
