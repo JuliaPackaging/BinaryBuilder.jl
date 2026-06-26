@@ -1,5 +1,5 @@
 using BinaryBuilder.Auditor
-using BinaryBuilder.Auditor: check_os_abi, compatible_marchs, is_for_platform, valid_library_path
+using BinaryBuilder.Auditor: check_os_abi, compatible_marchs, disallowed_linked_library, is_for_platform, valid_library_path
 using ObjectFile
 
 # Tests for our auditing infrastructure
@@ -836,6 +836,26 @@ end
             # TODO: fix reproducibility with GCC v5+:
             # https://github.com/JuliaPackaging/BinaryBuilderBase.jl/pull/435#issuecomment-3185007378
             @test build_output_meta[platform][3] == expected_git_shas[gcc_version] skip=gcc_version>=v"5"
+
+            # A normal Windows build may import MSVCRT.dll, but UCRT builds must not.
+            testdir = joinpath(build_path, "testdir")
+            mkdir(testdir)
+            unpack(tarball_path, testdir)
+            @test Auditor.audit(Prefix(testdir); platform=platform, require_license=false, autofix=false)
+            libfoo_path = joinpath(testdir, build_output_meta[platform][4][product]["path"])
+            readmeta(libfoo_path) do ohs
+                oh = only(ohs)
+                linked_libraries = lowercase.(collect(keys(find_libraries(oh))))
+                @test "msvcrt.dll" in linked_libraries
+                @test !Auditor.check_dynamic_linkage(oh, Prefix(testdir), [libfoo_path];
+                                                     platform=Platform("i686", "windows"; libc="ucrt"),
+                                                     silent=true, autofix=false)
+            end
+
+            ucrt_platform = Platform("i686", "windows"; libc="ucrt")
+            @test disallowed_linked_library("msvcrt.dll", platform) === nothing
+            @test disallowed_linked_library("MSVCRT.dll", ucrt_platform) == "UCRT Windows targets must not link against MSVCRT.dll"
+            @test disallowed_linked_library("api-ms-win-crt-runtime-l1-1-0.dll", ucrt_platform) === nothing
         end
     end
 end
