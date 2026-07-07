@@ -40,6 +40,16 @@ using ObjectFile
     ])
 end
 
+@testset "Auditor - cxxabi symbol markers" begin
+    platform = Platform("x86_64", "linux")
+    @test Auditor.detect_cxxstring_abi(["_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6lengthEv"], platform) == "cxx11"
+    @test Auditor.detect_cxxstring_abi(["_ZNSs4sizeEv"], platform) == "cxx03"
+    @test Auditor.detect_cxxstring_abi(["_ZNSs4sizeEv", "_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6lengthEv"], platform) == "cxx11"
+    @test Auditor.detect_cxxstring_abi(["_ZNSs4_Rep9_S_createEmmRKSaIcE", "_Z3fooB5cxx11v"], platform) == "cxx11"
+    @test Auditor.detect_cxxstring_abi(["plain__cxx11_helper", "_ZNSs4sizeEv"], platform) == "cxx03"
+    @test Auditor.detect_cxxstring_abi(["plain_c_symbol"], platform) === nothing
+end
+
 @testset "Auditor - ISA tests" begin
     @test compatible_marchs(Platform("x86_64", "linux")) == ["x86_64"]
     @test compatible_marchs(Platform("x86_64", "linux"; march="x86_64")) == ["x86_64"]

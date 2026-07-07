@@ -1,5 +1,6 @@
 import Base.BinaryPlatforms: detect_libstdcxx_version, detect_cxxstring_abi
 using ObjectFile
+using ObjectFile.ELF
 using Binutils_jll: Binutils_jll
 
 csl_warning(lib) = @lock AUDITOR_LOGGING_LOCK @warn(
@@ -195,6 +196,85 @@ function cppfilt(symbol_names::Vector, platform::AbstractPlatform; strip_undersc
     return filter!(s -> !isempty(s), split(String(take!(output)), "\n"))
 end
 
+function dynamic_abi_symbols(oh::ELFHandle)
+    dyn_sections = findall(Sections(oh), ".dynsym")
+    if !isempty(dyn_sections)
+        return Symbols(first(dyn_sections))
+    end
+    return nothing
+end
+
+abi_symbol_names(syms) = symbol_name.(syms)
+
+function lookup_strtab(strtab::AbstractVector{UInt8}, index::Integer)
+    i = Int(index) + 1
+    j = findnext(==(0x00), strtab, i)
+    j === nothing && return String(strtab[i:end])
+    return String(strtab[i:j-1])
+end
+
+function abi_symbol_names(syms::ELFSymbols)
+    strtab = read(StrTab(syms).section_ref)
+    return [lookup_strtab(strtab, deref(sym).st_name) for sym in syms]
+end
+
+has_cxx11_marker(symbol_name::AbstractString) = occursin("St7__cxx11", symbol_name) ||
+                                                occursin("B5cxx11", symbol_name) ||
+                                                occursin("std::__cxx11", symbol_name) ||
+                                                occursin("[abi:cxx11]", symbol_name)
+has_cxx03_marker(symbol_name::AbstractString) = startswith(symbol_name, "_ZNSs") || startswith(symbol_name, "_ZNSb")
+
+function detect_cxxstring_abi(symbol_names::Vector{<:AbstractString}, platform::AbstractPlatform)
+    # Fast paths on mangled names.  These avoid invoking c++filt for large C++
+    # libraries when the ABI evidence is already visible in the raw symbol names.
+    if any(has_cxx11_marker, symbol_names)
+        return "cxx11"
+    end
+    if any(has_cxx03_marker, symbol_names)
+        return "cxx03"
+    end
+
+    demangled_names = cppfilt(symbol_names, platform; strip_underscore=Sys.isapple(platform))
+    if any(occursin("[abi:cxx11]", c) || occursin("std::__cxx11", c) for c in demangled_names)
+        return "cxx11"
+    end
+    if any(occursin("std::string", c) || occursin("std::basic_string", c) ||
+           occursin("std::list", c) for c in demangled_names)
+        return "cxx03"
+    end
+    return nothing
+end
+
+detect_cxxstring_abi_from_symbols(syms, platform::AbstractPlatform) = detect_cxxstring_abi(abi_symbol_names(syms), platform)
+
+function detect_dynamic_cxx11_abi(oh::ELFHandle)
+    syms = dynamic_abi_symbols(oh)
+    syms === nothing && return nothing
+
+    strtab = read(StrTab(syms).section_ref)
+    for sym in syms
+        symbol_name = lookup_strtab(strtab, deref(sym).st_name)
+        has_cxx11_marker(symbol_name) && return "cxx11"
+    end
+    return nothing
+end
+
+function detect_cxxstring_abi_from_symbols(syms::ELFSymbols, platform::AbstractPlatform)
+    strtab = read(StrTab(syms).section_ref)
+    symbol_names = String[]
+    found_cxx03 = false
+    for sym in syms
+        symbol_name = lookup_strtab(strtab, deref(sym).st_name)
+        if has_cxx11_marker(symbol_name)
+            return "cxx11"
+        end
+        found_cxx03 |= has_cxx03_marker(symbol_name)
+        push!(symbol_names, symbol_name)
+    end
+    found_cxx03 && return "cxx03"
+    return detect_cxxstring_abi(symbol_names, platform)
+end
+
 """
     detect_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform)
 
@@ -210,20 +290,12 @@ function detect_cxxstring_abi(oh::ObjectHandle, platform::AbstractPlatform)
             return nothing
         end
 
-        # GCC on macOS prepends an underscore to symbols, strip it.
-        symbol_names = cppfilt(symbol_name.(Symbols(oh)), platform; strip_underscore=Sys.isapple(platform))
-        # Shove the symbol names through c++filt (since we don't want to have to
-        # reimplement the parsing logic in Julia).  If anything has `cxx11` tags,
-        # then mark it as such.
-        if any(occursin("[abi:cxx11]", c) || occursin("std::__cxx11", c) for c in symbol_names)
-            return "cxx11"
+        if isa(oh, ELFHandle)
+            cxx_abi = detect_dynamic_cxx11_abi(oh)
+            cxx_abi === nothing || return cxx_abi
         end
-        # Otherwise, if we still have `std::string`'s or `std::list`'s in there, it's implicitly a
-        # `cxx03` binary, even though we don't have a __cxx03 namespace or something.  Mark it.
-        if any(occursin("std::string", c) || occursin("std::basic_string", c) ||
-               occursin("std::list", c) for c in symbol_names)
-            return "cxx03"
-        end
+
+        return detect_cxxstring_abi_from_symbols(Symbols(oh), platform)
     catch e
         if isa(e, InterruptException)
             rethrow(e)
