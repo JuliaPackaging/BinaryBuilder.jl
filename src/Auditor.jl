@@ -134,7 +134,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 foreach(ohs) do oh
                     if !is_for_platform(oh, platform)
                         if verbose
-                            @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
+                            Base.@lock AUDITOR_LOGGING_LOCK @warn("Skipping binary analysis of $(relpath(f, prefix.path)) (incorrect platform)")
                         end
                     else
                         # Check that the ISA isn't too high
@@ -177,7 +177,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
             # If this isn't an actual binary file, skip it
             if verbose
-                @info("Skipping binary analysis of $(relpath(f, prefix.path))")
+                Base.@lock AUDITOR_LOGGING_LOCK @info("Skipping binary analysis of $(relpath(f, prefix.path))")
             end
         end
     end
@@ -190,7 +190,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         # running native, don't try to load library files from other platforms)
         if platforms_match(platform, HostPlatform())
             if verbose
-                @info("Checking shared library $(relpath(f, prefix.path))")
+                Base.@lock AUDITOR_LOGGING_LOCK @info("Checking shared library $(relpath(f, prefix.path))")
             end
 
             # dlopen() this library in a separate Julia process so that if we
@@ -219,7 +219,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 # TODO: Use the relevant ObjFileBase packages to inspect why
                 # this file is being nasty to us.
                 if !silent
-                    @warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
+                    Base.@lock AUDITOR_LOGGING_LOCK @warn("$(relpath(f, prefix.path)) cannot be dlopen()'ed")
                 end
                 Threads.atomic_and!(all_ok, false)
             end
@@ -253,7 +253,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         end
         # remove it
         if verbose
-            @info("Removing libtool file $f")
+            Base.@lock AUDITOR_LOGGING_LOCK @info("Removing libtool file $f")
         end
         rm(f; force=true)
     end
@@ -286,7 +286,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
             if changed
                 # Overwrite file
                 if verbose
-                    @info("Relocatize pkg-config file $f")
+                    Base.@lock AUDITOR_LOGGING_LOCK @info("Relocatize pkg-config file $f")
                 end
                 write(f, str)
             end
@@ -317,7 +317,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         lib_dll_files =  filter(f -> valid_library_path(f, platform), collect_files(joinpath(prefix, "lib"), predicate))
         for f in lib_dll_files
             if !silent
-                @warn("$(relpath(f, prefix.path)) should be in `bin`!")
+                Base.@lock AUDITOR_LOGGING_LOCK @warn("$(relpath(f, prefix.path)) should be in `bin`!")
             end
         end
 
@@ -328,7 +328,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         outside_dll_files = [f for f in shlib_files if !(f in lib_dll_files)]
         if autofix && !isempty(lib_dll_files) && isempty(outside_dll_files)
             if !silent
-                @warn("Simple buildsystem detected; Moving all `.dll` files to `bin`!")
+                Base.@lock AUDITOR_LOGGING_LOCK @warn("Simple buildsystem detected; Moving all `.dll` files to `bin`!")
             end
 
             mkpath(joinpath(prefix, "bin"))
@@ -341,7 +341,7 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
         import_libraries = collect_files(prefix, endswith(".dll.a"))
         Threads.@threads for implib in import_libraries
             if verbose
-                @info("Normalising timestamps in import library $(implib)")
+                Base.@lock AUDITOR_LOGGING_LOCK @info("Normalising timestamps in import library $(implib)")
             end
             normalise_implib_timestamp(implib)
         end
@@ -409,7 +409,7 @@ function check_isa(oh, platform, prefix;
             Minimum instruction set detected for $(relpath(path(oh), prefix.path)) is
             $(detected_march), not $(last(platform_marchs)) as desired.
             """, '\n' => ' ')
-            @warn(strip(msg))
+            Base.@lock AUDITOR_LOGGING_LOCK @warn(strip(msg))
         end
         return false
     elseif detected_march != last(platform_marchs)
@@ -423,7 +423,7 @@ function check_isa(oh, platform, prefix;
             $(detected_march), not $(last(platform_marchs)) as desired.
             You may be missing some optimization flags during compilation.
             """, '\n' => ' ')
-            @warn(strip(msg))
+            Base.@lock AUDITOR_LOGGING_LOCK @warn(strip(msg))
         end
     end
     return true
@@ -443,7 +443,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
 
         filename = relpath(path(oh), prefix.path)
         if verbose
-            @info("Checking $(filename) with RPath list $(rpaths(rp))")
+            Base.@lock AUDITOR_LOGGING_LOCK @info("Checking $(filename) with RPath list $(rpaths(rp))")
         end
 
         # Look at every dynamic link, and see if we should do anything about that link...
@@ -462,7 +462,7 @@ function check_dynamic_linkage(oh, prefix, bin_files;
             if is_default_lib(libname, oh)
                 if autofix
                     if verbose
-                        @info("$(filename): Rpathify'ing default library $(libname)")
+                        Base.@lock AUDITOR_LOGGING_LOCK @info("$(filename): Rpathify'ing default library $(libname)")
                     end
                     relink_to_rpath(prefix, platform, path(oh), libs[libname]; verbose, subdir=src_name)
                 end
@@ -481,33 +481,33 @@ function check_dynamic_linkage(oh, prefix, bin_files;
                         new_link = update_linkage(prefix, platform, path(oh), libs[libname], bin_files[kidx]; verbose, subdir=src_name)
 
                         if verbose && new_link !== nothing
-                            @info("$(filename): Linked library $(libname) has been auto-mapped to $(new_link)")
+                            Base.@lock AUDITOR_LOGGING_LOCK @info("$(filename): Linked library $(libname) has been auto-mapped to $(new_link)")
                         end
                     else
                         if !silent
-                            @warn("$(filename): Linked library $(libname) could not be resolved and could not be auto-mapped")
+                            Base.@lock AUDITOR_LOGGING_LOCK @warn("$(filename): Linked library $(libname) could not be resolved and could not be auto-mapped")
                             if is_troublesome_library_link(libname, platform)
-                                @warn("$(filename): Depending on $(libname) is known to cause problems at runtime, make sure to link against the JLL library instead")
+                                Base.@lock AUDITOR_LOGGING_LOCK @warn("$(filename): Depending on $(libname) is known to cause problems at runtime, make sure to link against the JLL library instead")
                             end
                         end
                         Threads.atomic_and!(all_ok, false)
                     end
                 else
                     if !silent
-                        @warn("$(filename): Linked library $(libname) could not be resolved within the given prefix")
+                        Base.@lock AUDITOR_LOGGING_LOCK @warn("$(filename): Linked library $(libname) could not be resolved within the given prefix")
                     end
                     Threads.atomic_and!(all_ok, false)
                 end
             elseif !startswith(libs[libname], prefix.path)
                 if !silent
-                    @warn("$(filename): Linked library $(libname) (resolved path $(libs[libname])) is not within the given prefix")
+                    Base.@lock AUDITOR_LOGGING_LOCK @warn("$(filename): Linked library $(libname) (resolved path $(libs[libname])) is not within the given prefix")
                 end
                 Threads.atomic_and!(all_ok, false)
             end
         end
 
         if verbose && !isempty(ignored_libraries)
-            @info("$(filename): Ignored system libraries $(join(ignored_libraries, ", "))")
+            Base.@lock AUDITOR_LOGGING_LOCK @info("$(filename): Ignored system libraries $(join(ignored_libraries, ", "))")
         end
 
         # If there is an identity mismatch (which only happens on macOS) fix it
@@ -593,17 +593,17 @@ Check that there are license files for the project called `src_name` in the `pre
 function check_license(prefix::Prefix, src_name::AbstractString = "";
                        verbose::Bool = false, silent::Bool = false)
     if verbose
-        @info("Checking license file")
+        Base.@lock AUDITOR_LOGGING_LOCK @info("Checking license file")
     end
     license_dir = joinpath(prefix.path, "share", "licenses", src_name)
     if isdir(license_dir) && length(readdir(license_dir)) >= 1
         if verbose
-            @info("Found license file(s): " * join(readdir(license_dir), ", "))
+            Base.@lock AUDITOR_LOGGING_LOCK @info("Found license file(s): " * join(readdir(license_dir), ", "))
         end
         return true
     else
         if !silent
-            @error("Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
+            Base.@lock AUDITOR_LOGGING_LOCK @error("Unable to find valid license file in \"\${prefix}/share/licenses/$(src_name)\"")
         end
         # This is pretty serious; don't let us get through without a license
         return false
