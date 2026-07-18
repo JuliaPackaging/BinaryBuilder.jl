@@ -385,12 +385,14 @@ function relink_to_rpath(prefix::Prefix, platform::AbstractPlatform, path::Abstr
     relink_cmd = ``
 
     # Create a new linkage that looks like @rpath/$lib on OSX
-    with_logfile(prefix, "relink_to_rpath_$(basename(rel_path)).log"; subdir) do io
+    with_logfile(prefix, "relink_to_rpath_$(basename(rel_path))_$(libname).log"; subdir) do io
         if Sys.isapple(platform)
             ur = preferred_runner()(prefix.path; cwd="/workspace/", platform=platform)
             install_name_tool = "/opt/bin/$(triplet(ur.platform))/install_name_tool"
             relink_cmd = `$install_name_tool -change $(old_libpath) @rpath/$(libname) $(rel_path)`
-            @lock AUDITOR_SANDBOX_LOCK run(ur, relink_cmd, io; verbose=verbose)
+            with_patchelf_lock(path) do
+                @lock AUDITOR_SANDBOX_LOCK run(ur, relink_cmd, io; verbose=verbose)
+            end
         elseif Sys.islinux(platform) || Sys.isbsd(platform)
             with_patchelf_lock(path) do
                 run_with_io(io, `$(patchelf()) $(patchelf_flags(platform)) --replace-needed $(old_libpath) $(libname) $(path)`)
@@ -450,15 +452,16 @@ function update_linkage(prefix::Prefix, platform::AbstractPlatform, path::Abstra
         return
     end
 
-    # macOS uses install_name_tool
-    if Sys.isapple(platform)
-        return _update_linkage_macho(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
-    end
-
-    # For Linux/FreeBSD, wrap the entire read-modify-write cycle in the file lock
-    # to prevent concurrent access while reading rpaths and running patchelf
+    # Wrap the entire read-modify-write cycle in the file lock to prevent
+    # concurrent access with changes by patchelf / install_name_tool
     return with_patchelf_lock(path) do
-        _update_linkage_elf(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+        if Sys.isapple(platform)
+            # macOS uses install_name_tool
+            _update_linkage_macho(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+        else
+            # Linux/FreeBSD use patchelf
+            _update_linkage_elf(prefix, platform, path, old_libpath, new_libpath; verbose, subdir)
+        end
     end
 end
 
