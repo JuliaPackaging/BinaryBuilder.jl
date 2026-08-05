@@ -49,7 +49,7 @@ which:
 * it cannot have spaces, dashes, or dots in the name.  You can use underscores
   to replace them.
 
-If you are unsure, you can use `Base.isidentifer` to check whehter the name is
+If you are unsure, you can use `Base.isidentifer` to check whether the name is
 acceptable:
 
 ```julia

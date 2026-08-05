@@ -19,7 +19,7 @@ libraries or executables.
 
 Most JLL packages live under the
 [`JuliaBinaryWrappers`](https://github.com/JuliaBinaryWrappers) organization on
-GitHub, and the builders to generate them are maintaned in
+GitHub, and the builders to generate them are maintained in
 [Yggdrasil](https://github.com/JuliaPackaging/Yggdrasil/), the community build
 tree.  `BinaryBuilder.jl` allows anyone to create their own JLL package and
 publish them to a GitHub repository of their choice without using Yggdrasil, see

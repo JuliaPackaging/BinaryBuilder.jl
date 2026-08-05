@@ -183,7 +183,7 @@ function is_for_platform(h::ObjectHandle, platform::AbstractPlatform)
         end
         return true
     else
-        error("Unkown platform $(os(platform))")
+        error("Unknown platform $(os(platform))")
     end
 end
 
