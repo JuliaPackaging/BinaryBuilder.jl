@@ -174,6 +174,15 @@ supported ones. A few additional keyword arguments are accept:
   JLL wrapper to select the artifact. Note that this option requires the Julia
   compatibility `julia_compat` to be 1.6 or higher.
 
+* `toplevel_block` may be set to a string containing Julia code; if present,
+  this code will be inserted unconditionally into the top-level of the
+  generated JLL package, after wrapper selection. At this point the selected
+  wrapper's product symbols are available when an artifact matches, and
+  `host_platform` and `is_available()` are always available. The code is not
+  included in the artifact-selection subprocess. Since it runs at precompile
+  time and is stored in the precompile cache, it should contain only
+  definitions, not environment-dependent state.
+
 * `validate_name` ensures that `src_name` constitutes a valid Julia identifier.
   Since the generated JLL package is named according to `src_name`, this should
   only be set to `false` if you _really_ know what you're doing.
@@ -182,8 +191,9 @@ supported ones. A few additional keyword arguments are accept:
 
 !!! note
 
-    The `init_block` and `augment_platform_block` keyword arguments are experimental
-    and may be removed in a future version of this package. Please use them sparingly.
+    The `init_block`, `augment_platform_block`, and `toplevel_block` keyword
+    arguments are experimental and may be removed in a future version of this
+    package. Please use them sparingly.
 
 """
 function build_tarballs(ARGS, src_name, src_version, sources, script,
@@ -357,7 +367,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Dependencies that must be downloaded
         dependencies,
     )
-    extra_kwargs = extract_kwargs(kwargs, (:lazy_artifacts, :init_block, :augment_platform_block))
+    extra_kwargs = extract_kwargs(
+        kwargs,
+        (:lazy_artifacts, :init_block, :augment_platform_block, :toplevel_block),
+    )
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
@@ -608,6 +621,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
+                      toplevel_block::String="",
                       lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                       registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General",
                       registry_fork_url = registry_url,
@@ -690,6 +704,7 @@ function get_meta_json(
                    julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                    init_block::String = "",
                    augment_platform_block::String = "",
+                   toplevel_block::String = "",
                    lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
     )
 
@@ -704,6 +719,7 @@ function get_meta_json(
         "lazy_artifacts" => lazy_artifacts,
         "init_block" => init_block,
         "augment_platform_block" => augment_platform_block,
+        "toplevel_block" => toplevel_block,
     )
     # Do not write the list of platforms when building only for `AnyPlatform`
     if platforms != [AnyPlatform()]
@@ -1198,6 +1214,7 @@ function rebuild_jll_package(obj::Dict;
         julia_compat,
         init_block = get(obj, "init_block", ""),
         augment_platform_block,
+        toplevel_block = get(obj, "toplevel_block", ""),
         from_scratch,
     )
 end
@@ -1327,6 +1344,7 @@ function build_jll_package(src_name::String,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                            init_block::String = "",
                            augment_platform_block::String = "",
+                           toplevel_block::String = "",
                            # If we support versions older than Julia v1.7 the artifact
                            # should be lazy when we augment the platform.
                            lazy_artifacts::Bool = !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
@@ -1633,6 +1651,14 @@ function build_jll_package(src_name::String,
 
         JLLWrappers.@generate_main_file_header($(repr(src_name)))
         JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid(namejll(src_name)))))
+        """)
+        if !isempty(toplevel_block)
+            print(io, """
+
+            $(toplevel_block)
+            """)
+        end
+        print(io, """
         end  # module $(namejll(src_name))
         """)
     end
