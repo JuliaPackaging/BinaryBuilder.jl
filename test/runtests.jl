@@ -69,6 +69,7 @@ BinaryBuilderBase.versioninfo()  # print some context for the current runner
 
 # Run all our tests
 include("basic.jl")
+include("compilers.jl")
 include("building.jl")
 include("auditing.jl")
 include("jll.jl")
