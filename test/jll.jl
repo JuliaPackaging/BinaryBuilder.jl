@@ -88,6 +88,14 @@ end
             return platform
         end
         """
+        toplevel_block = """
+        const toplevel_marker = 42
+        toplevel_available() = is_available()
+        const init_saw_toplevel = Ref{Union{Nothing,Int}}(nothing)
+        """
+        init_block = """
+        init_saw_toplevel[] = toplevel_marker
+        """
         # Julia compat.  Include Julia v1.6 to exercise the code path which forces lazy
         # artifacts when augmenting the platform
         julia_compat = "1.6"
@@ -109,7 +117,9 @@ end
                 libfoo_products,
                 dependencies;
                 julia_compat,
+                init_block,
                 augment_platform_block,
+                toplevel_block,
             )
             # Generate the JSON file
             println(buff, JSON.json(dict))
@@ -154,6 +164,7 @@ end
             merged = BinaryBuilder.merge_json_objects(objs)
             BinaryBuilder.cleanup_merged_object!(merged)
             BinaryBuilder.cleanup_merged_object!.(objs_unmerged)
+            @test merged["toplevel_block"] == toplevel_block
 
             # Determine build version
             name = merged["name"]
@@ -212,11 +223,48 @@ end
             @test !contains(readchomp(freebsd_wrapper), "using Zlib_jll")
             @test !contains(readchomp(platform_wrapper), "using Preferences")
             @test !contains(readchomp(freebsd_wrapper),  "using Preferences")
-            @test contains(readchomp(main_src),  "using Preferences")
+            main_source = readchomp(main_src)
+            @test contains(main_source, "using Preferences")
+            @test contains(main_source, toplevel_block)
+            generate_main_file = findfirst("JLLWrappers.@generate_main_file(", main_source)
+            toplevel_marker = findfirst("const toplevel_marker = 42", main_source)
+            @test !isnothing(generate_main_file)
+            @test !isnothing(toplevel_marker)
+            if !isnothing(generate_main_file) && !isnothing(toplevel_marker)
+                @test first(generate_main_file) < first(toplevel_marker)
+            end
             # Load JLL package and run some actual code from it.
             @eval TestJLL using libfoo_jll
             @test 6.08 ≈ @eval TestJLL ccall((:foo, libfoo), Cdouble, (Cdouble, Cdouble), 2.3, 4.5)
             @test @eval TestJLL libfoo_jll.is_available()
+            @test (@eval TestJLL libfoo_jll.toplevel_marker) == 42
+            @test @eval TestJLL libfoo_jll.toplevel_available()
+            @test (@eval TestJLL libfoo_jll.init_saw_toplevel[]) == 42
+
+            # Toplevel definitions must also be available when no wrapper matches the host.
+            freebsd_obj = only(obj for obj in objs_unmerged if obj["platforms"] == [freebsd])
+            unavailable_name = "libfoo_unavailable"
+            unavailable_code_dir = joinpath(build_path, "unavailable_jll")
+            BinaryBuilder.rebuild_jll_package(
+                unavailable_name,
+                build_version,
+                freebsd_obj["sources"],
+                freebsd_obj["platforms"],
+                freebsd_obj["products"],
+                freebsd_obj["dependencies"],
+                download_dir,
+                upload_prefix;
+                code_dir = unavailable_code_dir,
+                julia_compat,
+                init_block,
+                augment_platform_block,
+                toplevel_block,
+            )
+            Pkg.develop(PackageSpec(path=unavailable_code_dir))
+            @eval TestJLL using libfoo_unavailable_jll
+            @test !(@eval TestJLL libfoo_unavailable_jll.is_available())
+            @test (@eval TestJLL libfoo_unavailable_jll.toplevel_marker) == 42
+            @test !(@eval TestJLL libfoo_unavailable_jll.toplevel_available())
         end
     end
 end
