@@ -1059,6 +1059,8 @@ function autobuild(dir::AbstractString,
             # Do not include logs into the main tarball
             filter=exclude_logs,
         )
+        tarball_size = filesize(tarball_path)
+        iszero(tarball_size) && error("tarball has zero filesize: $(repr(tarball_path))")
         # Create another tarball only for the logs
         package(
             dest_prefix,
@@ -1077,6 +1079,7 @@ function autobuild(dir::AbstractString,
             tarball_hash,
             git_hash,
             products_info,
+            tarball_size,
         )
 
         # Destroy the workspace, taking care to make sure that we don't run into any
@@ -1281,6 +1284,8 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         tarball_hash = open(tarball_path, "r") do io
             bytes2hex(sha256(io))
         end
+        tarball_size = filesize(tarball_path)
+        iszero(tarball_size) && error("tarball has zero filesize: $(repr(tarball_path))")
 
         # Unpack the tarball into a new location, calculate the git hash and locate() each product;
         mktempdir() do dest_prefix
@@ -1313,6 +1318,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 tarball_hash,
                 git_hash,
                 products_info,
+                tarball_size,
             )
 
             # Override read-only permissions before cleaning-up the directory
@@ -1364,12 +1370,12 @@ function build_jll_package(src_name::String,
 
         # Extract this platform's information.  Each of these things can be platform-specific
         # (including the set of products!) so be general here.
-        tarball_name, tarball_hash, git_hash, products_info = build_output_meta[platform]
+        tarball_name, tarball_hash, git_hash, products_info, tarball_size = build_output_meta[platform]
 
         # Add an Artifacts.toml
         artifacts_toml = joinpath(code_dir, "Artifacts.toml")
         download_info = Tuple[
-            (joinpath(bin_path, basename(tarball_name)), tarball_hash),
+            (joinpath(bin_path, basename(tarball_name)), tarball_hash, tarball_size),
         ]
         if platform isa AnyPlatform
             # AnyPlatform begs for a platform-independent artifact
