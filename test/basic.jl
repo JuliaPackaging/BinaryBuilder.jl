@@ -222,6 +222,10 @@ end
     @test next_version.minor == version.minor
     @test next_version.patch == version.patch
 
+    # This decides whether the registration PR is titled "New package" or "New version"
+    @test BinaryBuilder._package_is_registered("Xorg_libX11_jll")
+    @test !BinaryBuilder._package_is_registered("DefinitelyNotARegisteredPackage_jll")
+
     # Ensure passing a Julia dependency bound works
     dict = build_project_dict(name, version, dependencies, "1.4")
     @test dict["compat"] == Dict{String,Any}("julia" => "1.4", "JLLWrappers" => "1.7.0", "Pkg" => "< 0.0.1, 1", "Libdl" => "< 0.0.1, 1", "Artifacts" => "< 0.0.1, 1")
