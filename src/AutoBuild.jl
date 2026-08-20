@@ -1257,6 +1257,71 @@ function tarball_lookup_table(download_dir::AbstractString)
     return table
 end
 
+"""
+    rebuild_concurrency() -> Int
+
+How many tarballs `rebuild_jll_package` unpacks and hashes at the same time.
+
+The default is capped because each task extracts a complete tarball under `TMPDIR`.
+Set `BINARYBUILDER_REBUILD_CONCURRENCY` to override it.
+"""
+function rebuild_concurrency()
+    n = tryparse(Int, get(ENV, "BINARYBUILDER_REBUILD_CONCURRENCY", ""))
+    if n === nothing
+        n = min(Threads.nthreads(), 8)
+    end
+    return max(n, 1)
+end
+
+"""
+    inspect_tarball(tarball_path, platform, products; verbose=false)
+
+Recover the `(tarball_hash, git_hash, products_info)` that `autobuild` computed for this
+tarball when it built it, by unpacking the tarball and inspecting what comes out.
+"""
+function inspect_tarball(tarball_path::AbstractString, platform, products::Vector;
+                         verbose::Bool = false)
+    tarball_hash = open(tarball_path, "r") do io
+        bytes2hex(sha256(io))
+    end
+
+    # Unpack the tarball into a new location, calculate the git hash and locate() each product;
+    return mktempdir() do dest_prefix
+        unpack(tarball_path, dest_prefix)
+
+        git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
+
+        # Keep each platform's product-location log together.
+        products_info = @lock Auditor.AUDITOR_LOGGING_LOCK begin
+            if verbose
+                @info("Calculated git tree hash $(bytes2hex(git_hash.bytes)) for $(basename(tarball_path))")
+            end
+
+            # Determine locations of each product
+            info = Dict{Product,Any}()
+            for p in products
+                product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose, skip_dlopen=true)
+                if product_path === nothing
+                    error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
+                end
+                info[p] = Dict("path" => relpath(product_path, dest_prefix))
+                if p isa LibraryProduct || p isa FrameworkProduct
+                    info[p]["soname"] = something(
+                        Auditor.get_soname(product_path),
+                        basename(product_path),
+                    )
+                end
+            end
+            info
+        end
+
+        # Override read-only permissions before cleaning-up the directory
+        Base.Filesystem.prepare_for_deletion(dest_prefix)
+
+        return (tarball_hash, git_hash, products_info)
+    end
+end
+
 function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
@@ -1266,9 +1331,11 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
 
-    # Then generate a JLL package for each platform
+    # Match every platform up with its tarball first, so that an incomplete release is
+    # reported before we start doing any of the expensive work.
     tarball_names = tarball_lookup_table(download_dir)
-    for platform in sort(collect(platforms), by = triplet)
+    sorted_platforms = sort(collect(platforms), by = triplet)
+    tarball_paths = map(sorted_platforms) do platform
         # Find the corresponding tarball:
         tarball_name = get(tarball_names, platform, nothing)
 
@@ -1289,49 +1356,33 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         if tarball_name === nothing
             error("Incomplete JLL release!  Could not find tarball for $(triplet(platform))")
         end
-        tarball_path = joinpath(download_dir, tarball_name)
+        return tarball_name
+    end
 
-        # Begin reconstructing all the information we need
-        tarball_hash = open(tarball_path, "r") do io
-            bytes2hex(sha256(io))
-        end
-
-        # Unpack the tarball into a new location, calculate the git hash and locate() each product;
-        mktempdir() do dest_prefix
-            unpack(tarball_path, dest_prefix)
-
-            git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
-            if verbose
-                @info("Calculated git tree hash $(bytes2hex(git_hash.bytes)) for $(basename(tarball_path))")
+    # Reconstructing the metadata is independent for each platform, so do several at once.
+    metas = Vector{Any}(undef, length(sorted_platforms))
+    semaphore = Base.Semaphore(rebuild_concurrency())
+    @sync for (idx, platform) in enumerate(sorted_platforms)
+        Threads.@spawn begin
+            Base.acquire(semaphore)
+            try
+                metas[idx] = inspect_tarball(joinpath(download_dir, tarball_paths[idx]),
+                                             platform, products; verbose)
+            finally
+                Base.release(semaphore)
             end
-
-            # Determine locations of each product
-            products_info = Dict{Product,Any}()
-            for p in products
-                product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose, skip_dlopen=true)
-                if product_path === nothing
-                    error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
-                end
-                products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
-                if p isa LibraryProduct || p isa FrameworkProduct
-                    products_info[p]["soname"] = something(
-                        Auditor.get_soname(product_path),
-                        basename(product_path),
-                    )
-                end
-            end
-
-            # Store all this information within build_output_meta:
-            build_output_meta[platform] = (
-                joinpath(upload_prefix, tarball_name),
-                tarball_hash,
-                git_hash,
-                products_info,
-            )
-
-            # Override read-only permissions before cleaning-up the directory
-            Base.Filesystem.prepare_for_deletion(dest_prefix)
         end
+    end
+
+    # Store all this information within build_output_meta:
+    for (idx, platform) in enumerate(sorted_platforms)
+        tarball_hash, git_hash, products_info = metas[idx]
+        build_output_meta[platform] = (
+            joinpath(upload_prefix, tarball_paths[idx]),
+            tarball_hash,
+            git_hash,
+            products_info,
+        )
     end
 
     # If `from_scratch` is set (the default) we clear out any old crusty code
