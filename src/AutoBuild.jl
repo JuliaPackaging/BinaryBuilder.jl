@@ -1068,6 +1068,9 @@ function autobuild(dir::AbstractString,
             products_info,
         )
 
+        # Let a separate registration job reuse the metadata computed while packaging.
+        write_build_meta(tarball_path, tarball_hash, git_hash, products_info)
+
         # Destroy the workspace, taking care to make sure that we don't run into any
         # permissions errors while we do so.
         Base.Filesystem.prepare_for_deletion(prefix.path)
@@ -1168,6 +1171,7 @@ end
 # but rather from JuliaPackaging/Yggdrasil/.ci/register_package.jl
 function rebuild_jll_package(obj::Dict;
                              download_dir = nothing,
+                             build_meta_dir = nothing,
                              upload_prefix = nothing,
                              build_version = nothing,
                              gh_org::String = "JuliaBinaryWrappers",
@@ -1198,6 +1202,7 @@ function rebuild_jll_package(obj::Dict;
         obj["dependencies"],
         download_dir,
         upload_prefix;
+        build_meta_dir = something(build_meta_dir, download_dir),
         verbose,
         lazy_artifacts,
         julia_compat,
@@ -1255,6 +1260,109 @@ function tarball_lookup_table(download_dir::AbstractString)
         get!(table, platform, filename)
     end
     return table
+end
+
+# Readers fall back to inspecting the tarball for unknown versions.
+const BUILD_META_VERSION = 1
+
+"""
+    build_meta_path(tarball_path) -> String
+
+Path of the `.meta.json` sidecar describing `tarball_path`.
+
+The name does not match `*.tar.*`, so artifact uploaders do not treat it as a release
+asset.
+"""
+function build_meta_path(tarball_path::AbstractString)
+    return string(replace(tarball_path, r"\.tar\.[A-Za-z0-9]+$" => ""), ".meta.json")
+end
+
+"""
+    write_build_meta(tarball_path, tarball_hash, git_hash, products_info)
+
+Write metadata derived by `autobuild` next to its tarball.
+
+Products are keyed by `variable_name` (the JLL's exported binding, unique within a package)
+rather than serialised as `Product`s, so that the file stays readable across changes to the
+`Product` types.
+"""
+function write_build_meta(tarball_path::AbstractString, tarball_hash::AbstractString,
+                          git_hash::Base.SHA1, products_info::Dict)
+    meta = Dict(
+        "version" => BUILD_META_VERSION,
+        "tarball" => basename(tarball_path),
+        "tarball_hash" => tarball_hash,
+        "git_hash" => bytes2hex(git_hash.bytes),
+        "products" => Dict(string(variable_name(p)) => info for (p, info) in products_info),
+    )
+    open(build_meta_path(tarball_path), "w") do io
+        JSON.print(io, meta)
+    end
+    return nothing
+end
+
+"""
+    read_build_meta(tarball_path, products; meta_dir=dirname(tarball_path)) -> Union{Nothing,Tuple}
+
+Recover `(tarball_hash, git_hash, products_info)` from a sidecar, or return `nothing` when
+it is absent or invalid. The tarball SHA-256 binds the sidecar to the downloaded bytes.
+"""
+function read_build_meta(tarball_path::AbstractString, products::Vector;
+                         meta_dir::AbstractString = dirname(tarball_path))
+    meta_path = joinpath(meta_dir, basename(build_meta_path(tarball_path)))
+    isfile(meta_path) || return nothing
+
+    fallback(msg) = (@warn("$(msg); falling back to unpacking $(basename(tarball_path))"); nothing)
+
+    meta = try
+        JSON.parsefile(meta_path)
+    catch e
+        return fallback("Could not parse $(meta_path): $(sprint(showerror, e))")
+    end
+
+    if get(meta, "version", nothing) != BUILD_META_VERSION
+        return fallback("$(meta_path) is version $(get(meta, "version", nothing)), not $(BUILD_META_VERSION)")
+    end
+    if get(meta, "tarball", nothing) != basename(tarball_path)
+        return fallback("$(meta_path) describes $(get(meta, "tarball", nothing))")
+    end
+
+    # Every product must have the same shape produced by `autobuild`.  In particular,
+    # reject paths that could escape the artifact directory when embedded in a wrapper.
+    products_info = Dict{Product,Any}()
+    for p in products
+        info = get(get(meta, "products", Dict{String,Any}()), string(variable_name(p)), nothing)
+        path = info isa Dict ? get(info, "path", nothing) : nothing
+        if !(path isa AbstractString) || isempty(path)
+            return fallback("$(meta_path) has no usable entry for $(p)")
+        end
+        normalized_path = normpath(path)
+        if isabspath(path) || normalized_path == ".." || startswith(normalized_path, "../")
+            return fallback("$(meta_path) has an invalid path for $(p)")
+        end
+        if p isa LibraryProduct || p isa FrameworkProduct
+            soname = get(info, "soname", nothing)
+            if !(soname isa AbstractString) || isempty(soname)
+                return fallback("$(meta_path) has no usable soname for $(p)")
+            end
+        end
+        products_info[p] = info
+    end
+
+    git_hash = try
+        Base.SHA1(hex2bytes(meta["git_hash"]::AbstractString))
+    catch e
+        return fallback("$(meta_path) has a malformed git tree hash: $(sprint(showerror, e))")
+    end
+
+    tarball_hash = open(tarball_path, "r") do io
+        bytes2hex(sha256(io))
+    end
+    if tarball_hash != get(meta, "tarball_hash", nothing)
+        return fallback("$(basename(tarball_path)) does not hash to what $(basename(meta_path)) claims")
+    end
+
+    return (tarball_hash, git_hash, products_info)
 end
 
 """
@@ -1326,6 +1434,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
                              code_dir::String = codedir(name),
+                             build_meta_dir::String = download_dir,
                              verbose::Bool = false, from_scratch::Bool = true,
                              kwargs...)
     # We're going to recreate "build_output_meta"
@@ -1359,15 +1468,20 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         return tarball_name
     end
 
-    # Reconstructing the metadata is independent for each platform, so do several at once.
+    # Recovering the metadata is independent for each platform, so do several at once.
     metas = Vector{Any}(undef, length(sorted_platforms))
     semaphore = Base.Semaphore(rebuild_concurrency())
     @sync for (idx, platform) in enumerate(sorted_platforms)
         Threads.@spawn begin
             Base.acquire(semaphore)
             try
-                metas[idx] = inspect_tarball(joinpath(download_dir, tarball_paths[idx]),
-                                             platform, products; verbose)
+                tarball_path = joinpath(download_dir, tarball_paths[idx])
+                # Prefer build metadata, but retain the inspection path for older builds.
+                meta = read_build_meta(tarball_path, products; meta_dir=build_meta_dir)
+                if meta === nothing
+                    meta = inspect_tarball(tarball_path, platform, products; verbose)
+                end
+                metas[idx] = meta
             finally
                 Base.release(semaphore)
             end

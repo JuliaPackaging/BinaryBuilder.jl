@@ -198,6 +198,13 @@ end
             tag = "$(name)-v$(build_version)"
             upload_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
 
+            # `autobuild` should have left its metadata next to each tarball, so that the
+            # rebuild below can skip unpacking and re-hashing them
+            for f in readdir(download_dir)
+                (endswith(f, ".tar.gz") && !occursin("-logs.", f)) || continue
+                @test isfile(joinpath(download_dir, BinaryBuilder.build_meta_path(f)))
+            end
+
             # This loop over the unmerged objects necessary in the event that we have multiple packages being built by a single build_tarballs.jl
             for (i,json_obj) in enumerate(objs_unmerged)
                 from_scratch = (i == 1)

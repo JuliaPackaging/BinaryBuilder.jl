@@ -298,3 +298,73 @@ end
         @test table[freebsd] == "Clang_unified.v0.1.7.x86_64-unknown-freebsd11.1-llvm_version+20.tar.gz"
     end
 end
+
+@testset "Build metadata sidecars" begin
+    using BinaryBuilder: build_meta_path, write_build_meta, read_build_meta, BUILD_META_VERSION
+
+    products = [LibraryProduct("libfoo", :libfoo), ExecutableProduct("fooifier", :fooifier)]
+    products_info = Dict{Product,Any}(
+        products[1] => Dict("path" => "lib/libfoo.so", "soname" => "libfoo.so.1"),
+        products[2] => Dict("path" => "bin/fooifier"),
+    )
+    git_hash = Base.SHA1("88fde0dad4d44d2971f23db6b2e01e79e73b1498")
+
+    # The sidecar must not look like a tarball: Yggdrasil collects `*.tar.*` as artifacts
+    # and uploads the lot to the GitHub release.
+    @test build_meta_path("/tmp/Foo.v1.0.0.x86_64-linux-gnu.tar.gz") == "/tmp/Foo.v1.0.0.x86_64-linux-gnu.meta.json"
+    @test build_meta_path("/tmp/Foo.v1.0.0.x86_64-linux-gnu.tar.xz") == "/tmp/Foo.v1.0.0.x86_64-linux-gnu.meta.json"
+
+    mktempdir() do dir
+        tarball_path = joinpath(dir, "Foo.v1.0.0.x86_64-linux-gnu.tar.gz")
+        write(tarball_path, "not really a tarball, but it hashes just the same\n")
+        tarball_hash = open(io -> bytes2hex(sha256(io)), tarball_path)
+        write_build_meta(tarball_path, tarball_hash, git_hash, products_info)
+        meta_path = build_meta_path(tarball_path)
+        @test isfile(meta_path)
+
+        # Round-trip
+        got = read_build_meta(tarball_path, products)
+        @test got !== nothing
+        @test got[1] == tarball_hash
+        @test got[2] == git_hash
+        @test got[3][products[1]]["path"] == "lib/libfoo.so"
+        @test got[3][products[1]]["soname"] == "libfoo.so.1"
+        @test got[3][products[2]]["path"] == "bin/fooifier"
+
+        # A sidecar somewhere else entirely
+        mktempdir() do other_dir
+            @test read_build_meta(tarball_path, products; meta_dir=other_dir) === nothing
+            cp(meta_path, joinpath(other_dir, basename(meta_path)))
+            @test read_build_meta(tarball_path, products; meta_dir=other_dir) !== nothing
+        end
+
+        # Anything we can't trust must be refused, so the caller falls back to unpacking
+        original = read(meta_path, String)
+        restore() = write(meta_path, original)
+
+        write(meta_path, "{ not json")
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "\"version\":$(BUILD_META_VERSION)" => "\"version\":$(BUILD_META_VERSION + 1)"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "Foo.v1.0.0" => "Bar.v1.0.0"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, tarball_hash => repeat("0", 64)))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "88fde0da" => "zzzzzzzz"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "lib/libfoo.so" => "../libfoo.so"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "libfoo.so.1" => "", count=1))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        # A product the sidecar knows nothing about
+        restore()
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, [products..., FileProduct("share/thing", :thing)])) === nothing
+    end
+end
