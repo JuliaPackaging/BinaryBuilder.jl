@@ -260,3 +260,41 @@ end
     dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
     @test dict["compat"]["libLLVM_jll"] == "8.3"
 end
+
+@testset "Tarball lookup" begin
+    # `main_tarball_platform` itself is covered in jll.jl; this is about the table
+    using BinaryBuilder: tarball_lookup_table
+
+    mktempdir() do dir
+        # A directory in here must not produce a warning, let alone one per platform
+        mkpath(joinpath(dir, "L"))
+        names = [
+            "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz",
+            "Clang_unified-logs.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz",
+            # Tag order here disagrees with the canonical triplet on purpose
+            "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-sanitize+memory-llvm_version+20.tar.gz",
+            "Clang_unified.v0.1.7.aarch64-apple-darwin-llvm_version+20.tar.gz",
+            "Clang_unified.v0.1.7.x86_64-unknown-freebsd11.1-llvm_version+20.tar.gz",
+        ]
+        foreach(n -> touch(joinpath(dir, n)), names)
+
+        table = tarball_lookup_table(dir)
+        @test length(table) == 4    # the logs tarball and the directory are skipped
+
+        # Lookup by an equivalent platform finds the differently-spelled tarball
+        sanitize = parse(Platform, "x86_64-linux-gnu-cxx11-llvm_version+20-sanitize+memory")
+        @test table[sanitize] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-sanitize+memory-llvm_version+20.tar.gz"
+
+        plain = parse(Platform, "x86_64-linux-gnu-cxx11-llvm_version+20")
+        @test table[plain] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz"
+
+        darwin = parse(Platform, "aarch64-apple-darwin-llvm_version+20")
+        @test table[darwin] == "Clang_unified.v0.1.7.aarch64-apple-darwin-llvm_version+20.tar.gz"
+
+        # The FreeBSD os_version fallback in `rebuild_jll_package` looks up this key
+        freebsd = parse(Platform, "x86_64-unknown-freebsd-llvm_version+20")
+        @test !haskey(table, freebsd)
+        freebsd["os_version"] = "11.1"
+        @test table[freebsd] == "Clang_unified.v0.1.7.x86_64-unknown-freebsd11.1-llvm_version+20.tar.gz"
+    end
+end

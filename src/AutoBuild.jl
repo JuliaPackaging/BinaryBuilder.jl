@@ -1208,28 +1208,53 @@ function rebuild_jll_package(obj::Dict;
     )
 end
 
+# Avoid nested repetition in the triplet group; it can backtrack catastrophically.
+const TARBALL_FILENAME_REGEX =
+    r"^(?:.*/)?(?<name>\w+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>.+)\.tar(?:\.\w+)?$"
+
 # For each platform, we have two tarballs: the main with the full product,
-# and the logs-only one.  This function filters out the logs one, and
-# finds the tarball matching `platform`.
-function filter_main_tarball(tarball_filename, platform)
+# and the logs-only one.  This function filters out the logs one, and returns the
+# platform the tarball was built for (or `nothing` if it isn't a product tarball).
+function main_tarball_platform(tarball_filename)
+    # The directory may also contain metadata sidecars and project directories.
+    endswith(tarball_filename, r"\.tar(\.\w+)?") || return nothing
     if occursin("-logs.", tarball_filename)
-        return false
+        return nothing
     end
-    tarball_filename_match = match(r"^(.*/)?(?<name>[\w_]+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>([^-]+-?)+).tar", tarball_filename)
+    tarball_filename_match = match(TARBALL_FILENAME_REGEX, tarball_filename)
     if isnothing(tarball_filename_match)
         @warn "Tarball filename does not match expected pattern: $(tarball_filename)"
-        return false
+        return nothing
+    end
+    if tarball_filename_match[:platform_triplet] == "any"
+        return AnyPlatform()
     end
     try
-        if platform isa AnyPlatform
-            return tarball_filename_match[:platform_triplet] == "any"
-        end
-        tarball_filename_platform = parse(Platform, tarball_filename_match[:platform_triplet])
-        return tarball_filename_platform == platform
+        return parse(Platform, tarball_filename_match[:platform_triplet])
     catch
         @warn "Failed to parse tarball filename: $(tarball_filename)"
-        return false
+        return nothing
     end
+end
+
+"""
+    tarball_lookup_table(download_dir) -> Dict{AbstractPlatform,String}
+
+Map the platform of every product tarball in `download_dir` to its filename.
+
+Using platforms as keys makes tag order irrelevant, including on older Julia versions
+that preserve the input order when rendering a triplet.
+"""
+function tarball_lookup_table(download_dir::AbstractString)
+    table = Dict{AbstractPlatform,String}()
+    for filename in sort(readdir(download_dir))
+        isfile(joinpath(download_dir, filename)) || continue
+        platform = main_tarball_platform(filename)
+        platform === nothing && continue
+        # Preserve the old first-match behavior.
+        get!(table, platform, filename)
+    end
+    return table
 end
 
 function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
@@ -1242,29 +1267,29 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
     build_output_meta = Dict()
 
     # Then generate a JLL package for each platform
-    downloaded_files = readdir(download_dir)
+    tarball_names = tarball_lookup_table(download_dir)
     for platform in sort(collect(platforms), by = triplet)
         # Find the corresponding tarball:
-        tarball_idx = findfirst(f -> filter_main_tarball(f, platform), downloaded_files)
+        tarball_name = get(tarball_names, platform, nothing)
 
         # No tarball matching the given platform...
-        if tarball_idx === nothing
+        if tarball_name === nothing
             # ..but wait, maybe the tarball still uses the os version number for
             # FreeBSD or macOS?
             for (isos, try_os_version) in ((Sys.isfreebsd, "11.1"), (Sys.isapple, "14"))
                 if isos(platform) && os_version(platform) === nothing
                     tmp_platform = deepcopy(platform)
                     tmp_platform["os_version"] = try_os_version
-                    tarball_idx = findfirst(f -> filter_main_tarball(f, tmp_platform), downloaded_files)
+                    tarball_name = get(tarball_names, tmp_platform, nothing)
                 end
             end
         end
 
         # Ok, really no tarball matching the given platform
-        if tarball_idx === nothing
+        if tarball_name === nothing
             error("Incomplete JLL release!  Could not find tarball for $(triplet(platform))")
         end
-        tarball_path = joinpath(download_dir, downloaded_files[tarball_idx])
+        tarball_path = joinpath(download_dir, tarball_name)
 
         # Begin reconstructing all the information we need
         tarball_hash = open(tarball_path, "r") do io
@@ -1298,7 +1323,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
 
             # Store all this information within build_output_meta:
             build_output_meta[platform] = (
-                joinpath(upload_prefix, downloaded_files[tarball_idx]),
+                joinpath(upload_prefix, tarball_name),
                 tarball_hash,
                 git_hash,
                 products_info,
