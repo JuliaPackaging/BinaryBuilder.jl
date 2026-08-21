@@ -1,6 +1,7 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg, UUIDs
 using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!, getpkg, build_project_dict
+using BinaryBuilder: BUILD_META_VERSION, build_meta_path, read_build_meta, tarball_lookup_table, tarball_platform_key, write_build_meta
 using BinaryBuilder.BinaryBuilderBase
 using BinaryBuilder.Wizard
 
@@ -222,6 +223,10 @@ end
     @test next_version.minor == version.minor
     @test next_version.patch == version.patch
 
+    # This decides whether the registration PR is titled "New package" or "New version"
+    @test BinaryBuilder._package_is_registered("Xorg_libX11_jll")
+    @test !BinaryBuilder._package_is_registered("DefinitelyNotARegisteredPackage_jll")
+
     # Ensure passing a Julia dependency bound works
     dict = build_project_dict(name, version, dependencies, "1.4")
     @test dict["compat"] == Dict{String,Any}("julia" => "1.4", "JLLWrappers" => "1.7.0", "Pkg" => "< 0.0.1, 1", "Libdl" => "< 0.0.1, 1", "Artifacts" => "< 0.0.1, 1")
@@ -255,4 +260,108 @@ end
     ]
     dict = build_project_dict("Clang", v"9.0.1+2", dependencies)
     @test dict["compat"]["libLLVM_jll"] == "8.3"
+end
+
+@testset "Tarball lookup" begin
+    # `main_tarball_platform` itself is covered in jll.jl; this is about the table
+    mktempdir() do dir
+        # A directory in here must not produce a warning, let alone one per platform
+        mkpath(joinpath(dir, "L"))
+        names = [
+            "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz",
+            "Clang_unified-logs.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz",
+            # Tag order here disagrees with the canonical triplet on purpose
+            "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-sanitize+memory-llvm_version+20.tar.gz",
+            "Clang_unified.v0.1.7.aarch64-apple-darwin-llvm_version+20.tar.gz",
+            "Clang_unified.v0.1.7.x86_64-unknown-freebsd11.1-llvm_version+20.tar.gz",
+        ]
+        foreach(n -> touch(joinpath(dir, n)), names)
+
+        table = tarball_lookup_table(dir)
+        @test length(table) == 4    # the logs tarball and the directory are skipped
+
+        # Lookup by an equivalent platform finds the differently-spelled tarball
+        sanitize = parse(Platform, "x86_64-linux-gnu-cxx11-llvm_version+20-sanitize+memory")
+        @test table[tarball_platform_key(sanitize)] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-sanitize+memory-llvm_version+20.tar.gz"
+
+        plain = parse(Platform, "x86_64-linux-gnu-cxx11-llvm_version+20")
+        @test table[tarball_platform_key(plain)] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz"
+
+        darwin = parse(Platform, "aarch64-apple-darwin-llvm_version+20")
+        @test table[tarball_platform_key(darwin)] == "Clang_unified.v0.1.7.aarch64-apple-darwin-llvm_version+20.tar.gz"
+
+        # The FreeBSD os_version fallback in `rebuild_jll_package` looks up this key
+        freebsd = parse(Platform, "x86_64-unknown-freebsd-llvm_version+20")
+        @test !haskey(table, tarball_platform_key(freebsd))
+        freebsd["os_version"] = "11.1"
+        @test table[tarball_platform_key(freebsd)] == "Clang_unified.v0.1.7.x86_64-unknown-freebsd11.1-llvm_version+20.tar.gz"
+    end
+end
+
+@testset "Build metadata sidecars" begin
+    products = [LibraryProduct("libfoo", :libfoo), ExecutableProduct("fooifier", :fooifier)]
+    products_info = Dict{Product,Any}(
+        products[1] => Dict("path" => "lib/libfoo.so", "soname" => "libfoo.so.1"),
+        products[2] => Dict("path" => "bin/fooifier"),
+    )
+    git_hash = Base.SHA1("88fde0dad4d44d2971f23db6b2e01e79e73b1498")
+
+    # The sidecar must not look like a tarball: Yggdrasil collects `*.tar.*` as artifacts
+    # and uploads the lot to the GitHub release.
+    @test build_meta_path("/tmp/Foo.v1.0.0.x86_64-linux-gnu.tar.gz") == "/tmp/Foo.v1.0.0.x86_64-linux-gnu.meta.json"
+    @test build_meta_path("/tmp/Foo.v1.0.0.x86_64-linux-gnu.tar.xz") == "/tmp/Foo.v1.0.0.x86_64-linux-gnu.meta.json"
+
+    mktempdir() do dir
+        tarball_path = joinpath(dir, "Foo.v1.0.0.x86_64-linux-gnu.tar.gz")
+        write(tarball_path, "not really a tarball, but it hashes just the same\n")
+        tarball_hash = open(io -> bytes2hex(sha256(io)), tarball_path)
+        write_build_meta(tarball_path, tarball_hash, git_hash, products_info)
+        meta_path = build_meta_path(tarball_path)
+        @test isfile(meta_path)
+
+        # Round-trip
+        got = read_build_meta(tarball_path, products)
+        @test got !== nothing
+        @test got[1] == tarball_hash
+        @test got[2] == git_hash
+        @test got[3][products[1]]["path"] == "lib/libfoo.so"
+        @test got[3][products[1]]["soname"] == "libfoo.so.1"
+        @test got[3][products[2]]["path"] == "bin/fooifier"
+
+        # A sidecar somewhere else entirely
+        mktempdir() do other_dir
+            @test read_build_meta(tarball_path, products; meta_dir=other_dir) === nothing
+            cp(meta_path, joinpath(other_dir, basename(meta_path)))
+            @test read_build_meta(tarball_path, products; meta_dir=other_dir) !== nothing
+        end
+
+        # Anything we can't trust must be refused, so the caller falls back to unpacking
+        original = read(meta_path, String)
+        restore() = write(meta_path, original)
+
+        write(meta_path, "{ not json")
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "\"version\":$(BUILD_META_VERSION)" => "\"version\":$(BUILD_META_VERSION + 1)"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "Foo.v1.0.0" => "Bar.v1.0.0"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, tarball_hash => repeat("0", 64)))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "88fde0da" => "zzzzzzzz"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "lib/libfoo.so" => "../libfoo.so"))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        restore(); write(meta_path, replace(original, "libfoo.so.1" => "", count=1))
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+
+        # A product the sidecar knows nothing about
+        restore()
+        @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, [products..., FileProduct("share/thing", :thing)])) === nothing
+    end
 end

@@ -43,17 +43,28 @@ module TestJLL end
         @test !haskey(BinaryBuilder.build_project_dict("foo", v"1.2", Dependency[], "1.6")["deps"], "Pkg")
     end
 
-    @testset "filter_main_tarball" begin
-        @test !BinaryBuilder.filter_main_tarball("", AnyPlatform())
-        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.any.tar.gz", AnyPlatform())
-        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo/Foo@1.2/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+    @testset "main_tarball_platform" begin
+        tarball_platform = BinaryBuilder.main_tarball_platform
+        # Not a tarball at all: quietly not our business.  The `.meta.json` case matters --
+        # those sit right next to the tarballs, and the pattern used to backtrack
+        # catastrophically on them ("match limit exceeded") rather than just not matching.
+        @test tarball_platform("") === nothing
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.meta.json") === nothing
+        @test tarball_platform("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.meta.json") === nothing
+        @test tarball_platform("L") === nothing
+        # Looks like a tarball, but isn't named like one: worth complaining about
+        @test (@test_logs (:warn, r"does not match expected pattern") tarball_platform("F/Foo/products/nonsense.tar.gz")) === nothing
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.any.tar.gz") == AnyPlatform()
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz") == Platform("x86_64", "linux")
+        @test tarball_platform("F/Foo/products/Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz") === nothing
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz") != Platform("x86_64", "linux")
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz") != Platform("x86_64", "linux"; cxxstring_abi="cxx11")
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz") == Platform("x86_64", "linux"; cxxstring_abi="cxx11")
+        # The two spellings of the same platform have to land on the same lookup key
+        cuda = Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson")
+        @test tarball_platform("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz") == cuda
+        @test tarball_platform("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz") == cuda
+        @test tarball_platform("F/Foo/Foo@1.2/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz") == Platform("x86_64", "linux")
     end
 
     @testset "get_github_author_login" begin
@@ -186,6 +197,13 @@ end
 
             tag = "$(name)-v$(build_version)"
             upload_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
+
+            # `autobuild` should have left its metadata next to each tarball, so that the
+            # rebuild below can skip unpacking and re-hashing them
+            for f in readdir(download_dir)
+                (endswith(f, ".tar.gz") && !occursin("-logs.", f)) || continue
+                @test isfile(joinpath(download_dir, BinaryBuilder.build_meta_path(f)))
+            end
 
             # This loop over the unmerged objects necessary in the event that we have multiple packages being built by a single build_tarballs.jl
             for (i,json_obj) in enumerate(objs_unmerged)
