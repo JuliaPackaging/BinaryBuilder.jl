@@ -1284,7 +1284,7 @@ The name does not match `*.tar.*`, so artifact uploaders do not treat it as a re
 asset.
 """
 function build_meta_path(tarball_path::AbstractString)
-    return string(replace(tarball_path, r"\.tar\.[A-Za-z0-9]+$" => ""), ".meta.json")
+    return replace(tarball_path, r"\.tar\.[A-Za-z0-9]+$" => ".meta.json")
 end
 
 """

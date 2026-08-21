@@ -1,6 +1,7 @@
 ## Basic tests for simple utilities within BB
 using BinaryBuilder, Test, Pkg, UUIDs
 using BinaryBuilder: preferred_runner, resolve_jlls, CompilerShard, preferred_libgfortran_version, preferred_cxxstring_abi, gcc_version, available_gcc_builds, getversion, generate_compiler_wrappers!, getpkg, build_project_dict
+using BinaryBuilder: BUILD_META_VERSION, build_meta_path, read_build_meta, tarball_lookup_table, tarball_platform_key, write_build_meta
 using BinaryBuilder.BinaryBuilderBase
 using BinaryBuilder.Wizard
 
@@ -263,8 +264,6 @@ end
 
 @testset "Tarball lookup" begin
     # `main_tarball_platform` itself is covered in jll.jl; this is about the table
-    using BinaryBuilder: tarball_lookup_table, tarball_platform_key
-
     mktempdir() do dir
         # A directory in here must not produce a warning, let alone one per platform
         mkpath(joinpath(dir, "L"))
@@ -300,8 +299,6 @@ end
 end
 
 @testset "Build metadata sidecars" begin
-    using BinaryBuilder: build_meta_path, write_build_meta, read_build_meta, BUILD_META_VERSION
-
     products = [LibraryProduct("libfoo", :libfoo), ExecutableProduct("fooifier", :fooifier)]
     products_info = Dict{Product,Any}(
         products[1] => Dict("path" => "lib/libfoo.so", "soname" => "libfoo.so.1"),
