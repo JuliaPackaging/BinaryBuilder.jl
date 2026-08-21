@@ -263,7 +263,7 @@ end
 
 @testset "Tarball lookup" begin
     # `main_tarball_platform` itself is covered in jll.jl; this is about the table
-    using BinaryBuilder: tarball_lookup_table
+    using BinaryBuilder: tarball_lookup_table, tarball_platform_key
 
     mktempdir() do dir
         # A directory in here must not produce a warning, let alone one per platform
@@ -283,19 +283,19 @@ end
 
         # Lookup by an equivalent platform finds the differently-spelled tarball
         sanitize = parse(Platform, "x86_64-linux-gnu-cxx11-llvm_version+20-sanitize+memory")
-        @test table[sanitize] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-sanitize+memory-llvm_version+20.tar.gz"
+        @test table[tarball_platform_key(sanitize)] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-sanitize+memory-llvm_version+20.tar.gz"
 
         plain = parse(Platform, "x86_64-linux-gnu-cxx11-llvm_version+20")
-        @test table[plain] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz"
+        @test table[tarball_platform_key(plain)] == "Clang_unified.v0.1.7.x86_64-linux-gnu-cxx11-llvm_version+20.tar.gz"
 
         darwin = parse(Platform, "aarch64-apple-darwin-llvm_version+20")
-        @test table[darwin] == "Clang_unified.v0.1.7.aarch64-apple-darwin-llvm_version+20.tar.gz"
+        @test table[tarball_platform_key(darwin)] == "Clang_unified.v0.1.7.aarch64-apple-darwin-llvm_version+20.tar.gz"
 
         # The FreeBSD os_version fallback in `rebuild_jll_package` looks up this key
         freebsd = parse(Platform, "x86_64-unknown-freebsd-llvm_version+20")
-        @test !haskey(table, freebsd)
+        @test !haskey(table, tarball_platform_key(freebsd))
         freebsd["os_version"] = "11.1"
-        @test table[freebsd] == "Clang_unified.v0.1.7.x86_64-unknown-freebsd11.1-llvm_version+20.tar.gz"
+        @test table[tarball_platform_key(freebsd)] == "Clang_unified.v0.1.7.x86_64-unknown-freebsd11.1-llvm_version+20.tar.gz"
     end
 end
 

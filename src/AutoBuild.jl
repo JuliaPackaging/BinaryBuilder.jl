@@ -1243,23 +1243,33 @@ function main_tarball_platform(tarball_filename)
 end
 
 """
-    tarball_lookup_table(download_dir) -> Dict{AbstractPlatform,String}
+    tarball_lookup_table(download_dir)
 
 Map the platform of every product tarball in `download_dir` to its filename.
 
-Using platforms as keys makes tag order irrelevant, including on older Julia versions
-that preserve the input order when rendering a triplet.
+Keys use sorted platform tags because older Julia versions do not canonicalize triplet
+tag order. The OS version is normalized because it may be stored as either `11.1` or
+`11.1.0`, depending on how the platform was constructed.
 """
 function tarball_lookup_table(download_dir::AbstractString)
-    table = Dict{AbstractPlatform,String}()
+    table = Dict{Tuple{Vararg{Pair{String,String}}},String}()
     for filename in sort(readdir(download_dir))
         isfile(joinpath(download_dir, filename)) || continue
         platform = main_tarball_platform(filename)
         platform === nothing && continue
         # Preserve the old first-match behavior.
-        get!(table, platform, filename)
+        get!(table, tarball_platform_key(platform), filename)
     end
     return table
+end
+
+function tarball_platform_key(platform::AbstractPlatform)
+    platform_tags = collect(BinaryPlatforms.tags(platform))
+    os_version_idx = findfirst(tag -> first(tag) == "os_version", platform_tags)
+    if os_version_idx !== nothing
+        platform_tags[os_version_idx] = "os_version" => string(os_version(platform))
+    end
+    return Tuple(sort!(platform_tags; by = first))
 end
 
 # Readers fall back to inspecting the tarball for unknown versions.
@@ -1446,7 +1456,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
     sorted_platforms = sort(collect(platforms), by = triplet)
     tarball_paths = map(sorted_platforms) do platform
         # Find the corresponding tarball:
-        tarball_name = get(tarball_names, platform, nothing)
+        tarball_name = get(tarball_names, tarball_platform_key(platform), nothing)
 
         # No tarball matching the given platform...
         if tarball_name === nothing
@@ -1456,7 +1466,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 if isos(platform) && os_version(platform) === nothing
                     tmp_platform = deepcopy(platform)
                     tmp_platform["os_version"] = try_os_version
-                    tarball_name = get(tarball_names, tmp_platform, nothing)
+                    tarball_name = get(tarball_names, tarball_platform_key(tmp_platform), nothing)
                 end
             end
         end
