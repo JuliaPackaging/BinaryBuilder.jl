@@ -31,6 +31,16 @@ Logging.shouldlog(::AzureSinkLogger, arg...) = true
 Logging.min_enabled_level(::AzureSinkLogger) = Logging.Warn
 Logging.catch_exceptions(::AzureSinkLogger) = true
 
+struct ErrorCollector <: AbstractLogger
+    errors::Vector{String}
+end
+Logging.min_enabled_level(::ErrorCollector) = Logging.Error
+Logging.shouldlog(::ErrorCollector, level, args...) = level >= Logging.Error
+Logging.catch_exceptions(::ErrorCollector) = false
+function Logging.handle_message(logger::ErrorCollector, level, message, args...; kwargs...)
+    push!(logger.errors, string(message))
+end
+
 function enable_azure_logging()
     # Tee-in AzureSinkLogger so that `@warn` and `@error` are printed out nicely
     global_logger(TeeLogger(

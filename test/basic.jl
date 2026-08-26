@@ -262,6 +262,43 @@ end
     @test dict["compat"]["libLLVM_jll"] == "8.3"
 end
 
+@testset "Deployment checks" begin
+    @test BinaryBuilder.update_registry_checked(() -> nothing) === nothing
+    err = with_logger(NullLogger()) do
+        try
+            BinaryBuilder.update_registry_checked(() -> @error "registry update failed")
+        catch err
+            err
+        end
+    end
+    @test err isa ErrorException
+    @test occursin("registry update failed", err.msg)
+
+    mktempdir() do dir
+        remote_path = joinpath(dir, "remote.git")
+        remote_repo = LibGit2.init(remote_path, true)
+        close(remote_repo)
+
+        repo_path = joinpath(dir, "local")
+        repo = LibGit2.init(repo_path)
+        signature = LibGit2.Signature("BinaryBuilder tests", "binarybuilder@example.com")
+        credentials = LibGit2.CachedCredentials()
+
+        write(joinpath(repo_path, "file"), "first")
+        LibGit2.add!(repo, "file")
+        first_commit = LibGit2.commit(repo, "first"; author=signature, committer=signature)
+        LibGit2.push(repo; remoteurl=remote_path, refspecs=["HEAD:refs/heads/main"])
+        @test BinaryBuilder.fetch_remote_main(repo, remote_path, credentials) == first_commit
+
+        write(joinpath(repo_path, "file"), "second")
+        LibGit2.add!(repo, "file")
+        second_commit = LibGit2.commit(repo, "second"; author=signature, committer=signature)
+        @test_throws ErrorException BinaryBuilder.verify_remote_main(
+            repo, remote_path, credentials, second_commit)
+        close(repo)
+    end
+end
+
 @testset "Tarball lookup" begin
     # `main_tarball_platform` itself is covered in jll.jl; this is about the table
     mktempdir() do dir

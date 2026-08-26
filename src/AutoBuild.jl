@@ -406,6 +406,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     products_dir = joinpath(pwd(), "products")
+    jll_commit = nothing
     if deploy_jll
         if verbose
             @info("Committing and pushing $(namejll(src_name)).jl wrapper code version $(build_version)...")
@@ -434,7 +435,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                                 julia_compat, extra_kwargs...)
         end
         if deploy_jll_repo != "local"
-            push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
+            jll_commit = push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
         end
         if register
             if verbose
@@ -451,7 +452,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
         end
-        upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
+        commit = deploy_bin_repo == deploy_jll_repo ? jll_commit : nothing
+        upload_to_github_releases(deploy_bin_repo, tag, products_dir; commit, verbose=verbose)
     end
 
     return build_output_meta
@@ -528,8 +530,17 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
+"""
+    upload_to_github_releases(repo, tag, path; commit=nothing, kwargs...)
+
+Upload the files in `path` to the release `tag` of the GitHub repository `repo`.
+
+If `tag` does not exist, `commit` controls which commit it points to. It must belong
+to `repo`.
+"""
 function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
-                                   attempts::Int = 3, verbose::Bool = false)
+                                   commit=nothing, attempts::Int = 3, verbose::Bool = false)
+    commitish = commit === nothing ? [] : ["-c", string(commit)]
     for attempt in 1:attempts
         try
             # Note: in some cases we may want to reduce/avoid concurrency to avoid exceeding
@@ -537,7 +548,7 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
             # https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api?apiVersion=2022-11-28#avoid-concurrent-requests
             # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
             concurrency = get(ENV, "BINARYBUILDER_GHR_CONCURRENCY", string(Sys.CPU_THREADS))
-            run(`$(ghr()) -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) -p $(concurrency) $(tag) $(path)`)
+            run(`$(ghr()) -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) -p $(concurrency) $(commitish) $(tag) $(path)`)
             return
         catch
             if verbose && attempt < attempts
@@ -548,6 +559,18 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
     error("Unable to upload $(path) to GitHub repo $(repo) on tag $(tag)")
 end
 
+function update_registry_checked(update = () -> Pkg.Registry.update(
+                                     [Pkg.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106")];
+                                     io=devnull))
+    errors = String[]
+    with_logger(TeeLogger(current_logger(), ErrorCollector(errors))) do
+        update()
+    end
+    if !isempty(errors)
+        error("Failed to update the General registry:\n" * join(errors, '\n'))
+    end
+end
+
 function get_next_wrapper_version(src_name::AbstractString, src_version::VersionNumber)
     # If src_version already has a build_number, just return it immediately
     if src_version.build != ()
@@ -556,7 +579,7 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
     ctx = Pkg.Types.Context()
 
     # Force-update the registry here, since we may have pushed a new version recently
-    update_registry(devnull)
+    update_registry_checked()
 
     uuid = jll_uuid(namejll(src_name))
 
@@ -2008,7 +2031,26 @@ function push_jll_package(name, build_version;
             remoteurl,
             credentials=creds,
         )
+
+        # LibGit2 does not report per-reference push failures, so check the remote ref.
+        verify_remote_main(wrapper_repo, remoteurl, creds, commit)
     end
+    return commit
+end
+
+# Look up the current `main` of `remoteurl` without touching the local branches.
+function fetch_remote_main(repo, remoteurl, creds)
+    refspec = "+refs/heads/main:refs/remotes/deploy/main"
+    LibGit2.fetch(repo; remoteurl, refspecs=[refspec], credentials=creds)
+    branch = LibGit2.lookup_branch(repo, "deploy/main", true)
+    branch === nothing && error("Could not find `main` on $(remoteurl) after pushing")
+    return LibGit2.GitHash(branch)
+end
+
+function verify_remote_main(repo, remoteurl, creds, expected)
+    actual = fetch_remote_main(repo, remoteurl, creds)
+    actual == expected || error("Pushing $(remoteurl) failed: `main` is at $(actual), expected $(expected)")
+    return
 end
 
 # For historical reasons, our UUIDs are generated with some rather strange constants
