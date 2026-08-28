@@ -7,8 +7,8 @@ using Logging
 import Libdl
 
 # The platform we're running on
-const platform = HostPlatform()
-const build_tests_dir = joinpath(@__DIR__, "build_tests")
+const HOST_PLATFORM = HostPlatform()
+const BUILD_TESTS_DIR = joinpath(@__DIR__, "build_tests")
 
 # Helper function to run fortran code with the path to libgfortran/libquadmath
 # embedded in the appropriate environment variables (JLL packages we love you so)
