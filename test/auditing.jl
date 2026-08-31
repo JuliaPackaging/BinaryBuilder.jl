@@ -40,6 +40,16 @@ using ObjectFile
     ])
 end
 
+@testset "Auditor - cxxabi symbol markers" begin
+    platform = Platform("x86_64", "linux")
+    @test Auditor.detect_cxxstring_abi(["_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6lengthEv"], platform) == "cxx11"
+    @test Auditor.detect_cxxstring_abi(["_ZNSs4sizeEv"], platform) == "cxx03"
+    @test Auditor.detect_cxxstring_abi(["_ZNSs4sizeEv", "_ZNKSt7__cxx1112basic_stringIcSt11char_traitsIcESaIcEE6lengthEv"], platform) == "cxx11"
+    @test Auditor.detect_cxxstring_abi(["_ZNSs4_Rep9_S_createEmmRKSaIcE", "_Z3fooB5cxx11v"], platform) == "cxx11"
+    @test Auditor.detect_cxxstring_abi(["plain__cxx11_helper", "_ZNSs4sizeEv"], platform) == "cxx03"
+    @test Auditor.detect_cxxstring_abi(["plain_c_symbol"], platform) === nothing
+end
+
 @testset "Auditor - ISA tests" begin
     @test compatible_marchs(Platform("x86_64", "linux")) == ["x86_64"]
     @test compatible_marchs(Platform("x86_64", "linux"; march="x86_64")) == ["x86_64"]
@@ -525,6 +535,27 @@ end
     end
 end
 
+@testset "Auditor - symlinks replaced with copies on $platform" for platform in (
+        Platform("x86_64", "windows"),
+        AnyPlatform(),
+    )
+    mktempdir() do build_path
+        build_path = realpath(build_path)
+        sharedir = joinpath(build_path, "share")
+        mkpath(sharedir)
+        target = joinpath(sharedir, "data.txt")
+        write(target, "hello")
+        link = joinpath(sharedir, "data-link.txt")
+        symlink("data.txt", link)
+
+        Auditor.audit(Prefix(build_path); platform, require_license=false, silent=true)
+
+        @test !islink(link)
+        @test isfile(link)
+        @test read(link, String) == "hello"
+    end
+end
+
 @testset "Auditor - gcc version" begin
     # These tests assume our gcc version is concrete (e.g. that Julia is linked against libgfortran)
     our_libgfortran_version = libgfortran_version(platform)
@@ -595,7 +626,7 @@ end
         # audit should warn us.
         libgfortran_versions = (3, 4, 5)
         other_libgfortran_version = libgfortran_versions[findfirst(v -> v != our_libgfortran_version.major, libgfortran_versions)]
-        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath\.so\.0") (:warn, r"Linked library libgcc_s\.so\.1") readmeta(hello_world_path) do ohs
+        @test_logs (:warn, Regex("but we are supposedly building for libgfortran$(other_libgfortran_version)")) (:warn, r"Linked library libgfortran\.so\.(4|5)") (:warn, r"Linked library libquadmath\.so\.0") (:warn, r"Linked library libgcc_s\.so\.1") match_mode=:any readmeta(hello_world_path) do ohs
             foreach(ohs) do oh
                 p = deepcopy(platform)
                 p["libgfortran_version"] = "$(other_libgfortran_version).0.0"

@@ -185,6 +185,18 @@ shards_to_test = expand_cxxstring_abis(expand_gfortran_versions(shards_to_test))
                     FLAGS=(CFLDFLAGS="-lgfortran -lm")
                 fi
 
+                # Keep Cargo's build dir out of the read-only testsuite source tree.
+                export CARGO_TARGET_DIR="${WORKSPACE}/cargo-target"
+                mkdir -p "${CARGO_TARGET_DIR}"
+
+                # Newer Cargo requires package.version for `cargo install`.
+                for cargo_toml in /usr/share/testsuite/rust/*/Cargo.toml; do
+                    [[ -f "${cargo_toml}" ]] || continue
+                    if ! grep -q '^version[[:space:]]*=' "${cargo_toml}"; then
+                        sed -i '/^\[package\]/a version = "1.0.0"' "${cargo_toml}"
+                    fi
+                done
+
                 # Build testsuite
                 make -j${nproc} -sC /usr/share/testsuite install "${FLAGS[@]}"
                 # Install fake license just to silence the warning
@@ -257,27 +269,27 @@ end
     ]
     expected_git_shas = Dict(
         v"4" => Dict(
-            x86_64_linux  => Base.SHA1("cc2ad05285813f6b70bac6241a8fc869c5d331ee"),
-            ppc64le_linux => Base.SHA1("d53d766c5a098420dbdc8fa7b79e343860096ac4"),
-            armv7l_linux  => Base.SHA1("673b4a548ef7dbc07a9230e094b199c48018bc6e"),
-            aarch64_linux => Base.SHA1("8938e2f1f3c25ebfa4fb1f5fceb2dacc241c95c4"),
-            x86_64_macos  => Base.SHA1("b0f9ef3b42b30f9085d4f9d60c3ea441554c442f"),
+            x86_64_linux  => Base.SHA1("8478dcd50e8e87ded1593926b3e8838d914379d1"),
+            ppc64le_linux => Base.SHA1("e43be740df0a56728ef797ecd9f3bec7ea1c1ff2"),
+            armv7l_linux  => Base.SHA1("2708827f55563d6a8c2e29057abe8624e6d98a36"),
+            aarch64_linux => Base.SHA1("27118d1007a6778a21a24573eabc8e8501b933dd"),
+            x86_64_macos  => Base.SHA1("a2a55420d0f1f5905370198aa51db53abb1c6743"),
             i686_windows  => Base.SHA1("f39858ccc34a63a648cf21d33ae236bfdd706d09"),
         ),
         v"5" => Dict(
-            x86_64_linux  => Base.SHA1("a92857b327fcaddfe0e31081ac8cd96e3e0ec2ea"),
-            ppc64le_linux => Base.SHA1("e47c4e8ba3cd44a13b2e0eeb49f28fe0f958e25b"),
-            armv7l_linux  => Base.SHA1("6e5a108b68b2f12dae88a21b756e15c61eaefd6b"),
-            aarch64_linux => Base.SHA1("b1afb1cbfa5a919528c869cedf96a8fe70687a27"),
-            x86_64_macos  => Base.SHA1("9ddfd323ed25fc02394067c6e863f1cf826a9e5e"),
+            x86_64_linux  => Base.SHA1("2cf77e334ecfb404ea619b59b071cb070f942f0e"),
+            ppc64le_linux => Base.SHA1("9346b5cff819efe3f12eaaef5fdde0d3bdc0eedc"),
+            armv7l_linux  => Base.SHA1("2f7f39106e1b38650e56b42f496727a3b1d46559"),
+            aarch64_linux => Base.SHA1("f615819e5490ef0eaede1385b183e665b652d3c1"),
+            x86_64_macos  => Base.SHA1("43fef13003977a47f29cd2bf6e49f0584e53dd4c"),
             i686_windows  => Base.SHA1("9390a3c24a8e274e6d7245c6c977f97b406bc3f5"),
         ),
         v"6" => Dict(
-            x86_64_linux  => Base.SHA1("8e18b9a6fd6bebcbf350f4605f59da588c3f91d8"),
-            ppc64le_linux => Base.SHA1("5595cc99163816896ba3982e458a92086dea590d"),
-            armv7l_linux  => Base.SHA1("f485bbe50a8fc242a40c2a67ca6f23225f5cfcd7"),
-            aarch64_linux => Base.SHA1("839b5fb66e49f38700c8f6cacadd3cc11785c3bb"),
-            x86_64_macos  => Base.SHA1("b211e8c87b83e820416757d6d2985bcd19db7f24"),
+            x86_64_linux  => Base.SHA1("bd063fc4a57525522f54462cb1babcfb6693f1e4"),
+            ppc64le_linux => Base.SHA1("bb6ff7eeb4004852224454a66a4e535f7565b754"),
+            armv7l_linux  => Base.SHA1("a4b5121aa50860035aa600b4cd531841cf52f2e7"),
+            aarch64_linux => Base.SHA1("e461da5c1b23615f774b65d220d450c7fafca803"),
+            x86_64_macos  => Base.SHA1("4ec1fb6c2f0cd1e5fd9c9190a802b28c2d39827c"),
             i686_windows  => Base.SHA1("ae50af4ca8651cb3c8f71f34d0b66ca0d8f14a99"),
         ),
     )

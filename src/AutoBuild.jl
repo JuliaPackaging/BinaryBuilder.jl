@@ -174,6 +174,15 @@ supported ones. A few additional keyword arguments are accept:
   JLL wrapper to select the artifact. Note that this option requires the Julia
   compatibility `julia_compat` to be 1.6 or higher.
 
+* `toplevel_block` may be set to a string containing Julia code; if present,
+  this code will be inserted unconditionally into the top-level of the
+  generated JLL package, after wrapper selection. At this point the selected
+  wrapper's product symbols are available when an artifact matches, and
+  `host_platform` and `is_available()` are always available. The code is not
+  included in the artifact-selection subprocess. Since it runs at precompile
+  time and is stored in the precompile cache, it should contain only
+  definitions, not environment-dependent state.
+
 * `validate_name` ensures that `src_name` constitutes a valid Julia identifier.
   Since the generated JLL package is named according to `src_name`, this should
   only be set to `false` if you _really_ know what you're doing.
@@ -182,8 +191,9 @@ supported ones. A few additional keyword arguments are accept:
 
 !!! note
 
-    The `init_block` and `augment_platform_block` keyword arguments are experimental
-    and may be removed in a future version of this package. Please use them sparingly.
+    The `init_block`, `augment_platform_block`, and `toplevel_block` keyword
+    arguments are experimental and may be removed in a future version of this
+    package. Please use them sparingly.
 
 """
 function build_tarballs(ARGS, src_name, src_version, sources, script,
@@ -357,7 +367,10 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Dependencies that must be downloaded
         dependencies,
     )
-    extra_kwargs = extract_kwargs(kwargs, (:lazy_artifacts, :init_block, :augment_platform_block))
+    extra_kwargs = extract_kwargs(
+        kwargs,
+        (:lazy_artifacts, :init_block, :augment_platform_block, :toplevel_block),
+    )
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
@@ -393,6 +406,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
     end
 
     products_dir = joinpath(pwd(), "products")
+    jll_commit = nothing
     if deploy_jll
         if verbose
             @info("Committing and pushing $(namejll(src_name)).jl wrapper code version $(build_version)...")
@@ -421,7 +435,7 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
                                 julia_compat, extra_kwargs...)
         end
         if deploy_jll_repo != "local"
-            push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
+            jll_commit = push_jll_package(src_name, build_version; code_dir=code_dir, deploy_repo=deploy_jll_repo)
         end
         if register
             if verbose
@@ -438,7 +452,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         if verbose
             @info("Deploying binaries to release $(tag) on $(deploy_bin_repo) via `ghr`...")
         end
-        upload_to_github_releases(deploy_bin_repo, tag, products_dir; verbose=verbose)
+        commit = deploy_bin_repo == deploy_jll_repo ? jll_commit : nothing
+        upload_to_github_releases(deploy_bin_repo, tag, products_dir; commit, verbose=verbose)
     end
 
     return build_output_meta
@@ -515,8 +530,17 @@ function get_compilers_versions(; compilers = [:c])
     return output
 end
 
+"""
+    upload_to_github_releases(repo, tag, path; commit=nothing, kwargs...)
+
+Upload the files in `path` to the release `tag` of the GitHub repository `repo`.
+
+If `tag` does not exist, `commit` controls which commit it points to. It must belong
+to `repo`.
+"""
 function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;allow_anonymous=false),
-                                   attempts::Int = 3, verbose::Bool = false)
+                                   commit=nothing, attempts::Int = 3, verbose::Bool = false)
+    commitish = commit === nothing ? [] : ["-c", string(commit)]
     for attempt in 1:attempts
         try
             # Note: in some cases we may want to reduce/avoid concurrency to avoid exceeding
@@ -524,7 +548,7 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
             # https://docs.github.com/en/rest/using-the-rest-api/best-practices-for-using-the-rest-api?apiVersion=2022-11-28#avoid-concurrent-requests
             # https://docs.github.com/en/rest/using-the-rest-api/rate-limits-for-the-rest-api?apiVersion=2022-11-28#about-secondary-rate-limits
             concurrency = get(ENV, "BINARYBUILDER_GHR_CONCURRENCY", string(Sys.CPU_THREADS))
-            run(`$(ghr()) -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) -p $(concurrency) $(tag) $(path)`)
+            run(`$(ghr()) -u $(dirname(repo)) -r $(basename(repo)) -t $(gh_auth.token) -p $(concurrency) $(commitish) $(tag) $(path)`)
             return
         catch
             if verbose && attempt < attempts
@@ -535,6 +559,18 @@ function upload_to_github_releases(repo, tag, path; gh_auth=Wizard.github_auth(;
     error("Unable to upload $(path) to GitHub repo $(repo) on tag $(tag)")
 end
 
+function update_registry_checked(update = () -> Pkg.Registry.update(
+                                     [Pkg.RegistrySpec(uuid = "23338594-aafe-5451-b93e-139f81909106")];
+                                     io=devnull))
+    errors = String[]
+    with_logger(TeeLogger(current_logger(), ErrorCollector(errors))) do
+        update()
+    end
+    if !isempty(errors)
+        error("Failed to update the General registry:\n" * join(errors, '\n'))
+    end
+end
+
 function get_next_wrapper_version(src_name::AbstractString, src_version::VersionNumber)
     # If src_version already has a build_number, just return it immediately
     if src_version.build != ()
@@ -543,7 +579,7 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
     ctx = Pkg.Types.Context()
 
     # Force-update the registry here, since we may have pushed a new version recently
-    update_registry(devnull)
+    update_registry_checked()
 
     uuid = jll_uuid(namejll(src_name))
 
@@ -578,24 +614,14 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
                          src_version.patch, src_version.prerelease, (build_number,))
 end
 
-function _registered_packages(registry_url::AbstractString)
-    tmp_dir = mktempdir()
-    atexit(() -> rm(tmp_dir; force = true, recursive = true))
-    registry_dir = joinpath(tmp_dir, "REGISTRY")
-    LibGit2.clone(registry_url, registry_dir)
-    registry = TOML.parsefile(joinpath(registry_dir, "Registry.toml"))
-    packages = Vector{String}(undef, 0)
-    for p in registry["packages"]
-        push!(packages, p[2]["name"])
-    end
-    rm(tmp_dir; force = true, recursive = true)
-    return packages
-end
+"""
+    _package_is_registered(package::AbstractString) -> Bool
 
-function _package_is_registered(registry_url::AbstractString,
-                                package::AbstractString)
-    registered_packages = _registered_packages(registry_url)
-    return package in registered_packages
+Whether `package` is already registered in any of the registries installed in the depot.
+"""
+function _package_is_registered(package::AbstractString)
+    ctx = Pkg.Types.Context()
+    return !isempty(Pkg.Types.registered_uuids(ctx.registries, package))
 end
 
 is_yggdrasil() = get(ENV, "YGGDRASIL", "false") == "true"
@@ -608,6 +634,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
                       gh_auth=Wizard.github_auth(;allow_anonymous=false),
                       gh_username=gh_get_json(DEFAULT_API, "/user"; auth=gh_auth)["login"],
                       augment_platform_block::String="",
+                      toplevel_block::String="",
                       lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
                       registry_url = "https://$(gh_username):$(gh_auth.token)@github.com/JuliaRegistries/General",
                       registry_fork_url = registry_url,
@@ -644,8 +671,7 @@ function register_jll(name, build_version, dependencies, julia_compat;
     if haskey(reg_branch.metadata, "error")
         @error(reg_branch.metadata["error"])
     else
-        upstream_registry_url = "https://github.com/JuliaRegistries/General"
-        pr_title = "New $(_package_is_registered(upstream_registry_url, namejll(name)) ? "version" : "package"): $(namejll(name)) v$(build_version)"
+        pr_title = "New $(_package_is_registered(namejll(name)) ? "version" : "package"): $(namejll(name)) v$(build_version)"
         # Open pull request against JuliaRegistries/General
         body = """
         Autogenerated JLL package registration
@@ -690,6 +716,7 @@ function get_meta_json(
                    julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                    init_block::String = "",
                    augment_platform_block::String = "",
+                   toplevel_block::String = "",
                    lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
     )
 
@@ -704,6 +731,7 @@ function get_meta_json(
         "lazy_artifacts" => lazy_artifacts,
         "init_block" => init_block,
         "augment_platform_block" => augment_platform_block,
+        "toplevel_block" => toplevel_block,
     )
     # Do not write the list of platforms when building only for `AnyPlatform`
     if platforms != [AnyPlatform()]
@@ -1063,6 +1091,9 @@ function autobuild(dir::AbstractString,
             products_info,
         )
 
+        # Let a separate registration job reuse the metadata computed while packaging.
+        write_build_meta(tarball_path, tarball_hash, git_hash, products_info)
+
         # Destroy the workspace, taking care to make sure that we don't run into any
         # permissions errors while we do so.
         Base.Filesystem.prepare_for_deletion(prefix.path)
@@ -1163,6 +1194,7 @@ end
 # but rather from JuliaPackaging/Yggdrasil/.ci/register_package.jl
 function rebuild_jll_package(obj::Dict;
                              download_dir = nothing,
+                             build_meta_dir = nothing,
                              upload_prefix = nothing,
                              build_version = nothing,
                              gh_org::String = "JuliaBinaryWrappers",
@@ -1193,36 +1225,241 @@ function rebuild_jll_package(obj::Dict;
         obj["dependencies"],
         download_dir,
         upload_prefix;
+        build_meta_dir = something(build_meta_dir, download_dir),
         verbose,
         lazy_artifacts,
         julia_compat,
         init_block = get(obj, "init_block", ""),
         augment_platform_block,
+        toplevel_block = get(obj, "toplevel_block", ""),
         from_scratch,
     )
 end
 
+# Avoid nested repetition in the triplet group; it can backtrack catastrophically.
+const TARBALL_FILENAME_REGEX =
+    r"^(?:.*/)?(?<name>\w+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>.+)\.tar(?:\.\w+)?$"
+
 # For each platform, we have two tarballs: the main with the full product,
-# and the logs-only one.  This function filters out the logs one, and
-# finds the tarball matching `platform`.
-function filter_main_tarball(tarball_filename, platform)
+# and the logs-only one.  This function filters out the logs one, and returns the
+# platform the tarball was built for (or `nothing` if it isn't a product tarball).
+function main_tarball_platform(tarball_filename)
+    # The directory may also contain metadata sidecars and project directories.
+    endswith(tarball_filename, r"\.tar(\.\w+)?") || return nothing
     if occursin("-logs.", tarball_filename)
-        return false
+        return nothing
     end
-    tarball_filename_match = match(r"^(.*/)?(?<name>[\w_]+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>([^-]+-?)+).tar", tarball_filename)
+    tarball_filename_match = match(TARBALL_FILENAME_REGEX, tarball_filename)
     if isnothing(tarball_filename_match)
         @warn "Tarball filename does not match expected pattern: $(tarball_filename)"
-        return false
+        return nothing
+    end
+    if tarball_filename_match[:platform_triplet] == "any"
+        return AnyPlatform()
     end
     try
-        if platform isa AnyPlatform
-            return tarball_filename_match[:platform_triplet] == "any"
-        end
-        tarball_filename_platform = parse(Platform, tarball_filename_match[:platform_triplet])
-        return tarball_filename_platform == platform
+        return parse(Platform, tarball_filename_match[:platform_triplet])
     catch
         @warn "Failed to parse tarball filename: $(tarball_filename)"
-        return false
+        return nothing
+    end
+end
+
+"""
+    tarball_lookup_table(download_dir)
+
+Map the platform of every product tarball in `download_dir` to its filename.
+
+Keys use sorted platform tags because older Julia versions do not canonicalize triplet
+tag order. The OS version is normalized because it may be stored as either `11.1` or
+`11.1.0`, depending on how the platform was constructed.
+"""
+function tarball_lookup_table(download_dir::AbstractString)
+    table = Dict{Tuple{Vararg{Pair{String,String}}},String}()
+    for filename in sort(readdir(download_dir))
+        isfile(joinpath(download_dir, filename)) || continue
+        platform = main_tarball_platform(filename)
+        platform === nothing && continue
+        # Preserve the old first-match behavior.
+        get!(table, tarball_platform_key(platform), filename)
+    end
+    return table
+end
+
+function tarball_platform_key(platform::AbstractPlatform)
+    platform_tags = collect(BinaryPlatforms.tags(platform))
+    os_version_idx = findfirst(tag -> first(tag) == "os_version", platform_tags)
+    if os_version_idx !== nothing
+        platform_tags[os_version_idx] = "os_version" => string(os_version(platform))
+    end
+    return Tuple(sort!(platform_tags; by = first))
+end
+
+# Readers fall back to inspecting the tarball for unknown versions.
+const BUILD_META_VERSION = 1
+
+"""
+    build_meta_path(tarball_path) -> String
+
+Path of the `.meta.json` sidecar describing `tarball_path`.
+
+The name does not match `*.tar.*`, so artifact uploaders do not treat it as a release
+asset.
+"""
+function build_meta_path(tarball_path::AbstractString)
+    return replace(tarball_path, r"\.tar\.[A-Za-z0-9]+$" => ".meta.json")
+end
+
+"""
+    write_build_meta(tarball_path, tarball_hash, git_hash, products_info)
+
+Write metadata derived by `autobuild` next to its tarball.
+
+Products are keyed by `variable_name` (the JLL's exported binding, unique within a package)
+rather than serialised as `Product`s, so that the file stays readable across changes to the
+`Product` types.
+"""
+function write_build_meta(tarball_path::AbstractString, tarball_hash::AbstractString,
+                          git_hash::Base.SHA1, products_info::Dict)
+    meta = Dict(
+        "version" => BUILD_META_VERSION,
+        "tarball" => basename(tarball_path),
+        "tarball_hash" => tarball_hash,
+        "git_hash" => bytes2hex(git_hash.bytes),
+        "products" => Dict(string(variable_name(p)) => info for (p, info) in products_info),
+    )
+    open(build_meta_path(tarball_path), "w") do io
+        JSON.print(io, meta)
+    end
+    return nothing
+end
+
+"""
+    read_build_meta(tarball_path, products; meta_dir=dirname(tarball_path)) -> Union{Nothing,Tuple}
+
+Recover `(tarball_hash, git_hash, products_info)` from a sidecar, or return `nothing` when
+it is absent or invalid. The tarball SHA-256 binds the sidecar to the downloaded bytes.
+"""
+function read_build_meta(tarball_path::AbstractString, products::Vector;
+                         meta_dir::AbstractString = dirname(tarball_path))
+    meta_path = joinpath(meta_dir, basename(build_meta_path(tarball_path)))
+    isfile(meta_path) || return nothing
+
+    fallback(msg) = (@warn("$(msg); falling back to unpacking $(basename(tarball_path))"); nothing)
+
+    meta = try
+        JSON.parsefile(meta_path)
+    catch e
+        return fallback("Could not parse $(meta_path): $(sprint(showerror, e))")
+    end
+
+    if get(meta, "version", nothing) != BUILD_META_VERSION
+        return fallback("$(meta_path) is version $(get(meta, "version", nothing)), not $(BUILD_META_VERSION)")
+    end
+    if get(meta, "tarball", nothing) != basename(tarball_path)
+        return fallback("$(meta_path) describes $(get(meta, "tarball", nothing))")
+    end
+
+    # Every product must have the same shape produced by `autobuild`.  In particular,
+    # reject paths that could escape the artifact directory when embedded in a wrapper.
+    products_info = Dict{Product,Any}()
+    for p in products
+        info = get(get(meta, "products", Dict{String,Any}()), string(variable_name(p)), nothing)
+        path = info isa Dict ? get(info, "path", nothing) : nothing
+        if !(path isa AbstractString) || isempty(path)
+            return fallback("$(meta_path) has no usable entry for $(p)")
+        end
+        normalized_path = normpath(path)
+        if isabspath(path) || normalized_path == ".." || startswith(normalized_path, "../")
+            return fallback("$(meta_path) has an invalid path for $(p)")
+        end
+        if p isa LibraryProduct || p isa FrameworkProduct
+            soname = get(info, "soname", nothing)
+            if !(soname isa AbstractString) || isempty(soname)
+                return fallback("$(meta_path) has no usable soname for $(p)")
+            end
+        end
+        products_info[p] = info
+    end
+
+    git_hash = try
+        Base.SHA1(hex2bytes(meta["git_hash"]::AbstractString))
+    catch e
+        return fallback("$(meta_path) has a malformed git tree hash: $(sprint(showerror, e))")
+    end
+
+    tarball_hash = open(tarball_path, "r") do io
+        bytes2hex(sha256(io))
+    end
+    if tarball_hash != get(meta, "tarball_hash", nothing)
+        return fallback("$(basename(tarball_path)) does not hash to what $(basename(meta_path)) claims")
+    end
+
+    return (tarball_hash, git_hash, products_info)
+end
+
+"""
+    rebuild_concurrency() -> Int
+
+How many tarballs `rebuild_jll_package` unpacks and hashes at the same time.
+
+The default is capped because each task extracts a complete tarball under `TMPDIR`.
+Set `BINARYBUILDER_REBUILD_CONCURRENCY` to override it.
+"""
+function rebuild_concurrency()
+    n = tryparse(Int, get(ENV, "BINARYBUILDER_REBUILD_CONCURRENCY", ""))
+    if n === nothing
+        n = min(Threads.nthreads(), 8)
+    end
+    return max(n, 1)
+end
+
+"""
+    inspect_tarball(tarball_path, platform, products; verbose=false)
+
+Recover the `(tarball_hash, git_hash, products_info)` that `autobuild` computed for this
+tarball when it built it, by unpacking the tarball and inspecting what comes out.
+"""
+function inspect_tarball(tarball_path::AbstractString, platform, products::Vector;
+                         verbose::Bool = false)
+    tarball_hash = open(tarball_path, "r") do io
+        bytes2hex(sha256(io))
+    end
+
+    # Unpack the tarball into a new location, calculate the git hash and locate() each product;
+    return mktempdir() do dest_prefix
+        unpack(tarball_path, dest_prefix)
+
+        git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
+
+        # Keep each platform's product-location log together.
+        products_info = @lock Auditor.AUDITOR_LOGGING_LOCK begin
+            if verbose
+                @info("Calculated git tree hash $(bytes2hex(git_hash.bytes)) for $(basename(tarball_path))")
+            end
+
+            # Determine locations of each product
+            info = Dict{Product,Any}()
+            for p in products
+                product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose, skip_dlopen=true)
+                if product_path === nothing
+                    error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
+                end
+                info[p] = Dict("path" => relpath(product_path, dest_prefix))
+                if p isa LibraryProduct || p isa FrameworkProduct
+                    info[p]["soname"] = something(
+                        Auditor.get_soname(product_path),
+                        basename(product_path),
+                    )
+                end
+            end
+            info
+        end
+
+        # Override read-only permissions before cleaning-up the directory
+        Base.Filesystem.prepare_for_deletion(dest_prefix)
+
+        return (tarball_hash, git_hash, products_info)
     end
 end
 
@@ -1230,77 +1467,69 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
                              code_dir::String = codedir(name),
+                             build_meta_dir::String = download_dir,
                              verbose::Bool = false, from_scratch::Bool = true,
                              kwargs...)
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
 
-    # Then generate a JLL package for each platform
-    downloaded_files = readdir(download_dir)
-    for platform in sort(collect(platforms), by = triplet)
+    # Match every platform up with its tarball first, so that an incomplete release is
+    # reported before we start doing any of the expensive work.
+    tarball_names = tarball_lookup_table(download_dir)
+    sorted_platforms = sort(collect(platforms), by = triplet)
+    tarball_paths = map(sorted_platforms) do platform
         # Find the corresponding tarball:
-        tarball_idx = findfirst(f -> filter_main_tarball(f, platform), downloaded_files)
+        tarball_name = get(tarball_names, tarball_platform_key(platform), nothing)
 
         # No tarball matching the given platform...
-        if tarball_idx === nothing
+        if tarball_name === nothing
             # ..but wait, maybe the tarball still uses the os version number for
             # FreeBSD or macOS?
             for (isos, try_os_version) in ((Sys.isfreebsd, "11.1"), (Sys.isapple, "14"))
                 if isos(platform) && os_version(platform) === nothing
                     tmp_platform = deepcopy(platform)
                     tmp_platform["os_version"] = try_os_version
-                    tarball_idx = findfirst(f -> filter_main_tarball(f, tmp_platform), downloaded_files)
+                    tarball_name = get(tarball_names, tarball_platform_key(tmp_platform), nothing)
                 end
             end
         end
 
         # Ok, really no tarball matching the given platform
-        if tarball_idx === nothing
+        if tarball_name === nothing
             error("Incomplete JLL release!  Could not find tarball for $(triplet(platform))")
         end
-        tarball_path = joinpath(download_dir, downloaded_files[tarball_idx])
+        return tarball_name
+    end
 
-        # Begin reconstructing all the information we need
-        tarball_hash = open(tarball_path, "r") do io
-            bytes2hex(sha256(io))
-        end
-
-        # Unpack the tarball into a new location, calculate the git hash and locate() each product;
-        mktempdir() do dest_prefix
-            unpack(tarball_path, dest_prefix)
-
-            git_hash = Base.SHA1(Pkg.GitTools.tree_hash(dest_prefix))
-            if verbose
-                @info("Calculated git tree hash $(bytes2hex(git_hash.bytes)) for $(basename(tarball_path))")
-            end
-
-            # Determine locations of each product
-            products_info = Dict{Product,Any}()
-            for p in products
-                product_path = locate(p, Prefix(dest_prefix); platform=platform, verbose=verbose, skip_dlopen=true)
-                if product_path === nothing
-                    error("Unable to locate $(p) within $(dest_prefix) for $(triplet(platform))")
+    # Recovering the metadata is independent for each platform, so do several at once.
+    metas = Vector{Any}(undef, length(sorted_platforms))
+    semaphore = Base.Semaphore(rebuild_concurrency())
+    @sync for (idx, platform) in enumerate(sorted_platforms)
+        Threads.@spawn begin
+            Base.acquire(semaphore)
+            try
+                tarball_path = joinpath(download_dir, tarball_paths[idx])
+                # Prefer build metadata, but retain the inspection path for older builds.
+                meta = read_build_meta(tarball_path, products; meta_dir=build_meta_dir)
+                if meta === nothing
+                    meta = inspect_tarball(tarball_path, platform, products; verbose)
                 end
-                products_info[p] = Dict("path" => relpath(product_path, dest_prefix))
-                if p isa LibraryProduct || p isa FrameworkProduct
-                    products_info[p]["soname"] = something(
-                        Auditor.get_soname(product_path),
-                        basename(product_path),
-                    )
-                end
+                metas[idx] = meta
+            finally
+                Base.release(semaphore)
             end
-
-            # Store all this information within build_output_meta:
-            build_output_meta[platform] = (
-                joinpath(upload_prefix, downloaded_files[tarball_idx]),
-                tarball_hash,
-                git_hash,
-                products_info,
-            )
-
-            # Override read-only permissions before cleaning-up the directory
-            Base.Filesystem.prepare_for_deletion(dest_prefix)
         end
+    end
+
+    # Store all this information within build_output_meta:
+    for (idx, platform) in enumerate(sorted_platforms)
+        tarball_hash, git_hash, products_info = metas[idx]
+        build_output_meta[platform] = (
+            joinpath(upload_prefix, tarball_paths[idx]),
+            tarball_hash,
+            git_hash,
+            products_info,
+        )
     end
 
     # If `from_scratch` is set (the default) we clear out any old crusty code
@@ -1327,6 +1556,7 @@ function build_jll_package(src_name::String,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                            init_block::String = "",
                            augment_platform_block::String = "",
+                           toplevel_block::String = "",
                            # If we support versions older than Julia v1.7 the artifact
                            # should be lazy when we augment the platform.
                            lazy_artifacts::Bool = !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
@@ -1633,6 +1863,14 @@ function build_jll_package(src_name::String,
 
         JLLWrappers.@generate_main_file_header($(repr(src_name)))
         JLLWrappers.@generate_main_file($(repr(src_name)), $(repr(jll_uuid(namejll(src_name)))))
+        """)
+        if !isempty(toplevel_block)
+            print(io, """
+
+            $(toplevel_block)
+            """)
+        end
+        print(io, """
         end  # module $(namejll(src_name))
         """)
     end
@@ -1793,7 +2031,26 @@ function push_jll_package(name, build_version;
             remoteurl,
             credentials=creds,
         )
+
+        # LibGit2 does not report per-reference push failures, so check the remote ref.
+        verify_remote_main(wrapper_repo, remoteurl, creds, commit)
     end
+    return commit
+end
+
+# Look up the current `main` of `remoteurl` without touching the local branches.
+function fetch_remote_main(repo, remoteurl, creds)
+    refspec = "+refs/heads/main:refs/remotes/deploy/main"
+    LibGit2.fetch(repo; remoteurl, refspecs=[refspec], credentials=creds)
+    branch = LibGit2.lookup_branch(repo, "deploy/main", true)
+    branch === nothing && error("Could not find `main` on $(remoteurl) after pushing")
+    return LibGit2.GitHash(branch)
+end
+
+function verify_remote_main(repo, remoteurl, creds, expected)
+    actual = fetch_remote_main(repo, remoteurl, creds)
+    actual == expected || error("Pushing $(remoteurl) failed: `main` is at $(actual), expected $(expected)")
+    return
 end
 
 # For historical reasons, our UUIDs are generated with some rather strange constants

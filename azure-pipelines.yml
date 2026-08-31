@@ -43,37 +43,58 @@ jobs:
       set -e
       $(JULIA) -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate()'
       $(JULIA) -e 'using BinaryBuilder; BinaryBuilder.versioninfo()'
-      $(JULIA) -e 'using Pkg; Pkg.status(; mode=PKGMODE_MANIFEST)'
+      $(JULIA) -e 'using Pkg; Pkg.status(; mode=Pkg.PKGMODE_MANIFEST)'
+      df -h ${TMPDIR:-/tmp} .
     name: SystemInfo
 
 - job: Test
   dependsOn: Info
   timeoutInMinutes: 120
   strategy:
+    # The agents share a single machine (and disk); running the legs in
+    # parallel stacks their peak disk usage (compiler shards, build prefixes)
+    # and has taken the whole machine down with ENOSPC before.
+    maxParallel: 1
     matrix:
       Privileged_SquashFS:
         BINARYBUILDER_RUNNER: privileged
         BINARYBUILDER_USE_SQUASHFS: true
+        # Run the full shard test on the squashfs leg: squashfs shards stay
+        # compressed on disk, so downloading shards for every platform is an
+        # order of magnitude cheaper than with unpacked shards.
+        BINARYBUILDER_FULL_SHARD_TEST: true
       Unprivileged_Unpacked:
         BINARYBUILDER_RUNNER: unprivileged
         BINARYBUILDER_USE_SQUASHFS: false
-        BINARYBUILDER_FULL_SHARD_TEST: true
       Docker_Unpacked:
         BINARYBUILDER_RUNNER: docker
         BINARYBUILDER_USE_SQUASHFS: false
 
   steps:
   - bash: |
-      set -e
-      $(JULIA) -e 'using Pkg; Pkg.gc()'
-      $(JULIA) --check-bounds=yes --inline=yes -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.test(coverage=true)'
-      $(JULIA) -e 'using Pkg; Pkg.add("Coverage"); using Coverage; Codecov.submit(process_folder())' || true
-    name: Test
-
-  - bash: |
-      for dir in $(find ${TMPDIR} -name .mounts); do
+      # Clean up leftovers of previous runs that died before reaching their
+      # Cleanup step (e.g. when the agent itself was killed by ENOSPC).
+      for dir in $(find ${TMPDIR} -name .mounts 2>/dev/null); do
           sudo umount ${dir}/* || true
       done
       rm -rf ${TMPDIR}/jl_* || true
+      # Collect unused artifacts (mainly compiler shards of previous runs)
+      # immediately, instead of after Pkg's default 7-day grace period.
+      $(JULIA) -e 'using Pkg, Dates; Pkg.gc(; collect_delay=Hour(0))'
+      df -h ${TMPDIR:-/tmp} .
+    name: PreCleanup
+
+  - bash: |
+      set -e
+      $(JULIA) --check-bounds=yes --inline=yes -e 'using Pkg; Pkg.Registry.update(); Pkg.instantiate(); Pkg.test(coverage=true)'
+      $(JULIA) -e 'using Pkg; Pkg.activate(; temp=true); Pkg.add("Coverage"); using Coverage; cd(ARGS[1]) do; Codecov.submit(process_folder()); end' $(Build.SourcesDirectory) || true
+    name: Test
+
+  - bash: |
+      for dir in $(find ${TMPDIR} -name .mounts 2>/dev/null); do
+          sudo umount ${dir}/* || true
+      done
+      rm -rf ${TMPDIR}/jl_* || true
+      df -h ${TMPDIR:-/tmp} .
     name: Cleanup
     condition: always()

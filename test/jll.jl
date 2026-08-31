@@ -43,17 +43,28 @@ module TestJLL end
         @test !haskey(BinaryBuilder.build_project_dict("foo", v"1.2", Dependency[], "1.6")["deps"], "Pkg")
     end
 
-    @testset "filter_main_tarball" begin
-        @test !BinaryBuilder.filter_main_tarball("", AnyPlatform())
-        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.any.tar.gz", AnyPlatform())
-        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"))
-        @test !BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz", Platform("x86_64", "linux"; cxxstring_abi="cxx11"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz", Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson"))
-        @test BinaryBuilder.filter_main_tarball("F/Foo/Foo@1.2/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz", Platform("x86_64", "linux"))
+    @testset "main_tarball_platform" begin
+        tarball_platform = BinaryBuilder.main_tarball_platform
+        # Not a tarball at all: quietly not our business.  The `.meta.json` case matters --
+        # those sit right next to the tarballs, and the pattern used to backtrack
+        # catastrophically on them ("match limit exceeded") rather than just not matching.
+        @test tarball_platform("") === nothing
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.meta.json") === nothing
+        @test tarball_platform("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.meta.json") === nothing
+        @test tarball_platform("L") === nothing
+        # Looks like a tarball, but isn't named like one: worth complaining about
+        @test (@test_logs (:warn, r"does not match expected pattern") tarball_platform("F/Foo/products/nonsense.tar.gz")) === nothing
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.any.tar.gz") == AnyPlatform()
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz") == Platform("x86_64", "linux")
+        @test tarball_platform("F/Foo/products/Foo-logs.v1.2.3.x86_64-linux-gnu.tar.gz") === nothing
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz") != Platform("x86_64", "linux")
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz") != Platform("x86_64", "linux"; cxxstring_abi="cxx11")
+        @test tarball_platform("F/Foo/products/Foo.v1.2.3.x86_64-linux-gnu-cxx11.tar.gz") == Platform("x86_64", "linux"; cxxstring_abi="cxx11")
+        # The two spellings of the same platform have to land on the same lookup key
+        cuda = Platform("aarch64", "linux"; cuda="12.0", cuda_platform="jetson")
+        @test tarball_platform("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda+12.0-cuda_platform+jetson.tar.gz") == cuda
+        @test tarball_platform("F/Foo_Bar/products/Foo_Bar.v1.2.3.aarch64-linux-gnu-cuda_platform+jetson-cuda+12.0.tar.gz") == cuda
+        @test tarball_platform("F/Foo/Foo@1.2/products/Foo.v1.2.3.x86_64-linux-gnu.tar.gz") == Platform("x86_64", "linux")
     end
 
     @testset "get_github_author_login" begin
@@ -88,6 +99,14 @@ end
             return platform
         end
         """
+        toplevel_block = """
+        const toplevel_marker = 42
+        toplevel_available() = is_available()
+        const init_saw_toplevel = Ref{Union{Nothing,Int}}(nothing)
+        """
+        init_block = """
+        init_saw_toplevel[] = toplevel_marker
+        """
         # Julia compat.  Include Julia v1.6 to exercise the code path which forces lazy
         # artifacts when augmenting the platform
         julia_compat = "1.6"
@@ -109,7 +128,9 @@ end
                 libfoo_products,
                 dependencies;
                 julia_compat,
+                init_block,
                 augment_platform_block,
+                toplevel_block,
             )
             # Generate the JSON file
             println(buff, JSON.json(dict))
@@ -154,6 +175,7 @@ end
             merged = BinaryBuilder.merge_json_objects(objs)
             BinaryBuilder.cleanup_merged_object!(merged)
             BinaryBuilder.cleanup_merged_object!.(objs_unmerged)
+            @test merged["toplevel_block"] == toplevel_block
 
             # Determine build version
             name = merged["name"]
@@ -175,6 +197,13 @@ end
 
             tag = "$(name)-v$(build_version)"
             upload_prefix = "https://github.com/$(repo)/releases/download/$(tag)"
+
+            # `autobuild` should have left its metadata next to each tarball, so that the
+            # rebuild below can skip unpacking and re-hashing them
+            for f in readdir(download_dir)
+                (endswith(f, ".tar.gz") && !occursin("-logs.", f)) || continue
+                @test isfile(joinpath(download_dir, BinaryBuilder.build_meta_path(f)))
+            end
 
             # This loop over the unmerged objects necessary in the event that we have multiple packages being built by a single build_tarballs.jl
             for (i,json_obj) in enumerate(objs_unmerged)
@@ -212,11 +241,48 @@ end
             @test !contains(readchomp(freebsd_wrapper), "using Zlib_jll")
             @test !contains(readchomp(platform_wrapper), "using Preferences")
             @test !contains(readchomp(freebsd_wrapper),  "using Preferences")
-            @test contains(readchomp(main_src),  "using Preferences")
+            main_source = readchomp(main_src)
+            @test contains(main_source, "using Preferences")
+            @test contains(main_source, toplevel_block)
+            generate_main_file = findfirst("JLLWrappers.@generate_main_file(", main_source)
+            toplevel_marker = findfirst("const toplevel_marker = 42", main_source)
+            @test !isnothing(generate_main_file)
+            @test !isnothing(toplevel_marker)
+            if !isnothing(generate_main_file) && !isnothing(toplevel_marker)
+                @test first(generate_main_file) < first(toplevel_marker)
+            end
             # Load JLL package and run some actual code from it.
             @eval TestJLL using libfoo_jll
             @test 6.08 ≈ @eval TestJLL ccall((:foo, libfoo), Cdouble, (Cdouble, Cdouble), 2.3, 4.5)
             @test @eval TestJLL libfoo_jll.is_available()
+            @test (@eval TestJLL libfoo_jll.toplevel_marker) == 42
+            @test @eval TestJLL libfoo_jll.toplevel_available()
+            @test (@eval TestJLL libfoo_jll.init_saw_toplevel[]) == 42
+
+            # Toplevel definitions must also be available when no wrapper matches the host.
+            freebsd_obj = only(obj for obj in objs_unmerged if obj["platforms"] == [freebsd])
+            unavailable_name = "libfoo_unavailable"
+            unavailable_code_dir = joinpath(build_path, "unavailable_jll")
+            BinaryBuilder.rebuild_jll_package(
+                unavailable_name,
+                build_version,
+                freebsd_obj["sources"],
+                freebsd_obj["platforms"],
+                freebsd_obj["products"],
+                freebsd_obj["dependencies"],
+                download_dir,
+                upload_prefix;
+                code_dir = unavailable_code_dir,
+                julia_compat,
+                init_block,
+                augment_platform_block,
+                toplevel_block,
+            )
+            Pkg.develop(PackageSpec(path=unavailable_code_dir))
+            @eval TestJLL using libfoo_unavailable_jll
+            @test !(@eval TestJLL libfoo_unavailable_jll.is_available())
+            @test (@eval TestJLL libfoo_unavailable_jll.toplevel_marker) == 42
+            @test !(@eval TestJLL libfoo_unavailable_jll.toplevel_available())
         end
     end
 end
