@@ -2125,7 +2125,7 @@ function build_project_dict(name, version, dependencies::Array{<:AbstractDepende
             uuid = jll_uuid(depname)
         end
         project["deps"][depname] = string(uuid)
-        if dep isa Dependency && length(dep.compat) > 0
+        if dep isa Union{Dependency,RuntimeDependency} && length(dep.compat) > 0
             Pkg.Types.semver_spec(dep.compat) # verify dep.compat is valid
             project["compat"][depname] = dep.compat
         end
