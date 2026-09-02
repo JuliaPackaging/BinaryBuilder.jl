@@ -132,10 +132,6 @@ function create_or_update_pull_request(repo, params; auth=github_auth())
                 "base" => params["base"],
                 "head" => string(split(repo, "/")[1], ":", params["head"]),
             ))
-            # It's undocumented, but `maintainer_can_modify=true` appears to be always
-            # invalid in update PR requests, causing the error
-            #     Fork collab can only be enabled on cross-repo pull requests
-            params["maintainer_can_modify"] = false
             return update_pull_request(repo, first(prs).number; auth=auth, params=params)
         else
             rethrow(ex)

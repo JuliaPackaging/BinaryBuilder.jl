@@ -696,7 +696,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
         params = Dict(
             "base" => "master",
             "head" => "$(registry_fork_org):$(reg_branch.branch)",
-            "maintainer_can_modify" => false,
             "title" => pr_title,
             "body" => body,
         )
