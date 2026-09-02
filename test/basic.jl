@@ -216,6 +216,12 @@ end
     # Make sure that a `BuildDependency` can't make it to the list of
     # dependencies of the new JLL package
     @test_throws AssertionError build_project_dict(name, version, [BuildDependency("Foo_jll")])
+    # The compat of both `Dependency` and `RuntimeDependency` ends up in the project
+    dict = build_project_dict(name, version, [Dependency("GMP_jll"; compat="6.2"),
+                                              RuntimeDependency("Zlib_jll"; compat="1.2.13")])
+    @test dict["compat"]["GMP_jll"] == "6.2"
+    @test dict["compat"]["Zlib_jll"] == "1.2.13"
+    @test haskey(dict["deps"], "Zlib_jll")
 
     version = v"1.6.8"
     next_version = BinaryBuilder.get_next_wrapper_version("Xorg_libX11", version)
