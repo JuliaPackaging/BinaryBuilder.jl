@@ -10,21 +10,24 @@ using BinaryBuilderBase: detect_compressor
             mkpath(git_path)
 
             # Copy files in, commit them.  This is the commit we will build.
+            # Sign the commits explicitly so that the test does not depend on the git
+            # identity configured on the machine running it.
             repo = LibGit2.init(git_path)
-            LibGit2.commit(repo, "Initial empty commit")
+            signature = LibGit2.Signature("BinaryBuilder tests", "test@example.com")
+            LibGit2.commit(repo, "Initial empty commit"; author=signature, committer=signature)
             libfoo_src_dir = joinpath(build_tests_dir, "libfoo")
             run(`cp -r $(libfoo_src_dir)/$(readdir(libfoo_src_dir)) $(git_path)/`)
             for file in readdir(git_path)
                 LibGit2.add!(repo, file)
             end
-            commit = LibGit2.commit(repo, "Add libfoo files")
+            commit = LibGit2.commit(repo, "Add libfoo files"; author=signature, committer=signature)
 
             # Add another commit to ensure that the git checkout is getting the right commit.
             open(joinpath(git_path, "Makefile"), "w") do io
                 println(io, "THIS WILL BREAK EVERYTHING")
             end
             LibGit2.add!(repo, "Makefile")
-            LibGit2.commit(repo, "Break Makefile")
+            LibGit2.commit(repo, "Break Makefile"; author=signature, committer=signature)
 
             for source in (DirectorySource(build_tests_dir),
                            GitSource(git_path, bytes2hex(LibGit2.raw(LibGit2.GitHash(commit)))))

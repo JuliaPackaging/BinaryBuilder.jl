@@ -696,7 +696,6 @@ function register_jll(name, build_version, dependencies, julia_compat;
         params = Dict(
             "base" => "master",
             "head" => "$(registry_fork_org):$(reg_branch.branch)",
-            "maintainer_can_modify" => true,
             "title" => pr_title,
             "body" => body,
         )
@@ -2125,7 +2124,7 @@ function build_project_dict(name, version, dependencies::Array{<:AbstractDepende
             uuid = jll_uuid(depname)
         end
         project["deps"][depname] = string(uuid)
-        if dep isa Dependency && length(dep.compat) > 0
+        if dep isa Union{Dependency,RuntimeDependency} && length(dep.compat) > 0
             Pkg.Types.semver_spec(dep.compat) # verify dep.compat is valid
             project["compat"][depname] = dep.compat
         end
