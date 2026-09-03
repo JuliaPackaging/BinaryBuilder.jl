@@ -298,6 +298,12 @@ the following types:
   framework](https://en.wikipedia.org/wiki/Bundle_(macOS)#macOS_framework_bundles);
 * [`FileProduct`](@ref): a file of any type, with no special treatment.
 
+The generated JLL package initializes the products in the order in which they are
+listed. In particular, libraries are `dlopen`ed in that order, which matters when a
+library depends on another product of the same package but does not have an rpath
+pointing to it: list the dependency first, so that the dependent library finds the
+already-loaded copy instead of having the system loader look it up elsewhere.
+
 The audit will perform a series of sanity checks on the products of the builder,
 with the exclusion `FileProduct`s, trying also to automatically fix some common
 issues.
