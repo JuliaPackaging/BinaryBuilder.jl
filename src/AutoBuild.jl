@@ -594,7 +594,11 @@ function get_next_wrapper_version(src_name::AbstractString, src_version::Version
                 continue
             end
 
-            pkg_info = Pkg.Registry.registry_info(reg[uuid])
+            pkg_info = if VERSION >= v"1.13-"
+                Pkg.Registry.registry_info(reg, reg[uuid])
+            else
+                Pkg.Registry.registry_info(reg[uuid])
+            end
             append!(versions, sort!(collect(keys(pkg_info.version_info))))
         end
         unique!(sort!(versions))
