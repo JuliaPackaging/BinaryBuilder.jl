@@ -286,3 +286,38 @@ end
         end
     end
 end
+
+@testset "JLLs - product order" begin
+    # products are initialized in the order they are listed in the recipe, which matters
+    # for libraries that depend on each other without an rpath.
+    products = Product[
+        LibraryProduct("libqux", :libqux),
+        LibraryProduct("libbar", :libbar),
+        ExecutableProduct("baz", :baz),
+        LibraryProduct("libfoo", :libfoo),
+    ]
+    products_info = Dict{Product,Any}()
+    for p in products
+        name = p isa LibraryProduct ? first(p.libnames) : first(p.binnames)
+        products_info[p] = Dict("path" => "lib/$(name).so", "soname" => "$(name).so.1")
+    end
+    platform = Platform("x86_64", "linux")
+    build_output_meta = Dict(platform => ("qux.tar.gz", "0"^64, Base.SHA1("0"^40), products_info))
+    mktempdir() do code_dir
+        BinaryBuilder.build_jll_package("qux", v"1.0.0", [], code_dir, build_output_meta,
+                                        Dependency[], "https://example.com"; products)
+        wrapper = read(joinpath(code_dir, "src", "wrappers", "$(triplet(platform)).jl"), String)
+        declarations = [m.captures[1] for m in eachmatch(r"@declare_\w+_product\((\w+)", wrapper)]
+        @test declarations == ["libqux", "libbar", "baz", "libfoo"]
+        inits = [m.captures[1] for m in eachmatch(r"@init_\w+_product\(\s*(\w+)", wrapper)]
+        @test inits == ["libqux", "libbar", "baz", "libfoo"]
+    end
+
+    # the order also survives the `--meta-json` round trip used by Yggdrasil's CI, where
+    # the objects of several `build_tarballs` invocations are merged before packaging.
+    meta = BinaryBuilder.get_meta_json("qux", v"1.0.0", AbstractSource[], "", [platform], products, Dependency[])
+    obj = JSON.parse(sprint(JSON.print, meta))
+    merged = BinaryBuilder.merge_json_objects([deepcopy(obj), obj])
+    BinaryBuilder.cleanup_merged_object!(merged)
+    @test string.(variable_name.(merged["products"])) == ["libqux", "libbar", "baz", "libfoo"]
+end
