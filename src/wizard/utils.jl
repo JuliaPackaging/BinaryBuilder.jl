@@ -33,6 +33,9 @@ function line_prompt(name, msg; ins=stdin, outs=stdout, force_identifier=false, 
         else
             val = strip(read(_getpass(ins), String))
         end
+        if eof(ins)
+            throw(EOFError())
+        end
         if !isopen(ins)
             throw(InterruptException())
         end
