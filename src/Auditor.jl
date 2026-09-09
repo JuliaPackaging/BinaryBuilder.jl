@@ -116,6 +116,11 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
     # If this is false then it's bedtime for bonzo boy
     all_ok = Threads.Atomic{Bool}(true)
 
+    # Populate the compiler shard cache before we start spawning tasks: its lazy
+    # initialisation in BinaryBuilderBase is not thread-safe, and every sandboxed
+    # check below constructs a runner, which consults it.
+    BinaryBuilderBase.all_compiler_shards()
+
     # Translate absolute symlinks to relative symlinks, if possible
     translate_symlinks(prefix.path; verbose=verbose)
 
@@ -210,9 +215,11 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
                 end
             """
             try
-                p = open(`$(Base.julia_cmd()) -e $dlopen_cmd`)
-                wait(p)
-                if p.exitcode != 0
+                # Discard stdout: `open(cmd)` would leave an unread pipe open per library,
+                # leaking a file descriptor and blocking the child if it wrote too much.
+                p = run(pipeline(ignorestatus(`$(Base.julia_cmd()) -e $dlopen_cmd`);
+                                 stdin=devnull, stdout=devnull))
+                if !success(p)
                     throw("Invalid exit code!")
                 end
             catch
@@ -447,14 +454,15 @@ function check_dynamic_linkage(oh, prefix, bin_files;
         end
 
         # Look at every dynamic link, and see if we should do anything about that link...
+        # Note that this loop is deliberately serial: every iteration modifies the same
+        # binary and would serialize on its patchelf lock anyway, and nested
+        # `Threads.@threads` loops (parallel since Julia 1.9) only multiply the number of
+        # tasks contending on locks and subprocess pipes.
         libs = find_libraries(oh)
         ignored_libraries = String[]
-        ignored_libraries_lock = Threads.ReentrantLock()
-        Threads.@threads for libname in collect(keys(libs))
+        for libname in collect(keys(libs))
             if should_ignore_lib(libname, oh, platform)
-                lock(ignored_libraries_lock) do
-                    push!(ignored_libraries, libname)
-                end
+                push!(ignored_libraries, libname)
                 continue
             end
 
