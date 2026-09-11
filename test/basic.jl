@@ -385,6 +385,12 @@ end
         write(meta_path, "{ not json")
         @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
 
+        malformed_products = merge(BinaryBuilder.JSON.parse(original), Dict("products" => nothing))
+        for malformed in (nothing, [], malformed_products)
+            write(meta_path, BinaryBuilder.JSON.json(malformed))
+            @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
+        end
+
         restore(); write(meta_path, replace(original, "\"version\":$(BUILD_META_VERSION)" => "\"version\":$(BUILD_META_VERSION + 1)"))
         @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, products)) === nothing
 
