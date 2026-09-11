@@ -1236,6 +1236,135 @@ function rebuild_jll_package(obj::Dict;
     )
 end
 
+"""
+    rebuild_jll_package(objs::AbstractVector; download_dir, upload_prefix,
+                        build_meta_dir=download_dir, artifact_hashes=Dict(),
+                        fetch_tarball=nothing, reuse_artifacts=true, kwargs...)
+
+Reconstruct one JLL from multiple cleaned recipe metadata objects. Verify tarballs
+across all objects with `rebuild_concurrency()` workers, then write wrappers in input
+order, preserving each object's products, dependencies and code blocks. Objects must
+have the same name and source version and disjoint platforms.
+
+For incremental releases, initialize the wrapper checkout first and supply
+`artifact_hashes`, a map of tarball basenames to SHA-256 digests obtained independently
+from the artifact store (not from the build sidecars). A valid sidecar whose digest and
+tree hash match an existing `Artifacts.toml` download reuses that download URL without
+fetching the tarball. Missing or invalid sidecars fall back to inspecting the tarball.
+`fetch_tarball(filename, destination)` downloads a missing tarball; it may be called
+concurrently, and the downloaded bytes are checked against `artifact_hashes`.
+
+Return the tarball basenames that need uploading to `upload_prefix`. Only upload these
+product tarballs (and any desired build logs), since other files in `download_dir` may
+already be available from an earlier release. Sidecars must not be uploaded. This
+function neither pushes the wrapper repository nor publishes a release.
+
+`build_version` defaults to a single version lookup for the whole batch; pass the
+version already selected by the registration job when available. `code_dir` defaults
+to the package's development directory. `from_scratch=true` removes old wrappers and
+artifact bindings only after all metadata has been recovered successfully.
+"""
+function rebuild_jll_package(objs::AbstractVector;
+                             download_dir::String, upload_prefix::String,
+                             build_meta_dir::String=download_dir,
+                             artifact_hashes::AbstractDict=Dict(),
+                             fetch_tarball=nothing, reuse_artifacts::Bool=true,
+                             build_version=nothing,
+                             code_dir::Union{Nothing,String}=nothing,
+                             from_scratch::Bool=true, verbose::Bool=false)
+    isempty(objs) && throw(ArgumentError("No recipe metadata objects supplied"))
+    name, version = first(objs)["name"], first(objs)["version"]
+    code_dir = something(code_dir, codedir(name))
+    seen = Set()
+    for obj in objs
+        if obj["name"] != name || obj["version"] != version
+            throw(ArgumentError("Batch reconstruction requires one package name and source version"))
+        end
+        for platform in obj["platforms"]
+            key = tarball_platform_key(platform)
+            key in seen && throw(ArgumentError("Duplicate platform in recipe metadata: $(triplet(platform))"))
+            push!(seen, key)
+        end
+    end
+
+    # The artifact store can list tarballs that have not been downloaded yet.
+    # Validate the basenames before using them as local paths or calling the downloader.
+    hashes = Dict{String,String}()
+    tarball_names = tarball_lookup_table(download_dir)
+    for (filename, hash) in artifact_hashes
+        if basename(filename) != filename || occursin('\\', filename) ||
+           !startswith(filename, "$(name).v$(version).")
+            throw(ArgumentError("Invalid product tarball name: $(filename)"))
+        end
+        platform = main_tarball_platform(filename)
+        platform === nothing && throw(ArgumentError("Invalid product tarball name: $(filename)"))
+        occursin(r"^[0-9a-fA-F]{64}$", hash) || throw(ArgumentError("Invalid SHA-256 for $(filename)"))
+        key = tarball_platform_key(platform)
+        if haskey(tarball_names, key) && tarball_names[key] != filename
+            throw(ArgumentError("Multiple tarballs for $(triplet(platform))"))
+        end
+        tarball_names[key] = filename
+        hashes[filename] = lowercase(hash)
+    end
+
+    # Preflight the entire batch, including legacy OS-version aliases, before fetching
+    # anything. Two objects must not concurrently download to the same destination.
+    used_tarballs = Set{String}()
+    for obj in objs
+        _, paths = rebuild_tarball_paths(obj["platforms"], tarball_names)
+        for filename in paths
+            filename in used_tarballs && throw(ArgumentError("Multiple metadata objects use $(filename)"))
+            push!(used_tarballs, filename)
+        end
+    end
+
+    # Match both digests: an identical extracted tree alone does not establish that
+    # the old compressed archive has the digest we are about to put in Artifacts.toml.
+    existing_artifacts = Dict()
+    artifacts_toml = joinpath(code_dir, "Artifacts.toml")
+    if reuse_artifacts && isfile(artifacts_toml)
+        entries = get(TOML.parsefile(artifacts_toml), name, [])
+        for entry in (entries isa Dict ? [entries] : entries)
+            tree = Base.SHA1(entry["git-tree-sha1"])
+            for download in get(entry, "download", [])
+                key = (download["sha256"], tree)
+                push!(get!(() -> Tuple[], existing_artifacts, key), (download["url"], download["sha256"]))
+            end
+        end
+    end
+    if build_version === nothing
+        build_version = get_next_wrapper_version(name, version)
+    end
+
+    prepared = Vector{Any}(undef, length(objs))
+    semaphore = Base.Semaphore(rebuild_concurrency())
+    @sync for (idx, obj) in enumerate(objs)
+        Threads.@spawn prepared[idx] = rebuild_jll_metadata(
+            obj["platforms"], obj["products"], download_dir, upload_prefix;
+            build_meta_dir, verbose, tarball_names, semaphore,
+            artifact_hashes=hashes, fetch_tarball, existing_artifacts)
+    end
+
+    if from_scratch
+        rm(joinpath(code_dir, "src"); recursive=true, force=true)
+        rm(artifacts_toml; force=true)
+    end
+    uploads = String[]
+    for (obj, (build_output_meta, artifact_downloads, tarballs)) in zip(objs, prepared)
+        julia_compat = get(obj, "julia_compat", DEFAULT_JULIA_VERSION_SPEC)
+        augment_platform_block = get(obj, "augment_platform_block", "")
+        lazy_artifacts = get(obj, "lazy_artifacts", !isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7")
+        build_jll_package(name, build_version, obj["sources"], code_dir, build_output_meta,
+                          obj["dependencies"], upload_prefix;
+                          products=obj["products"], artifact_downloads, verbose, julia_compat,
+                          augment_platform_block, lazy_artifacts,
+                          init_block=get(obj, "init_block", ""),
+                          toplevel_block=get(obj, "toplevel_block", ""))
+        append!(uploads, tarballs)
+    end
+    return uploads
+end
+
 # Avoid nested repetition in the triplet group; it can backtrack catastrophically.
 const TARBALL_FILENAME_REGEX =
     r"^(?:.*/)?(?<name>\w+)\.v(?<version>\d+\.\d+\.\d+)\.(?<platform_triplet>.+)\.tar(?:\.\w+)?$"
@@ -1339,9 +1468,12 @@ end
 
 Recover `(tarball_hash, git_hash, products_info)` from a sidecar, or return `nothing` when
 it is absent or invalid. The tarball SHA-256 binds the sidecar to the downloaded bytes.
+An optional `tarball_hash` must come from a trusted artifact store or a verified download,
+never from the sidecar itself; when supplied, the tarball need not be present.
 """
 function read_build_meta(tarball_path::AbstractString, products::Vector;
-                         meta_dir::AbstractString = dirname(tarball_path))
+                         meta_dir::AbstractString = dirname(tarball_path),
+                         tarball_hash::Union{Nothing,AbstractString} = nothing)
     meta_path = joinpath(meta_dir, basename(build_meta_path(tarball_path)))
     isfile(meta_path) || return nothing
 
@@ -1388,8 +1520,10 @@ function read_build_meta(tarball_path::AbstractString, products::Vector;
         return fallback("$(meta_path) has a malformed git tree hash: $(sprint(showerror, e))")
     end
 
-    tarball_hash = open(tarball_path, "r") do io
-        bytes2hex(sha256(io))
+    if tarball_hash === nothing
+        tarball_hash = open(tarball_path, "r") do io
+            bytes2hex(sha256(io))
+        end
     end
     if tarball_hash != get(meta, "tarball_hash", nothing)
         return fallback("$(basename(tarball_path)) does not hash to what $(basename(meta_path)) claims")
@@ -1463,19 +1597,9 @@ function inspect_tarball(tarball_path::AbstractString, platform, products::Vecto
     end
 end
 
-function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
-                             platforms::Vector, products::Vector, dependencies::Vector,
-                             download_dir::String, upload_prefix::String;
-                             code_dir::String = codedir(name),
-                             build_meta_dir::String = download_dir,
-                             verbose::Bool = false, from_scratch::Bool = true,
-                             kwargs...)
-    # We're going to recreate "build_output_meta"
-    build_output_meta = Dict()
-
+function rebuild_tarball_paths(platforms, tarball_names)
     # Match every platform up with its tarball first, so that an incomplete release is
     # reported before we start doing any of the expensive work.
-    tarball_names = tarball_lookup_table(download_dir)
     sorted_platforms = sort(collect(platforms), by = triplet)
     tarball_paths = map(sorted_platforms) do platform
         # Find the corresponding tarball:
@@ -1501,19 +1625,50 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         return tarball_name
     end
 
+    return sorted_platforms, tarball_paths
+end
+
+# Preparation is separate from writing wrappers so callers can share a concurrency
+# bound across metadata objects without concurrently modifying the JLL source tree.
+function rebuild_jll_metadata(platforms, products, download_dir, upload_prefix;
+                              build_meta_dir=download_dir, verbose=false,
+                              tarball_names=tarball_lookup_table(download_dir),
+                              semaphore=Base.Semaphore(rebuild_concurrency()),
+                              artifact_hashes=Dict(), fetch_tarball=nothing,
+                              existing_artifacts=Dict())
+    # We're going to recreate "build_output_meta"
+    build_output_meta = Dict()
+
+    sorted_platforms, tarball_paths = rebuild_tarball_paths(platforms, tarball_names)
+
     # Recovering the metadata is independent for each platform, so do several at once.
     metas = Vector{Any}(undef, length(sorted_platforms))
-    semaphore = Base.Semaphore(rebuild_concurrency())
+    downloads = Vector{Any}(undef, length(sorted_platforms))
     @sync for (idx, platform) in enumerate(sorted_platforms)
         Threads.@spawn begin
             Base.acquire(semaphore)
             try
                 tarball_path = joinpath(download_dir, tarball_paths[idx])
-                # Prefer build metadata, but retain the inspection path for older builds.
-                meta = read_build_meta(tarball_path, products; meta_dir=build_meta_dir)
-                if meta === nothing
-                    meta = inspect_tarball(tarball_path, platform, products; verbose)
+                expected_hash = get(artifact_hashes, tarball_paths[idx], nothing)
+                meta = expected_hash === nothing ? nothing : read_build_meta(
+                    tarball_path, products; meta_dir=build_meta_dir, tarball_hash=expected_hash)
+                previous = meta === nothing ? nothing : get(existing_artifacts, (meta[1], meta[2]), nothing)
+                if previous === nothing
+                    if !isfile(tarball_path) && fetch_tarball !== nothing
+                        fetch_tarball(tarball_paths[idx], tarball_path)
+                    end
+                    actual_hash = open(io -> bytes2hex(sha256(io)), tarball_path)
+                    if expected_hash !== nothing && actual_hash != expected_hash
+                        error("Downloaded $(tarball_paths[idx]) does not match its artifact-store checksum")
+                    end
+                    meta = read_build_meta(tarball_path, products;
+                                           meta_dir=build_meta_dir, tarball_hash=actual_hash)
+                    if meta === nothing
+                        meta = inspect_tarball(tarball_path, platform, products; verbose)
+                    end
+                    previous = get(existing_artifacts, (meta[1], meta[2]), nothing)
                 end
+                downloads[idx] = previous
                 metas[idx] = meta
             finally
                 Base.release(semaphore)
@@ -1521,8 +1676,15 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         end
     end
 
+    artifact_downloads = Dict()
+    uploads = String[]
     # Store all this information within build_output_meta:
     for (idx, platform) in enumerate(sorted_platforms)
+        if downloads[idx] === nothing
+            push!(uploads, tarball_paths[idx])
+        else
+            artifact_downloads[platform] = downloads[idx]
+        end
         tarball_hash, git_hash, products_info = metas[idx]
         build_output_meta[platform] = (
             joinpath(upload_prefix, tarball_paths[idx]),
@@ -1531,6 +1693,19 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
             products_info,
         )
     end
+
+    return build_output_meta, artifact_downloads, uploads
+end
+
+function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
+                             platforms::Vector, products::Vector, dependencies::Vector,
+                             download_dir::String, upload_prefix::String;
+                             code_dir::String = codedir(name),
+                             build_meta_dir::String = download_dir,
+                             verbose::Bool = false, from_scratch::Bool = true,
+                             kwargs...)
+    build_output_meta, _, _ = rebuild_jll_metadata(
+        platforms, products, download_dir, upload_prefix; build_meta_dir, verbose)
 
     # If `from_scratch` is set (the default) we clear out any old crusty code
     # before generating our new, pristine, JLL package within it.  :)
@@ -1577,6 +1752,7 @@ function build_jll_package(src_name::String,
                            dependencies::Vector,
                            bin_path::String;
                            products::Vector = Product[],
+                           artifact_downloads::AbstractDict = Dict(),
                            verbose::Bool = false,
                            julia_compat::String = DEFAULT_JULIA_VERSION_SPEC,
                            init_block::String = "",
@@ -1605,9 +1781,9 @@ function build_jll_package(src_name::String,
 
         # Add an Artifacts.toml
         artifacts_toml = joinpath(code_dir, "Artifacts.toml")
-        download_info = Tuple[
-            (joinpath(bin_path, basename(tarball_name)), tarball_hash),
-        ]
+        download_info = get(artifact_downloads, platform) do
+            Tuple[(joinpath(bin_path, basename(tarball_name)), tarball_hash)]
+        end
         if platform isa AnyPlatform
             # AnyPlatform begs for a platform-independent artifact
             bind_artifact!(artifacts_toml, src_name, git_hash; download_info=download_info, force=true, lazy=lazy_artifacts)

@@ -487,3 +487,39 @@ correct build script for all platforms, or if each platform build takes a long
 time. In this case, it is possible to skip the build process and just deploy
 the JLL package by providing the `--skip-build` flag to the `build_tarballs.jl`
 script. Read the help (`--help`) for more information.
+
+## Reconstructing an incremental JLL release
+
+Registration services can pass a vector of cleaned recipe metadata objects to
+`BinaryBuilder.rebuild_jll_package`. This verifies tarballs across all objects under
+one `BINARYBUILDER_REBUILD_CONCURRENCY` limit, then writes wrappers sequentially.
+The objects must describe one package version with disjoint platforms; each object's
+products and initialization code are preserved.
+
+To reuse binaries from an earlier release, initialize the JLL checkout and download
+the build metadata sidecars first. Obtain the product tarball filenames and SHA-256
+checksums from the artifact store's authenticated API, independently of the sidecars.
+For example, a registration service can use the following adapter:
+
+```julia
+# `objects` have already been processed by `cleanup_merged_object!`.
+# `artifact_hashes` maps product tarball basenames to artifact-store SHA-256 checksums.
+# `fetch_tarball(filename, destination)` downloads one artifact to `destination`;
+# it must support concurrent calls for different filenames.
+uploads = BinaryBuilder.rebuild_jll_package(objects;
+    download_dir, build_meta_dir, upload_prefix, code_dir, build_version,
+    artifact_hashes, fetch_tarball)
+```
+
+When a valid sidecar matches both a store checksum and an existing `Artifacts.toml`
+download's compressed and extracted-tree hashes, the old download URL is retained.
+The tarball is neither downloaded nor included in `uploads`. Missing or invalid
+sidecars trigger download and inspection; fetched bytes must match the store checksum.
+Set `reuse_artifacts=false` to publish fresh assets for all platforms.
+
+Push the reconstructed wrapper code, then upload only the product tarballs named in
+`uploads`, plus any desired build logs. Do not upload the sidecars or blindly upload
+everything in `download_dir`: it can also contain local copies of reused assets.
+Register the package after publishing the required assets. Pkg already caches
+installed artifacts by tree hash, so retaining old URLs primarily saves release
+publication work rather than changing users' cache behavior.
