@@ -120,7 +120,7 @@ using BinaryBuilder.BinaryBuilderBase
         metadata["version"] += 1
         write(sidecar2, BinaryBuilder.JSON.json(metadata))
         invalid_dir = mkpath(joinpath(dir, "invalid-meta"))
-        @test_logs (:warn, r"is version") (:warn, r"is version") BinaryBuilder.rebuild_jll_package(objs;
+        @test_logs (:warn, r"is version") BinaryBuilder.rebuild_jll_package(objs;
             download_dir=invalid_dir, build_meta_dir=sidecars, code_dir=code,
             build_version=version, upload_prefix=new_prefix, artifact_hashes=hashes, fetch_tarball)
         @test sort(readdir(invalid_dir)) == sort(filenames[1:2])
@@ -142,6 +142,10 @@ using BinaryBuilder.BinaryBuilderBase
         @test_throws ErrorException BinaryBuilder.rebuild_jll_package(objs;
             download_dir=mkpath(joinpath(dir, "untrusted")), build_meta_dir=sidecars,
             code_dir=code, build_version=version, upload_prefix=new_prefix)
+        @test tree_files(code) == saved
+        mixed = [objs[1], merge(objs[1], Dict("platforms" => [AnyPlatform()]))]
+        @test_throws ArgumentError BinaryBuilder.rebuild_jll_package(mixed;
+            download_dir=store, code_dir=code, build_version=version, upload_prefix=new_prefix)
         @test tree_files(code) == saved
         @test_throws ArgumentError BinaryBuilder.rebuild_jll_package([objs; objs[1:1]];
             download_dir=store, code_dir=code, build_version=version, upload_prefix=new_prefix)

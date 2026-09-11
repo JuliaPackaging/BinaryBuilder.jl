@@ -493,8 +493,10 @@ script. Read the help (`--help`) for more information.
 Registration services can pass a vector of cleaned recipe metadata objects to
 `BinaryBuilder.rebuild_jll_package`. This verifies tarballs across all objects under
 one `BINARYBUILDER_REBUILD_CONCURRENCY` limit, then writes wrappers sequentially.
-The objects must describe one package version with disjoint platforms; each object's
-products and initialization code are preserved.
+The objects must describe one package version with disjoint platforms; `AnyPlatform`
+cannot be mixed with other platforms. Each platform wrapper keeps its products and
+initialization code. As with sequential reconstruction, the last object supplies
+package-wide files, including `Project.toml`, the main module and the README.
 
 To reuse binaries from an earlier release, initialize the JLL checkout and download
 the build metadata sidecars first. Obtain the product tarball filenames and SHA-256
@@ -523,3 +525,6 @@ everything in `download_dir`: it can also contain local copies of reused assets.
 Register the package after publishing the required assets. Pkg already caches
 installed artifacts by tree hash, so retaining old URLs primarily saves release
 publication work rather than changing users' cache behavior.
+
+The registration service must adopt this API and select uploads accordingly; existing
+calls with a single metadata dictionary keep their current behavior.

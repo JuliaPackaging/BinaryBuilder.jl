@@ -1243,8 +1243,11 @@ end
 
 Reconstruct one JLL from multiple cleaned recipe metadata objects. Verify tarballs
 across all objects with `rebuild_concurrency()` workers, then write wrappers in input
-order, preserving each object's products, dependencies and code blocks. Objects must
-have the same name and source version and disjoint platforms.
+order, preserving each platform wrapper's products, dependencies and initialization
+code. As with sequential reconstruction, the last object supplies package-wide files
+such as `Project.toml`, the main module and the README. Objects must have the same name
+and source version and disjoint platforms. `AnyPlatform` cannot be mixed with other
+platforms.
 
 For incremental releases, initialize the wrapper checkout first and supply
 `artifact_hashes`, a map of tarball basenames to SHA-256 digests obtained independently
@@ -1285,6 +1288,9 @@ function rebuild_jll_package(objs::AbstractVector;
             key in seen && throw(ArgumentError("Duplicate platform in recipe metadata: $(triplet(platform))"))
             push!(seen, key)
         end
+    end
+    if length(seen) > 1 && any(p isa AnyPlatform for obj in objs for p in obj["platforms"])
+        throw(ArgumentError("Cannot mix AnyPlatform and platform-specific artifacts"))
     end
 
     # The artifact store can list tarballs that have not been downloaded yet.
@@ -1485,6 +1491,8 @@ function read_build_meta(tarball_path::AbstractString, products::Vector;
         return fallback("Could not parse $(meta_path): $(sprint(showerror, e))")
     end
 
+    meta isa AbstractDict || return fallback("$(meta_path) is not a metadata object")
+
     if get(meta, "version", nothing) != BUILD_META_VERSION
         return fallback("$(meta_path) is version $(get(meta, "version", nothing)), not $(BUILD_META_VERSION)")
     end
@@ -1494,9 +1502,11 @@ function read_build_meta(tarball_path::AbstractString, products::Vector;
 
     # Every product must have the same shape produced by `autobuild`.  In particular,
     # reject paths that could escape the artifact directory when embedded in a wrapper.
+    meta_products = get(meta, "products", nothing)
+    meta_products isa AbstractDict || return fallback("$(meta_path) has no usable products object")
     products_info = Dict{Product,Any}()
     for p in products
-        info = get(get(meta, "products", Dict{String,Any}()), string(variable_name(p)), nothing)
+        info = get(meta_products, string(variable_name(p)), nothing)
         path = info isa Dict ? get(info, "path", nothing) : nothing
         if !(path isa AbstractString) || isempty(path)
             return fallback("$(meta_path) has no usable entry for $(p)")
@@ -1553,11 +1563,15 @@ end
 
 Recover the `(tarball_hash, git_hash, products_info)` that `autobuild` computed for this
 tarball when it built it, by unpacking the tarball and inspecting what comes out.
+Pass an already verified `tarball_hash` to avoid hashing the archive again.
 """
 function inspect_tarball(tarball_path::AbstractString, platform, products::Vector;
-                         verbose::Bool = false)
-    tarball_hash = open(tarball_path, "r") do io
-        bytes2hex(sha256(io))
+                         verbose::Bool = false,
+                         tarball_hash::Union{Nothing,AbstractString} = nothing)
+    if tarball_hash === nothing
+        tarball_hash = open(tarball_path, "r") do io
+            bytes2hex(sha256(io))
+        end
     end
 
     # Unpack the tarball into a new location, calculate the git hash and locate() each product;
@@ -1661,10 +1675,15 @@ function rebuild_jll_metadata(platforms, products, download_dir, upload_prefix;
                     if expected_hash !== nothing && actual_hash != expected_hash
                         error("Downloaded $(tarball_paths[idx]) does not match its artifact-store checksum")
                     end
-                    meta = read_build_meta(tarball_path, products;
-                                           meta_dir=build_meta_dir, tarball_hash=actual_hash)
+                    # With a store checksum, we already read the sidecar above and
+                    # have now verified that checksum against the downloaded bytes.
+                    if expected_hash === nothing
+                        meta = read_build_meta(tarball_path, products;
+                                               meta_dir=build_meta_dir, tarball_hash=actual_hash)
+                    end
                     if meta === nothing
-                        meta = inspect_tarball(tarball_path, platform, products; verbose)
+                        meta = inspect_tarball(tarball_path, platform, products;
+                                               verbose, tarball_hash=actual_hash)
                     end
                     previous = get(existing_artifacts, (meta[1], meta[2]), nothing)
                 end
