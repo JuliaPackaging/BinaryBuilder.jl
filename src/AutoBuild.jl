@@ -137,6 +137,21 @@ const BUILD_HELP = (
     """
 )
 
+# Julia 1.12 can lose the wakeup of the thread that services the libuv event
+# loop when a worker thread arms IO (e.g. Pkg downloading artifacts in a
+# `Threads.@spawn` task) while that thread is parked. The download then stalls
+# forever with data waiting in the socket. Keeping a libuv handle active means
+# the event loop never becomes idle, so thread 0 blocks inside `uv_run` instead
+# of parking and picks up new watchers on its next iteration.
+# See https://github.com/JuliaLang/julia/issues/63173.
+const EVENT_LOOP_KEEPALIVE = Ref{Union{Nothing,Timer}}(nothing)
+function keep_event_loop_alive()
+    if EVENT_LOOP_KEEPALIVE[] === nothing && Threads.nthreads() > 1
+        EVENT_LOOP_KEEPALIVE[] = Timer(_ -> nothing, 1; interval=1)
+    end
+    return nothing
+end
+
 """
     build_tarballs(ARGS, src_name, src_version, sources, script, platforms,
                    products, dependencies; kwargs...)
@@ -209,6 +224,8 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         println(BUILD_HELP)
         return nothing
     end
+
+    keep_event_loop_alive()
 
     if compression_format != "gzip" && minimum_compat(julia_compat) < v"1.6"
         error("Compression formats different from gzip are supported only from Julia v1.6, increase the Julia compat if you want to use a non-default format")
