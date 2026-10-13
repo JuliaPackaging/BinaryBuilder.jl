@@ -1,7 +1,7 @@
 name = "BinaryBuilder"
 uuid = "12aac903-9f7c-5d81-afc2-d9565ea332ae"
-authors = ["Elliot Saba <staticfloat@gmail.com>"]
 version = "0.6.6"
+authors = ["Elliot Saba <staticfloat@gmail.com>"]
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -38,7 +38,7 @@ BinaryBuilderBase = "1.40.0"
 Binutils_jll = "2"
 Downloads = "1"
 GitHub = "5.1"
-HTTP = "0.8, 0.9, 1"
+HTTP = "0.8, 0.9, 1, 2"
 JLD2 = "0.1.6, 0.2, 0.3, 0.4, 0.5, 0.6"
 JLLWrappers = "1.2.0"
 JSON = "0.21, 1"
