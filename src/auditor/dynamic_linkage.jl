@@ -350,6 +350,14 @@ function should_ignore_lib(lib, ::COFFHandle, platform::AbstractPlatform)
     return libname in ignore_libs || startswith(libname, "api-ms-win-")
 end
 
+function disallowed_linked_library(lib, platform::AbstractPlatform)
+    libname = lowercase(basename(lib))
+    if Sys.iswindows(platform) && libc(platform) == "ucrt" && libname == "msvcrt.dll"
+        return "UCRT Windows targets must not link against MSVCRT.dll"
+    end
+    return nothing
+end
+
 # Determine whether a library is a "default" library or not, if it is we need
 # to map it to `@rpath/$libname` on OSX or `\$ORIGIN/$libname` on Linux/FreeBSD
 is_default_lib(lib, oh) = false
