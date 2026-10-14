@@ -1905,8 +1905,10 @@ function build_jll_package(src_name::String,
     end
 
     print_source(io, s::ArchiveSource) = println(io, "* compressed archive: ", s.url, " (SHA256 checksum: `", s.hash,"`)")
-    print_source(io, s::GitSource) =     println(io, "* git repository: ", s.url, " (revision: `", s.hash,"`)")
-    print_source(io, s::GitReleaseSource) = println(io, "* git repository: ", s.url, " (tag: `", s.tag, "`, revision: `", s.hash,"`)")
+    function print_source(io, s::GitSource)
+        tag = isempty(s.tag) ? "" : string("tag: `", s.tag, "`, ")
+        println(io, "* git repository: ", s.url, " (", tag, "revision: `", s.hash,"`)")
+    end
     print_source(io, s::FileSource) =    println(io, "* file: ", s.url, " (SHA256 checksum: `", s.hash,"`)")
     function print_source(io, s::DirectorySource)
         print(io, "* files in directory, relative to originating `build_tarballs.jl`: ")

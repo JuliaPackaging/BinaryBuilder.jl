@@ -24,7 +24,7 @@ export Product, LibraryProduct, FileProduct, ExecutableProduct, FrameworkProduct
 # BinaryBuilderBase/src/Dependency.jl
 export Dependency, RuntimeDependency, BuildDependency, HostBuildDependency
 # BinaryBuilderBase/src/Sources.jl
-export ArchiveSource, FileSource, GitSource, GitReleaseSource, DirectorySource
+export ArchiveSource, FileSource, GitSource, DirectorySource
 # Auditor.jl
 export audit, collect_files, collapse_symlinks
 

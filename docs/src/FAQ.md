@@ -92,7 +92,7 @@ The list of sources is a vector of [`BinaryBuilder.AbstractSource`](@ref)s.  Wha
   replacing `http://example.org/file.tar.gz` with the actual URL of the file you want to download.
 
 * For a [`GitSource`](@ref), the hash is the 40-character SHA1 hash of the revision you want to checkout.  For reproducibility you must indicate a specific revision, and not a branch or tag name, which are moving targets.
-  If the revision is a tagged release, you can use a [`GitReleaseSource`](@ref) instead, which takes both the tag name and the hash and checks that they agree.
+  If the revision is a tagged release, you can also give the name of the tag with the `tag` keyword argument, e.g. `GitSource(url, hash; tag="v1.2.3")`: the build then checks that the tag points to this revision.
 
 ### Now that I have a published and versioned `jll` package, what compat bounds do I put in its dependents? What if the upstream does not follow SemVer?
 
