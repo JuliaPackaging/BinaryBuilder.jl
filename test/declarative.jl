@@ -31,12 +31,8 @@ import BinaryBuilder.BinaryBuilderBase: sourcify
     # Now, deserialize the info:
     seek(meta_json_buff, 0)
 
-    # Strip out ending newlines as that makes our while loop below sad
-    meta_json_buff = IOBuffer(strip(String(take!(meta_json_buff))))
-    objs = []
-    while !eof(meta_json_buff)
-        push!(objs, JSON.parse(meta_json_buff))
-    end
+    # There is one JSON object per line
+    objs = [JSON.parse(line; dicttype=Dict) for line in eachline(meta_json_buff) if !isempty(line)]
 
     # Ensure that we get two JSON objects
     @test length(objs) == 2
@@ -83,12 +79,8 @@ import BinaryBuilder.BinaryBuilderBase: sourcify
 
         # Deserialize the info:
         seekstart(meta_json_buff)
-        # Strip out ending newlines as that makes our while loop below sad
-        meta_json_buff = IOBuffer(strip(String(take!(meta_json_buff))))
-        objs = []
-        while !eof(meta_json_buff)
-            push!(objs, JSON.parse(meta_json_buff))
-        end
+        # There is one JSON object per line
+        objs = [JSON.parse(line; dicttype=Dict) for line in eachline(meta_json_buff) if !isempty(line)]
         # Ensure that we get one JSON object
         @test length(objs) == 1
         # Platform-independent build: the JSON file doesn't have a "platforms" key
