@@ -367,14 +367,18 @@ function build_tarballs(ARGS, src_name, src_version, sources, script,
         # Dependencies that must be downloaded
         dependencies,
     )
-    extra_kwargs = extract_kwargs(
-        kwargs,
-        (:lazy_artifacts, :init_block, :augment_platform_block, :toplevel_block),
-    )
+    wrapper_kwargs = (:lazy_artifacts, :init_block, :augment_platform_block, :toplevel_block)
+    extra_kwargs = extract_kwargs(kwargs, wrapper_kwargs)
 
     if meta_json_stream !== nothing
         # If they've asked for the JSON metadata, by all means, give it to them!
-        dict = get_meta_json(args...; extra_kwargs..., julia_compat=julia_compat)
+        # Everything but the wrapper metadata can affect the tarballs.  Recording it lets
+        # CI tell whether a platform's tarball from an earlier release can be reused.  Only
+        # options passed explicitly are recorded, and `repr` is only comparable under the
+        # same Julia and BinaryBuilder versions, so CI must also compare those.
+        build_options = Dict(string(k) => repr(v) for (k, v) in pairs(kwargs) if k ∉ wrapper_kwargs)
+        build_options["compression_format"] = repr(compression_format)
+        dict = get_meta_json(args...; extra_kwargs..., julia_compat, build_options)
         println(meta_json_stream, JSON.json(dict))
 
         if meta_json_stream !== stdout
@@ -722,6 +726,7 @@ function get_meta_json(
                    augment_platform_block::String = "",
                    toplevel_block::String = "",
                    lazy_artifacts::Bool=!isempty(augment_platform_block) && minimum_compat(julia_compat) < v"1.7",
+                   build_options::AbstractDict = Dict{String,String}(),
     )
 
     dict = Dict(
@@ -736,6 +741,7 @@ function get_meta_json(
         "init_block" => init_block,
         "augment_platform_block" => augment_platform_block,
         "toplevel_block" => toplevel_block,
+        "build_options" => build_options,
     )
     # Do not write the list of platforms when building only for `AnyPlatform`
     if platforms != [AnyPlatform()]

@@ -321,3 +321,22 @@ end
     BinaryBuilder.cleanup_merged_object!(merged)
     @test string.(variable_name.(merged["products"])) == ["libqux", "libbar", "baz", "libfoo"]
 end
+
+@testset "JLLs - build options in meta-json" begin
+    mktempdir() do dir
+        cd(dir) do
+            meta_path = joinpath(dir, "meta.json")
+            build_tarballs(["--meta-json=$(meta_path)"], "Foo", v"1.0.0", AbstractSource[], "true",
+                           [Platform("x86_64", "linux")], Product[], Dependency[];
+                           preferred_gcc_version=v"9", compilers=[:c, :rust], skip_audit=true,
+                           augment_platform_block="# augment", init_block="# init")
+            options = JSON.parsefile(meta_path)["build_options"]
+            @test options == Dict(
+                "preferred_gcc_version" => repr(v"9"),
+                "compilers" => repr([:c, :rust]),
+                "skip_audit" => "true",
+                "compression_format" => repr("gzip"),
+            )
+        end
+    end
+end
