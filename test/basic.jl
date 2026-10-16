@@ -406,5 +406,14 @@ end
         # A product the sidecar knows nothing about
         restore()
         @test (@test_logs (:warn, r"falling back") read_build_meta(tarball_path, [products..., FileProduct("share/thing", :thing)])) === nothing
+
+        # Without verification, the sidecar alone describes a tarball we don't have
+        rm(tarball_path)
+        got = read_build_meta(tarball_path, products; verify=false)
+        @test got !== nothing
+        @test got[1] == tarball_hash
+        @test got[2] == git_hash
+        write(meta_path, replace(original, tarball_hash => "garbage"))
+        @test (@test_logs (:warn, r"malformed tarball hash") read_build_meta(tarball_path, products; verify=false)) === nothing
     end
 end

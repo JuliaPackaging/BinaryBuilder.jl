@@ -1205,6 +1205,7 @@ end
 function rebuild_jll_package(obj::Dict;
                              download_dir = nothing,
                              build_meta_dir = nothing,
+                             reused_urls::AbstractVector = String[],
                              upload_prefix = nothing,
                              build_version = nothing,
                              gh_org::String = "JuliaBinaryWrappers",
@@ -1236,6 +1237,7 @@ function rebuild_jll_package(obj::Dict;
         download_dir,
         upload_prefix;
         build_meta_dir = something(build_meta_dir, download_dir),
+        reused_urls,
         verbose,
         lazy_artifacts,
         julia_compat,
@@ -1348,10 +1350,12 @@ end
     read_build_meta(tarball_path, products; meta_dir=dirname(tarball_path)) -> Union{Nothing,Tuple}
 
 Recover `(tarball_hash, git_hash, products_info)` from a sidecar, or return `nothing` when
-it is absent or invalid. The tarball SHA-256 binds the sidecar to the downloaded bytes.
+it is absent or invalid. The tarball SHA-256 binds the sidecar to the downloaded bytes;
+with `verify=false` the tarball need not exist locally and the recorded hash is trusted.
 """
 function read_build_meta(tarball_path::AbstractString, products::Vector;
-                         meta_dir::AbstractString = dirname(tarball_path))
+                         meta_dir::AbstractString = dirname(tarball_path),
+                         verify::Bool = true)
     meta_path = joinpath(meta_dir, basename(build_meta_path(tarball_path)))
     isfile(meta_path) || return nothing
 
@@ -1398,10 +1402,11 @@ function read_build_meta(tarball_path::AbstractString, products::Vector;
         return fallback("$(meta_path) has a malformed git tree hash: $(sprint(showerror, e))")
     end
 
-    tarball_hash = open(tarball_path, "r") do io
-        bytes2hex(sha256(io))
+    tarball_hash = get(meta, "tarball_hash", nothing)
+    if !(tarball_hash isa AbstractString && occursin(r"^[0-9a-f]{64}$", tarball_hash))
+        return fallback("$(meta_path) has a malformed tarball hash")
     end
-    if tarball_hash != get(meta, "tarball_hash", nothing)
+    if verify && tarball_hash != open(io -> bytes2hex(sha256(io)), tarball_path, "r")
         return fallback("$(basename(tarball_path)) does not hash to what $(basename(meta_path)) claims")
     end
 
@@ -1473,23 +1478,35 @@ function inspect_tarball(tarball_path::AbstractString, platform, products::Vecto
     end
 end
 
+is_url(name) = startswith(name, "https://")
+
 function rebuild_jll_package(name::String, build_version::VersionNumber, sources::Vector,
                              platforms::Vector, products::Vector, dependencies::Vector,
                              download_dir::String, upload_prefix::String;
                              code_dir::String = codedir(name),
                              build_meta_dir::String = download_dir,
+                             reused_urls::AbstractVector = String[],
                              verbose::Bool = false, from_scratch::Bool = true,
                              kwargs...)
     # We're going to recreate "build_output_meta"
     build_output_meta = Dict()
 
     # Match every platform up with its tarball first, so that an incomplete release is
-    # reported before we start doing any of the expensive work.
+    # reported before we start doing any of the expensive work.  Tarballs reused from an
+    # earlier release are not downloaded: they are represented by their URL, and their
+    # sidecar in `build_meta_dir` supplies the metadata.
     tarball_names = tarball_lookup_table(download_dir)
-    sorted_platforms = sort(collect(platforms), by = triplet)
-    tarball_paths = map(sorted_platforms) do platform
-        # Find the corresponding tarball:
-        tarball_name = get(tarball_names, tarball_platform_key(platform), nothing)
+    reused_names = Dict{Tuple{Vararg{Pair{String,String}}},String}()
+    for url in reused_urls
+        is_url(url) || error("Reused tarball $(url) is not an https:// URL")
+        platform = main_tarball_platform(basename(url))
+        platform === nothing && error("Cannot determine the platform of reused tarball $(url)")
+        key = tarball_platform_key(platform)
+        haskey(reused_names, key) && error("$(triplet(platform)) is reused from both $(reused_names[key]) and $(url)")
+        reused_names[key] = url
+    end
+    function find_tarball(table, platform)
+        tarball_name = get(table, tarball_platform_key(platform), nothing)
 
         # No tarball matching the given platform...
         if tarball_name === nothing
@@ -1499,12 +1516,22 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
                 if isos(platform) && os_version(platform) === nothing
                     tmp_platform = deepcopy(platform)
                     tmp_platform["os_version"] = try_os_version
-                    tarball_name = get(tarball_names, tarball_platform_key(tmp_platform), nothing)
+                    tarball_name = get(table, tarball_platform_key(tmp_platform), nothing)
                 end
             end
         end
+        return tarball_name
+    end
+    sorted_platforms = sort(collect(platforms), by = triplet)
+    tarball_paths = map(sorted_platforms) do platform
+        rebuilt = find_tarball(tarball_names, platform)
+        reused = find_tarball(reused_names, platform)
+        if rebuilt !== nothing && reused !== nothing
+            error("$(triplet(platform)) is both rebuilt ($(rebuilt)) and reused ($(reused))")
+        end
 
         # Ok, really no tarball matching the given platform
+        tarball_name = something(rebuilt, reused, Some(nothing))
         if tarball_name === nothing
             error("Incomplete JLL release!  Could not find tarball for $(triplet(platform))")
         end
@@ -1518,11 +1545,17 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
         Threads.@spawn begin
             Base.acquire(semaphore)
             try
-                tarball_path = joinpath(download_dir, tarball_paths[idx])
-                # Prefer build metadata, but retain the inspection path for older builds.
-                meta = read_build_meta(tarball_path, products; meta_dir=build_meta_dir)
-                if meta === nothing
-                    meta = inspect_tarball(tarball_path, platform, products; verbose)
+                if is_url(tarball_paths[idx])
+                    url = tarball_paths[idx]
+                    meta = read_build_meta(basename(url), products; meta_dir=build_meta_dir, verify=false)
+                    meta === nothing && error("No usable build metadata for reused tarball $(url)")
+                else
+                    tarball_path = joinpath(download_dir, tarball_paths[idx])
+                    # Prefer build metadata, but retain the inspection path for older builds.
+                    meta = read_build_meta(tarball_path, products; meta_dir=build_meta_dir)
+                    if meta === nothing
+                        meta = inspect_tarball(tarball_path, platform, products; verbose)
+                    end
                 end
                 metas[idx] = meta
             finally
@@ -1535,7 +1568,7 @@ function rebuild_jll_package(name::String, build_version::VersionNumber, sources
     for (idx, platform) in enumerate(sorted_platforms)
         tarball_hash, git_hash, products_info = metas[idx]
         build_output_meta[platform] = (
-            joinpath(upload_prefix, tarball_paths[idx]),
+            is_url(tarball_paths[idx]) ? tarball_paths[idx] : joinpath(upload_prefix, tarball_paths[idx]),
             tarball_hash,
             git_hash,
             products_info,
@@ -1615,9 +1648,9 @@ function build_jll_package(src_name::String,
 
         # Add an Artifacts.toml
         artifacts_toml = joinpath(code_dir, "Artifacts.toml")
-        download_info = Tuple[
-            (joinpath(bin_path, basename(tarball_name)), tarball_hash),
-        ]
+        # A tarball reused from an earlier release keeps the URL it was published under.
+        url = is_url(tarball_name) ? tarball_name : joinpath(bin_path, basename(tarball_name))
+        download_info = Tuple[(url, tarball_hash)]
         if platform isa AnyPlatform
             # AnyPlatform begs for a platform-independent artifact
             bind_artifact!(artifacts_toml, src_name, git_hash; download_info=download_info, force=true, lazy=lazy_artifacts)
