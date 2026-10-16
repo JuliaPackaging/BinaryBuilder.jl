@@ -1352,7 +1352,7 @@ function read_build_meta(tarball_path::AbstractString, products::Vector;
     fallback(msg) = (@warn("$(msg); falling back to unpacking $(basename(tarball_path))"); nothing)
 
     meta = try
-        JSON.parsefile(meta_path)
+        JSON.parsefile(meta_path; dicttype=Dict)
     catch e
         return fallback("Could not parse $(meta_path): $(sprint(showerror, e))")
     end
