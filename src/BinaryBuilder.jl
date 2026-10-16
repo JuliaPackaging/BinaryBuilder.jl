@@ -47,6 +47,8 @@ function __init__()
     # If we're running on Azure, enable azure logging:
     if !isempty(get(ENV, "AZP_TOKEN", ""))
         enable_azure_logging()
+    elseif parse(Bool, get(ENV, "BUILDKITE", "false"))
+        enable_buildkite_logging()
     end
 end
 
