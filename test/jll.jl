@@ -321,3 +321,101 @@ end
     BinaryBuilder.cleanup_merged_object!(merged)
     @test string.(variable_name.(merged["products"])) == ["libqux", "libbar", "baz", "libfoo"]
 end
+
+@testset "JLLs - reused tarballs" begin
+    products = Product[LibraryProduct("libfoo", :libfoo)]
+    linux = Platform("x86_64", "linux")
+    macos = Platform("aarch64", "macos")
+    products_info = Dict{Product,Any}(products[1] => Dict("path" => "lib/libfoo.so", "soname" => "libfoo.so"))
+    fresh_hash = Base.SHA1("1"^40)
+    reused_hash = Base.SHA1("2"^40)
+    upload_prefix = "https://github.com/JuliaBinaryWrappers/Foo_jll.jl/releases/download/Foo-v1.1.0+0"
+    reused_url = "https://github.com/JuliaBinaryWrappers/Foo_jll.jl/releases/download/Foo-v1.0.0+0/Foo.v1.0.0.$(triplet(macos)).tar.gz"
+
+    mktempdir() do dir
+        download_dir = mkpath(joinpath(dir, "download"))
+        meta_dir = mkpath(joinpath(dir, "meta"))
+        code_dir = joinpath(dir, "code")
+
+        # This release builds the Linux tarball, and reuses the macOS one from v1.0.0, of
+        # which only the sidecar is around.
+        fresh = joinpath(download_dir, "Foo.v1.1.0.$(triplet(linux)).tar.gz")
+        write(fresh, "fresh")
+        BinaryBuilder.write_build_meta(joinpath(meta_dir, basename(fresh)), open(io -> bytes2hex(sha256(io)), fresh),
+                         fresh_hash, products_info)
+        BinaryBuilder.write_build_meta(joinpath(meta_dir, basename(reused_url)), "3"^64, reused_hash, products_info)
+
+        rebuild(reused_urls) = BinaryBuilder.rebuild_jll_package(
+            "Foo", v"1.1.0", AbstractSource[], [linux, macos], products, Dependency[],
+            download_dir, upload_prefix; code_dir, build_meta_dir=meta_dir, reused_urls)
+
+        rebuild([reused_url])
+        artifacts = TOML.parsefile(joinpath(code_dir, "Artifacts.toml"))["Foo"]
+        by_os = Dict(a["os"] => a for a in artifacts)
+        @test only(by_os["linux"]["download"])["url"] == "$(upload_prefix)/$(basename(fresh))"
+        @test by_os["linux"]["git-tree-sha1"] == bytes2hex(fresh_hash.bytes)
+        @test only(by_os["macos"]["download"])["url"] == reused_url
+        @test only(by_os["macos"]["download"])["sha256"] == "3"^64
+        @test by_os["macos"]["git-tree-sha1"] == bytes2hex(reused_hash.bytes)
+        @test isfile(joinpath(code_dir, "src", "wrappers", "$(triplet(macos)).jl"))
+
+        # Without the reused tarball, the release is incomplete
+        @test_throws ErrorException("Incomplete JLL release!  Could not find tarball for $(triplet(macos))") rebuild(String[])
+
+        # A platform can't be both rebuilt and reused
+        linux_url = "https://github.com/JuliaBinaryWrappers/Foo_jll.jl/releases/download/Foo-v1.0.0+0/Foo.v1.0.0.$(triplet(linux)).tar.gz"
+        @test_throws r"both rebuilt .* and reused" rebuild([reused_url, linux_url])
+
+        @test_throws r"reused from both" rebuild([reused_url, replace(reused_url, "Foo-v1.0.0" => "Foo-v0.9.0")])
+        @test_throws r"not an https:// URL" rebuild([replace(reused_url, "https://" => "http://")])
+
+        # The dictionary method, as called from Yggdrasil with a meta-json object
+        obj = Dict("name" => "Foo", "version" => v"1.1.0", "sources" => AbstractSource[],
+                   "platforms" => [linux, macos], "products" => products, "dependencies" => Dependency[])
+        # That method has no `code_dir` argument, so redirect the default
+        old_devdir = BinaryBuilder.devdir[]
+        BinaryBuilder.devdir[] = joinpath(dir, "devdir")
+        try
+            BinaryBuilder.rebuild_jll_package(obj; download_dir, build_meta_dir=meta_dir, upload_prefix,
+                                              build_version=v"1.1.0", reused_urls=Any[reused_url])
+            artifacts = TOML.parsefile(joinpath(BinaryBuilder.codedir("Foo"), "Artifacts.toml"))["Foo"]
+            @test only(only(a["download"])["url"] for a in artifacts if a["os"] == "macos") == reused_url
+        finally
+            BinaryBuilder.devdir[] = old_devdir
+        end
+
+        # A reused tarball needs its sidecar, there is nothing to unpack
+        rm(joinpath(meta_dir, BinaryBuilder.build_meta_path(basename(reused_url))))
+        @test_throws r"No usable build metadata" rebuild([reused_url])
+    end
+
+    # A rebuilt FreeBSD tarball still named after the OS version conflicts with a reused
+    # one that isn't
+    mktempdir() do dir
+        freebsd = Platform("x86_64", "freebsd")
+        write(joinpath(dir, "Foo.v1.1.0.x86_64-unknown-freebsd11.1.tar.gz"), "fresh")
+        url = "https://github.com/JuliaBinaryWrappers/Foo_jll.jl/releases/download/Foo-v1.0.0+0/Foo.v1.0.0.x86_64-unknown-freebsd.tar.gz"
+        @test_throws r"both rebuilt .* and reused" BinaryBuilder.rebuild_jll_package(
+            "Foo", v"1.1.0", AbstractSource[], [freebsd], products, Dependency[], dir,
+            "https://example.com"; code_dir=joinpath(dir, "code"), reused_urls=[url])
+    end
+end
+
+@testset "JLLs - build options in meta-json" begin
+    mktempdir() do dir
+        cd(dir) do
+            meta_path = joinpath(dir, "meta.json")
+            build_tarballs(["--meta-json=$(meta_path)"], "Foo", v"1.0.0", AbstractSource[], "true",
+                           [Platform("x86_64", "linux")], Product[], Dependency[];
+                           preferred_gcc_version=v"9", compilers=[:c, :rust], skip_audit=true,
+                           augment_platform_block="# augment", init_block="# init")
+            options = JSON.parsefile(meta_path)["build_options"]
+            @test options == Dict(
+                "preferred_gcc_version" => repr(v"9"),
+                "compilers" => repr([:c, :rust]),
+                "skip_audit" => "true",
+                "compression_format" => repr("gzip"),
+            )
+        end
+    end
+end
