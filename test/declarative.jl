@@ -59,6 +59,7 @@ import BinaryBuilder.BinaryBuilderBase: sourcify
           ), Ref(meta["sources"])))
     @test sourcify(Dict("type" => "directory", "path" => "foo")) == DirectorySource("foo")
     @test sourcify(Dict("type" => "git", "url" => "https://github.com/JuliaLang/julia.git", "hash" => "12345")) == GitSource("https://github.com/JuliaLang/julia.git", "12345")
+    @test sourcify(Dict("type" => "git", "url" => "https://github.com/JuliaLang/julia.git", "hash" => "12345", "tag" => "v1.0.0")) == GitSource("https://github.com/JuliaLang/julia.git", "12345"; tag="v1.0.0")
     @test sourcify(Dict("type" => "file", "url" => "https://julialang.org", "hash" => "98765")) == FileSource("https://julialang.org", "98765")
     @test_throws ErrorException sourcify(Dict("type" => "qux"))
 
