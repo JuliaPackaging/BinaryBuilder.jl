@@ -162,11 +162,9 @@ end
         ) do
             # What follows loosely mimics what we do to build JLL packages in
             # Yggdrasil.
-            buff = IOBuffer(strip(String(take!(buff))))
-            objs = []
-            while !eof(buff)
-                push!(objs, BinaryBuilder.JSON.parse(buff))
-            end
+            seekstart(buff)
+            # There is one JSON object per line
+            objs = [BinaryBuilder.JSON.parse(line; dicttype=Dict) for line in eachline(buff) if !isempty(line)]
 
             # Merging modifies `obj`, so let's keep an unmerged version around
             objs_unmerged = deepcopy(objs)
@@ -316,7 +314,7 @@ end
     # the order also survives the `--meta-json` round trip used by Yggdrasil's CI, where
     # the objects of several `build_tarballs` invocations are merged before packaging.
     meta = BinaryBuilder.get_meta_json("qux", v"1.0.0", AbstractSource[], "", [platform], products, Dependency[])
-    obj = JSON.parse(sprint(JSON.print, meta))
+    obj = JSON.parse(sprint(JSON.print, meta); dicttype=Dict)
     merged = BinaryBuilder.merge_json_objects([deepcopy(obj), obj])
     BinaryBuilder.cleanup_merged_object!(merged)
     @test string.(variable_name.(merged["products"])) == ["libqux", "libbar", "baz", "libfoo"]
