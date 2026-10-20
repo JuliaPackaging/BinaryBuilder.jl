@@ -6,6 +6,23 @@ using BinaryBuilder: jll_uuid, build_project_dict, get_github_author_login, Wiza
 
 module TestJLL end
 
+# Test that `expr` throws an error whose message matches `pattern`.  `@test_throws`
+# accepts a pattern only since Julia v1.8; `showerror` also covers errors wrapped in a
+# `CompositeException`.
+macro test_throws_msg(pattern, expr)
+    test = Expr(:macrocall, Symbol("@test"), __source__, :(occursin(pattern, msg)))
+    quote
+        pattern = $(esc(pattern))
+        msg = try
+            $(esc(expr))
+            "no exception thrown"
+        catch err
+            sprint(showerror, err)
+        end
+        $test
+    end
+end
+
 @testset "JLLs - utils" begin
     @testset "jll_uuid" begin
         @test jll_uuid("Zlib_jll") == UUID("83775a58-1f1d-513f-b197-d71354ab007a")
@@ -362,10 +379,10 @@ end
 
         # A platform can't be both rebuilt and reused
         linux_url = "https://github.com/JuliaBinaryWrappers/Foo_jll.jl/releases/download/Foo-v1.0.0+0/Foo.v1.0.0.$(triplet(linux)).tar.gz"
-        @test_throws r"both rebuilt .* and reused" rebuild([reused_url, linux_url])
+        @test_throws_msg r"both rebuilt .* and reused" rebuild([reused_url, linux_url])
 
-        @test_throws r"reused from both" rebuild([reused_url, replace(reused_url, "Foo-v1.0.0" => "Foo-v0.9.0")])
-        @test_throws r"not an https:// URL" rebuild([replace(reused_url, "https://" => "http://")])
+        @test_throws_msg r"reused from both" rebuild([reused_url, replace(reused_url, "Foo-v1.0.0" => "Foo-v0.9.0")])
+        @test_throws_msg r"not an https:// URL" rebuild([replace(reused_url, "https://" => "http://")])
 
         # The dictionary method, as called from Yggdrasil with a meta-json object
         obj = Dict("name" => "Foo", "version" => v"1.1.0", "sources" => AbstractSource[],
@@ -384,7 +401,7 @@ end
 
         # A reused tarball needs its sidecar, there is nothing to unpack
         rm(joinpath(meta_dir, BinaryBuilder.build_meta_path(basename(reused_url))))
-        @test_throws r"No usable build metadata" rebuild([reused_url])
+        @test_throws_msg r"No usable build metadata" rebuild([reused_url])
     end
 
     # A rebuilt FreeBSD tarball still named after the OS version conflicts with a reused
@@ -393,7 +410,7 @@ end
         freebsd = Platform("x86_64", "freebsd")
         write(joinpath(dir, "Foo.v1.1.0.x86_64-unknown-freebsd11.1.tar.gz"), "fresh")
         url = "https://github.com/JuliaBinaryWrappers/Foo_jll.jl/releases/download/Foo-v1.0.0+0/Foo.v1.0.0.x86_64-unknown-freebsd.tar.gz"
-        @test_throws r"both rebuilt .* and reused" BinaryBuilder.rebuild_jll_package(
+        @test_throws_msg r"both rebuilt .* and reused" BinaryBuilder.rebuild_jll_package(
             "Foo", v"1.1.0", AbstractSource[], [freebsd], products, Dependency[], dir,
             "https://example.com"; code_dir=joinpath(dir, "code"), reused_urls=[url])
     end
