@@ -10,14 +10,16 @@ module TestJLL end
 # accepts a pattern only since Julia v1.8; `showerror` also covers errors wrapped in a
 # `CompositeException`.
 macro test_throws_msg(pattern, expr)
+    test = Expr(:macrocall, Symbol("@test"), __source__, :(occursin(pattern, msg)))
     quote
+        pattern = $(esc(pattern))
         msg = try
             $(esc(expr))
-            nothing
+            "no exception thrown"
         catch err
             sprint(showerror, err)
         end
-        @test msg !== nothing && occursin($(esc(pattern)), msg)
+        $test
     end
 end
 
