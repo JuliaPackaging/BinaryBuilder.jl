@@ -1,7 +1,7 @@
 name = "BinaryBuilder"
 uuid = "12aac903-9f7c-5d81-afc2-d9565ea332ae"
-authors = ["Elliot Saba <staticfloat@gmail.com>"]
 version = "0.6.6"
+authors = ["Elliot Saba <staticfloat@gmail.com>"]
 
 [deps]
 ArgParse = "c7e460c6-2fb9-53a9-8c5b-16f535851c63"
@@ -43,7 +43,7 @@ JLD2 = "0.1.6, 0.2, 0.3, 0.4, 0.5, 0.6"
 JLLWrappers = "1.2.0"
 JSON = "0.21, 1"
 LoggingExtras = "0.4, 1"
-ObjectFile = "0.4.3, 0.5"
+ObjectFile = "0.4.3, 0.5, 0.6"
 Patchelf_jll = "0.14.3"
 PkgLicenses = "0.2"
 Registrator = "1.1"
