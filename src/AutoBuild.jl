@@ -1677,6 +1677,8 @@ function build_jll_package(src_name::String,
 
             # Next, begin placing products
             function global_declaration(p::LibraryProduct, p_info::Dict)
+                # On wasm a library is a static archive for a linker: its product is the path, never dlopen()ed
+                BinaryBuilderBase.iswasm(platform) && return "JLLWrappers.@declare_file_product($(variable_name(p)))"
                 return "JLLWrappers.@declare_library_product($(variable_name(p)), $(repr(p_info["soname"])))"
             end
             global_declaration(p::FrameworkProduct, p_info::Dict) = global_declaration(p.libraryproduct, p_info)
@@ -1714,7 +1716,14 @@ function build_jll_package(src_name::String,
                     p_info["path"] = replace(p_info["path"], "/" => "\\")
                 end
 
-                if p isa LibraryProduct || p isa FrameworkProduct
+                if p isa LibraryProduct && BinaryBuilderBase.iswasm(platform)
+                    println(io, """
+                        JLLWrappers.@init_file_product(
+                            $(vp),
+                            $(repr(p_info["path"])),
+                        )
+                    """)
+                elseif p isa LibraryProduct || p isa FrameworkProduct
                     println(io, """
                         JLLWrappers.@init_library_product(
                             $(vp),
