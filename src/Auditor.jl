@@ -5,7 +5,7 @@ using Base.BinaryPlatforms
 using Pkg
 using ObjectFile
 
-using BinaryBuilderBase: march
+using BinaryBuilderBase: march, iswasm
 
 export audit, collect_files, collapse_symlinks
 
@@ -66,6 +66,7 @@ include("auditor/soname_matching.jl")
 include("auditor/filesystems.jl")
 include("auditor/extra_checks.jl")
 include("auditor/codesigning.jl")
+include("auditor/wasm.jl")
 
 # AUDITOR TODO LIST:
 #
@@ -118,6 +119,11 @@ function audit(prefix::Prefix, src_name::AbstractString = "";
 
     # Translate absolute symlinks to relative symlinks, if possible
     translate_symlinks(prefix.path; verbose=verbose)
+
+    # WebAssembly products are archives of wasm objects, which the ELF/Mach-O/PE checks below don't see
+    if iswasm(platform)
+        all_ok[] &= audit_wasm(prefix, platform; io, verbose, silent)
+    end
 
     # Inspect binary files, looking for improper linkage
     predicate = f -> (filemode(f) & 0o111) != 0 || valid_library_path(f, platform)
