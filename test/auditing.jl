@@ -681,7 +681,9 @@ end
 end
 
 @testset "Auditor - rpaths" begin
-    @testset "$platform" for platform in (Platform("x86_64", "linux"; libc="glibc"), Platform("x86_64", "macos"))
+    @testset "$platform" for platform in (Platform("x86_64", "linux"; libc="glibc"),
+                                         Platform("x86_64", "linux"; libc="musl"),
+                                         Platform("x86_64", "macos"))
         mktempdir() do build_path
             build_output_meta = nothing
             @test_logs (:info, "Building for $(triplet(platform))") match_mode=:any begin
@@ -723,8 +725,12 @@ end
             # path handled correctly.
             libfoo_rpaths = Auditor._rpaths(joinpath(testdir, "lib", "libfoo.$(platform_dlext(platform))"))
             @test (Sys.isapple(platform) ? "@loader_path" : "\$ORIGIN") * "/qux" in libfoo_rpaths
+            # On musl, a library with dependencies also needs a plain `$ORIGIN`, through
+            # which JLLWrappers provides the libraries of other JLLs
+            is_musl = Sys.islinux(platform) && libc(platform) == "musl"
+            is_musl && @test "\$ORIGIN" in libfoo_rpaths
             # Currently we don't filter out absolute rpaths for macOS libraries, no good.
-            @test length(libfoo_rpaths) == 1 broken=Sys.isapple(platform)
+            @test length(libfoo_rpaths) == (is_musl ? 2 : 1) broken=Sys.isapple(platform)
         end
     end
 

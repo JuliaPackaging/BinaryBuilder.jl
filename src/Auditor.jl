@@ -506,6 +506,12 @@ function check_dynamic_linkage(oh, prefix, bin_files;
             end
         end
 
+        # A library that depends on another one in the prefix finds it on musl only
+        # through a plain `\$ORIGIN` in its RUNPATH
+        if autofix && length(ignored_libraries) < length(libs)
+            ensure_origin_rpath(prefix, platform, path(oh); verbose, subdir=src_name)
+        end
+
         if verbose && !isempty(ignored_libraries)
             Base.@lock AUDITOR_LOGGING_LOCK @info("$(filename): Ignored system libraries $(join(ignored_libraries, ", "))")
         end

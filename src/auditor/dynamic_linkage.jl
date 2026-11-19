@@ -572,6 +572,32 @@ end
 
 
 """
+    ensure_origin_rpath(prefix, platform, path; verbose=false, subdir="")
+
+On musl, adds a plain `\$ORIGIN` to the RUNPATH of the binary at `path`, if it lacks one.
+musl's loader never matches a dependency by name against a library that was loaded by
+path, so JLLWrappers opens each library on musl through a directory of symlinks to the
+libraries loaded so far; a dependency is then found through `\$ORIGIN`, which names that
+directory.  Other entries, such as `\$ORIGIN/../lib`, don't point into it.
+"""
+function ensure_origin_rpath(prefix::Prefix, platform::AbstractPlatform, path::AbstractString;
+                             verbose::Bool=false, subdir::AbstractString="")
+    (Sys.islinux(platform) && libc(platform) == "musl") || return
+    with_patchelf_lock(path) do
+        rpaths = [r for r in _rpaths(path) if !isempty(r) && !startswith(r, "/workspace")]
+        any(r -> r in ("\$ORIGIN", "\${ORIGIN}", "\$ORIGIN/", "\$ORIGIN/."), rpaths) && return
+        if verbose
+            Base.@lock AUDITOR_LOGGING_LOCK @info("$(relpath(path, prefix.path)): Adding \$ORIGIN to the RUNPATH for musl")
+        end
+        rpath_str = join(vcat(rpaths, "\$ORIGIN"), ':')
+        cmd = `$(patchelf()) $(patchelf_flags(platform)) --set-rpath $(rpath_str) $(path)`
+        with_logfile(prefix, "musl_origin_rpath_$(basename(path)).log"; subdir) do io
+            run_with_io(io, cmd)
+        end
+    end
+end
+
+"""
     is_troublesome_library_link(libname::AbstractString, platform::AbstractPlatform)
 
 Return `true` if depending on `libname` is known to cause problems at runtime, `false` otherwise.
